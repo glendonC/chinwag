@@ -1,3 +1,9 @@
+// Worker entry point — HTTP routing, auth, and request handling.
+// Uses DO RPC for all Durable Object communication.
+// Auth flow: Bearer token → KV lookup → user_id → DO.getUser(id)
+
+import { checkContent, isBlocked, checkRateLimit } from './moderation.js';
+
 export { DatabaseDO } from './db.js';
 export { LobbyDO } from './lobby.js';
 export { RoomDO } from './room.js';
@@ -8,7 +14,6 @@ export default {
     const method = request.method;
     const path = url.pathname;
 
-    // CORS headers for all responses
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -36,7 +41,7 @@ export default {
         }
 
         if (method === 'GET' && path === '/me') {
-          response = await handleMe(user, env);
+          response = json(user);
         } else if (method === 'POST' && path === '/notes') {
           response = await handlePostNote(request, user, env);
         } else if (method === 'GET' && path === '/notes/inbox') {
@@ -65,10 +70,7 @@ export default {
       for (const [k, v] of Object.entries(corsHeaders)) {
         headers.set(k, v);
       }
-      return new Response(response.body, {
-        status: response.status,
-        headers,
-      });
+      return new Response(response.body, { status: response.status, headers });
     } catch (err) {
       console.error('Request error:', err);
       return json({ error: 'Internal server error' }, 500, corsHeaders);
@@ -80,49 +82,49 @@ export default {
 
 async function authenticate(request, env) {
   const auth = request.headers.get('Authorization');
-  if (!auth || !auth.startsWith('Bearer ')) return null;
+  if (!auth?.startsWith('Bearer ')) return null;
   const token = auth.slice(7);
 
-  const handle = await env.AUTH_KV.get(`token:${token}`);
-  if (!handle) return null;
+  // KV stores token → user_id
+  let userId = await env.AUTH_KV.get(`token:${token}`);
+
+  if (!userId) return null;
 
   const db = getDB(env);
-  const res = await db.fetch(new Request('https://db/rpc', {
-    method: 'POST',
-    body: JSON.stringify({ method: 'getUser', args: [handle] }),
-  }));
-  const user = await res.json();
-  return user || null;
+
+  // Lazy migration: if KV value is a handle (not a UUID), look up by handle and update KV
+  if (!userId.includes('-')) {
+    const user = await db.getUserByHandle(userId);
+    if (!user) return null;
+    // Update KV to store user_id instead of handle
+    await env.AUTH_KV.put(`token:${token}`, user.id);
+    return user;
+  }
+
+  return await db.getUser(userId);
 }
 
 // --- Route handlers ---
 
 async function handleInit(request, env) {
-  const body = await request.json().catch(() => ({}));
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
   const db = getDB(env);
 
-  const res = await db.fetch(new Request('https://db/rpc', {
-    method: 'POST',
-    body: JSON.stringify({ method: 'createUser', args: [body] }),
-  }));
-  const user = await res.json();
+  // IP-based account creation limit (3 per day)
+  const limit = await db.checkIpLimit(ip, 3);
+  if (!limit.allowed) {
+    return json({ error: 'Too many accounts created today. Try again tomorrow.' }, 429);
+  }
 
+  const user = await db.createUser();
   if (user.error) {
     return json({ error: user.error }, 400);
   }
 
-  // Store token → handle mapping in KV for fast auth lookups
-  await env.AUTH_KV.put(`token:${user.token}`, user.handle);
+  // Store token → user_id in KV
+  await env.AUTH_KV.put(`token:${user.token}`, user.id);
 
-  return json({
-    handle: user.handle,
-    color: user.color,
-    token: user.token,
-  }, 201);
-}
-
-async function handleMe(user, env) {
-  return json(user);
+  return json({ handle: user.handle, color: user.color, token: user.token }, 201);
 }
 
 async function handleUpdateHandle(request, user, env) {
@@ -132,19 +134,13 @@ async function handleUpdateHandle(request, user, env) {
   }
 
   const db = getDB(env);
-  const res = await db.fetch(new Request('https://db/rpc', {
-    method: 'POST',
-    body: JSON.stringify({ method: 'updateHandle', args: [user.handle, handle] }),
-  }));
-  const result = await res.json();
+  const result = await db.updateHandle(user.id, handle);
 
   if (result.error) {
     return json({ error: result.error }, 400);
   }
 
-  // Update KV token mapping to new handle
-  await env.AUTH_KV.put(`token:${user.token}`, handle);
-
+  // No KV update needed — KV maps token → user_id, not handle
   return json(result);
 }
 
@@ -155,11 +151,7 @@ async function handleUpdateColor(request, user, env) {
   }
 
   const db = getDB(env);
-  const res = await db.fetch(new Request('https://db/rpc', {
-    method: 'POST',
-    body: JSON.stringify({ method: 'updateColor', args: [user.handle, color] }),
-  }));
-  const result = await res.json();
+  const result = await db.updateColor(user.id, color);
 
   if (result.error) {
     return json({ error: result.error }, 400);
@@ -176,12 +168,14 @@ async function handlePostNote(request, user, env) {
     return json({ error: 'Message must be 280 characters or less' }, 400);
   }
 
+  // Two-layer content check: blocklist (instant) + AI (async)
+  const modResult = await checkContent(message, env);
+  if (modResult.blocked) {
+    return json({ error: 'Message could not be posted. Please revise.' }, 400);
+  }
+
   const db = getDB(env);
-  const res = await db.fetch(new Request('https://db/rpc', {
-    method: 'POST',
-    body: JSON.stringify({ method: 'postNote', args: [user.handle, message] }),
-  }));
-  const result = await res.json();
+  const result = await db.postNote(user.id, message);
 
   if (result.error) {
     return json({ error: result.error }, 400);
@@ -191,26 +185,15 @@ async function handlePostNote(request, user, env) {
 
 async function handleInbox(user, env) {
   const db = getDB(env);
-  const res = await db.fetch(new Request('https://db/rpc', {
-    method: 'POST',
-    body: JSON.stringify({ method: 'getInbox', args: [user.handle] }),
-  }));
-  const result = await res.json();
-  return json(result);
+  return json(await db.getInbox(user.id));
 }
 
 async function handleFeed(url, user, env) {
   const cursor = url.searchParams.get('cursor') || null;
   const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50);
-  const excludeHandle = user?.handle || null;
 
   const db = getDB(env);
-  const res = await db.fetch(new Request('https://db/rpc', {
-    method: 'POST',
-    body: JSON.stringify({ method: 'getFeed', args: [limit, cursor, excludeHandle] }),
-  }));
-  const result = await res.json();
-  return json(result);
+  return json(await db.getFeed(limit, cursor, user.id));
 }
 
 async function handleSetStatus(request, user, env) {
@@ -222,59 +205,58 @@ async function handleSetStatus(request, user, env) {
     return json({ error: 'Status must be 280 characters or less' }, 400);
   }
 
+  const modResult = await checkContent(status, env);
+  if (modResult.blocked) {
+    return json({ error: 'Status could not be set. Please revise.' }, 400);
+  }
+
   const db = getDB(env);
-  await db.fetch(new Request('https://db/rpc', {
-    method: 'POST',
-    body: JSON.stringify({ method: 'setStatus', args: [user.handle, status] }),
-  }));
+  await db.setStatus(user.id, status);
   return json({ ok: true });
 }
 
 async function handleClearStatus(user, env) {
   const db = getDB(env);
-  await db.fetch(new Request('https://db/rpc', {
-    method: 'POST',
-    body: JSON.stringify({ method: 'setStatus', args: [user.handle, null] }),
-  }));
+  await db.setStatus(user.id, null);
   return json({ ok: true });
 }
 
 async function handleHeartbeat(user, env) {
   const lobby = getLobby(env);
-  await lobby.fetch(new Request('https://lobby/heartbeat', {
-    method: 'POST',
-    body: JSON.stringify({ handle: user.handle }),
-  }));
+  await lobby.heartbeat(user.handle);
   return json({ ok: true });
 }
 
 async function handleStats(env) {
-  const lobby = getLobby(env);
-  const res = await lobby.fetch(new Request('https://lobby/stats'));
-  const stats = await res.json();
-
-  const db = getDB(env);
-  const dbRes = await db.fetch(new Request('https://db/rpc', {
-    method: 'POST',
-    body: JSON.stringify({ method: 'getStats', args: [] }),
-  }));
-  const dbStats = await dbRes.json();
-
-  return json({ ...dbStats, ...stats });
+  const [lobbyStats, dbStats] = await Promise.all([
+    getLobby(env).getStats(),
+    getDB(env).getStats(),
+  ]);
+  return json({ ...dbStats, ...lobbyStats });
 }
 
 async function handleChatUpgrade(request, user, env) {
+  // New accounts must wait 5 minutes before joining chat
+  const CHAT_COOLDOWN_MS = 5 * 60 * 1000;
+  const accountAge = Date.now() - new Date(user.created_at).getTime();
+  if (accountAge < CHAT_COOLDOWN_MS) {
+    const secsLeft = Math.ceil((CHAT_COOLDOWN_MS - accountAge) / 1000);
+    return json(
+      { error: `New accounts must wait before joining chat. ${secsLeft}s remaining.` },
+      429,
+      {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      }
+    );
+  }
+
   const lobby = getLobby(env);
   const shuffle = new URL(request.url).searchParams.get('shuffle') === '1';
 
-  // Ask lobby for a room assignment
-  const assignRes = await lobby.fetch(new Request('https://lobby/assign', {
-    method: 'POST',
-    body: JSON.stringify({ handle: user.handle, shuffle }),
-  }));
-  const { roomId } = await assignRes.json();
+  const { roomId } = await lobby.assignRoom(user.handle, shuffle);
 
-  // Forward the WebSocket upgrade to the assigned room
+  // Forward WebSocket upgrade to the assigned Room DO
   const roomStub = env.ROOM.get(env.ROOM.idFromName(roomId));
   const roomUrl = new URL(request.url);
   roomUrl.pathname = '/ws';
@@ -289,13 +271,11 @@ async function handleChatUpgrade(request, user, env) {
 // --- Helpers ---
 
 function getDB(env) {
-  const id = env.DATABASE.idFromName('main');
-  return env.DATABASE.get(id);
+  return env.DATABASE.get(env.DATABASE.idFromName('main'));
 }
 
 function getLobby(env) {
-  const id = env.LOBBY.idFromName('main');
-  return env.LOBBY.get(id);
+  return env.LOBBY.get(env.LOBBY.idFromName('main'));
 }
 
 function json(data, status = 200, extraHeaders = {}) {

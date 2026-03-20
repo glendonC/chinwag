@@ -11,10 +11,15 @@ export function Chat({ config, user, navigate }) {
   const [connected, setConnected] = useState(false);
   const [roomCount, setRoomCount] = useState(0);
   const wsRef = useRef(null);
+  const retryRef = useRef(0);
+  const retryTimerRef = useRef(null);
+  const intentionalCloseRef = useRef(false);
 
   useEffect(() => {
     connect();
     return () => {
+      intentionalCloseRef.current = true;
+      clearTimeout(retryTimerRef.current);
       if (wsRef.current) {
         wsRef.current.close();
       }
@@ -31,6 +36,7 @@ export function Chat({ config, user, navigate }) {
 
     ws.addEventListener('open', () => {
       setConnected(true);
+      retryRef.current = 0; // Reset backoff on successful connection
     });
 
     ws.addEventListener('message', (event) => {
@@ -39,6 +45,15 @@ export function Chat({ config, user, navigate }) {
       if (data.type === 'history') {
         setMessages(data.messages || []);
         setRoomCount(data.roomCount || 0);
+        return;
+      }
+
+      if (data.type === 'system') {
+        setMessages(prev => [...prev.slice(-49), {
+          type: 'system',
+          content: data.content,
+          timestamp: new Date().toISOString(),
+        }]);
         return;
       }
 
@@ -59,6 +74,9 @@ export function Chat({ config, user, navigate }) {
 
     ws.addEventListener('close', () => {
       setConnected(false);
+      if (!intentionalCloseRef.current) {
+        scheduleReconnect();
+      }
     });
 
     ws.addEventListener('error', () => {
@@ -66,6 +84,17 @@ export function Chat({ config, user, navigate }) {
     });
 
     wsRef.current = ws;
+  }
+
+  function scheduleReconnect() {
+    // Exponential backoff: 1s, 2s, 4s, 8s, max 15s
+    const delay = Math.min(1000 * Math.pow(2, retryRef.current), 15000);
+    retryRef.current++;
+    retryTimerRef.current = setTimeout(() => {
+      if (!intentionalCloseRef.current) {
+        connect();
+      }
+    }, delay);
   }
 
   function send() {
@@ -78,11 +107,14 @@ export function Chat({ config, user, navigate }) {
   }
 
   function shuffle() {
+    intentionalCloseRef.current = true;
+    clearTimeout(retryTimerRef.current);
     if (wsRef.current) {
       wsRef.current.close();
     }
     setMessages([]);
     setConnected(false);
+    intentionalCloseRef.current = false;
     connect(true);
   }
 

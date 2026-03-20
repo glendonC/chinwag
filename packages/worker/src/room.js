@@ -1,57 +1,51 @@
 // Room Durable Object — handles WebSocket connections for a single chat room.
 // Each room is an independent DO instance, coordinated by the Lobby.
+// Uses fetch() for WebSocket upgrades, RPC for Lobby communication.
+
+import { DurableObject } from 'cloudflare:workers';
+import { isBlocked, checkRateLimit } from './moderation.js';
 
 const MAX_HISTORY = 50;
 const MAX_MESSAGE_LENGTH = 280;
+const MAX_CHAT_PER_MINUTE = 10;
 
-export class RoomDO {
-  constructor(state, env) {
-    this.state = state;
-    this.env = env;
-    // Map of WebSocket -> { handle, color }
+export class RoomDO extends DurableObject {
+  constructor(ctx, env) {
+    super(ctx, env);
+    // WebSocket → { handle, color }
     this.sessions = new Map();
-    // Recent message history
     this.history = [];
     this.roomId = null;
   }
 
   async fetch(request) {
     const url = new URL(request.url);
-
     if (url.pathname !== '/ws') {
       return new Response('Not found', { status: 404 });
     }
 
-    // Extract user info from query params (set by the Worker router)
     const handle = url.searchParams.get('handle');
     const color = url.searchParams.get('color');
-
     if (!handle || !color) {
       return new Response('Missing user info', { status: 400 });
     }
 
-    // Store roomId from the DO name for lobby updates
     if (!this.roomId) {
       this.roomId = url.searchParams.get('roomId') || 'unknown';
     }
 
-    // Create WebSocket pair
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
 
-    this.state.acceptWebSocket(server, [handle]);
-
-    // Store session info
+    this.ctx.acceptWebSocket(server, [handle]);
     this.sessions.set(server, { handle, color });
 
-    // Send history to the new connection
     server.send(JSON.stringify({
       type: 'history',
       messages: this.history,
       roomCount: this.sessions.size,
     }));
 
-    // Broadcast join to others
     this.broadcast({
       type: 'join',
       handle,
@@ -59,8 +53,7 @@ export class RoomDO {
       roomCount: this.sessions.size,
     }, server);
 
-    // Notify lobby of updated count
-    await this.updateLobbyCount();
+    await this.#updateLobbyCount();
 
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -80,6 +73,22 @@ export class RoomDO {
       const content = (data.content || '').trim();
       if (!content || content.length > MAX_MESSAGE_LENGTH) return;
 
+      if (!checkRateLimit(`chat:${session.handle}`, MAX_CHAT_PER_MINUTE)) {
+        ws.send(JSON.stringify({
+          type: 'system',
+          content: 'Slow down — max 10 messages per minute.',
+        }));
+        return;
+      }
+
+      if (isBlocked(content)) {
+        ws.send(JSON.stringify({
+          type: 'system',
+          content: 'Message not sent. Please keep chat respectful.',
+        }));
+        return;
+      }
+
       const message = {
         type: 'message',
         handle: session.handle,
@@ -88,26 +97,24 @@ export class RoomDO {
         timestamp: new Date().toISOString(),
       };
 
-      // Add to history
       this.history.push(message);
       if (this.history.length > MAX_HISTORY) {
         this.history.shift();
       }
 
-      // Broadcast to all including sender
       this.broadcast(message);
     }
   }
 
   async webSocketClose(ws) {
-    await this.handleDisconnect(ws);
+    await this.#handleDisconnect(ws);
   }
 
   async webSocketError(ws) {
-    await this.handleDisconnect(ws);
+    await this.#handleDisconnect(ws);
   }
 
-  async handleDisconnect(ws) {
+  async #handleDisconnect(ws) {
     const session = this.sessions.get(ws);
     this.sessions.delete(ws);
 
@@ -119,37 +126,22 @@ export class RoomDO {
       });
     }
 
-    await this.updateLobbyCount();
+    await this.#updateLobbyCount();
   }
 
   broadcast(message, exclude = null) {
     const data = JSON.stringify(message);
     for (const [ws] of this.sessions) {
       if (ws !== exclude) {
-        try {
-          ws.send(data);
-        } catch {
-          // Connection dead, will be cleaned up on close event
-        }
+        try { ws.send(data); } catch { /* dead connection */ }
       }
     }
   }
 
-  async updateLobbyCount() {
+  async #updateLobbyCount() {
     try {
-      const lobbyId = this.env.LOBBY.idFromName('main');
-      const lobby = this.env.LOBBY.get(lobbyId);
-
-      // Extract room ID from the DO's own ID
-      const roomId = this.roomId || 'unknown';
-
-      await lobby.fetch(new Request('https://lobby/update', {
-        method: 'POST',
-        body: JSON.stringify({
-          roomId,
-          count: this.sessions.size,
-        }),
-      }));
+      const lobby = this.env.LOBBY.get(this.env.LOBBY.idFromName('main'));
+      await lobby.updateRoomCount(this.roomId || 'unknown', this.sessions.size);
     } catch (err) {
       console.error('Failed to update lobby:', err);
     }

@@ -2,7 +2,11 @@ name = "chinwag-api"
 main = "src/index.js"
 compatibility_date = "2024-12-01"
 
-# KV namespace for token-to-handle auth lookups
+# Workers AI for content moderation (Llama Guard 3)
+[ai]
+binding = "AI"
+
+# KV namespace for token-to-user-id auth lookups
 [[kv_namespaces]]
 binding = "AUTH_KV"
 id = "794f49e45d904b09ab100f81807dc3c0"
