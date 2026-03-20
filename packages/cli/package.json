@@ -1,0 +1,33 @@
+{
+  "name": "chinwag",
+  "version": "0.1.0",
+  "description": "The developer community that lives in your terminal",
+  "type": "module",
+  "bin": {
+    "chinwag": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "esbuild cli.jsx --bundle --platform=node --format=esm --outfile=dist/cli.js --external:ink --external:react --external:ink-text-input && node -e \"const f=require('fs');const c=f.readFileSync('dist/cli.js','utf8');f.writeFileSync('dist/cli.js','#!/usr/bin/env node\\n'+c)\"",
+    "dev": "npm run build && node dist/cli.js",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "ink": "^5.1.0",
+    "ink-text-input": "^6.0.0",
+    "react": "^18.3.1"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "keywords": [
+    "cli",
+    "developer",
+    "community",
+    "terminal",
+    "social"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.27.4"
+  }
+}

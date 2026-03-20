@@ -1,0 +1,26 @@
+name = "chinwag-api"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+
+# KV namespace for token-to-handle auth lookups
+[[kv_namespaces]]
+binding = "AUTH_KV"
+id = "794f49e45d904b09ab100f81807dc3c0"
+
+# Durable Objects
+[[durable_objects.bindings]]
+name = "DATABASE"
+class_name = "DatabaseDO"
+
+[[durable_objects.bindings]]
+name = "LOBBY"
+class_name = "LobbyDO"
+
+[[durable_objects.bindings]]
+name = "ROOM"
+class_name = "RoomDO"
+
+# DO migrations
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["DatabaseDO", "LobbyDO", "RoomDO"]

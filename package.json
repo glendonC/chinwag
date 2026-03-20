@@ -1,0 +1,13 @@
+{
+  "name": "chinwag-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/cli",
+    "packages/worker"
+  ],
+  "scripts": {
+    "dev:cli": "npm run dev --workspace=packages/cli",
+    "dev:worker": "npm run dev --workspace=packages/worker",
+    "deploy": "npm run deploy --workspace=packages/worker"
+  }
+}
