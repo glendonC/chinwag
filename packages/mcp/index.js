@@ -203,11 +203,9 @@ function registerTools(server, client, team, getTeamId) {
 
 function registerResources(server, client, cachedProfile) {
   server.resource(
+    'profile',
     'chinwag://profile',
-    {
-      description: 'Your agent profile — languages, frameworks, tools detected from your environment.',
-      mimeType: 'application/json',
-    },
+    { description: 'Your agent profile — languages, frameworks, tools detected from your environment.', mimeType: 'application/json' },
     async () => ({
       contents: [{
         uri: 'chinwag://profile',
@@ -218,11 +216,9 @@ function registerResources(server, client, cachedProfile) {
   );
 
   server.resource(
+    'dashboard',
     'chinwag://dashboard',
-    {
-      description: 'Agent dashboard — skills absorbed, contributed, network stats.',
-      mimeType: 'application/json',
-    },
+    { description: 'Agent dashboard — skills absorbed, contributed, network stats.', mimeType: 'application/json' },
     async () => {
       try {
         const data = await client.get('/agent/dashboard');
