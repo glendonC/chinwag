@@ -337,9 +337,7 @@ async function handleAgentDashboard(user, env) {
   const profile = await db.getAgentProfile(user.id);
   return json({
     profile: profile || null,
-    skills_absorbed: 0,
-    skills_contributed: 0,
-    network_resolutions: 0,
+    connected_agents: 0,
   });
 }
 

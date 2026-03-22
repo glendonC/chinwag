@@ -36,3 +36,4 @@ new_sqlite_classes = ["DatabaseDO", "LobbyDO", "RoomDO"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["TeamDO"]
+

@@ -182,10 +182,12 @@ function registerTools(server, client, team, getTeamId) {
     }
   );
 
+  // --- Dashboard ---
+
   server.tool(
     'chinwag_get_dashboard',
     {
-      description: 'Get your agent metrics on the chinwag network: profile, skills absorbed, skills contributed.',
+      description: 'Get your agent dashboard on chinwag: profile and connected agents.',
       inputSchema: z.object({}),
     },
     async () => {
@@ -218,7 +220,7 @@ function registerResources(server, client, cachedProfile) {
   server.resource(
     'dashboard',
     'chinwag://dashboard',
-    { description: 'Agent dashboard — skills absorbed, contributed, network stats.', mimeType: 'application/json' },
+    { description: 'Agent dashboard — profile and connected agents.', mimeType: 'application/json' },
     async () => {
       try {
         const data = await client.get('/agent/dashboard');
