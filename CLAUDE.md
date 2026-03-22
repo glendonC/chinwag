@@ -3,8 +3,7 @@
 **Primary docs:**
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system design, code map, data flow, design decisions
-- [`docs/AGENT_LAYER.md`](docs/AGENT_LAYER.md) — agent skill network design, scenarios, UX flow
-- [`docs/AGENT_IMPLEMENTATION.md`](docs/AGENT_IMPLEMENTATION.md) — concrete implementation plan, PRs, schemas, file changes
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — what to build next, concrete tasks
 - [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) — dev setup, code style, PR process
 - [`SECURITY.md`](SECURITY.md) — vulnerability reporting, threat model, safe harbor
 
@@ -13,7 +12,7 @@
 Monorepo with four packages:
 
 - **`packages/cli/`** — Node.js CLI built with Ink (React for terminals). Entry: `cli.jsx`, screens in `lib/`. Built with esbuild → `dist/cli.js`. Requires Node 22+ (native WebSocket).
-- **`packages/worker/`** — Cloudflare Workers backend. Durable Objects for data (DatabaseDO), chat rooms (RoomDO), presence (LobbyDO), skills (SkillRegistryDO), and team coordination (TeamDO). KV for auth token lookups only. R2 for SKILL.md storage.
+- **`packages/worker/`** — Cloudflare Workers backend. Durable Objects for data (DatabaseDO), chat rooms (RoomDO), presence (LobbyDO), and team coordination (TeamDO). KV for auth token lookups only.
 - **`packages/mcp/`** — MCP server for agent connection. Runs locally on the developer's machine, wraps the REST API. Reads `~/.chinwag/config.json` for auth (same token as CLI).
 - **`packages/web/`** — Landing page at chinwag.dev. Static HTML/CSS/JS on Cloudflare Pages.
 
@@ -34,9 +33,13 @@ Do not solve problems with static lists, hardcoded values, or patterns that requ
 
 This same principle applies everywhere: prefer intelligent systems over growing config files.
 
-### Vision: The network that makes your agent smarter
+### Vision: Your dev home in the terminal
 
-chinwag is a network where developers and their AI agents coexist. Developers chat in global rooms. Their agents (Claude Code, Codex, etc.) connect to the same network, where they discover, exchange, and absorb knowledge from other agents — getting smarter without their owner lifting a finger. The human community and the agent skill network ship together as one product.
+chinwag is two things in one terminal: an agent dashboard and a developer community.
+
+**Agent dashboard:** Connect all your AI agents (Claude Code, Codex, Cursor — anything that speaks MCP). See what each is doing, prevent conflicts when they touch the same files, and build up project knowledge across sessions so agents stop re-discovering the same things. Works solo. Works with your team.
+
+**Developer community:** Chat with other developers without leaving your terminal. Post a daily note about what you're building to unlock chat and get someone else's note back. No doomscrolling, no algorithms.
 
 ## Commands
 
@@ -63,7 +66,7 @@ Every change must pass these checks. These are not aspirational — they are blo
 
 - **Every read endpoint must verify the caller has access.** If data is scoped to a team, room, or user — check membership before returning it. Never assume the URL is proof of authorization. Unauthenticated reads are bugs.
 - **Every write endpoint must validate and sanitize input.** Accept only known fields. Cap string lengths. Ensure arrays contain the expected types. Reject unexpected shapes. No raw body passthrough to storage.
-- **Every creation endpoint must be rate-limited.** If a user can create unbounded resources (teams, skills, accounts, notes), add a per-user or per-IP daily limit. Use the existing `account_limits` table pattern.
+- **Every creation endpoint must be rate-limited.** If a user can create unbounded resources (teams, accounts, notes), add a per-user or per-IP daily limit. Use the existing `account_limits` table pattern.
 - **Never expose internal IDs, DO names, or server internals** in API responses. Return only what the client needs.
 
 ### Robustness
