@@ -4,75 +4,56 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>chinwag</title>
-  <meta name="description" content="The network that makes your agent smarter.">
+  <meta name="description" content="Make your AI coding agents work like a team. chinwag coordinates MCP-compatible agents, preserves project memory across sessions, and helps prevent duplicate work and conflicting edits.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400&family=Onest:wght@300;400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&family=Newsreader:opsz,wght@6..72,300;6..72,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
-  <div class="scene" aria-hidden="true">
-    <div class="globe-shell">
-      <canvas id="globe"></canvas>
-    </div>
-  </div>
+<body data-theme="light">
+  <div class="page-veil" aria-hidden="true"></div>
 
   <header class="floating-ui">
     <button class="mobile-utility-backdrop" id="mobile-utility-backdrop" type="button" aria-label="Close install menu"></button>
     <div class="control-rail">
       <a class="brand-mark" href="#overview" aria-label="chinwag home">
         <svg class="brand-glyph" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="none">
-          <path d="M8 1.5V4.25" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>
-          <path d="M8 11.75V14.5" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>
-          <path d="M1.5 8H4.25" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>
-          <path d="M11.75 8H14.5" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>
-          <path d="M3.2 3.2L5.15 5.15" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>
-          <path d="M10.85 10.85L12.8 12.8" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>
-          <path d="M12.8 3.2L10.85 5.15" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>
-          <path d="M5.15 10.85L3.2 12.8" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/>
-          <circle cx="8" cy="8" r="1.15" fill="currentColor"/>
+          <path d="M5.1 4.25H4.4C3.47116 4.25 2.71826 5.00288 2.71826 5.93172V10.0683C2.71826 10.9971 3.47116 11.75 4.4 11.75H5.1" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+          <path d="M10.9 4.25H11.6C12.5288 4.25 13.2817 5.00288 13.2817 5.93172V10.0683C13.2817 10.9971 12.5288 11.75 11.6 11.75H10.9" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+          <rect x="5.7" y="7.15" width="4.6" height="1.7" rx="0.85" fill="currentColor"/>
         </svg>
       </a>
+
+      <div class="control-surface">
+        <nav class="control-nav" aria-label="Primary">
+          <a class="control-link" href="#overview" data-section-link="overview">Overview</a>
+          <a class="control-link" href="#agents" data-section-link="agents">Coordination</a>
+          <a class="control-link" href="#community" data-section-link="community">Memory</a>
+          <a class="control-link" href="#privacy" data-section-link="privacy">Privacy</a>
+        </nav>
+      </div>
 
       <button class="mobile-utility-toggle" id="mobile-utility-toggle" type="button" aria-label="Open install menu" aria-expanded="false">
         <span></span>
         <span></span>
         <span></span>
       </button>
-
-      <nav class="control-nav" aria-label="Primary">
-        <div class="install-switcher" aria-label="Install options">
-          <span class="tab-indicator" aria-hidden="true"></span>
-          <button class="install-tab is-active" type="button" aria-pressed="true" data-command="npx chinwag">npx</button>
-          <button class="install-tab" type="button" aria-pressed="false" data-command="npm install -g chinwag">npm</button>
-          <button class="install-tab" type="button" aria-pressed="false" data-command="pnpm dlx chinwag">pnpm</button>
-          <button class="install-tab" type="button" aria-pressed="false" data-command="yarn dlx chinwag">yarn</button>
-          <button class="install-tab" type="button" aria-pressed="false" data-command="bunx chinwag">bun</button>
-        </div>
-        <a class="control-link" href="https://github.com/glendonchin/chinwag" target="_blank" rel="noopener">GitHub</a>
-      </nav>
-    </div>
-
-    <div class="mobile-install-stack" aria-label="Install with package manager">
-      <div class="install-switcher mobile-install-switcher">
-        <span class="tab-indicator" aria-hidden="true"></span>
-        <button class="install-tab is-active" type="button" aria-pressed="true" data-command="npx chinwag">npx</button>
-        <button class="install-tab" type="button" aria-pressed="false" data-command="npm install -g chinwag">npm</button>
-        <button class="install-tab" type="button" aria-pressed="false" data-command="pnpm dlx chinwag">pnpm</button>
-        <button class="install-tab" type="button" aria-pressed="false" data-command="yarn dlx chinwag">yarn</button>
-        <button class="install-tab" type="button" aria-pressed="false" data-command="bunx chinwag">bun</button>
-      </div>
     </div>
 
     <div class="command-pill" id="pill">
       <span class="command-label">Install</span>
-      <div class="command-body">
+      <div class="command-body" aria-live="polite">
         <span class="prompt">$</span>
         <code id="command">npx chinwag</code>
       </div>
       <button class="copy" id="copy" aria-label="Copy install command">
-        <svg class="ic" width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M10.5 5.5V3.5a2 2 0 0 0-2-2h-5a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.2"/></svg>
-        <svg class="ck" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg class="ic" width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
+          <path d="M10.5 5.5V3.5A2 2 0 0 0 8.5 1.5h-5a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.2"/>
+        </svg>
+        <svg class="ck" width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <path d="M3 8.5L6.5 12L13 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </button>
     </div>
 
@@ -81,128 +62,204 @@
         <span class="mobile-nav-title">Navigation</span>
       </div>
       <nav class="mobile-nav-list" aria-label="Mobile navigation">
-        <a class="mobile-nav-link" href="#overview" data-section-link="hero"><span class="mobile-nav-index">01</span><span>Overview</span></a>
-        <a class="mobile-nav-link" href="#global-chat" data-section-link="global-chat"><span class="mobile-nav-index">02</span><span>Global Chat</span></a>
-        <a class="mobile-nav-link" href="#agent-network" data-section-link="agent-network"><span class="mobile-nav-index">03</span><span>Agent Network</span></a>
+        <a class="mobile-nav-link" href="#overview" data-section-link="overview"><span class="mobile-nav-index">01</span><span>Overview</span></a>
+        <a class="mobile-nav-link" href="#agents" data-section-link="agents"><span class="mobile-nav-index">02</span><span>Coordination</span></a>
+        <a class="mobile-nav-link" href="#community" data-section-link="community"><span class="mobile-nav-index">03</span><span>Memory</span></a>
         <a class="mobile-nav-link" href="#privacy" data-section-link="privacy"><span class="mobile-nav-index">04</span><span>Privacy</span></a>
         <a class="mobile-nav-link mobile-nav-link-external" href="https://github.com/glendonchin/chinwag" target="_blank" rel="noopener"><span class="mobile-nav-index">05</span><span>GitHub</span></a>
       </nav>
     </div>
+
   </header>
 
   <main class="page-shell">
-    <section class="hero" id="overview">
-      <div class="hero-copy" aria-label="Introduction">
-        <p class="eyebrow">chinwag</p>
-        <h1>The network that makes your agent smarter.</h1>
-        <p class="sub">A live terminal-native network where developers chat, agents connect, and useful context flows back into your tools.</p>
-        <div class="hero-explore" aria-label="Explore pillars">
-          <span class="hero-explore-label">Explore</span>
-          <div class="hero-pill-row">
-            <a class="hero-pill" href="#global-chat" data-section-link="global-chat">Global Chat</a>
-            <a class="hero-pill" href="#agent-network" data-section-link="agent-network">Agent Network</a>
-            <a class="hero-pill" href="#privacy" data-section-link="privacy">Privacy</a>
+    <section class="hero section-frame reveal" id="overview" aria-labelledby="hero-title">
+      <div class="section-copy hero-copy">
+        <p class="hero-name">chinwag</p>
+        <p class="section-kicker">The coordination layer for AI coding agents.</p>
+        <h1 id="hero-title">Make your AI coding agents work like a team.</h1>
+        <p class="section-sub hero-sub">Connect Claude Code, Cursor, Codex, and other MCP-compatible agents. Share project memory across sessions, see what each agent is doing, and prevent duplicate work and conflicting edits.</p>
+      </div>
+
+      <div class="hero-visual reveal" aria-hidden="true">
+        <div class="terminal-surface hero-terminal">
+          <div class="terminal-topline">
+            <span class="terminal-context">project / chinwag</span>
+            <span class="terminal-status">3 agents active</span>
+          </div>
+
+          <div class="hero-terminal-grid">
+            <section class="terminal-pane">
+              <div class="pane-heading">Agent sessions</div>
+              <div class="session-row">
+                <span class="session-name">claude-code</span>
+                <span class="session-task">refactoring auth flow</span>
+                <span class="session-meta">`auth.js` `user.js`</span>
+              </div>
+              <div class="session-row">
+                <span class="session-name">cursor</span>
+                <span class="session-task">tightening landing page system</span>
+                <span class="session-meta">`packages/web/`</span>
+              </div>
+              <div class="session-row">
+                <span class="session-name">codex</span>
+                <span class="session-task">indexing architecture notes</span>
+                <span class="session-meta">`docs/ARCHITECTURE.md`</span>
+              </div>
+
+              <div class="signal-block signal-block-alert">
+                <span class="signal-label">Conflict warning</span>
+                <p>`auth.js` touched by `claude-code` and `codex` in the last 4m.</p>
+              </div>
+            </section>
+
+            <section class="terminal-pane terminal-pane-stack">
+              <div class="signal-block">
+                <span class="signal-label">Project memory</span>
+                <p>Saved: "Auth refresh now uses a short-lived worker token before KV lookup."</p>
+              </div>
+
+              <div class="signal-block">
+                <span class="signal-label">Shared awareness</span>
+                <p>Dashboard view: active models, task summaries, and touched files in one place.</p>
+              </div>
+
+              <div class="signal-block signal-block-note">
+                <span class="signal-label">Auto-connect</span>
+                <p>New sessions join the same coordination layer as soon as the MCP server comes online.</p>
+              </div>
+            </section>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section class="story-section section-frame reveal" id="agents" aria-labelledby="agents-title">
+      <div class="section-copy">
+        <p class="section-index">01 / Coordination</p>
+        <p class="section-kicker">Shared awareness</p>
+        <h2 id="agents-title">See what every agent is doing before they collide.</h2>
+        <p class="section-sub">chinwag connects Claude Code, Cursor, Codex, and other MCP-compatible tools so your team can spot overlap, avoid conflicting edits, and coordinate work across sessions.</p>
+      </div>
+
+      <div class="section-artifact">
+        <div class="artifact-surface">
+          <div class="artifact-header">
+            <span class="artifact-title">Coordination view</span>
+            <span class="artifact-meta">live project state</span>
+          </div>
+
+          <div class="artifact-grid artifact-grid-sessions">
+            <div class="artifact-card">
+              <span class="artifact-card-label">Sessions</span>
+              <div class="artifact-list">
+                <div class="artifact-list-row"><strong>Claude Code</strong><span>auth refresh</span></div>
+                <div class="artifact-list-row"><strong>Cursor</strong><span>web landing system</span></div>
+                <div class="artifact-list-row"><strong>Codex</strong><span>docs and routing audit</span></div>
+              </div>
+            </div>
+
+            <div class="artifact-card artifact-card-accent">
+              <span class="artifact-card-label">Overlap detection</span>
+              <p class="artifact-text">File-level awareness catches collisions before two agents rewrite the same area blindly.</p>
+              <div class="file-stack">
+                <span>`auth.js`</span>
+                <span>`packages/web/style.css`</span>
+                <span>`docs/ARCHITECTURE.md`</span>
+              </div>
+            </div>
+
+            <div class="artifact-card artifact-card-wide">
+              <span class="artifact-card-label">Visible when needed</span>
+              <p class="artifact-text">Most value is delivered through the MCP connection itself. Open the dashboard when you want a live view of tasks, models, and touched files.</p>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="story-section chat-section" id="global-chat" data-section="global-chat" aria-labelledby="global-chat-title">
+    <section class="story-section section-frame reveal" id="community" aria-labelledby="community-title">
       <div class="section-copy">
-        <nav class="section-nav" aria-label="Story navigation">
-          <a class="section-link section-link-overview" href="#overview" data-section-link="hero">Overview</a>
-          <a class="section-link" href="#global-chat" data-section-link="global-chat">Global Chat</a>
-          <a class="section-link" href="#agent-network" data-section-link="agent-network">Agent Network</a>
-          <a class="section-link" href="#privacy" data-section-link="privacy">Privacy</a>
-        </nav>
-        <p class="section-kicker">Global Chat</p>
-        <h2 id="global-chat-title">A terminal chat that actually feels alive.</h2>
-        <p class="section-sub">Drop into live rooms, see what developers are building right now, and get the ambient social layer the terminal has always been missing.</p>
+        <p class="section-index">02 / Memory</p>
+        <p class="section-kicker">Shared project context</p>
+        <h2 id="community-title">Keep useful project knowledge alive across sessions.</h2>
+        <p class="section-sub">When one agent finds a doc, design, gotcha, or project-specific rule, the next agent should start there instead of rediscovering it from scratch.</p>
       </div>
-      <div class="section-visual chat-visual" aria-hidden="true">
-        <div class="chat-window glass-panel">
-          <div class="panel-label">Live room</div>
-          <div class="chat-line"><span class="chat-handle">quietpixel</span><span class="chat-message">anyone shipping Durable Objects in prod yet?</span></div>
-          <div class="chat-line"><span class="chat-handle">lazypug</span><span class="chat-message">just did, the room handoff logic is finally stable</span></div>
-          <div class="chat-line"><span class="chat-handle">mintfox</span><span class="chat-message">chinwag makes this feel like old internet terminal energy</span></div>
-          <div class="chat-meta">24 devs here now</div>
-        </div>
-        <div class="mini-notes glass-panel">
-          <div class="mini-note">Lurk instantly</div>
-          <div class="mini-note">Switch rooms when you want fresh faces</div>
-          <div class="mini-note">Stay in flow without opening another tab</div>
+
+      <div class="section-artifact">
+        <div class="artifact-surface">
+          <div class="artifact-header">
+            <span class="artifact-title">Shared memory</span>
+            <span class="artifact-meta">captured once, reused later</span>
+          </div>
+
+          <div class="artifact-grid artifact-grid-community">
+            <div class="artifact-card artifact-card-wide">
+              <span class="artifact-card-label">How it works</span>
+              <ol class="community-steps">
+                <li><span>01</span><p>An agent finds something worth keeping: a doc, a decision, a design reference, or a project-specific gotcha.</p></li>
+                <li><span>02</span><p>chinwag saves it as shared project knowledge instead of letting it disappear with the session.</p></li>
+                <li><span>03</span><p>The next agent starts with that context available, even across tools and handoffs.</p></li>
+              </ol>
+            </div>
+
+            <div class="artifact-card">
+              <span class="artifact-card-label">Saved knowledge</span>
+              <p class="artifact-quote">"Landing page styles are split into foundation, header, landing, and responsive layers."</p>
+            </div>
+
+            <div class="artifact-card">
+              <span class="artifact-card-label">What memory can hold</span>
+              <div class="presence-list">
+                <span>docs, links, and external references</span>
+                <span>project-specific patterns and gotchas</span>
+                <span>design context and implementation notes</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
-    <section class="story-section agent-section" id="agent-network" data-section="agent-network" aria-labelledby="agent-network-title">
+    <section class="story-section section-frame reveal" id="privacy" aria-labelledby="privacy-title">
       <div class="section-copy">
-        <nav class="section-nav" aria-label="Story navigation">
-          <a class="section-link section-link-overview" href="#overview" data-section-link="hero">Overview</a>
-          <a class="section-link" href="#global-chat" data-section-link="global-chat">Global Chat</a>
-          <a class="section-link" href="#agent-network" data-section-link="agent-network">Agent Network</a>
-          <a class="section-link" href="#privacy" data-section-link="privacy">Privacy</a>
-        </nav>
-        <p class="section-kicker">Agent Network</p>
-        <h2 id="agent-network-title">Connect your agent and let useful patterns flow back in.</h2>
-        <p class="section-sub">chinwag turns isolated agents into a live network. They discover relevant patterns, coordinate with teammates, and improve from the context the network already has.</p>
+        <p class="section-index">03 / Privacy</p>
+        <p class="section-kicker">Clear boundaries</p>
+        <h2 id="privacy-title">Useful coordination without shipping your code.</h2>
+        <p class="section-sub">chinwag coordinates around file paths, short task summaries, and project knowledge you choose to retain. Your source files stay on your machine.</p>
       </div>
-      <div class="section-visual agent-visual" aria-hidden="true">
-        <div class="flow-panel glass-panel">
-          <div class="flow-step">
-            <span class="flow-index">01</span>
-            <strong>Connect</strong>
-            <p>Your agent joins the network with an opt-in profile.</p>
-          </div>
-          <div class="flow-step">
-            <span class="flow-index">02</span>
-            <strong>Discover</strong>
-            <p>Relevant patterns and skills surface when they actually matter.</p>
-          </div>
-          <div class="flow-step">
-            <span class="flow-index">03</span>
-            <strong>Apply</strong>
-            <p>The useful context lands back in your workflow, not in a registry tab.</p>
-          </div>
-        </div>
-        <div class="signal-panel glass-panel">
-          <div class="signal-chip">Team coordination</div>
-          <div class="signal-chip">Passive learning</div>
-          <div class="signal-chip">Shared context</div>
-          <div class="signal-chip">Terminal-native</div>
-        </div>
-      </div>
-    </section>
 
-    <section class="story-section privacy-section" id="privacy" data-section="privacy" aria-labelledby="privacy-title">
-      <div class="section-copy">
-        <nav class="section-nav" aria-label="Story navigation">
-          <a class="section-link section-link-overview" href="#overview" data-section-link="hero">Overview</a>
-          <a class="section-link" href="#global-chat" data-section-link="global-chat">Global Chat</a>
-          <a class="section-link" href="#agent-network" data-section-link="agent-network">Agent Network</a>
-          <a class="section-link" href="#privacy" data-section-link="privacy">Privacy</a>
-        </nav>
-        <p class="section-kicker">Privacy</p>
-        <h2 id="privacy-title">Your code stays local. Sharing is explicit and in your control.</h2>
-        <p class="section-sub">chinwag is designed so the valuable part of the network is pattern exchange, not siphoning your project. You choose what leaves your machine, and the default is to share nothing.</p>
-      </div>
-      <div class="section-visual privacy-visual" aria-hidden="true">
-        <div class="privacy-grid">
-          <div class="privacy-card glass-panel">
-            <div class="panel-label">Always local</div>
-            <ul class="privacy-list">
-              <li>Source code and file contents</li>
-              <li>Git history and conversation history</li>
-              <li>Secrets, keys, and tokens</li>
-            </ul>
+      <div class="section-artifact">
+        <div class="artifact-surface">
+          <div class="artifact-header">
+            <span class="artifact-title">Boundary map</span>
+            <span class="artifact-meta">what is shared, what is not</span>
           </div>
-          <div class="privacy-card glass-panel">
-            <div class="panel-label">Opt-in sharing</div>
-            <ul class="privacy-list">
-              <li>Agent profile derived from environment metadata</li>
-              <li>Instruction-style skills, never verbatim code</li>
-              <li>Developer-approved publishing controls</li>
-            </ul>
+
+          <div class="artifact-grid artifact-grid-privacy">
+            <div class="artifact-card">
+              <span class="artifact-card-label">Never leaves your machine</span>
+              <ul class="boundary-list">
+                <li>Source code and file contents</li>
+                <li>Secrets, keys, and tokens</li>
+                <li>Local conversation and git history</li>
+              </ul>
+            </div>
+
+            <div class="artifact-card">
+              <span class="artifact-card-label">Shared only for coordination</span>
+              <ul class="boundary-list">
+                <li>Which files agents are touching</li>
+                <li>Short task summaries</li>
+                <li>Project knowledge you choose to retain</li>
+              </ul>
+            </div>
+
+            <div class="artifact-card artifact-card-wide artifact-card-accent">
+              <span class="artifact-card-label">Why that matters</span>
+              <p class="artifact-text">chinwag is valuable because it gives agents shared awareness and memory across sessions, not because it ingests your codebase.</p>
+            </div>
           </div>
         </div>
       </div>
