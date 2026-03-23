@@ -89,21 +89,30 @@ Call chinwag_get_team_context at the start of your session to see who else is wo
 
 // --- Tools ---
 
-// Pull-on-any-call: prefix tool responses with brief team state
+// Pull-on-any-call: prefix tool responses with brief team state.
+// Cached to avoid doubling backend calls on every tool invocation.
+let cachedContext = null;
+let cachedContextAt = 0;
+const CONTEXT_TTL_MS = 30_000;
+
 async function teamPreamble(team, teamId) {
   if (!teamId) return '';
-  try {
-    const ctx = await team.getTeamContext(teamId);
-    const active = ctx.members?.filter(m => m.status === 'active') || [];
-    if (active.length === 0) return '';
-    const summary = active.map(m => {
-      const files = m.activity?.files?.join(', ') || 'idle';
-      return `${m.handle}: ${files}`;
-    }).join(' | ');
-    return `[Team: ${summary}]\n\n`;
-  } catch {
-    return '';
+  const now = Date.now();
+  if (!cachedContext || now - cachedContextAt >= CONTEXT_TTL_MS) {
+    try {
+      cachedContext = await team.getTeamContext(teamId);
+      cachedContextAt = now;
+    } catch {
+      return '';
+    }
   }
+  const active = cachedContext.members?.filter(m => m.status === 'active') || [];
+  if (active.length === 0) return '';
+  const summary = active.map(m => {
+    const files = m.activity?.files?.join(', ') || 'idle';
+    return `${m.handle}: ${files}`;
+  }).join(' | ');
+  return `[Team: ${summary}]\n\n`;
 }
 
 function registerTools(server, client, team, getTeamId) {

@@ -72,7 +72,7 @@ export async function runInit() {
     if (!configsWritten.has(tool.mcpConfig)) {
       const dir = dirname(tool.mcpConfig);
       if (dir !== '.') mkdirSync(join(cwd, dir), { recursive: true });
-      writeMcpConfig(cwd, tool.mcpConfig);
+      writeMcpConfig(cwd, tool.mcpConfig, { channel: tool.channel });
       configsWritten.add(tool.mcpConfig);
     }
 
@@ -81,7 +81,8 @@ export async function runInit() {
     }
 
     let detail = tool.mcpConfig;
-    if (tool.hooks) detail += ' + .claude/settings.json (hooks)';
+    if (tool.hooks) detail += ' + hooks';
+    if (tool.channel) detail += ' + channel';
     configured.push(`${tool.name.padEnd(12)} ${detail}`);
   }
 
@@ -136,9 +137,8 @@ function commandExists(cmd) {
 
 // --- Config writers ---
 
-function writeMcpConfig(cwd, relativePath) {
+function writeMcpConfig(cwd, relativePath, { channel = false } = {}) {
   const filePath = join(cwd, relativePath);
-  const chinwagEntry = { command: 'npx', args: ['chinwag-mcp'] };
 
   let existing = {};
   if (existsSync(filePath)) {
@@ -150,7 +150,11 @@ function writeMcpConfig(cwd, relativePath) {
   }
 
   if (!existing.mcpServers) existing.mcpServers = {};
-  existing.mcpServers.chinwag = chinwagEntry;
+  existing.mcpServers.chinwag = { command: 'npx', args: ['chinwag-mcp'] };
+
+  if (channel) {
+    existing.mcpServers['chinwag-channel'] = { command: 'npx', args: ['chinwag-channel'] };
+  }
 
   writeFileSync(filePath, JSON.stringify(existing, null, 2) + '\n');
 }

@@ -105,8 +105,8 @@ export function Dashboard({ config, navigate }) {
           <Text dimColor>  No agents connected</Text>
         )}
 
-        {activeMembers.map((m, i) => (
-          <Box key={`active-${i}`}>
+        {activeMembers.map((m) => (
+          <Box key={m.handle}>
             <Text color="green">  {m.handle}</Text>
             <Text dimColor> (active)</Text>
             {m.activity ? (
@@ -117,8 +117,8 @@ export function Dashboard({ config, navigate }) {
           </Box>
         ))}
 
-        {offlineMembers.map((m, i) => (
-          <Box key={`offline-${i}`}>
+        {offlineMembers.map((m) => (
+          <Box key={m.handle}>
             <Text dimColor>  {m.handle} (offline)</Text>
           </Box>
         ))}
@@ -130,8 +130,8 @@ export function Dashboard({ config, navigate }) {
         {conflicts.length === 0 ? (
           <Text dimColor>  (none)</Text>
         ) : (
-          conflicts.map(([file, owners], i) => (
-            <Box key={`conflict-${i}`}>
+          conflicts.map(([file, owners]) => (
+            <Box key={file}>
               <Text color="red">  {file}</Text>
               <Text> — edited by {owners.join(', ')}</Text>
             </Box>
@@ -144,8 +144,8 @@ export function Dashboard({ config, navigate }) {
             <Text>{''}</Text>
             <Text bold>Team Knowledge ({context.memories.length} entries)</Text>
             <Text dimColor>{'─'.repeat(40)}</Text>
-            {context.memories.map((mem, i) => (
-              <Box key={`mem-${i}`}>
+            {context.memories.map((mem) => (
+              <Box key={mem.text.slice(0, 50)}>
                 <Text dimColor>  [{mem.category}]</Text>
                 <Text> {mem.text}</Text>
               </Box>

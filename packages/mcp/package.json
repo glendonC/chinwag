@@ -5,7 +5,8 @@
   "type": "module",
   "bin": {
     "chinwag-mcp": "./index.js",
-    "chinwag-hook": "./hook.js"
+    "chinwag-hook": "./hook.js",
+    "chinwag-channel": "./channel.js"
   },
   "scripts": {
     "start": "node index.js"

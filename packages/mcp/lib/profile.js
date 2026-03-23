@@ -2,12 +2,15 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 
 // Agent environment detection signals.
-// When an MCP-compatible tool spawns this server, it typically sets
-// environment variables we can use to identify the host. Add entries
-// here as tools document their env vars — no logic changes needed.
+// Only tools that set identifiable env vars when spawning MCP servers
+// are listed here. Most tools (Cursor, VS Code, JetBrains, etc.) don't
+// set unique env vars, so detectAgentFramework() returns 'unknown' for them.
+// This is acceptable — the framework field is informational, not functional.
+// Add entries here as tools document their env vars — no logic changes needed.
 const AGENT_SIGNALS = [
   { id: 'claude-code', env: 'CLAUDE_CODE' },
   { id: 'codex', env: 'CODEX_HOME' },
+  { id: 'windsurf', env: 'WINDSURF_MCP' },
 ];
 
 export function scanEnvironment(cwd = process.cwd()) {

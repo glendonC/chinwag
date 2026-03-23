@@ -323,8 +323,10 @@ async function handleTeamContext(user, env, teamId) {
 
 async function handleTeamActivity(request, user, env, teamId) {
   const { files, summary } = await request.json();
-  if (!Array.isArray(files)) return json({ error: 'files must be an array' }, 400);
+  if (!Array.isArray(files) || files.length === 0) return json({ error: 'files must be a non-empty array' }, 400);
+  if (files.some(f => typeof f !== 'string' || f.length > 500)) return json({ error: 'invalid file path' }, 400);
   if (typeof summary !== 'string') return json({ error: 'summary must be a string' }, 400);
+  if (summary.length > 280) return json({ error: 'summary must be 280 characters or less' }, 400);
 
   const team = getTeam(env, teamId);
   const result = await team.updateActivity(user.id, files, summary);
@@ -334,7 +336,7 @@ async function handleTeamActivity(request, user, env, teamId) {
 
 async function handleTeamConflicts(request, user, env, teamId) {
   const { files } = await request.json();
-  if (!Array.isArray(files)) return json({ error: 'files must be an array' }, 400);
+  if (!Array.isArray(files) || files.length === 0) return json({ error: 'files must be a non-empty array' }, 400);
 
   const team = getTeam(env, teamId);
   const result = await team.checkConflicts(user.id, files);

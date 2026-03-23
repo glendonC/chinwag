@@ -9,6 +9,7 @@
 //   detect.env  — env vars the tool sets when it spawns an MCP subprocess
 //   mcpConfig   — relative path where the tool reads MCP server config
 //   hooks       — whether this tool supports pre/post hooks (enforceable interception)
+//   channel     — whether this tool supports channel push (server-initiated events)
 
 export const TOOL_REGISTRY = [
   {
@@ -18,6 +19,7 @@ export const TOOL_REGISTRY = [
     env: ['CLAUDE_CODE'],
     mcpConfig: '.mcp.json',
     hooks: true,
+    channel: true,
   },
   {
     id: 'cursor',

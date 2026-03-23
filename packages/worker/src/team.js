@@ -1,8 +1,17 @@
 // Team Durable Object — one instance per team.
-// Manages team membership, activity tracking, and file conflict detection.
-// Used for Scenario 3: multi-agent coordination on shared repos.
+// Manages team membership, activity tracking, file conflict detection,
+// and shared project memory.
 
 import { DurableObject } from 'cloudflare:workers';
+
+// --- Tuning constants ---
+const HEARTBEAT_ACTIVE_SECONDS = 60;    // Heartbeat within this window = "active"
+const HEARTBEAT_STALE_SECONDS = 300;    // No heartbeat for this long = evicted
+const MEMORY_DECAY_GRACE_DAYS = 7;      // Memories stay at full relevance for this long
+const MEMORY_DECAY_RATE = 0.1;          // Relevance drops by this per day after grace period
+const MEMORY_MIN_SCORE = 0.1;           // Floor — memories below this are excluded from queries
+const MEMORY_MAX_COUNT = 100;           // Max memories per team before pruning
+const ACTIVITY_MAX_FILES = 50;          // Max files tracked per agent activity
 
 export class TeamDO extends DurableObject {
   #schemaReady = false;
@@ -72,7 +81,6 @@ export class TeamDO extends DurableObject {
 
   async heartbeat(agentId) {
     this.#ensureSchema();
-    // Single query: update and check row was affected
     this.sql.exec("UPDATE members SET last_heartbeat = datetime('now') WHERE agent_id = ?", agentId);
     const row = this.sql.exec('SELECT changes() as c').toArray();
     if (row[0].c === 0) return { error: 'Not a member of this team' };
@@ -83,7 +91,6 @@ export class TeamDO extends DurableObject {
     this.#ensureSchema();
     if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
 
-    // Normalize file paths before storing
     const normalized = files.map(normalizePath);
 
     this.sql.exec(
@@ -103,16 +110,15 @@ export class TeamDO extends DurableObject {
     this.#ensureSchema();
     if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
 
-    // Use SQLite datetime arithmetic — no JS Date conversion
     const others = this.sql.exec(
       `SELECT m.agent_id, m.owner_handle, a.files, a.summary
        FROM members m
        LEFT JOIN activities a ON a.agent_id = m.agent_id
-       WHERE m.agent_id != ? AND m.last_heartbeat > datetime('now', '-60 seconds')`,
+       WHERE m.agent_id != ?
+         AND m.last_heartbeat > datetime('now', '-${HEARTBEAT_ACTIVE_SECONDS} seconds')`,
       agentId
     ).toArray();
 
-    // Normalize incoming paths for comparison
     const myFiles = new Set(files.map(normalizePath));
     const conflicts = [];
 
@@ -136,26 +142,34 @@ export class TeamDO extends DurableObject {
     this.#ensureSchema();
     if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
 
-    // Clean stale members (offline > 5 min) — use SQLite datetime, not JS
+    // Evict stale members
     this.sql.exec(`DELETE FROM activities WHERE agent_id IN (
-      SELECT agent_id FROM members WHERE last_heartbeat < datetime('now', '-300 seconds')
+      SELECT agent_id FROM members
+      WHERE last_heartbeat < datetime('now', '-${HEARTBEAT_STALE_SECONDS} seconds')
     )`);
-    this.sql.exec("DELETE FROM members WHERE last_heartbeat < datetime('now', '-300 seconds')");
+    this.sql.exec(
+      `DELETE FROM members WHERE last_heartbeat < datetime('now', '-${HEARTBEAT_STALE_SECONDS} seconds')`
+    );
 
     const members = this.sql.exec(
       `SELECT m.owner_handle, a.files, a.summary, a.updated_at,
-              CASE WHEN m.last_heartbeat > datetime('now', '-60 seconds')
+              CASE WHEN m.last_heartbeat > datetime('now', '-${HEARTBEAT_ACTIVE_SECONDS} seconds')
                 THEN 'active' ELSE 'offline' END as status
        FROM members m
        LEFT JOIN activities a ON a.agent_id = m.agent_id`
     ).toArray();
 
-    // Include memories in context
+    // Compute relevance inline — no mutating UPDATE on reads
     const memories = this.sql.exec(
-      `SELECT text, category, source_handle, created_at
+      `SELECT text, category, source_handle, created_at,
+              MAX(${MEMORY_MIN_SCORE},
+                1.0 - (MAX(0, julianday('now') - julianday(created_at) - ${MEMORY_DECAY_GRACE_DAYS}) * ${MEMORY_DECAY_RATE})
+              ) as relevance
        FROM memories
-       WHERE relevance_score > 0.1
-       ORDER BY relevance_score DESC, created_at DESC
+       WHERE MAX(${MEMORY_MIN_SCORE},
+               1.0 - (MAX(0, julianday('now') - julianday(created_at) - ${MEMORY_DECAY_GRACE_DAYS}) * ${MEMORY_DECAY_RATE})
+             ) > ${MEMORY_MIN_SCORE}
+       ORDER BY relevance DESC, created_at DESC
        LIMIT 10`
     ).toArray();
 
@@ -179,7 +193,6 @@ export class TeamDO extends DurableObject {
 
     const normalized = normalizePath(filePath);
 
-    // Get existing files and append
     const existing = this.sql.exec(
       'SELECT files FROM activities WHERE agent_id = ?', agentId
     ).toArray();
@@ -191,7 +204,7 @@ export class TeamDO extends DurableObject {
 
     if (!files.includes(normalized)) {
       files.push(normalized);
-      if (files.length > 50) files = files.slice(-50);
+      if (files.length > ACTIVITY_MAX_FILES) files = files.slice(-ACTIVITY_MAX_FILES);
     }
 
     this.sql.exec(
@@ -210,20 +223,18 @@ export class TeamDO extends DurableObject {
     this.#ensureSchema();
     if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
 
-    // Deduplication: check for similar existing memory
+    // Exact case-insensitive deduplication
     const normalized = text.trim().toLowerCase();
-    const existing = this.sql.exec('SELECT id, text FROM memories').toArray();
+    const existing = this.sql.exec(
+      'SELECT id FROM memories WHERE LOWER(TRIM(text)) = ?', normalized
+    ).toArray();
 
-    for (const mem of existing) {
-      const existingNorm = mem.text.trim().toLowerCase();
-      if (existingNorm.includes(normalized) || normalized.includes(existingNorm)) {
-        const keepText = text.length >= mem.text.length ? text : mem.text;
-        this.sql.exec(
-          `UPDATE memories SET text = ?, relevance_score = 1.0, created_at = datetime('now') WHERE id = ?`,
-          keepText, mem.id
-        );
-        return { ok: true, deduplicated: true };
-      }
+    if (existing.length > 0) {
+      this.sql.exec(
+        `UPDATE memories SET relevance_score = 1.0, created_at = datetime('now') WHERE id = ?`,
+        existing[0].id
+      );
+      return { ok: true, deduplicated: true };
     }
 
     const id = crypto.randomUUID();
@@ -233,36 +244,14 @@ export class TeamDO extends DurableObject {
       id, text, category, agentId, handle || 'unknown'
     );
 
-    // Prune: keep at most 100 memories
+    // Prune oldest low-relevance memories beyond the cap
     this.sql.exec(`
       DELETE FROM memories WHERE id NOT IN (
-        SELECT id FROM memories ORDER BY relevance_score DESC, created_at DESC LIMIT 100
+        SELECT id FROM memories ORDER BY relevance_score DESC, created_at DESC LIMIT ${MEMORY_MAX_COUNT}
       )
     `);
 
     return { ok: true, id };
-  }
-
-  async getMemories(agentId) {
-    this.#ensureSchema();
-    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
-
-    // Time-based decay: reduce relevance for old memories (0.1/day after 7 days)
-    this.sql.exec(`
-      UPDATE memories SET relevance_score = MAX(0.1,
-        1.0 - (MAX(0, julianday('now') - julianday(created_at) - 7) * 0.1)
-      )
-    `);
-
-    const memories = this.sql.exec(
-      `SELECT id, text, category, source_handle, created_at, relevance_score
-       FROM memories
-       WHERE relevance_score > 0.1
-       ORDER BY relevance_score DESC, created_at DESC
-       LIMIT 20`
-    ).toArray();
-
-    return { memories };
   }
 }
 
