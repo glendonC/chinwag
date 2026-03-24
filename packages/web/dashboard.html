@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>chinwag</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&family=Newsreader:opsz,wght@6..72,300;6..72,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+
+  <!-- ── Connect screen ── -->
+  <div id="connect-screen" class="connect-screen" hidden>
+    <div class="connect-content">
+      <p class="connect-brand">chinwag</p>
+      <h1 class="connect-title">Open your dashboard.</h1>
+      <p class="connect-sub">Run this in any project where chinwag is set up:</p>
+
+      <div class="connect-command">
+        <span class="connect-prompt">$</span>
+        <code>chinwag dashboard</code>
+      </div>
+
+      <p class="connect-note">This opens the dashboard in your browser, already signed in.</p>
+
+      <details class="connect-alt">
+        <summary class="connect-alt-toggle">Or connect with a token</summary>
+        <div class="connect-alt-body">
+          <p class="connect-alt-hint">Find your token in <code>~/.chinwag/config.json</code></p>
+          <div class="connect-alt-field">
+            <input id="token-input" type="password" placeholder="Paste token" autocomplete="off" spellcheck="false" aria-label="Authentication token">
+            <button id="token-submit" type="button">Connect</button>
+          </div>
+          <p id="connect-error" class="connect-error" role="alert" hidden></p>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <!-- ── Dashboard ── -->
+  <div id="app" class="app" hidden>
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-brand">chinwag</span>
+        <div class="topbar-divider"></div>
+        <select id="project-select" class="project-select" aria-label="Project"></select>
+      </div>
+      <div class="topbar-right">
+        <span id="user-badge" class="user-badge"></span>
+        <button id="logout-btn" class="topbar-action" type="button">Sign out</button>
+      </div>
+    </header>
+
+    <main class="dashboard">
+      <!-- All-projects overview (shown when multiple teams, default) -->
+      <div id="all-projects-view" class="all-projects-grid" hidden></div>
+
+      <!-- Single-team detail (shown when a specific project is selected) -->
+      <div id="detail-view" class="dashboard-grid">
+
+        <!-- Agents -->
+        <section class="panel panel-agents">
+          <div class="panel-header">
+            <h2 class="panel-label">Agents</h2>
+            <span id="agent-count" class="panel-count"></span>
+          </div>
+          <div id="agents-list" class="panel-body">
+            <div class="empty-state">
+              <p class="empty-text">No agents connected</p>
+              <p class="empty-hint">Open an AI tool in a chinwag project to see activity here.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Knowledge -->
+        <section class="panel panel-knowledge">
+          <div class="panel-header">
+            <h2 class="panel-label">Knowledge</h2>
+          </div>
+          <div id="memory-list" class="panel-body">
+            <div class="empty-state">
+              <p class="empty-text">No shared knowledge</p>
+              <p class="empty-hint">Agents save project facts here as they work.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Conflicts (only visible when active) -->
+        <section id="conflicts-card" class="panel panel-conflicts" hidden>
+          <div class="panel-header">
+            <h2 class="panel-label panel-label--alert">Conflicts</h2>
+          </div>
+          <div id="conflicts-list" class="panel-body"></div>
+        </section>
+
+        <!-- Sessions -->
+        <section class="panel panel-sessions">
+          <div class="panel-header">
+            <h2 class="panel-label">Sessions</h2>
+          </div>
+          <div id="sessions-list" class="panel-body">
+            <div class="empty-state">
+              <p class="empty-text">No recent sessions</p>
+              <p class="empty-hint">Session history appears after agents connect.</p>
+            </div>
+          </div>
+        </section>
+
+      </div><!-- /detail-view -->
+    </main>
+
+    <footer class="bottombar">
+      <span id="status-text" class="bottombar-status" role="status" aria-live="polite"></span>
+      <span id="last-update" class="bottombar-time" aria-label="Last updated"></span>
+    </footer>
+  </div>
+
+  <script type="module" src="dashboard.js"></script>
+</body>
+</html>

@@ -9,13 +9,17 @@
 // CRITICAL: Never console.log — stdio transport. Use console.error for logging.
 
 import { readFileSync } from 'fs';
+import { basename } from 'path';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { loadConfig, configExists } from './lib/config.js';
 import { api } from './lib/api.js';
 import { findTeamFile } from './lib/team.js';
 
-const PKG = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
+let PKG = { version: '0.0.0' };
+try {
+  PKG = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
+} catch { /* fallback if bundled or path changes */ }
 
 const POLL_INTERVAL_MS = 10_000;
 
@@ -54,7 +58,7 @@ async function main() {
 
   // Join team to keep heartbeat active
   try {
-    await client.post(`/teams/${teamId}/join`, {});
+    await client.post(`/teams/${teamId}/join`, { name: basename(process.cwd()) });
   } catch (err) {
     console.error(`[chinwag-channel] Failed to join team: ${err.message}`);
   }

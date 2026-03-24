@@ -8,6 +8,7 @@
 // stdout text becomes user-visible in the Claude Code session.
 // Exit code 0 = allow, non-zero = block (for PreToolUse).
 
+import { basename } from 'path';
 import { loadConfig, configExists } from './lib/config.js';
 import { api } from './lib/api.js';
 import { findTeamFile } from './lib/team.js';
@@ -90,7 +91,7 @@ async function reportEdit(client, teamId, input) {
 async function sessionStart(client, teamId) {
   try {
     // Join team (idempotent) to ensure heartbeat is current
-    await client.post(`/teams/${teamId}/join`, {});
+    await client.post(`/teams/${teamId}/join`, { name: basename(process.cwd()) });
 
     const ctx = await client.get(`/teams/${teamId}/context`);
 

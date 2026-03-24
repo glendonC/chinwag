@@ -46,6 +46,10 @@ export default {
 
         if (method === 'GET' && path === '/me') {
           response = json(user);
+        } else if (method === 'GET' && path === '/me/teams') {
+          response = await handleGetUserTeams(user, env);
+        } else if (method === 'GET' && path === '/me/dashboard') {
+          response = await handleDashboardSummary(user, env);
         } else if (method === 'POST' && path === '/presence/heartbeat') {
           response = await handleHeartbeat(user, env);
         } else if (method === 'PUT' && path === '/me/handle') {
@@ -65,13 +69,13 @@ export default {
         }
         // Team routes
         else if (method === 'POST' && path === '/teams') {
-          response = await handleCreateTeam(user, env);
+          response = await handleCreateTeam(request, user, env);
         } else if (path.startsWith('/teams/')) {
           const parsed = parseTeamPath(path);
           if (!parsed) {
             response = json({ error: 'Not found' }, 404);
           } else if (method === 'POST' && parsed.action === 'join') {
-            response = await handleTeamJoin(user, env, parsed.teamId);
+            response = await handleTeamJoin(request, user, env, parsed.teamId);
           } else if (method === 'POST' && parsed.action === 'leave') {
             response = await handleTeamLeave(user, env, parsed.teamId);
           } else if (method === 'GET' && parsed.action === 'context') {
@@ -148,6 +152,7 @@ async function handleInit(request, env) {
   const db = getDB(env);
 
   // IP-based account creation limit (3 per day)
+  // Check first, consume after success — failed creates don't waste credits.
   const limit = await db.checkRateLimit(ip, 3);
   if (!limit.allowed) {
     return json({ error: 'Too many accounts created today. Try again tomorrow.' }, 429);
@@ -157,6 +162,8 @@ async function handleInit(request, env) {
   if (user.error) {
     return json({ error: user.error }, 400);
   }
+
+  await db.consumeRateLimit(ip);
 
   // Store token → user_id in KV
   await env.AUTH_KV.put(`token:${user.token}`, user.id);
@@ -297,8 +304,52 @@ function sanitizeTags(arr) {
     .slice(0, 50);
 }
 
-async function handleCreateTeam(user, env) {
-  // Rate limit: 5 teams per user per day (reuses account_limits table pattern)
+async function handleGetUserTeams(user, env) {
+  const db = getDB(env);
+  const teams = await db.getUserTeams(user.id);
+  return json({ teams });
+}
+
+async function handleDashboardSummary(user, env) {
+  const db = getDB(env);
+  const teams = await db.getUserTeams(user.id);
+
+  if (teams.length === 0) {
+    return json({ teams: [] });
+  }
+
+  // Fan out to all TeamDOs in parallel — getSummary is lightweight (scalar counts only)
+  const results = await Promise.allSettled(
+    teams.map(async (t) => {
+      const team = getTeam(env, t.team_id);
+      try {
+        const summary = await team.getSummary(user.id);
+        if (summary.error) return null;
+        return {
+          team_id: t.team_id,
+          team_name: t.team_name,
+          ...summary,
+        };
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  return json({
+    teams: results
+      .filter(r => r.status === 'fulfilled' && r.value !== null)
+      .map(r => r.value),
+  });
+}
+
+async function handleCreateTeam(request, user, env) {
+  let name = null;
+  try {
+    const body = await request.json();
+    name = typeof body.name === 'string' ? body.name.slice(0, 100).trim() || null : null;
+  } catch { /* no body is fine */ }
+
   const db = getDB(env);
   const limit = await db.checkRateLimit(`team:${user.id}`, 5);
   if (!limit.allowed) {
@@ -308,13 +359,30 @@ async function handleCreateTeam(user, env) {
   const teamId = 't_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
   const team = getTeam(env, teamId);
   await team.join(user.id, user.id, user.handle);
+
+  // user_teams is a denormalized index — TeamDO membership is authoritative.
+  // If this fails, lazy backfill in getContext will catch it.
+  try { await db.addUserTeam(user.id, teamId, name); } catch {}
+  await db.consumeRateLimit(`team:${user.id}`);
+
   return json({ team_id: teamId }, 201);
 }
 
-async function handleTeamJoin(user, env, teamId) {
+async function handleTeamJoin(request, user, env, teamId) {
+  let name = null;
+  try {
+    const body = await request.json();
+    name = typeof body.name === 'string' ? body.name.slice(0, 100).trim() || null : null;
+  } catch { /* no body is fine */ }
+
   const team = getTeam(env, teamId);
   const result = await team.join(user.id, user.id, user.handle);
   if (result.error) return json({ error: result.error }, 400);
+
+  // Sync denormalized index — TeamDO is authoritative, so don't fail on this.
+  const db = getDB(env);
+  try { await db.addUserTeam(user.id, teamId, name); } catch {}
+
   return json(result);
 }
 
@@ -322,6 +390,10 @@ async function handleTeamLeave(user, env, teamId) {
   const team = getTeam(env, teamId);
   const result = await team.leave(user.id);
   if (result.error) return json({ error: result.error }, 400);
+
+  const db = getDB(env);
+  try { await db.removeUserTeam(user.id, teamId); } catch {}
+
   return json(result);
 }
 
@@ -329,6 +401,12 @@ async function handleTeamContext(user, env, teamId) {
   const team = getTeam(env, teamId);
   const result = await team.getContext(user.id);
   if (result.error) return json({ error: result.error }, 403);
+
+  // Lazy backfill: if user is a member (getContext succeeded), ensure user_teams
+  // has the entry. Covers users who joined before user_teams existed.
+  const db = getDB(env);
+  try { await db.addUserTeam(user.id, teamId); } catch {}
+
   return json(result);
 }
 
@@ -391,7 +469,8 @@ async function handleTeamSaveMemory(request, user, env, teamId) {
     return json({ error: `category must be one of: ${VALID_CATEGORIES.join(', ')}` }, 400);
   }
 
-  // Rate limit: 20 memory saves per user per day
+  // Rate limit: 20 memory saves per user per day.
+  // Check first, consume after success.
   const db = getDB(env);
   const memLimit = await db.checkRateLimit(`memory:${user.id}`, 20);
   if (!memLimit.allowed) {
@@ -401,6 +480,8 @@ async function handleTeamSaveMemory(request, user, env, teamId) {
   const team = getTeam(env, teamId);
   const result = await team.saveMemory(user.id, text.trim(), category, user.handle);
   if (result.error) return json({ error: result.error }, 400);
+
+  await db.consumeRateLimit(`memory:${user.id}`);
   return json(result, 201);
 }
 
@@ -501,7 +582,9 @@ const CATEGORY_NAMES = {
 };
 
 function handleToolCatalog() {
-  return json({ tools: TOOL_CATALOG, categories: CATEGORY_NAMES });
+  return json({ tools: TOOL_CATALOG, categories: CATEGORY_NAMES }, 200, {
+    'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+  });
 }
 
 // --- Helpers ---

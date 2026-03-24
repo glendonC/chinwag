@@ -6,7 +6,7 @@
 // Adding a new tool = adding one entry there. No logic changes here.
 
 import { existsSync, readFileSync, writeFileSync } from 'fs';
-import { join } from 'path';
+import { basename, join } from 'path';
 import { configExists, loadConfig, saveConfig } from './config.js';
 import { api, initAccount } from './api.js';
 import { detectTools, writeMcpConfig, writeHooksConfig } from './mcp-config.js';
@@ -38,8 +38,8 @@ export async function runInit() {
     try {
       const data = JSON.parse(readFileSync(chinwagFile, 'utf-8'));
       teamId = data.team;
-      // Join existing team (idempotent)
-      await client.post(`/teams/${teamId}/join`, {});
+      // Join existing team (idempotent), pass project name for dashboard display
+      await client.post(`/teams/${teamId}/join`, { name: basename(cwd) });
       log('team', `${teamId} (joined)`);
     } catch (err) {
       log('team', `failed to join: ${err.message}`);
@@ -47,9 +47,10 @@ export async function runInit() {
     }
   } else {
     try {
-      const result = await client.post('/teams', {});
+      const projectName = basename(cwd);
+      const result = await client.post('/teams', { name: projectName });
       teamId = result.team_id;
-      writeFileSync(chinwagFile, JSON.stringify({ team: teamId }, null, 2) + '\n');
+      writeFileSync(chinwagFile, JSON.stringify({ team: teamId, name: projectName }, null, 2) + '\n');
       log('team', `${teamId} (created)`);
     } catch (err) {
       log('team', `failed to create: ${err.message}`);
@@ -98,6 +99,9 @@ export async function runInit() {
   console.log('  Your agents will automatically coordinate through chinwag.');
   console.log('');
   console.log('  Commit .chinwag so teammates auto-join the same team.');
+  console.log('');
+  console.log('  Dashboard: chinwag dashboard');
+  console.log('  Or visit:  https://chinwag.dev/dashboard');
   console.log('');
 }
 

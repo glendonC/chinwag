@@ -9,12 +9,16 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 
 import { readFileSync } from 'fs';
+import { basename } from 'path';
 import { loadConfig, configExists } from './lib/config.js';
 import { api } from './lib/api.js';
 import { scanEnvironment } from './lib/profile.js';
 import { findTeamFile, teamHandlers } from './lib/team.js';
 
-const PKG = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
+let PKG = { version: '0.0.0' };
+try {
+  PKG = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
+} catch { /* fallback if bundled or path changes */ }
 
 async function main() {
   if (!configExists()) {
@@ -45,9 +49,11 @@ async function main() {
   let sessionId = null;
   const team = teamHandlers(client);
 
+  const projectName = basename(process.cwd());
+
   if (currentTeamId) {
     try {
-      await team.joinTeam(currentTeamId);
+      await team.joinTeam(currentTeamId, projectName);
       console.error(`[chinwag] Auto-joined team ${currentTeamId}`);
 
       // Start observability session
@@ -72,13 +78,16 @@ async function main() {
     }
   }
 
-  // Clean up on exit — end session then exit
+  // Clean up on exit — end session then exit.
+  // Second signal or 3s timeout = force exit (don't hang on network issues).
   let cleaning = false;
   const cleanup = () => {
-    if (cleaning) return;
+    if (cleaning) { process.exit(0); return; }
     cleaning = true;
     if (heartbeatInterval) clearInterval(heartbeatInterval);
-    const done = () => process.exit(0);
+    const forceExit = setTimeout(() => process.exit(0), 3000);
+    forceExit.unref();
+    const done = () => { clearTimeout(forceExit); process.exit(0); };
     if (sessionId && currentTeamId) {
       team.endSession(currentTeamId, sessionId).catch(() => {}).finally(done);
     } else {
@@ -87,6 +96,7 @@ async function main() {
   };
   process.on('SIGINT', cleanup);
   process.on('SIGTERM', cleanup);
+  process.stdin.on('end', cleanup);
 
   // Create MCP server
   const server = new McpServer({

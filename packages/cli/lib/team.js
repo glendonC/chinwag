@@ -1,5 +1,5 @@
 import { writeFileSync } from 'fs';
-import { join } from 'path';
+import { basename, join } from 'path';
 import { loadConfig, configExists } from './config.js';
 import { api } from './api.js';
 
@@ -14,11 +14,12 @@ export async function handleTeamCommand(subcmd, arg) {
 
   if (subcmd === 'create') {
     try {
-      const result = await client.post('/teams', {});
+      const projectName = basename(process.cwd());
+      const result = await client.post('/teams', { name: projectName });
       const teamId = result.team_id;
 
       const chinwagFile = join(process.cwd(), '.chinwag');
-      writeFileSync(chinwagFile, JSON.stringify({ team: teamId }, null, 2) + '\n');
+      writeFileSync(chinwagFile, JSON.stringify({ team: teamId, name: projectName }, null, 2) + '\n');
 
       console.log(`Team created: ${teamId}`);
       console.log(`Wrote .chinwag to ${chinwagFile}`);
@@ -32,10 +33,11 @@ export async function handleTeamCommand(subcmd, arg) {
       return;
     }
     try {
-      await client.post(`/teams/${arg}/join`, {});
+      const projectName = basename(process.cwd());
+      await client.post(`/teams/${arg}/join`, { name: projectName });
 
       const chinwagFile = join(process.cwd(), '.chinwag');
-      writeFileSync(chinwagFile, JSON.stringify({ team: arg }, null, 2) + '\n');
+      writeFileSync(chinwagFile, JSON.stringify({ team: arg, name: projectName }, null, 2) + '\n');
 
       console.log(`Joined team: ${arg}`);
       console.log(`Wrote .chinwag to ${chinwagFile}`);

@@ -17,6 +17,7 @@ export const VALID_CATEGORIES = ['gotcha', 'pattern', 'config', 'decision', 'ref
 
 export class TeamDO extends DurableObject {
   #schemaReady = false;
+  #lastCleanup = 0;
 
   constructor(ctx, env) {
     super(ctx, env);
@@ -67,6 +68,25 @@ export class TeamDO extends DurableObject {
     `);
 
     this.#schemaReady = true;
+  }
+
+  // Evict stale members and prune old sessions — at most once per minute.
+  // Keeps getContext fast when polled frequently by channels/dashboards.
+  #maybeCleanup() {
+    const now = Date.now();
+    if (now - this.#lastCleanup < 60_000) return;
+    this.#lastCleanup = now;
+
+    this.sql.exec(`DELETE FROM activities WHERE agent_id IN (
+      SELECT agent_id FROM members
+      WHERE last_heartbeat < datetime('now', '-${HEARTBEAT_STALE_SECONDS} seconds')
+    )`);
+    this.sql.exec(
+      `DELETE FROM members WHERE last_heartbeat < datetime('now', '-${HEARTBEAT_STALE_SECONDS} seconds')`
+    );
+    this.sql.exec(
+      `DELETE FROM sessions WHERE started_at < datetime('now', '-${SESSION_RETENTION_DAYS} days')`
+    );
   }
 
   #isMember(agentId) {
@@ -204,19 +224,7 @@ export class TeamDO extends DurableObject {
     this.#ensureSchema();
     if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
 
-    // Evict stale members
-    this.sql.exec(`DELETE FROM activities WHERE agent_id IN (
-      SELECT agent_id FROM members
-      WHERE last_heartbeat < datetime('now', '-${HEARTBEAT_STALE_SECONDS} seconds')
-    )`);
-    this.sql.exec(
-      `DELETE FROM members WHERE last_heartbeat < datetime('now', '-${HEARTBEAT_STALE_SECONDS} seconds')`
-    );
-
-    // Prune old sessions
-    this.sql.exec(
-      `DELETE FROM sessions WHERE started_at < datetime('now', '-${SESSION_RETENTION_DAYS} days')`
-    );
+    this.#maybeCleanup();
 
     const members = this.sql.exec(
       `SELECT m.owner_handle, a.files, a.summary, a.updated_at,
@@ -396,6 +404,52 @@ export class TeamDO extends DurableObject {
     );
 
     return { ok: true, id };
+  }
+
+  // --- Summary (lightweight, for cross-project dashboard) ---
+
+  async getSummary(agentId) {
+    this.#ensureSchema();
+    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
+    this.#maybeCleanup();
+
+    const active = this.sql.exec(
+      `SELECT COUNT(*) as c FROM members
+       WHERE last_heartbeat > datetime('now', '-${HEARTBEAT_ACTIVE_SECONDS} seconds')`
+    ).toArray();
+
+    const total = this.sql.exec('SELECT COUNT(*) as c FROM members').toArray();
+
+    // Conflict count: files claimed by 2+ active agents
+    const activities = this.sql.exec(
+      `SELECT a.files FROM activities a
+       JOIN members m ON m.agent_id = a.agent_id
+       WHERE m.last_heartbeat > datetime('now', '-${HEARTBEAT_ACTIVE_SECONDS} seconds')`
+    ).toArray();
+
+    const fileCounts = new Map();
+    for (const row of activities) {
+      if (!row.files) continue;
+      for (const f of JSON.parse(row.files)) {
+        fileCounts.set(f, (fileCounts.get(f) || 0) + 1);
+      }
+    }
+    const conflictCount = [...fileCounts.values()].filter(c => c > 1).length;
+
+    const memories = this.sql.exec('SELECT COUNT(*) as c FROM memories').toArray();
+    const live = this.sql.exec('SELECT COUNT(*) as c FROM sessions WHERE ended_at IS NULL').toArray();
+    const recent = this.sql.exec(
+      "SELECT COUNT(*) as c FROM sessions WHERE started_at > datetime('now', '-24 hours')"
+    ).toArray();
+
+    return {
+      active_agents: active[0]?.c || 0,
+      total_members: total[0]?.c || 0,
+      conflict_count: conflictCount,
+      memory_count: memories[0]?.c || 0,
+      live_sessions: live[0]?.c || 0,
+      recent_sessions_24h: recent[0]?.c || 0,
+    };
   }
 }
 

@@ -70,7 +70,18 @@ export class DatabaseDO extends DurableObject {
         registered_at TEXT DEFAULT (datetime('now')),
         last_active TEXT DEFAULT (datetime('now'))
       );
+
+      CREATE TABLE IF NOT EXISTS user_teams (
+        user_id TEXT NOT NULL REFERENCES users(id),
+        team_id TEXT NOT NULL,
+        team_name TEXT,
+        joined_at TEXT DEFAULT (datetime('now')),
+        PRIMARY KEY (user_id, team_id)
+      );
     `);
+
+    // Migrate: add team_name column for tables created before this column existed
+    try { this.sql.exec('ALTER TABLE user_teams ADD COLUMN team_name TEXT'); } catch {}
 
     this.#schemaReady = true;
   }
@@ -161,18 +172,23 @@ export class DatabaseDO extends DurableObject {
     this.#ensureSchema();
     const today = utcDate();
 
-    this.sql.exec(
-      `INSERT INTO account_limits (ip, date, count) VALUES (?, ?, 1)
-       ON CONFLICT(ip, date) DO UPDATE SET count = count + 1`,
-      key, today
-    );
-
     const rows = this.sql.exec(
       'SELECT count FROM account_limits WHERE ip = ? AND date = ?', key, today
     ).toArray();
 
     const count = rows[0]?.count || 0;
-    return { allowed: count <= maxPerDay, count };
+    return { allowed: count < maxPerDay, count };
+  }
+
+  async consumeRateLimit(key) {
+    this.#ensureSchema();
+    const today = utcDate();
+
+    this.sql.exec(
+      `INSERT INTO account_limits (ip, date, count) VALUES (?, ?, 1)
+       ON CONFLICT(ip, date) DO UPDATE SET count = count + 1`,
+      key, today
+    );
   }
 
   // --- Stats ---
@@ -197,6 +213,33 @@ export class DatabaseDO extends DurableObject {
 
   #handleExists(handle) {
     return this.sql.exec('SELECT 1 FROM users WHERE handle = ?', handle).toArray().length > 0;
+  }
+
+  // --- User teams ---
+
+  async addUserTeam(userId, teamId, name = null) {
+    this.#ensureSchema();
+    this.sql.exec(
+      `INSERT INTO user_teams (user_id, team_id, team_name) VALUES (?, ?, ?)
+       ON CONFLICT(user_id, team_id) DO UPDATE SET
+         team_name = COALESCE(excluded.team_name, user_teams.team_name)`,
+      userId, teamId, name
+    );
+    return { ok: true };
+  }
+
+  async getUserTeams(userId) {
+    this.#ensureSchema();
+    return this.sql.exec(
+      'SELECT team_id, team_name, joined_at FROM user_teams WHERE user_id = ? ORDER BY joined_at DESC',
+      userId
+    ).toArray();
+  }
+
+  async removeUserTeam(userId, teamId) {
+    this.#ensureSchema();
+    this.sql.exec('DELETE FROM user_teams WHERE user_id = ? AND team_id = ?', userId, teamId);
+    return { ok: true };
   }
 
   // --- Agent profiles ---

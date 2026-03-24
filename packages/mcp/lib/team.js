@@ -17,8 +17,8 @@ export function findTeamFile(cwd = process.cwd()) {
 
 export function teamHandlers(client) {
   return {
-    async joinTeam(teamId) {
-      return client.post(`/teams/${teamId}/join`, {});
+    async joinTeam(teamId, name = null) {
+      return client.post(`/teams/${teamId}/join`, name ? { name } : {});
     },
 
     async leaveTeam(teamId) {
