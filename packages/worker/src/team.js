@@ -1,6 +1,6 @@
 // Team Durable Object — one instance per team.
 // Manages team membership, activity tracking, file conflict detection,
-// and shared project memory.
+// shared project memory, and session history (observability).
 
 import { DurableObject } from 'cloudflare:workers';
 
@@ -12,6 +12,8 @@ const MEMORY_DECAY_RATE = 0.1;          // Relevance drops by this per day after
 const MEMORY_MIN_SCORE = 0.1;           // Floor — memories below this are excluded from queries
 const MEMORY_MAX_COUNT = 100;           // Max memories per team before pruning
 const ACTIVITY_MAX_FILES = 50;          // Max files tracked per agent activity
+const SESSION_RETENTION_DAYS = 30;      // How long session history is kept
+const VALID_CATEGORIES = ['gotcha', 'pattern', 'config', 'decision', 'reference'];
 
 export class TeamDO extends DurableObject {
   #schemaReady = false;
@@ -23,6 +25,35 @@ export class TeamDO extends DurableObject {
 
   #ensureSchema() {
     if (this.#schemaReady) return;
+
+    // Migration: remove CHECK constraint from memories table.
+    // Old schema had CHECK(category IN ('gotcha','pattern','config','decision')).
+    // DOs are single-threaded so no concurrent access during migration.
+    // We rename → recreate → copy → drop in a safe sequence.
+    const memCols = this.sql.exec('PRAGMA table_info(memories)').toArray();
+    if (memCols.length > 0) {
+      // Check if old CHECK constraint is present by inspecting sqlite_master
+      const tableInfo = this.sql.exec(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='memories'"
+      ).toArray();
+      const hasCategoryCheck = tableInfo.length > 0 && tableInfo[0].sql?.includes('CHECK');
+      if (hasCategoryCheck) {
+        this.sql.exec('ALTER TABLE memories RENAME TO memories_old');
+        this.sql.exec(`
+          CREATE TABLE memories (
+            id TEXT PRIMARY KEY,
+            text TEXT NOT NULL,
+            category TEXT NOT NULL,
+            source_agent TEXT NOT NULL,
+            source_handle TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            relevance_score REAL DEFAULT 1.0
+          )
+        `);
+        this.sql.exec('INSERT INTO memories SELECT * FROM memories_old');
+        this.sql.exec('DROP TABLE memories_old');
+      }
+    }
 
     this.sql.exec(`
       CREATE TABLE IF NOT EXISTS members (
@@ -43,11 +74,24 @@ export class TeamDO extends DurableObject {
       CREATE TABLE IF NOT EXISTS memories (
         id TEXT PRIMARY KEY,
         text TEXT NOT NULL,
-        category TEXT NOT NULL CHECK(category IN ('gotcha', 'pattern', 'config', 'decision')),
+        category TEXT NOT NULL,
         source_agent TEXT NOT NULL,
         source_handle TEXT,
         created_at TEXT DEFAULT (datetime('now')),
         relevance_score REAL DEFAULT 1.0
+      );
+
+      CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY,
+        agent_id TEXT NOT NULL,
+        owner_handle TEXT NOT NULL,
+        framework TEXT DEFAULT 'unknown',
+        started_at TEXT DEFAULT (datetime('now')),
+        ended_at TEXT,
+        edit_count INTEGER DEFAULT 0,
+        files_touched TEXT DEFAULT '[]',
+        conflicts_hit INTEGER DEFAULT 0,
+        memories_saved INTEGER DEFAULT 0
       );
     `);
 
@@ -57,6 +101,8 @@ export class TeamDO extends DurableObject {
   #isMember(agentId) {
     return this.sql.exec('SELECT 1 FROM members WHERE agent_id = ?', agentId).toArray().length > 0;
   }
+
+  // --- Membership ---
 
   async join(agentId, ownerId, ownerHandle) {
     this.#ensureSchema();
@@ -86,6 +132,8 @@ export class TeamDO extends DurableObject {
     if (row[0].c === 0) return { error: 'Not a member of this team' };
     return { ok: true };
   }
+
+  // --- Activity ---
 
   async updateActivity(agentId, files, summary) {
     this.#ensureSchema();
@@ -135,56 +183,16 @@ export class TeamDO extends DurableObject {
       }
     }
 
+    // Record conflicts in active session for the requesting agent
+    if (conflicts.length > 0) {
+      this.sql.exec(
+        `UPDATE sessions SET conflicts_hit = conflicts_hit + 1
+         WHERE agent_id = ? AND ended_at IS NULL`,
+        agentId
+      );
+    }
+
     return { conflicts };
-  }
-
-  async getContext(agentId) {
-    this.#ensureSchema();
-    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
-
-    // Evict stale members
-    this.sql.exec(`DELETE FROM activities WHERE agent_id IN (
-      SELECT agent_id FROM members
-      WHERE last_heartbeat < datetime('now', '-${HEARTBEAT_STALE_SECONDS} seconds')
-    )`);
-    this.sql.exec(
-      `DELETE FROM members WHERE last_heartbeat < datetime('now', '-${HEARTBEAT_STALE_SECONDS} seconds')`
-    );
-
-    const members = this.sql.exec(
-      `SELECT m.owner_handle, a.files, a.summary, a.updated_at,
-              CASE WHEN m.last_heartbeat > datetime('now', '-${HEARTBEAT_ACTIVE_SECONDS} seconds')
-                THEN 'active' ELSE 'offline' END as status
-       FROM members m
-       LEFT JOIN activities a ON a.agent_id = m.agent_id`
-    ).toArray();
-
-    // Compute relevance inline — no mutating UPDATE on reads
-    const memories = this.sql.exec(
-      `SELECT text, category, source_handle, created_at,
-              MAX(${MEMORY_MIN_SCORE},
-                1.0 - (MAX(0, julianday('now') - julianday(created_at) - ${MEMORY_DECAY_GRACE_DAYS}) * ${MEMORY_DECAY_RATE})
-              ) as relevance
-       FROM memories
-       WHERE MAX(${MEMORY_MIN_SCORE},
-               1.0 - (MAX(0, julianday('now') - julianday(created_at) - ${MEMORY_DECAY_GRACE_DAYS}) * ${MEMORY_DECAY_RATE})
-             ) > ${MEMORY_MIN_SCORE}
-       ORDER BY relevance DESC, created_at DESC
-       LIMIT 10`
-    ).toArray();
-
-    return {
-      members: members.map(m => ({
-        handle: m.owner_handle,
-        status: m.status,
-        activity: m.files ? {
-          files: JSON.parse(m.files),
-          summary: m.summary,
-          updated_at: m.updated_at,
-        } : null,
-      })),
-      memories,
-    };
   }
 
   async reportFile(agentId, filePath) {
@@ -219,11 +227,162 @@ export class TeamDO extends DurableObject {
     return { ok: true };
   }
 
+  // --- Context ---
+
+  async getContext(agentId) {
+    this.#ensureSchema();
+    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
+
+    // Evict stale members
+    this.sql.exec(`DELETE FROM activities WHERE agent_id IN (
+      SELECT agent_id FROM members
+      WHERE last_heartbeat < datetime('now', '-${HEARTBEAT_STALE_SECONDS} seconds')
+    )`);
+    this.sql.exec(
+      `DELETE FROM members WHERE last_heartbeat < datetime('now', '-${HEARTBEAT_STALE_SECONDS} seconds')`
+    );
+
+    // Prune old sessions
+    this.sql.exec(
+      `DELETE FROM sessions WHERE started_at < datetime('now', '-${SESSION_RETENTION_DAYS} days')`
+    );
+
+    const members = this.sql.exec(
+      `SELECT m.owner_handle, a.files, a.summary, a.updated_at,
+              CASE WHEN m.last_heartbeat > datetime('now', '-${HEARTBEAT_ACTIVE_SECONDS} seconds')
+                THEN 'active' ELSE 'offline' END as status
+       FROM members m
+       LEFT JOIN activities a ON a.agent_id = m.agent_id`
+    ).toArray();
+
+    const memories = this.sql.exec(
+      `SELECT text, category, source_handle, created_at,
+              MAX(${MEMORY_MIN_SCORE},
+                1.0 - (MAX(0, julianday('now') - julianday(created_at) - ${MEMORY_DECAY_GRACE_DAYS}) * ${MEMORY_DECAY_RATE})
+              ) as relevance
+       FROM memories
+       WHERE MAX(${MEMORY_MIN_SCORE},
+               1.0 - (MAX(0, julianday('now') - julianday(created_at) - ${MEMORY_DECAY_GRACE_DAYS}) * ${MEMORY_DECAY_RATE})
+             ) > ${MEMORY_MIN_SCORE}
+       ORDER BY relevance DESC, created_at DESC
+       LIMIT 10`
+    ).toArray();
+
+    const recentSessions = this.sql.exec(`
+      SELECT owner_handle, framework, started_at, ended_at,
+             edit_count, files_touched, conflicts_hit, memories_saved,
+             ROUND((julianday(COALESCE(ended_at, datetime('now'))) - julianday(started_at)) * 24 * 60) as duration_minutes
+      FROM sessions
+      WHERE started_at > datetime('now', '-24 hours')
+      ORDER BY started_at DESC
+      LIMIT 20
+    `).toArray();
+
+    return {
+      members: members.map(m => ({
+        handle: m.owner_handle,
+        status: m.status,
+        activity: m.files ? {
+          files: JSON.parse(m.files),
+          summary: m.summary,
+          updated_at: m.updated_at,
+        } : null,
+      })),
+      memories,
+      recentSessions: recentSessions.map(s => ({
+        ...s,
+        files_touched: JSON.parse(s.files_touched || '[]'),
+      })),
+    };
+  }
+
+  // --- Sessions (observability) ---
+
+  async startSession(agentId, handle, framework) {
+    this.#ensureSchema();
+    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
+
+    // End any existing open session for this agent
+    this.sql.exec(
+      `UPDATE sessions SET ended_at = datetime('now') WHERE agent_id = ? AND ended_at IS NULL`,
+      agentId
+    );
+
+    const id = crypto.randomUUID();
+    this.sql.exec(
+      `INSERT INTO sessions (id, agent_id, owner_handle, framework, started_at)
+       VALUES (?, ?, ?, ?, datetime('now'))`,
+      id, agentId, handle, framework || 'unknown'
+    );
+    return { ok: true, session_id: id };
+  }
+
+  async endSession(sessionId) {
+    this.#ensureSchema();
+    this.sql.exec(
+      `UPDATE sessions SET ended_at = datetime('now') WHERE id = ? AND ended_at IS NULL`,
+      sessionId
+    );
+    return { ok: true };
+  }
+
+  async recordEdit(agentId, filePath) {
+    this.#ensureSchema();
+    const normalized = normalizePath(filePath);
+
+    // Find the active session for this agent
+    const sessions = this.sql.exec(
+      'SELECT id, files_touched FROM sessions WHERE agent_id = ? AND ended_at IS NULL ORDER BY started_at DESC LIMIT 1',
+      agentId
+    ).toArray();
+
+    if (sessions.length === 0) return { ok: true }; // No active session — silently skip
+
+    const session = sessions[0];
+    let files = JSON.parse(session.files_touched || '[]');
+    if (!files.includes(normalized)) {
+      files.push(normalized);
+      if (files.length > ACTIVITY_MAX_FILES) files = files.slice(-ACTIVITY_MAX_FILES);
+    }
+
+    this.sql.exec(
+      `UPDATE sessions SET edit_count = edit_count + 1, files_touched = ? WHERE id = ?`,
+      JSON.stringify(files), session.id
+    );
+    return { ok: true };
+  }
+
+  async getHistory(days) {
+    this.#ensureSchema();
+    const sessions = this.sql.exec(
+      `SELECT owner_handle, framework, started_at, ended_at,
+             edit_count, files_touched, conflicts_hit, memories_saved,
+             ROUND((julianday(COALESCE(ended_at, datetime('now'))) - julianday(started_at)) * 24 * 60) as duration_minutes
+       FROM sessions
+       WHERE started_at > datetime('now', '-' || ? || ' days')
+       ORDER BY started_at DESC
+       LIMIT 50`,
+      days
+    ).toArray();
+
+    return {
+      sessions: sessions.map(s => ({
+        ...s,
+        files_touched: JSON.parse(s.files_touched || '[]'),
+      })),
+    };
+  }
+
+  // --- Memory ---
+
   async saveMemory(agentId, text, category, handle) {
     this.#ensureSchema();
     if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
 
-    // Exact case-insensitive deduplication
+    if (!VALID_CATEGORIES.includes(category)) {
+      return { error: `Category must be one of: ${VALID_CATEGORIES.join(', ')}` };
+    }
+
     const normalized = text.trim().toLowerCase();
     const existing = this.sql.exec(
       'SELECT id FROM memories WHERE LOWER(TRIM(text)) = ?', normalized
@@ -244,12 +403,18 @@ export class TeamDO extends DurableObject {
       id, text, category, agentId, handle || 'unknown'
     );
 
-    // Prune oldest low-relevance memories beyond the cap
     this.sql.exec(`
       DELETE FROM memories WHERE id NOT IN (
         SELECT id FROM memories ORDER BY relevance_score DESC, created_at DESC LIMIT ${MEMORY_MAX_COUNT}
       )
     `);
+
+    // Record in active session
+    this.sql.exec(
+      `UPDATE sessions SET memories_saved = memories_saved + 1
+       WHERE agent_id = ? AND ended_at IS NULL`,
+      agentId
+    );
 
     return { ok: true, id };
   }

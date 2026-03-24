@@ -138,6 +138,30 @@ export function Dashboard({ config, navigate }) {
           ))
         )}
 
+        {/* Recent Activity section */}
+        {context.recentSessions && context.recentSessions.length > 0 && (
+          <>
+            <Text>{''}</Text>
+            <Text bold>Recent Activity (24h)</Text>
+            <Text dimColor>{'─'.repeat(40)}</Text>
+            {context.recentSessions.map((s) => {
+              const duration = s.duration_minutes >= 60
+                ? `${Math.floor(s.duration_minutes / 60)}h ${Math.round(s.duration_minutes % 60)}m`
+                : `${Math.round(s.duration_minutes)}m`;
+              const fileCount = s.files_touched?.length || 0;
+              const ended = s.ended_at ? ' (ended)' : '';
+              const conflicts = s.conflicts_hit > 0 ? `, ${s.conflicts_hit} conflict${s.conflicts_hit > 1 ? 's' : ''}` : '';
+              return (
+                <Box key={`${s.owner_handle}-${s.started_at}`}>
+                  <Text>  {s.owner_handle}</Text>
+                  <Text dimColor> ({s.framework})</Text>
+                  <Text> — {duration}, {s.edit_count} edits, {fileCount} files{conflicts}{ended}</Text>
+                </Box>
+              );
+            })}
+          </>
+        )}
+
         {/* Memory section */}
         {context.memories && context.memories.length > 0 && (
           <>

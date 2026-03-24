@@ -39,12 +39,22 @@ async function main() {
   // Check for .chinwag team file
   let currentTeamId = findTeamFile();
   let heartbeatInterval = null;
+  let sessionId = null;
   const team = teamHandlers(client);
 
   if (currentTeamId) {
     try {
       await team.joinTeam(currentTeamId);
       console.error(`[chinwag] Auto-joined team ${currentTeamId}`);
+
+      // Start observability session
+      try {
+        const session = await team.startSession(currentTeamId, profile.framework);
+        sessionId = session.session_id;
+        console.error(`[chinwag] Session started: ${sessionId}`);
+      } catch (err) {
+        console.error('[chinwag] Failed to start session:', err.message);
+      }
 
       heartbeatInterval = setInterval(async () => {
         try {
@@ -59,10 +69,18 @@ async function main() {
     }
   }
 
-  // Clean up on exit
+  // Clean up on exit — end session then exit
+  let cleaning = false;
   const cleanup = () => {
+    if (cleaning) return;
+    cleaning = true;
     if (heartbeatInterval) clearInterval(heartbeatInterval);
-    process.exit(0);
+    const done = () => process.exit(0);
+    if (sessionId && currentTeamId) {
+      team.endSession(currentTeamId, sessionId).catch(() => {}).finally(done);
+    } else {
+      done();
+    }
   };
   process.on('SIGINT', cleanup);
   process.on('SIGTERM', cleanup);
@@ -231,10 +249,10 @@ function registerTools(server, client, team, getTeamId) {
   server.tool(
     'chinwag_save_memory',
     {
-      description: 'Save a project fact or learning that other agents on the team should know. Use this when you discover something important about the project that would help other agents. Categories: "gotcha" (common pitfalls), "pattern" (code conventions), "config" (environment/setup facts), "decision" (architectural decisions). These persist across sessions and are shared with all team agents.',
+      description: 'Save a project fact or learning that other agents on the team should know. Use this when you discover something important about the project that would help other agents. These persist across sessions and are shared with all team agents.',
       inputSchema: z.object({
-        text: z.string().describe('The fact or learning to save. Be specific and actionable, e.g. "Tests require Redis running on port 6379" or "Auth middleware must run before CORS headers"'),
-        category: z.enum(['gotcha', 'pattern', 'config', 'decision']).describe('Category of this memory'),
+        text: z.string().describe('The fact or learning to save. Be specific and actionable, e.g. "Tests require Redis running on port 6379" or "API docs: https://docs.stripe.com/api"'),
+        category: z.enum(['gotcha', 'pattern', 'config', 'decision', 'reference']).describe('Category: "gotcha" (pitfalls), "pattern" (conventions), "config" (setup facts), "decision" (architecture), "reference" (URLs, docs, external resources)'),
       }),
     },
     async ({ text, category }) => {

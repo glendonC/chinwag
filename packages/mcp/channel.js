@@ -56,14 +56,15 @@ async function main() {
     console.error(`[chinwag-channel] Failed to join team: ${err.message}`);
   }
 
-  // State diffing
+  // State diffing + stuckness tracking
   let prevState = null;
+  const stucknessAlerted = new Map(); // handle → updated_at when alert was sent
 
   const poll = async () => {
     try {
       const ctx = await client.get(`/teams/${teamId}/context`);
       if (prevState) {
-        const events = diffState(prevState, ctx);
+        const events = diffState(prevState, ctx, stucknessAlerted);
         for (const event of events) {
           await pushEvent(server, event);
         }
@@ -101,7 +102,9 @@ async function main() {
 
 // --- State diffing ---
 
-function diffState(prev, curr) {
+const STUCKNESS_THRESHOLD_MINUTES = 15;
+
+function diffState(prev, curr, stucknessAlerted) {
   const events = [];
 
   const prevHandles = new Set(prev.members?.map(m => m.handle) || []);
@@ -153,6 +156,33 @@ function diffState(prev, curr) {
   for (const [file, owners] of fileOwners) {
     if (owners.length > 1) {
       events.push(`CONFLICT: ${owners.join(' and ')} are both editing ${file}`);
+    }
+  }
+
+  // Stuckness detection: agent on same task too long
+  for (const handle of currHandles) {
+    const m = currByHandle.get(handle);
+    if (!m?.activity?.updated_at || m.status !== 'active') continue;
+
+    const alertedAt = stucknessAlerted.get(handle);
+    if (alertedAt && alertedAt !== m.activity.updated_at) {
+      // Activity changed since alert — clear it
+      stucknessAlerted.delete(handle);
+    }
+
+    if (!stucknessAlerted.has(handle)) {
+      const minutesOnSameActivity = (Date.now() - new Date(m.activity.updated_at).getTime()) / 60_000;
+      if (minutesOnSameActivity > STUCKNESS_THRESHOLD_MINUTES) {
+        events.push(`Agent ${handle} has been on the same task for ${Math.round(minutesOnSameActivity)} min — may be stuck`);
+        stucknessAlerted.set(handle, m.activity.updated_at);
+      }
+    }
+  }
+
+  // Clear alerts for agents that disconnected
+  for (const handle of stucknessAlerted.keys()) {
+    if (!currHandles.has(handle)) {
+      stucknessAlerted.delete(handle);
     }
   }
 

@@ -83,6 +83,14 @@ export default {
             response = await handleTeamFile(request, user, env, parsed.teamId);
           } else if (method === 'POST' && parsed.action === 'memory') {
             response = await handleTeamSaveMemory(request, user, env, parsed.teamId);
+          } else if (method === 'POST' && parsed.action === 'sessions') {
+            response = await handleTeamStartSession(request, user, env, parsed.teamId);
+          } else if (method === 'POST' && parsed.action === 'sessionend') {
+            response = await handleTeamEndSession(request, user, env, parsed.teamId);
+          } else if (method === 'POST' && parsed.action === 'sessionedit') {
+            response = await handleTeamSessionEdit(request, user, env, parsed.teamId);
+          } else if (method === 'GET' && parsed.action === 'history') {
+            response = await handleTeamHistory(request, user, env, parsed.teamId);
           } else {
             response = json({ error: 'Not found' }, 404);
           }
@@ -374,7 +382,7 @@ async function handleTeamSaveMemory(request, user, env, teamId) {
   if (text.length > 2000) {
     return json({ error: 'text must be 2000 characters or less' }, 400);
   }
-  const validCategories = ['gotcha', 'pattern', 'config', 'decision'];
+  const validCategories = ['gotcha', 'pattern', 'config', 'decision', 'reference'];
   if (!validCategories.includes(category)) {
     return json({ error: `category must be one of: ${validCategories.join(', ')}` }, 400);
   }
@@ -383,6 +391,51 @@ async function handleTeamSaveMemory(request, user, env, teamId) {
   const result = await team.saveMemory(user.id, text.trim(), category, user.handle);
   if (result.error) return json({ error: result.error }, 400);
   return json(result, 201);
+}
+
+async function handleTeamStartSession(request, user, env, teamId) {
+  const body = await request.json();
+  const framework = typeof body.framework === 'string' ? body.framework.slice(0, 50) : 'unknown';
+
+  const team = getTeam(env, teamId);
+  const result = await team.startSession(user.id, user.handle, framework);
+  if (result.error) return json({ error: result.error }, 400);
+  return json(result, 201);
+}
+
+async function handleTeamEndSession(request, user, env, teamId) {
+  const { session_id } = await request.json();
+  if (typeof session_id !== 'string') {
+    return json({ error: 'session_id is required' }, 400);
+  }
+
+  const team = getTeam(env, teamId);
+  const result = await team.endSession(session_id);
+  if (result.error) return json({ error: result.error }, 400);
+  return json(result);
+}
+
+async function handleTeamSessionEdit(request, user, env, teamId) {
+  const { file } = await request.json();
+  if (typeof file !== 'string' || !file.trim()) {
+    return json({ error: 'file is required' }, 400);
+  }
+
+  const team = getTeam(env, teamId);
+  const result = await team.recordEdit(user.id, file);
+  if (result.error) return json({ error: result.error }, 400);
+  return json(result);
+}
+
+async function handleTeamHistory(request, user, env, teamId) {
+  const url = new URL(request.url);
+  const parsed = parseInt(url.searchParams.get('days') || '7', 10);
+  const days = Math.max(1, Math.min(isNaN(parsed) ? 7 : parsed, 30));
+
+  const team = getTeam(env, teamId);
+  const result = await team.getHistory(days);
+  if (result.error) return json({ error: result.error }, 403);
+  return json(result);
 }
 
 // --- Helpers ---

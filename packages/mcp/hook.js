@@ -75,7 +75,11 @@ async function reportEdit(client, teamId, input) {
   if (!filePath) process.exit(0);
 
   try {
-    await client.post(`/teams/${teamId}/file`, { file: filePath });
+    // Update current activity + record in session history (parallel)
+    await Promise.all([
+      client.post(`/teams/${teamId}/file`, { file: filePath }),
+      client.post(`/teams/${teamId}/sessionedit`, { file: filePath }),
+    ]);
   } catch (err) {
     console.error(`[chinwag] Activity report failed: ${err.message}`);
   }
@@ -104,6 +108,24 @@ async function sessionStart(client, teamId) {
         console.log('Project knowledge:');
         for (const mem of ctx.memories) {
           console.log(`  [${mem.category}] ${mem.text}`);
+        }
+      }
+
+      // Surface actionable insights
+      const insights = [];
+      for (const m of ctx.members) {
+        if (m.activity?.updated_at) {
+          const mins = (Date.now() - new Date(m.activity.updated_at).getTime()) / 60_000;
+          if (mins > 15) {
+            insights.push(`${m.handle} has been on ${m.activity.files[0]} for ${Math.round(mins)} min — may need help`);
+          }
+        }
+      }
+      if (insights.length > 0) {
+        console.log('');
+        console.log('Insights:');
+        for (const insight of insights) {
+          console.log(`  ${insight}`);
         }
       }
 

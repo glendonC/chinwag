@@ -48,5 +48,21 @@ export function teamHandlers(client) {
     async saveMemory(teamId, text, category) {
       return client.post(`/teams/${teamId}/memory`, { text, category });
     },
+
+    async startSession(teamId, framework) {
+      return client.post(`/teams/${teamId}/sessions`, { framework });
+    },
+
+    async endSession(teamId, sessionId) {
+      return client.post(`/teams/${teamId}/sessionend`, { session_id: sessionId });
+    },
+
+    async recordEdit(teamId, file) {
+      return client.post(`/teams/${teamId}/sessionedit`, { file });
+    },
+
+    async getHistory(teamId, days = 7) {
+      return client.get(`/teams/${teamId}/history?days=${days}`);
+    },
   };
 }
