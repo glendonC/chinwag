@@ -1,10 +1,12 @@
 # Contributing to chinwag
 
-chinwag is the control layer for agentic development — one command connects all your AI coding tools into a unified system with shared memory, live coordination, and conflict prevention. The MCP server is the product; after `chinwag init`, it runs invisibly alongside each agent. We welcome contributions from everyone. Whether you're fixing a typo, reporting a bug, improving documentation, or building a feature — thank you.
+chinwag is the control layer for agentic development: one command connects your AI coding tools into a unified system with shared memory, live coordination, and conflict prevention. The MCP server is the product. After `chinwag init`, it runs invisibly alongside each agent.
 
-This guide covers everything you need to contribute effectively. If something is unclear, open an issue and ask. Questions are contributions too.
+We welcome contributions from everyone. Whether you are fixing a typo, reporting a bug, improving documentation, or building a feature, thank you.
 
-## Table of Contents
+This guide covers what you need to contribute effectively. If something is unclear, open an issue and ask. Questions are contributions too.
+
+## Table of contents
 
 - [Code of Conduct](#code-of-conduct)
 - [Getting Started](#getting-started)
@@ -18,7 +20,7 @@ This guide covers everything you need to contribute effectively. If something is
 
 ## Code of Conduct
 
-Be kind, be constructive, be welcoming. We're building a community tool — the way we work together should reflect that.
+Be kind, be constructive, be welcoming. We are building a community tool, and the way we work together should reflect that.
 
 We do not tolerate harassment, personal attacks, or exclusionary behavior. Maintainers will enforce this at their discretion.
 
@@ -31,7 +33,7 @@ We do not tolerate harassment, personal attacks, or exclusionary behavior. Maint
 - **Wrangler CLI** (`npm install -g wrangler`) for worker development
 - A Cloudflare account (only needed if deploying workers; not needed for CLI work)
 
-### Clone and Install
+### Clone and install
 
 ```bash
 git clone https://github.com/glendonchin/chinwag.git
@@ -41,32 +43,32 @@ npm install
 
 This installs dependencies for all packages via npm workspaces.
 
-### Running Locally
+### Running locally
 
 ```bash
-# CLI — build and run the terminal client
+# CLI: build and run the terminal client
 npm run dev:cli
 
-# Worker — start local dev server (uses Wrangler's local mode)
+# Worker: start local dev server (Wrangler local mode)
 npm run dev:worker
 
-# Both in separate terminals for full-stack development
+# Run both in separate terminals for full-stack development
 ```
 
-The CLI points to the production API by default. To point it at your local worker, set:
+The CLI points to the production API by default. To point it at your local worker:
 
 ```bash
 CHINWAG_API_URL=http://localhost:8787 CHINWAG_WS_URL=ws://localhost:8787/ws/chat npm run dev:cli
 ```
 
-## Project Structure
+## Project structure
 
 chinwag is a monorepo with four packages:
 
 ```
 packages/
-  mcp/          MCP server (the product — shared brain for agents)
-    index.js      Server entry — 5 tools, 1 resource, stdio transport
+  mcp/          MCP server (the product: shared brain for agents)
+    index.js      Server entry: 5 tools, 1 resource, stdio transport
     hook.js       Claude Code hook handler (check-conflict, report-edit, session-start)
     channel.js    Claude Code channel server (real-time push via state diffing)
     lib/          API client, team operations, config, profile detection
@@ -74,8 +76,8 @@ packages/
   cli/          Node.js terminal UI (Ink/React, optional)
     cli.jsx       Entry point, screen router, error boundary
     lib/
-      init-command.js   chinwag init — account, team, tool detection, config writing
-      add-command.js    chinwag add — adds MCP config, fetches catalog from API
+      init-command.js   chinwag init: account, team, tool detection, config writing
+      add-command.js    chinwag add: adds MCP config, fetches catalog from API
       tools.js          MCP tool registry (8 tools chinwag configures)
       mcp-config.js     Tool detection and config file writing
       dashboard.jsx     Agent activity dashboard
@@ -87,23 +89,23 @@ packages/
   worker/       Cloudflare Workers backend
     src/
       index.js      HTTP router, auth middleware, rate limiting
-      db.js         DatabaseDO — users, agent profiles, rate limits
-      team.js       TeamDO — coordination, activity, conflicts, memory, sessions
-      lobby.js      LobbyDO — room assignment and presence
-      room.js       RoomDO — WebSocket chat rooms
+      db.js         DatabaseDO: users, agent profiles, rate limits
+      team.js       TeamDO: coordination, activity, conflicts, memory, sessions
+      lobby.js      LobbyDO: room assignment and presence
+      room.js       RoomDO: WebSocket chat rooms
       moderation.js Content moderation (blocklist + Llama Guard 3)
 
-  web/          Static landing page (Cloudflare Pages)
+  web/          Static site (Cloudflare Pages)
     index.html    Single-page site with OpenGraph meta tags
     script.js     Scroll journey, section navigation
     styles/       CSS split into foundation, header, landing, responsive
 ```
 
-If you're unsure which package your change belongs in, look at where the behavior lives: user-facing display is CLI, server logic is worker, marketing/landing is web.
+If you are unsure which package your change belongs in, follow where the behavior lives: user-facing display is CLI, server logic is worker, marketing and landing is web.
 
-## How to Contribute
+## How to contribute
 
-### Reporting Bugs
+### Reporting bugs
 
 [Open a bug report](https://github.com/glendonchin/chinwag/issues/new) with:
 
@@ -112,15 +114,15 @@ If you're unsure which package your change belongs in, look at where the behavio
 - Steps to reproduce
 - Your environment (OS, Node version, terminal emulator)
 
-### Suggesting Features
+### Suggesting features
 
 [Open a feature request](https://github.com/glendonchin/chinwag/issues/new) with:
 
-- The problem you're trying to solve
+- The problem you are trying to solve
 - Your proposed solution
 - Alternatives you considered
 
-### Your First Contribution
+### Your first contribution
 
 Look for issues labeled [`good first issue`](https://github.com/glendonchin/chinwag/labels/good%20first%20issue). These are scoped, well-defined tasks designed to be approachable.
 
@@ -131,17 +133,17 @@ Good first contributions also include:
 - Documentation improvements
 - Accessibility fixes in the terminal UI
 
-### Security Vulnerabilities
+### Security vulnerabilities
 
 **Do not open a public issue.** See [SECURITY.md](../SECURITY.md) for responsible disclosure instructions.
 
-## Development Guide
+## Development guide
 
-### Code Style
+### Code style
 
 - **JavaScript** (ES modules, no TypeScript currently)
 - **JSX** for CLI components (Ink uses React)
-- No linter configured yet — match the existing style:
+- No linter configured yet; match the existing style:
   - 2-space indentation
   - Single quotes for strings
   - `const` by default, `let` when reassignment is needed
@@ -150,15 +152,15 @@ Good first contributions also include:
 
 ### Testing
 
-Testing infrastructure is not yet set up. If you're adding tests (very welcome), propose your test framework choice in the PR.
+Testing infrastructure is not yet set up. If you are adding tests (very welcome), propose your test framework choice in the PR.
 
 For manual testing:
 
 ```bash
-# CLI changes — rebuild and run
+# CLI changes: rebuild and run
 cd packages/cli && npm run dev
 
-# Worker changes — use local Wrangler dev server
+# Worker changes: use local Wrangler dev server
 cd packages/worker && npx wrangler dev
 
 # Test API endpoints directly
@@ -166,23 +168,23 @@ curl http://localhost:8787/stats
 curl -X POST http://localhost:8787/auth/init
 ```
 
-### Per-Package Notes
+### Per-package notes
 
 **CLI (`packages/cli/`)**
 
 - Built with [Ink](https://github.com/vadimdemedes/ink) (React for terminals)
-- Bundled with esbuild → `dist/cli.js`
+- Bundled with esbuild to `dist/cli.js`
 - Screen components are in `lib/`. Each screen is a React component receiving `navigate`, `user`, and `config` props.
 - Colors are mapped in `lib/colors.js`. Use `getInkColor()` for Ink components.
-- Config lives at `~/.chinwag/config.json`. Use `lib/config.js` helpers, never write directly.
+- Config lives at `~/.chinwag/config.json`. Use `lib/config.js` helpers; never write directly.
 
 **Worker (`packages/worker/`)**
 
 - Four Durable Object classes: `DatabaseDO`, `TeamDO`, `LobbyDO`, `RoomDO`
 - Single `DatabaseDO` instance holds all persistent data (SQLite)
-- `LobbyDO` manages room assignment — rooms auto-size to ~20 users
+- `LobbyDO` manages room assignment; rooms auto-size to ~20 users
 - `RoomDO` handles one chat room each with WebSocket connections
-- Moderation is two-layer: fast blocklist + Llama Guard 3 AI. See `CLAUDE.md` for the design rationale — do not grow the blocklist as a strategy.
+- Moderation is two-layer: fast blocklist plus Llama Guard 3 AI. See `CLAUDE.md` for the design rationale. Do not grow the blocklist as a strategy.
 - KV is for auth token lookups only. Do not add new KV use cases without discussion.
 
 **Web (`packages/web/`)**
@@ -191,7 +193,7 @@ curl -X POST http://localhost:8787/auth/init
 - Fetches live stats from the production API.
 - Deployed on Cloudflare Pages.
 
-## Commit Conventions
+## Commit conventions
 
 We use [Conventional Commits](https://www.conventionalcommits.org/) with package scopes:
 
@@ -219,11 +221,11 @@ chore: update wrangler to v4.1
 
 Keep the subject line under 72 characters. Use the body for context on *why*, not *what* (the diff shows what).
 
-## Pull Request Process
+## Pull request process
 
-1. **Branch from `main`**. Use a descriptive branch name: `fix/lobby-null-room`, `feat/cli-color-picker`, `docs/security-policy`.
+1. **Branch from `main`.** Use a descriptive branch name: `fix/lobby-null-room`, `feat/cli-color-picker`, `docs/security-policy`.
 
-2. **One concern per PR.** A bug fix is one PR. A feature is one PR. Don't bundle unrelated changes.
+2. **One concern per PR.** A bug fix is one PR. A feature is one PR. Do not bundle unrelated changes.
 
 3. **Write a clear description.** What does this change? Why? How can a reviewer test it? Link to the issue if there is one.
 
@@ -231,28 +233,28 @@ Keep the subject line under 72 characters. Use the body for context on *why*, no
 
 5. **All CI checks must pass** before merge.
 
-6. **Maintainers may request changes.** This is normal and collaborative — it's about making the code better together.
+6. **Maintainers may request changes.** That is normal and collaborative. It is about making the code better together.
 
 ### Draft PRs
 
-Open a draft PR if you want early feedback on an approach before it's complete. This is encouraged for larger changes.
+Open a draft PR if you want early feedback on an approach before it is complete. This is encouraged for larger changes.
 
-## Code Review
+## Code review
 
 ### What reviewers look for
 
-1. **Correctness** — Does the code do what it claims? Are edge cases handled?
-2. **Architecture** — Does this change belong in this package/file? Does it follow existing patterns?
-3. **Security** — Does this introduce untrusted input paths? Are inputs validated?
-4. **Simplicity** — Is there a simpler way to achieve the same result?
+1. **Correctness:** Does the code do what it claims? Are edge cases handled?
+2. **Architecture:** Does this change belong in this package or file? Does it follow existing patterns?
+3. **Security:** Does this introduce untrusted input paths? Are inputs validated?
+4. **Simplicity:** Is there a simpler way to achieve the same result?
 
 ### Response times
 
-We aim to review PRs within 48 hours. If you haven't heard back in a week, it's okay to leave a polite ping on the PR.
+We aim to review PRs within 48 hours. If you have not heard back in a week, it is okay to leave a polite ping on the PR.
 
 ### Addressing feedback
 
-Push new commits to address review feedback (don't force-push over the review). This makes it easy for reviewers to see what changed. We squash on merge.
+Push new commits to address review feedback (do not force-push over the review). This makes it easy for reviewers to see what changed. We squash on merge.
 
 ## Legal
 

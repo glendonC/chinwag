@@ -58,7 +58,7 @@ chinwag takes security seriously. This document describes how to report vulnerab
 - Denial of service against Cloudflare's network (L3/L4 DDoS)
 - Social engineering of maintainers or users
 - Attacks requiring physical access to a user's machine
-- Content moderation false positives/negatives (these are quality issues, not security — file a regular issue)
+- Content moderation false positives/negatives (these are quality issues, not security; file a regular issue)
 - Self-XSS in the terminal CLI (the terminal is the user's own environment)
 
 ## Supported Versions
@@ -124,7 +124,7 @@ For context on how chinwag's security works under the hood:
 - **Transport:** All connections use TLS. The CLI connects via `wss://` (WebSocket Secure) and `https://`. Cloudflare terminates TLS at the edge.
 - **Authentication:** UUID bearer tokens, generated at account creation, stored in Cloudflare KV for fast lookup. One token per user, no refresh rotation currently.
 - **Isolation:** Each Durable Object (DatabaseDO, TeamDO, RoomDO, LobbyDO) runs in its own single-threaded isolate. Cross-DO access is only possible through explicit stub calls, never shared memory.
-- **Content moderation:** Two-layer system — synchronous blocklist (regex, <1ms) followed by async AI moderation (Llama Guard 3 on Cloudflare Workers AI). Both layers run before content is persisted for chat and status.
+- **Content moderation:** Two-layer system: synchronous blocklist (regex, under 1 ms) followed by async AI moderation (Llama Guard 3 on Cloudflare Workers AI). Both layers run before content is persisted for chat and status.
 - **Rate limiting:** Account creation (3/IP/day), chat messages (10/min/user), new account chat cooldown (5 minutes).
 
 ## Acknowledgments

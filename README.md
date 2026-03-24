@@ -1,6 +1,6 @@
 # chinwag
 
-Monorepo for [chinwag](https://chinwag.dev) — vendor-neutral control layer for agentic development.
+Monorepo for [chinwag](https://chinwag.dev), the vendor-neutral control layer for agentic development.
 
 **Published npm package:** [`packages/cli`](packages/cli/README.md) (`chinwag` on npm when published).
 
