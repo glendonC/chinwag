@@ -9,9 +9,9 @@ export function Dashboard({ config, navigate }) {
   const [context, setContext] = useState(null);
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    // Read .chinwag file for team ID
     const chinwagFile = join(process.cwd(), '.chinwag');
     if (!existsSync(chinwagFile)) {
       setError('No .chinwag file found. Run `chinwag init` first.');
@@ -47,16 +47,13 @@ export function Dashboard({ config, navigate }) {
     fetchContext();
     const interval = setInterval(fetchContext, 5000);
     return () => clearInterval(interval);
-  }, [teamId]);
+  }, [teamId, refreshKey]);
 
   useInput((ch) => {
     if (ch === 'q') { navigate('quit'); return; }
     if (ch === 'r') {
-      // Force refresh by toggling teamId
-      setTeamId(prev => {
-        setContext(null);
-        return prev;
-      });
+      setContext(null);
+      setRefreshKey(k => k + 1);
     }
     if (ch === 'b') { navigate('home'); return; }
   });
@@ -66,7 +63,10 @@ export function Dashboard({ config, navigate }) {
       <Box flexDirection="column" padding={1}>
         <Text color="red">{error}</Text>
         <Box paddingTop={1}>
-          <Text dimColor>[b] back  [q] quit</Text>
+          <Text>
+            <Text color="cyan" bold>[b]</Text><Text dimColor> back  </Text>
+            <Text color="cyan" bold>[q]</Text><Text dimColor> quit</Text>
+          </Text>
         </Box>
       </Box>
     );
@@ -75,7 +75,7 @@ export function Dashboard({ config, navigate }) {
   if (!context) {
     return (
       <Box padding={1}>
-        <Text dimColor>Loading team context...</Text>
+        <Text color="cyan">Loading team context...</Text>
       </Box>
     );
   }
@@ -83,7 +83,7 @@ export function Dashboard({ config, navigate }) {
   const activeMembers = context.members?.filter(m => m.status === 'active') || [];
   const offlineMembers = context.members?.filter(m => m.status === 'offline') || [];
 
-  // Detect conflicts: files being edited by multiple agents
+  // Detect conflicts
   const fileOwners = new Map();
   for (const m of activeMembers) {
     if (!m.activity?.files) continue;
@@ -97,25 +97,37 @@ export function Dashboard({ config, navigate }) {
   return (
     <Box flexDirection="column">
       <Box flexDirection="column" paddingX={1} paddingTop={1}>
-        {/* Agents section */}
-        <Text bold>Agents ({activeMembers.length} active)</Text>
-        <Text dimColor>{'─'.repeat(40)}</Text>
+        {/* Agents */}
+        <Text color="cyan" bold>Agents</Text>
+        <Text dimColor>{'─'.repeat(50)}</Text>
 
         {activeMembers.length === 0 && offlineMembers.length === 0 && (
           <Text dimColor>  No agents connected</Text>
         )}
 
-        {activeMembers.map((m) => (
-          <Box key={m.handle}>
-            <Text color="green">  {m.handle}</Text>
-            <Text dimColor> (active)</Text>
-            {m.activity ? (
-              <Text> — {m.activity.files.join(', ')} — "{m.activity.summary}"</Text>
-            ) : (
-              <Text dimColor> — idle</Text>
-            )}
-          </Box>
-        ))}
+        {activeMembers.map((m) => {
+          const tool = m.framework ? ` (${m.framework})` : '';
+          const duration = m.session_minutes != null
+            ? m.session_minutes >= 60
+              ? ` ${Math.floor(m.session_minutes / 60)}h${Math.round(m.session_minutes % 60)}m`
+              : ` ${Math.round(m.session_minutes)}m`
+            : '';
+          return (
+            <Box key={m.handle}>
+              <Text color="green">  {m.handle}</Text>
+              <Text dimColor>{tool}{duration}</Text>
+              {m.activity ? (
+                <Text>
+                  <Text dimColor> — </Text>
+                  <Text>{m.activity.files.join(', ')}</Text>
+                  <Text dimColor> — "{m.activity.summary}"</Text>
+                </Text>
+              ) : (
+                <Text dimColor> — idle</Text>
+              )}
+            </Box>
+          );
+        })}
 
         {offlineMembers.map((m) => (
           <Box key={m.handle}>
@@ -123,54 +135,57 @@ export function Dashboard({ config, navigate }) {
           </Box>
         ))}
 
-        {/* Conflicts section */}
-        <Text>{''}</Text>
-        <Text bold>Conflicts</Text>
-        <Text dimColor>{'─'.repeat(40)}</Text>
-        {conflicts.length === 0 ? (
-          <Text dimColor>  (none)</Text>
-        ) : (
-          conflicts.map(([file, owners]) => (
-            <Box key={file}>
-              <Text color="red">  {file}</Text>
-              <Text> — edited by {owners.join(', ')}</Text>
-            </Box>
-          ))
+        {/* Conflicts */}
+        {conflicts.length > 0 && (
+          <>
+            <Text>{''}</Text>
+            <Text color="red" bold>Conflicts</Text>
+            <Text dimColor>{'─'.repeat(50)}</Text>
+            {conflicts.map(([file, owners]) => (
+              <Box key={file}>
+                <Text color="red">  {file}</Text>
+                <Text dimColor> — </Text>
+                <Text>{owners.join(', ')}</Text>
+              </Box>
+            ))}
+          </>
         )}
 
-        {/* Recent Activity section */}
+        {/* Recent Activity */}
         {context.recentSessions && context.recentSessions.length > 0 && (
           <>
             <Text>{''}</Text>
-            <Text bold>Recent Activity (24h)</Text>
-            <Text dimColor>{'─'.repeat(40)}</Text>
+            <Text color="cyan" bold>Recent Activity</Text>
+            <Text dimColor>{'─'.repeat(50)}</Text>
             {context.recentSessions.map((s) => {
               const duration = s.duration_minutes >= 60
                 ? `${Math.floor(s.duration_minutes / 60)}h ${Math.round(s.duration_minutes % 60)}m`
                 : `${Math.round(s.duration_minutes)}m`;
               const fileCount = s.files_touched?.length || 0;
               const ended = s.ended_at ? ' (ended)' : '';
-              const conflicts = s.conflicts_hit > 0 ? `, ${s.conflicts_hit} conflict${s.conflicts_hit > 1 ? 's' : ''}` : '';
+              const conflictsBadge = s.conflicts_hit > 0
+                ? `, ${s.conflicts_hit} conflict${s.conflicts_hit > 1 ? 's' : ''}`
+                : '';
               return (
                 <Box key={`${s.owner_handle}-${s.started_at}`}>
                   <Text>  {s.owner_handle}</Text>
                   <Text dimColor> ({s.framework})</Text>
-                  <Text> — {duration}, {s.edit_count} edits, {fileCount} files{conflicts}{ended}</Text>
+                  <Text dimColor> — {duration}, {s.edit_count} edits, {fileCount} files{conflictsBadge}{ended}</Text>
                 </Box>
               );
             })}
           </>
         )}
 
-        {/* Memory section */}
+        {/* Memory */}
         {context.memories && context.memories.length > 0 && (
           <>
             <Text>{''}</Text>
-            <Text bold>Team Knowledge ({context.memories.length} entries)</Text>
-            <Text dimColor>{'─'.repeat(40)}</Text>
+            <Text color="cyan" bold>Team Knowledge</Text>
+            <Text dimColor>{'─'.repeat(50)}</Text>
             {context.memories.map((mem) => (
               <Box key={mem.text.slice(0, 50)}>
-                <Text dimColor>  [{mem.category}]</Text>
+                <Text color="yellow">  [{mem.category}]</Text>
                 <Text> {mem.text}</Text>
               </Box>
             ))}
@@ -179,9 +194,11 @@ export function Dashboard({ config, navigate }) {
       </Box>
 
       <Box paddingX={1} paddingTop={1}>
-        <Text dimColor>
-          {lastUpdate && `Updated ${lastUpdate}  `}
-          [b] back  [r] refresh  [q] quit
+        <Text>
+          {lastUpdate && <Text dimColor>Updated {lastUpdate}  </Text>}
+          <Text color="cyan" bold>[b]</Text><Text dimColor> back  </Text>
+          <Text color="cyan" bold>[r]</Text><Text dimColor> refresh  </Text>
+          <Text color="cyan" bold>[q]</Text><Text dimColor> quit</Text>
         </Text>
       </Box>
     </Box>

@@ -11,21 +11,35 @@ export function api(config) {
   }
 
   async function request(method, path, body = null) {
-    const opts = { method, headers: { ...headers } };
-    if (body) {
-      opts.body = JSON.stringify(body);
-    }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
 
-    const res = await fetch(`${API_URL}${path}`, opts);
-    const data = await res.json();
+    try {
+      const opts = { method, headers: { ...headers }, signal: controller.signal };
+      if (body) {
+        opts.body = JSON.stringify(body);
+      }
 
-    if (!res.ok) {
-      const err = new Error(data.error || `HTTP ${res.status}`);
-      err.status = res.status;
+      const res = await fetch(`${API_URL}${path}`, opts);
+      const data = await res.json();
+
+      if (!res.ok) {
+        const err = new Error(data.error || `HTTP ${res.status}`);
+        err.status = res.status;
+        throw err;
+      }
+
+      return data;
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        const timeoutErr = new Error(`Request timed out: ${method} ${path}`);
+        timeoutErr.status = 408;
+        throw timeoutErr;
+      }
       throw err;
+    } finally {
+      clearTimeout(timeout);
     }
-
-    return data;
   }
 
   return {

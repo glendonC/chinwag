@@ -261,7 +261,7 @@ async function handleChatUpgrade(request, user, env) {
   roomUrl.searchParams.set('color', user.color);
 
   return roomStub.fetch(new Request(roomUrl.toString(), {
-    headers: request.headers,
+    headers: { ...Object.fromEntries(request.headers), 'X-Chinwag-Verified': '1' },
   }));
 }
 
@@ -302,7 +302,7 @@ async function handleCreateTeam(user, env) {
     return json({ error: 'Team creation limit reached. Try again tomorrow.' }, 429);
   }
 
-  const teamId = 't_' + crypto.randomUUID().slice(0, 8);
+  const teamId = 't_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
   const team = getTeam(env, teamId);
   await team.join(user.id, user.id, user.handle);
   return json({ team_id: teamId }, 201);
@@ -387,6 +387,13 @@ async function handleTeamSaveMemory(request, user, env, teamId) {
     return json({ error: `category must be one of: ${validCategories.join(', ')}` }, 400);
   }
 
+  // Rate limit: 20 memory saves per user per day
+  const db = getDB(env);
+  const memLimit = await db.checkIpLimit(`memory:${user.id}`, 20);
+  if (!memLimit.allowed) {
+    return json({ error: 'Memory save limit reached (20/day). Try again tomorrow.' }, 429);
+  }
+
   const team = getTeam(env, teamId);
   const result = await team.saveMemory(user.id, text.trim(), category, user.handle);
   if (result.error) return json({ error: result.error }, 400);
@@ -410,7 +417,7 @@ async function handleTeamEndSession(request, user, env, teamId) {
   }
 
   const team = getTeam(env, teamId);
-  const result = await team.endSession(session_id);
+  const result = await team.endSession(user.id, session_id);
   if (result.error) return json({ error: result.error }, 400);
   return json(result);
 }
@@ -433,7 +440,7 @@ async function handleTeamHistory(request, user, env, teamId) {
   const days = Math.max(1, Math.min(isNaN(parsed) ? 7 : parsed, 30));
 
   const team = getTeam(env, teamId);
-  const result = await team.getHistory(days);
+  const result = await team.getHistory(user.id, days);
   if (result.error) return json({ error: result.error }, 403);
   return json(result);
 }

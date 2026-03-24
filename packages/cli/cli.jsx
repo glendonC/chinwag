@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Component } from 'react';
 import { render, Box, Text, useApp, useInput } from 'ink';
 import { loadConfig, saveConfig, configExists, deleteConfig } from './lib/config.js';
 import { api } from './lib/api.js';
@@ -7,6 +7,31 @@ import { Home } from './lib/home.jsx';
 import { Chat } from './lib/chat.jsx';
 import { Customize } from './lib/customize.jsx';
 import { Dashboard } from './lib/dashboard.jsx';
+
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error) {
+    process.stderr.write(`[chinwag] Screen error: ${error.message}\n`);
+  }
+
+  render() {
+    if (this.state.error) {
+      return React.createElement(Box, { flexDirection: 'column', padding: 1 },
+        React.createElement(Text, { color: 'red' }, `Something went wrong: ${this.state.error.message}`),
+        React.createElement(Text, { dimColor: true }, 'Press any key to go back, or [q] to quit.')
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Handle reset command before launching TUI
 if (process.argv[2] === 'reset') {
@@ -100,12 +125,16 @@ function App() {
 
   return (
     <Box flexDirection="column">
-      <Text>
-        <Text dimColor>── </Text>
-        <Text bold>chinwag</Text>
-        {screenLabel && <Text dimColor> · {screenLabel}</Text>}
-      </Text>
-      {screenContent}
+      {screenLabel && (
+        <Text>
+          <Text color="cyan" dimColor>── </Text>
+          <Text color="cyan" bold>chinwag</Text>
+          <Text dimColor> · {screenLabel}</Text>
+        </Text>
+      )}
+      <ErrorBoundary>
+        {screenContent}
+      </ErrorBoundary>
     </Box>
   );
 }

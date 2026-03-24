@@ -139,7 +139,7 @@ function registerTools(server, client, team, getTeamId) {
     {
       description: 'Join a chinwag team for multi-agent coordination. Agents on the same team can see what each other is working on and detect file conflicts before they happen.',
       inputSchema: z.object({
-        team_id: z.string().describe('Team ID (e.g., t_a7x9k2m). Found in the .chinwag file at the repo root.'),
+        team_id: z.string().max(30).describe('Team ID (e.g., t_a7x9k2m). Found in the .chinwag file at the repo root.'),
       }),
     },
     async ({ team_id }) => {
@@ -157,8 +157,8 @@ function registerTools(server, client, team, getTeamId) {
     {
       description: 'Report what files you are currently working on. Call this when you start editing files so teammates can see your activity and avoid conflicts.',
       inputSchema: z.object({
-        files: z.array(z.string()).describe('File paths being modified'),
-        summary: z.string().describe('Brief description, e.g. "Refactoring auth middleware"'),
+        files: z.array(z.string().max(500)).describe('File paths being modified'),
+        summary: z.string().max(280).describe('Brief description, e.g. "Refactoring auth middleware"'),
       }),
     },
     async ({ files, summary }) => {
@@ -181,7 +181,7 @@ function registerTools(server, client, team, getTeamId) {
     {
       description: 'Check if any teammate agents are working on the same files you plan to edit. Call this BEFORE starting edits on shared code to avoid merge conflicts.',
       inputSchema: z.object({
-        files: z.array(z.string()).describe('File paths you plan to modify'),
+        files: z.array(z.string().max(500)).describe('File paths you plan to modify'),
       }),
     },
     async ({ files }) => {
@@ -251,7 +251,7 @@ function registerTools(server, client, team, getTeamId) {
     {
       description: 'Save a project fact or learning that other agents on the team should know. Use this when you discover something important about the project that would help other agents. These persist across sessions and are shared with all team agents.',
       inputSchema: z.object({
-        text: z.string().describe('The fact or learning to save. Be specific and actionable, e.g. "Tests require Redis running on port 6379" or "API docs: https://docs.stripe.com/api"'),
+        text: z.string().max(2000).describe('The fact or learning to save. Be specific and actionable, e.g. "Tests require Redis running on port 6379" or "API docs: https://docs.stripe.com/api"'),
         category: z.enum(['gotcha', 'pattern', 'config', 'decision', 'reference']).describe('Category: "gotcha" (pitfalls), "pattern" (conventions), "config" (setup facts), "decision" (architecture), "reference" (URLs, docs, external resources)'),
       }),
     },

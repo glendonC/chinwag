@@ -24,6 +24,12 @@ export class RoomDO extends DurableObject {
       return new Response('Not found', { status: 404 });
     }
 
+    // Handle and color are set by the Worker after authentication — not user-supplied.
+    // The X-Chinwag-Verified header confirms this request came from our Worker, not an external caller.
+    if (request.headers.get('X-Chinwag-Verified') !== '1') {
+      return new Response('Forbidden', { status: 403 });
+    }
+
     const handle = url.searchParams.get('handle');
     const color = url.searchParams.get('color');
     if (!handle || !color) {

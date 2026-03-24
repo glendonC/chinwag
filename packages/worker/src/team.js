@@ -249,10 +249,13 @@ export class TeamDO extends DurableObject {
 
     const members = this.sql.exec(
       `SELECT m.owner_handle, a.files, a.summary, a.updated_at,
+              s.framework, s.started_at as session_started,
+              ROUND((julianday('now') - julianday(s.started_at)) * 24 * 60) as session_minutes,
               CASE WHEN m.last_heartbeat > datetime('now', '-${HEARTBEAT_ACTIVE_SECONDS} seconds')
                 THEN 'active' ELSE 'offline' END as status
        FROM members m
-       LEFT JOIN activities a ON a.agent_id = m.agent_id`
+       LEFT JOIN activities a ON a.agent_id = m.agent_id
+       LEFT JOIN sessions s ON s.agent_id = m.agent_id AND s.ended_at IS NULL`
     ).toArray();
 
     const memories = this.sql.exec(
@@ -282,6 +285,8 @@ export class TeamDO extends DurableObject {
       members: members.map(m => ({
         handle: m.owner_handle,
         status: m.status,
+        framework: m.framework || null,
+        session_minutes: m.session_minutes || null,
         activity: m.files ? {
           files: JSON.parse(m.files),
           summary: m.summary,
@@ -317,12 +322,14 @@ export class TeamDO extends DurableObject {
     return { ok: true, session_id: id };
   }
 
-  async endSession(sessionId) {
+  async endSession(agentId, sessionId) {
     this.#ensureSchema();
     this.sql.exec(
-      `UPDATE sessions SET ended_at = datetime('now') WHERE id = ? AND ended_at IS NULL`,
-      sessionId
+      `UPDATE sessions SET ended_at = datetime('now') WHERE id = ? AND agent_id = ? AND ended_at IS NULL`,
+      sessionId, agentId
     );
+    const changed = this.sql.exec('SELECT changes() as c').toArray();
+    if (changed[0].c === 0) return { error: 'Session not found or not owned by this agent' };
     return { ok: true };
   }
 
@@ -352,8 +359,9 @@ export class TeamDO extends DurableObject {
     return { ok: true };
   }
 
-  async getHistory(days) {
+  async getHistory(agentId, days) {
     this.#ensureSchema();
+    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
     const sessions = this.sql.exec(
       `SELECT owner_handle, framework, started_at, ended_at,
              edit_count, files_touched, conflicts_hit, memories_saved,
