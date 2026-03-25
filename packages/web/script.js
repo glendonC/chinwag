@@ -174,6 +174,21 @@ if (revealNodes.length) {
   revealNodes.forEach((node) => revealObserver.observe(node));
 }
 
+const animatedSections = [
+  document.getElementById('coord-feed'),
+  document.getElementById('trust-viz'),
+];
+
+const staggerObserver = new IntersectionObserver((entries, observer) => {
+  entries.forEach((entry) => {
+    if (!entry.isIntersecting) return;
+    entry.target.classList.add('is-animated');
+    observer.unobserve(entry.target);
+  });
+}, { rootMargin: '0px 0px -8% 0px', threshold: 0.15 });
+
+animatedSections.forEach((el) => { if (el) staggerObserver.observe(el); });
+
 headerUi.initialize();
 heroAtmosphere.initialize();
 scrollJourney.initialize();

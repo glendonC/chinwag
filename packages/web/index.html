@@ -110,6 +110,11 @@
         <section class="hero-atmosphere" id="hero-atmosphere" aria-hidden="true">
           <canvas class="hero-atmosphere__particles" id="hero-particles" width="760" height="640" aria-hidden="true"></canvas>
           <div class="hero-atmosphere__anchor">
+            <svg class="hero-atmosphere__anchor-logo" width="18" height="18" viewBox="0 0 32 32" aria-hidden="true">
+              <path fill="#d49aae" d="M4 24 20 24 24 20 8 20z"/>
+              <path fill="#a896d4" d="M6 18 22 18 26 14 10 14z"/>
+              <path fill="#8ec0a4" d="M8 12 24 12 28 8 12 8z"/>
+            </svg>
             <span class="hero-atmosphere__brand">chinwag</span>
           </div>
           <span class="hero-atmosphere__label" data-hero-label="claude" data-brand="claude" style="--label-left: 20%; --label-top: 24%;">
@@ -276,32 +281,52 @@
         </div>
 
         <div class="panel__demo panel__demo--flow">
-          <div class="flow">
-            <div class="flow__agents">
-              <div class="flow__agent">
-                <img src="assets/claude-code.svg" alt="" class="flow__icon">
-                <span class="flow__name">Claude Code</span>
-                <code class="flow__file">src/auth/session.js</code>
-              </div>
-              <div class="flow__agent">
-                <img src="assets/cursor.svg" alt="" class="flow__icon">
-                <span class="flow__name">Cursor</span>
-                <code class="flow__file">src/auth/session.js</code>
-              </div>
+          <div class="term coord-term">
+            <div class="term__bar">
+              <span class="term__dot"></span><span class="term__dot"></span><span class="term__dot"></span>
+              <span class="term__label">chinwag coordinate</span>
             </div>
-            <div class="flow__hub">
-              <svg class="flow__lines" viewBox="0 0 200 60" aria-hidden="true">
-                <line x1="20" y1="0" x2="100" y2="60" stroke="currentColor" stroke-width="1" opacity="0.2"/>
-                <line x1="180" y1="0" x2="100" y2="60" stroke="currentColor" stroke-width="1" opacity="0.2"/>
-              </svg>
-              <div class="flow__conflict">
-                <span class="flow__conflict-icon" aria-hidden="true">
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 5v3m0 2.5v.5M2.5 13.5h11L8 2.5 2.5 13.5z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </span>
-                <span class="flow__conflict-label">CONFLICT DETECTED</span>
-                <code class="flow__conflict-path">src/auth/session.js</code>
-                <span class="flow__conflict-action">Edit blocked on Claude Code &middot; Warning shown in Cursor</span>
+            <div class="term__body coord-feed" id="coord-feed">
+              <div class="term__line coord-line"><span class="term__muted">Live activity</span></div>
+              <div class="term__line term__line--blank coord-line"></div>
+              <div class="term__line term__line--flex coord-line">
+                <span class="coord-dot coord-dot--active"></span>
+                <span class="term__agent"><img src="assets/claude-code.svg" alt="" class="term__agent-icon">claude_code</span>
+                <span class="term__muted term__flex-fill">src/auth/middleware.js</span>
+                <span class="term__status term__status--active">editing</span>
               </div>
+              <div class="term__line term__line--flex coord-line">
+                <span class="coord-dot coord-dot--active"></span>
+                <span class="term__agent"><img src="assets/windsurf.svg" alt="" class="term__agent-icon">windsurf</span>
+                <span class="term__muted term__flex-fill">packages/api/routes.js</span>
+                <span class="term__status term__status--active">editing</span>
+              </div>
+              <div class="term__line term__line--flex coord-line">
+                <span class="coord-dot coord-dot--active"></span>
+                <span class="term__agent"><img src="assets/cursor.svg" alt="" class="term__agent-icon">cursor</span>
+                <span class="term__muted term__flex-fill">src/auth/session.js</span>
+                <span class="term__status term__status--active">editing</span>
+              </div>
+              <div class="term__line term__line--blank coord-line"></div>
+              <div class="term__line term__line--flex coord-line coord-line--conflict">
+                <span class="coord-dot coord-dot--conflict"></span>
+                <span class="term__agent"><img src="assets/jetbrains.svg" alt="" class="term__agent-icon">jetbrains</span>
+                <span class="term__muted">requested</span>
+                <code class="coord-conflict-file">src/auth/session.js</code>
+              </div>
+              <div class="term__line coord-line coord-line--alert">
+                <span class="coord-alert">
+                  <svg class="coord-alert__icon" width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 5v3m0 2.5v.5M2.5 13.5h11L8 2.5 2.5 13.5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <span class="coord-alert__label">CONFLICT</span>
+                </span>
+                <code class="coord-conflict-file">src/auth/session.js</code>
+                <span class="coord-alert__agents">cursor + jetbrains</span>
+              </div>
+              <div class="term__line coord-line coord-line--resolution">
+                <span class="coord-resolution__action">Edit blocked on JetBrains &middot; Warning shown in Cursor</span>
+              </div>
+              <div class="term__line term__line--blank coord-line"></div>
+              <div class="term__line coord-line coord-line--summary"><span class="term__muted">3 conflicts prevented &middot; 4 agents active &middot; 0 lost work</span></div>
             </div>
           </div>
         </div>
@@ -366,39 +391,71 @@
     </section>
 
     <!-- TRUST -->
-    <section class="panel reveal" id="security" data-journey-stage="security" aria-labelledby="security-title">
-      <div class="panel__inner">
-        <div class="panel__header">
+    <section class="trust-section reveal" id="security" data-journey-stage="security" aria-labelledby="security-title">
+      <div class="trust-section__inner">
+        <div class="trust-section__header">
           <span class="panel__tag">TRUST</span>
-          <h2 id="security-title" class="panel__title">Metadata only. Source stays local.</h2>
-          <p class="panel__sub">Coordination without handing over your codebase.</p>
+          <h2 id="security-title" class="trust-section__title">Metadata only. Source stays local.</h2>
+          <p class="trust-section__sub">Coordination without handing over your codebase.</p>
         </div>
 
-        <div class="panel__demo panel__demo--boundary">
-          <div class="boundary">
-            <div class="boundary__col boundary__col--local">
-              <span class="boundary__heading">On your machine</span>
-              <div class="boundary__items">
-                <span class="boundary__item boundary__item--safe">Source code</span>
-                <span class="boundary__item boundary__item--safe">Secrets & tokens</span>
-                <span class="boundary__item boundary__item--safe">Git history</span>
-                <span class="boundary__item boundary__item--safe">File contents</span>
-              </div>
+        <div class="trust-split" id="trust-viz">
+
+          <div class="trust-card trust-card--local trust-stagger">
+            <div class="trust-card__bar">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 1L2 4v4.5c0 3.5 2.5 6 6 7.5 3.5-1.5 6-4 6-7.5V4L8 1z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 8l1.5 1.5L10 6.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span class="trust-card__bar-label">Your machine</span>
             </div>
-            <div class="boundary__separator" aria-hidden="true">
-              <span class="boundary__arrow">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 4v12m0 0l-4-4m4 4l4-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </span>
+            <div class="trust-card__body trust-card__body--code">
+<pre class="trust-pre"><code><span class="tc-ln"> 1</span>  <span class="tc-kw">import</span> { verify } <span class="tc-kw">from</span> <span class="tc-str">'jwt'</span>;
+<span class="tc-ln"> 2</span>  <span class="tc-kw">import</span> { db } <span class="tc-kw">from</span> <span class="tc-str">'../db'</span>;
+<span class="tc-ln"> 3</span>
+<span class="tc-ln"> 4</span>  <span class="tc-kw">export async function</span> <span class="tc-fn">check</span>(tok) {
+<span class="tc-ln"> 5</span>    <span class="tc-kw">const</span> p = <span class="tc-fn">verify</span>(tok, <span class="tc-var">SECRET</span>);
+<span class="tc-ln"> 6</span>    <span class="tc-kw">const</span> u = <span class="tc-kw">await</span> db.<span class="tc-fn">get</span>(p.sub);
+<span class="tc-ln"> 7</span>    <span class="tc-kw">if</span> (!u) <span class="tc-kw">return</span> <span class="tc-val">null</span>;
+<span class="tc-ln"> 8</span>    <span class="tc-kw">return</span> { id: u.id, role: u.role };
+<span class="tc-ln"> 9</span>  }</code></pre>
             </div>
-            <div class="boundary__col boundary__col--sent">
-              <span class="boundary__heading">Sent to chinwag</span>
-              <div class="boundary__items">
-                <span class="boundary__item boundary__item--meta">File paths</span>
-                <span class="boundary__item boundary__item--meta">Task labels</span>
-                <span class="boundary__item boundary__item--meta">Saved facts</span>
-              </div>
+            <div class="trust-card__footer">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 7V5a2.5 2.5 0 015 0v2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              <span>Source code, secrets, git history, file contents</span>
             </div>
           </div>
+
+          <div class="trust-arrow" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m0 0l-5-5m5 5l-5 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+
+          <div class="trust-card trust-card--sent trust-stagger">
+            <div class="trust-card__bar trust-card__bar--sent">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M1.5 4.5L8 1.5l6.5 3M8 8v6.5M2 6v6l6 3 6-3V6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span class="trust-card__bar-label">chinwag sees</span>
+            </div>
+            <div class="trust-card__body trust-card__body--meta">
+              <div class="trust-meta__row trust-meta-stagger">
+                <span class="trust-meta__key">file</span>
+                <span class="trust-meta__val">src/auth/session.js</span>
+              </div>
+              <div class="trust-meta__row trust-meta-stagger">
+                <span class="trust-meta__key">agent</span>
+                <span class="trust-meta__val">cursor</span>
+              </div>
+              <div class="trust-meta__row trust-meta-stagger">
+                <span class="trust-meta__key">status</span>
+                <span class="trust-meta__val">editing</span>
+              </div>
+              <div class="trust-meta__row trust-meta-stagger">
+                <span class="trust-meta__key">task</span>
+                <span class="trust-meta__val">Refactoring auth flow</span>
+              </div>
+            </div>
+            <div class="trust-card__footer trust-card__footer--sent">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M1.5 4.5L8 1.5l6.5 3M8 8v6.5M2 6v6l6 3 6-3V6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>File paths, task labels, saved facts</span>
+            </div>
+          </div>
+
         </div>
       </div>
     </section>

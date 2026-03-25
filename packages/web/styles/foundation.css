@@ -160,7 +160,8 @@ svg {
 
 .hero,
 .panel,
-.pillars {
+.pillars,
+.trust-section {
   scroll-margin-top: 116px;
 }
 
