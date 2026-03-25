@@ -1,5 +1,5 @@
 // chinwag dashboard
-// Token: URL hash (#token=xxx) → localStorage → manual input.
+// Token: URL hash (#token=xxx) → sessionStorage → manual input.
 
 const API_URL = 'https://chinwag-api.glendonchin.workers.dev';
 const POLL_MS = 5000;
@@ -15,6 +15,7 @@ let prevContextJson = '';
 let prevSummaryJson = '';
 let consecutiveFailures = 0;
 const MEMORY_CATEGORIES = new Set(['gotcha', 'config', 'decision', 'pattern', 'reference']);
+const joinedTeams = new Set();
 
 const $ = (s) => document.querySelector(s);
 const connectScreen = $('#connect-screen');
@@ -157,9 +158,7 @@ async function tryConnect() {
 
   try {
     await authenticate(t);
-    console.log('[chinwag] Auth OK, user:', user.handle);
     await startApp();
-    console.log('[chinwag] App started');
   } catch (err) {
     console.error('[chinwag] tryConnect error:', err);
     const msg = err.message || 'Connection failed';
@@ -372,7 +371,9 @@ async function fetchContext() {
   if (!activeTeamId) return;
   const teamId = activeTeamId;
   try {
-    try { await api('POST', `/teams/${teamId}/join`, {}); } catch {}
+    if (!joinedTeams.has(teamId)) {
+      try { await api('POST', `/teams/${teamId}/join`, {}); joinedTeams.add(teamId); } catch {}
+    }
     const ctx = await api('GET', `/teams/${teamId}/context`);
     if (activeTeamId !== teamId) return;
     const ctxJson = JSON.stringify(ctx);

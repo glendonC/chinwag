@@ -1,3 +1,8 @@
+// API client for chinwag backend.
+// NOTE: packages/cli/lib/api.js is a near-identical copy.
+// If you change retry logic, timeouts, or error handling here,
+// update the CLI version too.
+
 const API_URL = process.env.CHINWAG_API_URL || 'https://chinwag-api.glendonchin.workers.dev';
 
 export function api(config, { agentId } = {}) {

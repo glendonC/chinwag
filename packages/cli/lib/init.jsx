@@ -9,8 +9,12 @@ export function Welcome({ onComplete }) {
   const [account, setAccount] = useState(null);
   const [error, setError] = useState(null);
 
+  const [retryKey, setRetryKey] = useState(0);
+
   useEffect(() => {
     async function setup() {
+      setState('loading');
+      setError(null);
       try {
         const result = await initAccount();
         const config = {
@@ -27,9 +31,14 @@ export function Welcome({ onComplete }) {
       }
     }
     setup();
-  }, []);
+  }, [retryKey]);
 
   useInput((input, key) => {
+    if (state === 'error' && input === 'r') {
+      setRetryKey(k => k + 1);
+      return;
+    }
+
     if (state !== 'ready') return;
 
     if (key.return) {
@@ -57,6 +66,11 @@ export function Welcome({ onComplete }) {
         <Text dimColor>{error}</Text>
         <Text>{''}</Text>
         <Text dimColor>Check your internet connection and try again.</Text>
+        <Text>{''}</Text>
+        <Text>
+          <Text color="cyan" bold>[r]</Text>
+          <Text dimColor> retry</Text>
+        </Text>
       </Box>
     );
   }

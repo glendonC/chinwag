@@ -177,6 +177,13 @@ export class TeamDO extends DurableObject {
 
   async join(agentId, ownerId, ownerHandle, tool = 'unknown') {
     this.#ensureSchema();
+
+    // Prevent agent_id spoofing: reject if already claimed by a different user
+    const existing = this.sql.exec('SELECT owner_id FROM members WHERE agent_id = ?', agentId).toArray();
+    if (existing.length > 0 && existing[0].owner_id !== ownerId) {
+      return { error: 'Agent ID already claimed by another user' };
+    }
+
     this.sql.exec(
       `INSERT INTO members (agent_id, owner_id, owner_handle, tool, joined_at, last_heartbeat)
        VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
@@ -192,8 +199,17 @@ export class TeamDO extends DurableObject {
     return { ok: true };
   }
 
-  async leave(agentId) {
+  async leave(agentId, ownerId = null) {
     this.#ensureSchema();
+
+    // Verify ownership before allowing leave
+    if (ownerId) {
+      const existing = this.sql.exec('SELECT owner_id FROM members WHERE agent_id = ?', agentId).toArray();
+      if (existing.length > 0 && existing[0].owner_id !== ownerId) {
+        return { error: 'Not your agent' };
+      }
+    }
+
     this.sql.exec('DELETE FROM locks WHERE agent_id = ?', agentId);
     this.sql.exec('DELETE FROM activities WHERE agent_id = ?', agentId);
     this.sql.exec('DELETE FROM members WHERE agent_id = ?', agentId);

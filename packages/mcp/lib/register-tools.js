@@ -158,7 +158,7 @@ export function registerTools(server, { team, state, profile }) {
         for (const m of ctx.members) {
           const toolInfo = m.tool && m.tool !== 'unknown' ? `, ${m.tool}` : '';
           const activity = m.activity
-            ? `working on ${m.activity.files.join(', ')} — "${m.activity.summary}"`
+            ? `working on ${m.activity.files.join(', ')}${m.activity.summary ? ` — "${m.activity.summary}"` : ''}`
             : 'idle';
           lines.push(`  ${m.handle} (${m.status}${toolInfo}): ${activity}`);
         }

@@ -2,7 +2,7 @@
 // Uses DO RPC for all Durable Object communication.
 // Auth flow: Bearer token → KV lookup → user_id → DO.getUser(id)
 
-import { checkContent } from './moderation.js';
+import { checkContent, isBlocked } from './moderation.js';
 import { VALID_CATEGORIES } from './team.js';
 import { TOOL_CATALOG, CATEGORY_NAMES } from './catalog.js';
 
@@ -52,7 +52,8 @@ export default {
         }
 
         if (method === 'GET' && path === '/me') {
-          response = json(user);
+          const { id, ...profile } = user;
+          response = json(profile);
         } else if (method === 'GET' && path === '/me/teams') {
           response = await handleGetUserTeams(user, env);
         } else if (method === 'GET' && path === '/me/dashboard') {
@@ -298,7 +299,14 @@ async function handleChatUpgrade(request, user, env) {
   roomUrl.searchParams.set('roomId', roomId);
 
   return roomStub.fetch(new Request(roomUrl.toString(), {
-    headers: { ...Object.fromEntries(request.headers), 'X-Chinwag-Verified': '1' },
+    headers: {
+      'X-Chinwag-Verified': '1',
+      Upgrade: request.headers.get('Upgrade'),
+      Connection: request.headers.get('Connection'),
+      'Sec-WebSocket-Key': request.headers.get('Sec-WebSocket-Key'),
+      'Sec-WebSocket-Protocol': request.headers.get('Sec-WebSocket-Protocol'),
+      'Sec-WebSocket-Version': request.headers.get('Sec-WebSocket-Version'),
+    },
   }));
 }
 
@@ -443,7 +451,7 @@ async function handleTeamJoin(request, user, env, teamId) {
 async function handleTeamLeave(request, user, env, teamId) {
   const agentId = getAgentId(request, user);
   const team = getTeam(env, teamId);
-  const result = await team.leave(agentId);
+  const result = await team.leave(agentId, user.id);
   if (result.error) return json({ error: result.error }, 400);
 
   const db = getDB(env);
@@ -475,6 +483,7 @@ async function handleTeamActivity(request, user, env, teamId) {
   if (files.some(f => typeof f !== 'string' || f.length > 500)) return json({ error: 'invalid file path' }, 400);
   if (typeof summary !== 'string') return json({ error: 'summary must be a string' }, 400);
   if (summary.length > 280) return json({ error: 'summary must be 280 characters or less' }, 400);
+  if (summary && isBlocked(summary)) return json({ error: 'Content blocked' }, 400);
 
   const agentId = getAgentId(request, user);
   const team = getTeam(env, teamId);
@@ -539,6 +548,7 @@ async function handleTeamSaveMemory(request, user, env, teamId) {
   if (text.length > 2000) {
     return json({ error: 'text must be 2000 characters or less' }, 400);
   }
+  if (isBlocked(text)) return json({ error: 'Content blocked' }, 400);
   if (!VALID_CATEGORIES.includes(category)) {
     return json({ error: `category must be one of: ${VALID_CATEGORIES.join(', ')}` }, 400);
   }
@@ -669,6 +679,7 @@ async function handleTeamSendMessage(request, user, env, teamId) {
   const { text, target } = body;
   if (typeof text !== 'string' || !text.trim()) return json({ error: 'text is required' }, 400);
   if (text.length > 500) return json({ error: 'text must be 500 characters or less' }, 400);
+  if (isBlocked(text)) return json({ error: 'Content blocked' }, 400);
   if (target !== undefined && typeof target !== 'string') return json({ error: 'target must be a string' }, 400);
 
   const db = getDB(env);
@@ -802,9 +813,12 @@ async function parseBody(request) {
   if (!contentType.includes('application/json')) {
     return { _parseError: 'Content-Type must be application/json' };
   }
-  const len = parseInt(request.headers.get('content-length') || '0');
-  if (len > MAX_BODY_SIZE) return { _parseError: 'Request body too large' };
-  try { return await request.json(); } catch { return { _parseError: 'Invalid JSON body' }; }
+  let raw;
+  try { raw = await request.text(); } catch { return { _parseError: 'Could not read body' }; }
+  if (new TextEncoder().encode(raw).byteLength > MAX_BODY_SIZE) {
+    return { _parseError: 'Request body too large' };
+  }
+  try { return JSON.parse(raw); } catch { return { _parseError: 'Invalid JSON body' }; }
 }
 
 export function teamErrorStatus(msg) {

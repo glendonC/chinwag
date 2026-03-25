@@ -21,9 +21,17 @@ export async function runInit() {
     try {
       const me = await api(config).get('/me');
       log('account', `${me.handle} (${me.color})`);
-    } catch {
-      // Token invalid — re-create
-      config = await createAccount();
+    } catch (err) {
+      if (err.status === 401 || err.status === 403) {
+        // Token invalid — re-create
+        config = await createAccount();
+      } else {
+        // Network error or server issue — don't create a new account
+        log('account', `could not reach server: ${err.message}`);
+        console.log('');
+        console.log('  Check your internet connection and try again.');
+        return;
+      }
     }
   } else {
     config = await createAccount();

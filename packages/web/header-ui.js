@@ -20,10 +20,6 @@ export function createHeaderUi({
     mobileUtilityToggle?.setAttribute('aria-expanded', String(isOpen));
   }
 
-  function updateHeaderLayout() {
-    // Layout is now handled purely by CSS centering
-  }
-
   function initializeCopyButton() {
     if (!copyButton) {
       return;
@@ -70,37 +66,14 @@ export function createHeaderUi({
     });
   }
 
-  function initializeLayoutObservers() {
-    window.addEventListener('resize', updateHeaderLayout);
-
-    if (!('ResizeObserver' in window)) {
-      return;
-    }
-
-    const switcherObserver = new ResizeObserver(() => {
-      updateHeaderLayout();
-    });
-
-    if (controlSurface) {
-      switcherObserver.observe(controlSurface);
-    }
-
-    if (commandPill) {
-      switcherObserver.observe(commandPill);
-    }
-  }
-
   function initialize() {
     initializeCopyButton();
     initializeMobileMenu();
-    initializeLayoutObservers();
     setMobileUtilityOpen(false);
-    updateHeaderLayout();
   }
 
   return {
     initialize,
     setMobileUtilityOpen,
-    updateHeaderLayout,
   };
 }

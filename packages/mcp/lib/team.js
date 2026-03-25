@@ -34,6 +34,10 @@ export function teamHandlers(client) {
     if (!teamId || !isValidTeamId(teamId)) throw new Error('Invalid or missing team ID');
   }
 
+  // ── Full API surface ─────────────────────────────────────────────
+  // Client wrappers for all team endpoints. Not all are called by
+  // current MCP tools/hooks/channels — kept for future features.
+
   return {
     async joinTeam(teamId, name = null) {
       validateTeam(teamId);

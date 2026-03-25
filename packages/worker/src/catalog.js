@@ -47,9 +47,3 @@ export const CATEGORY_NAMES = {
   'terminal': 'Terminal tools',
   'docs': 'Documentation',
 };
-
-export function handleToolCatalog(json) {
-  return json({ tools: TOOL_CATALOG, categories: CATEGORY_NAMES }, 200, {
-    'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
-  });
-}

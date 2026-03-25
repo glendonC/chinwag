@@ -43,7 +43,7 @@ export function Home({ user, config, navigate }) {
   useInput((ch) => {
     if (loading) return;
     if (ch === 'd') { navigate('dashboard'); return; }
-    if (ch === 'w') { openDashboard(); return; }
+    if (ch === 'w') { openDashboard().catch(() => {}); return; }
     if (ch === 'f') { navigate('discover'); return; }
     if (ch === 'c') { navigate('chat'); return; }
     if (ch === 's') { navigate('customize'); return; }
@@ -93,7 +93,7 @@ export function Home({ user, config, navigate }) {
             <Text color="cyan" bold>chinwag</Text>
             <Text dimColor>  v{PKG_VERSION}</Text>
           </Text>
-          <Text dimColor>the hub for your AI coding workflow</Text>
+          <Text dimColor>the control layer for agentic development</Text>
           <Text>{''}</Text>
           <Text>
             <Text dimColor>signed in as </Text>

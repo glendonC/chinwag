@@ -184,8 +184,8 @@ export function Dashboard({ config, navigate }) {
             <Text>{''}</Text>
             <Text color="cyan" bold>Team Knowledge</Text>
             <Text dimColor>{'─'.repeat(50)}</Text>
-            {context.memories.map((mem) => (
-              <Box key={mem.text.slice(0, 50)}>
+            {context.memories.map((mem, idx) => (
+              <Box key={mem.id || idx}>
                 <Text color="yellow">  [{mem.category}]</Text>
                 <Text> {mem.text}</Text>
               </Box>

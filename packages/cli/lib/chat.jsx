@@ -10,6 +10,7 @@ export function Chat({ config, user, navigate }) {
   const [input, setInput] = useState('');
   const [connected, setConnected] = useState(false);
   const [roomCount, setRoomCount] = useState(0);
+  const [error, setError] = useState('');
   const wsRef = useRef(null);
   const retryRef = useRef(0);
   const retryTimerRef = useRef(null);
@@ -99,10 +100,22 @@ export function Chat({ config, user, navigate }) {
     }, delay);
   }
 
+  function showError(message) {
+    setError(message);
+    setTimeout(() => setError(''), 3000);
+  }
+
   function send() {
     const msg = input.trim();
-    if (!msg || !wsRef.current) return;
-    if (msg.length > 280) return;
+    if (!msg) return;
+    if (!wsRef.current) {
+      showError('Disconnected — reconnecting...');
+      return;
+    }
+    if (msg.length > 280) {
+      showError('Message too long (max 280 chars)');
+      return;
+    }
 
     wsRef.current.send(JSON.stringify({ type: 'message', content: msg }));
     setInput('');
@@ -161,6 +174,7 @@ export function Chat({ config, user, navigate }) {
       </Box>
 
       <Text>{''}</Text>
+      {error ? <Text color="red">{error}</Text> : null}
       <Box>
         <Text color={getInkColor(user?.color || 'white')}>{user?.handle || '?'}{'> '}</Text>
         <TextInput
