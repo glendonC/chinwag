@@ -90,8 +90,8 @@
     gap: var(--space-4);
   }
 
-  .tools-strip__list {
-    gap: var(--space-4);
+  .tools-strip__row {
+    gap: var(--space-3);
   }
 
   /* Pillars */
@@ -254,12 +254,11 @@
   }
 
   .tools-strip__inner {
-    flex-direction: column;
     gap: var(--space-4);
   }
 
-  .tools-strip__list {
-    gap: var(--space-3) var(--space-5);
+  .tools-strip__row {
+    gap: var(--space-3);
   }
 
   .tools-strip__icon {

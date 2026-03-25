@@ -239,8 +239,8 @@
 }
 
 .hero-atmosphere__label[data-brand='amazonq'] {
-  background: rgba(255, 240, 230, 0.82);
-  border-color: rgba(255, 153, 0, 0.18);
+  background: rgba(235, 238, 255, 0.82);
+  border-color: rgba(91, 54, 214, 0.2);
 }
 
 .hero-atmosphere__label[data-brand='zed'] {
@@ -278,8 +278,16 @@
 
 
 /* ═══════════════════════════════════════════
-   TOOLS STRIP — supported tools
+   TOOLS STRIP — dim → brand tint (mask icons), marquee, gloss sweep
+   Brand hues: conservative neutrals where logos are monochrome (Cursor, Zed).
+   VS Code mark: Simple Icons (CC0). “Any MCP” is text-only (no placeholder glyph).
    ═══════════════════════════════════════════ */
+
+@property --brand-fill {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
 
 .tools-strip {
   padding: var(--space-8) 0 var(--space-12);
@@ -287,10 +295,10 @@
 
 .tools-strip__inner {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: var(--space-8);
-  flex-wrap: wrap;
-  justify-content: center;
+  gap: var(--space-5);
+  width: 100%;
 }
 
 .tools-strip__label {
@@ -303,38 +311,374 @@
   white-space: nowrap;
 }
 
-.tools-strip__list {
+.tools-strip__viewport {
+  width: 100%;
+  max-width: var(--page-width);
+  overflow: hidden;
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    #000 10%,
+    #000 90%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    #000 10%,
+    #000 90%,
+    transparent 100%
+  );
+}
+
+.tools-strip__track {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  width: max-content;
+  animation: tools-strip-marquee 78s linear infinite;
+  will-change: transform;
+}
+
+.tools-strip__row {
   display: flex;
   align-items: center;
   gap: var(--space-6);
-  flex-wrap: wrap;
-  justify-content: center;
+  padding-inline: var(--space-3);
+  flex-shrink: 0;
+}
+
+@keyframes tools-strip-marquee {
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 .tools-strip__tool {
+  --tools-strip-dim: rgba(24, 20, 17, 0.38);
+  --brand: var(--tools-strip-dim);
+  --strip-i: 0;
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
+  color: color-mix(
+    in srgb,
+    var(--brand) calc(var(--brand-fill) * 1%),
+    var(--tools-strip-dim) calc(100% - var(--brand-fill) * 1%)
+  );
+  animation: tools-strip-brand-paint 6.2s var(--motion-smooth) infinite;
+  /* Positive stagger: leftmost items lead so tint reads left → right */
+  animation-delay: calc(var(--strip-i) * 0.42s);
+}
+
+.tools-strip__tool::after {
+  content: '';
+  position: absolute;
+  left: -40%;
+  top: -0.35em;
+  bottom: -0.35em;
+  width: 52%;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.72) 48%,
+    transparent 96%
+  );
+  transform: translateX(-20%) skewX(-14deg);
+  opacity: 0;
+  pointer-events: none;
+  mix-blend-mode: soft-light;
+  animation: tools-strip-glossSweep 6.2s var(--motion-smooth) infinite;
+  animation-delay: calc(var(--strip-i) * 0.42s);
+}
+
+@keyframes tools-strip-brand-paint {
+  0%,
+  20% {
+    --brand-fill: 0;
+  }
+  38%,
+  62% {
+    --brand-fill: 100;
+  }
+  80%,
+  100% {
+    --brand-fill: 0;
+  }
+}
+
+@keyframes tools-strip-glossSweep {
+  0%,
+  18% {
+    transform: translateX(-165%) skewX(-14deg);
+    opacity: 0;
+  }
+  32% {
+    opacity: 0.85;
+  }
+  48% {
+    transform: translateX(165%) skewX(-14deg);
+    opacity: 0.35;
+  }
+  62%,
+  100% {
+    transform: translateX(165%) skewX(-14deg);
+    opacity: 0;
+  }
+}
+
+.tools-strip__row .tools-strip__tool:nth-child(1) {
+  --strip-i: 0;
+}
+.tools-strip__row .tools-strip__tool:nth-child(2) {
+  --strip-i: 1;
+}
+.tools-strip__row .tools-strip__tool:nth-child(3) {
+  --strip-i: 2;
+}
+.tools-strip__row .tools-strip__tool:nth-child(4) {
+  --strip-i: 3;
+}
+.tools-strip__row .tools-strip__tool:nth-child(5) {
+  --strip-i: 4;
+}
+.tools-strip__row .tools-strip__tool:nth-child(6) {
+  --strip-i: 5;
+}
+.tools-strip__row .tools-strip__tool:nth-child(7) {
+  --strip-i: 6;
+}
+.tools-strip__row .tools-strip__tool:nth-child(8) {
+  --strip-i: 7;
+}
+.tools-strip__row .tools-strip__tool:nth-child(9) {
+  --strip-i: 8;
+}
+.tools-strip__row .tools-strip__tool:nth-child(10) {
+  --strip-i: 9;
+}
+.tools-strip__row .tools-strip__tool:nth-child(11) {
+  --strip-i: 10;
+}
+.tools-strip__row .tools-strip__tool:nth-child(12) {
+  --strip-i: 11;
+}
+.tools-strip__row .tools-strip__tool:nth-child(13) {
+  --strip-i: 12;
 }
 
 .tools-strip__icon {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
   width: 18px;
   height: 18px;
-  object-fit: contain;
-  border-radius: 3px;
+  flex-shrink: 0;
+  background-color: currentColor;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.tools-strip__tool[data-tool='claude'] {
+  --brand: #b4532a;
+}
+.tools-strip__tool[data-tool='claude'] .tools-strip__icon {
+  -webkit-mask-image: url(../assets/claude-code.svg);
+  mask-image: url(../assets/claude-code.svg);
+}
+
+/* Cursor product UI is dark/neutral — avoid blue or purple tints */
+.tools-strip__tool[data-tool='cursor'] {
+  --brand: #111111;
+}
+.tools-strip__tool[data-tool='cursor'] .tools-strip__icon {
+  -webkit-mask-image: url(../assets/cursor.svg);
+  mask-image: url(../assets/cursor.svg);
+}
+
+.tools-strip__tool[data-tool='windsurf'] {
+  --brand: #0f766e;
+}
+.tools-strip__tool[data-tool='windsurf'] .tools-strip__icon {
+  -webkit-mask-image: url(../assets/windsurf.svg);
+  mask-image: url(../assets/windsurf.svg);
+}
+
+/* VS Code (Simple Icons mark); Microsoft blue */
+.tools-strip__tool[data-tool='vscode'] {
+  --brand: #0078d4;
+}
+.tools-strip__tool[data-tool='vscode'] .tools-strip__icon {
+  -webkit-mask-image: url(../assets/vscode.svg);
+  mask-image: url(../assets/vscode.svg);
+}
+
+.tools-strip__tool[data-tool='codex'] {
+  --brand: #10a37f;
+}
+.tools-strip__tool[data-tool='codex'] .tools-strip__icon {
+  -webkit-mask-image: url(../assets/codex.svg);
+  mask-image: url(../assets/codex.svg);
+}
+
+.tools-strip__tool[data-tool='jetbrains'] {
+  --brand: #f97316;
+}
+.tools-strip__tool[data-tool='jetbrains'] .tools-strip__icon {
+  -webkit-mask-image: url(../assets/jetbrains.svg);
+  mask-image: url(../assets/jetbrains.svg);
+}
+
+.tools-strip__tool[data-tool='aider'] {
+  --brand: #166534;
+}
+.tools-strip__tool[data-tool='aider'] .tools-strip__icon {
+  -webkit-mask-image: url(../assets/aider.svg);
+  mask-image: url(../assets/aider.svg);
+}
+
+.tools-strip__tool[data-tool='amazonq'] {
+  /* Blue→violet gradient mark reads as this mid tone at small sizes */
+  --brand: #5b36d6;
+}
+.tools-strip__tool[data-tool='amazonq'] .tools-strip__icon {
+  -webkit-mask-image: url(../assets/amazon-q.svg);
+  mask-image: url(../assets/amazon-q.svg);
+}
+
+.tools-strip__tool[data-tool='zed'] {
+  --brand: #09090b;
+}
+.tools-strip__tool[data-tool='zed'] .tools-strip__icon {
+  -webkit-mask-image: url(../assets/zed.svg);
+  mask-image: url(../assets/zed.svg);
+}
+
+.tools-strip__tool[data-tool='cline'] {
+  --brand: #c2410c;
+}
+.tools-strip__tool[data-tool='cline'] .tools-strip__icon {
+  -webkit-mask-image: url(../assets/cline.svg);
+  mask-image: url(../assets/cline.svg);
+}
+
+.tools-strip__tool[data-tool='continue'] {
+  --brand: #047857;
+}
+.tools-strip__tool[data-tool='continue'] .tools-strip__icon {
+  -webkit-mask-image: url(../assets/continue.svg);
+  mask-image: url(../assets/continue.svg);
+}
+
+.tools-strip__tool[data-tool='warp'] {
+  --brand: #6d28d9;
+}
+.tools-strip__tool[data-tool='warp'] .tools-strip__icon {
+  -webkit-mask-image: url(../assets/warp.svg);
+  mask-image: url(../assets/warp.svg);
+}
+
+.tools-strip__tool[data-tool='any'] {
+  --brand: rgba(24, 20, 17, 0.55);
+  gap: 0;
+}
+
+.tools-strip__tool[data-tool='any']::after {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tools-strip__track {
+    animation: none;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    max-width: var(--page-width);
+  }
+
+  .tools-strip__row--duplicate {
+    display: none;
+  }
+
+  .tools-strip__viewport {
+    mask-image: none;
+    -webkit-mask-image: none;
+    overflow: visible;
+  }
+
+  .tools-strip__row {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: var(--space-3);
+    padding-inline: 0;
+  }
+
+  .tools-strip__tool {
+    animation: none;
+    --brand-fill: 100;
+  }
+
+  .tools-strip__tool::after {
+    display: none;
+  }
+}
+
+@media (min-width: 880px) {
+  .tools-strip__inner {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--space-8);
+    max-width: var(--page-width);
+    margin-inline: auto;
+  }
+
+  .tools-strip__label {
+    flex-shrink: 0;
+  }
+
+  .tools-strip__viewport {
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+    mask-image: linear-gradient(
+      to right,
+      transparent 0%,
+      #000 6%,
+      #000 94%,
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0%,
+      #000 6%,
+      #000 94%,
+      transparent 100%
+    );
+  }
 }
 
 .tools-strip__name {
+  position: relative;
+  z-index: 1;
   font-family: var(--sans);
   font-size: var(--text-base);
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: -0.01em;
-  color: var(--muted);
+  color: currentColor;
+  white-space: nowrap;
 }
 
 .tools-strip__tool--any .tools-strip__name {
-  color: var(--soft);
   font-style: italic;
+  font-weight: 400;
 }
 
 

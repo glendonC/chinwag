@@ -1,0 +1,10 @@
+<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <title>Amazon Q</title>
+  <path
+    fill="#181411"
+    fill-rule="evenodd"
+    d="M12 4.8L18.235 8.4 18.235 15.6 12 19.2 5.765 15.6 5.765 8.4ZM12 7.1l4.243 2.45v4.9L12 16.9l-4.243-2.45v-4.9L12 7.1z"
+  />
+  <circle cx="12" cy="12" r="2.65" fill="#181411" />
+  <path fill="#181411" d="m14.35 14.05 4.25 4.25-1.35 1.35-4.25-4.25z" />
+</svg>
