@@ -135,7 +135,7 @@ export function Chat({ config, user, navigate }) {
 
   useInput((ch, key) => {
     if (key.escape) {
-      navigate('home');
+      navigate('dashboard');
       return;
     }
     if (ch === 'n' && !input) {
@@ -148,7 +148,7 @@ export function Chat({ config, user, navigate }) {
   return (
     <Box flexDirection="column" padding={1} borderStyle="round" borderColor="gray">
       <Box justifyContent="space-between">
-        <Text bold>Chat</Text>
+        <Text bold>Global Chat</Text>
         <Text dimColor>{roomCount <= 1 ? 'just you here' : `${roomCount} devs here`}</Text>
       </Box>
       {!connected && <Text color="red">Reconnecting...</Text>}

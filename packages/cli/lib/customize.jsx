@@ -39,7 +39,7 @@ export function Customize({ config, user, navigate, refreshUser }) {
   useInput((ch, key) => {
     if (key.escape) {
       if (mode === 'menu') {
-        navigate('home');
+        navigate('dashboard');
       } else {
         setMode('menu');
         setMessage(null);

@@ -3,7 +3,6 @@ import { render, Box, Text, useApp, useInput } from 'ink';
 import { loadConfig, saveConfig, configExists, deleteConfig } from './lib/config.js';
 import { api } from './lib/api.js';
 import { Welcome } from './lib/init.jsx';
-import { Home } from './lib/home.jsx';
 import { Chat } from './lib/chat.jsx';
 import { Customize } from './lib/customize.jsx';
 import { Dashboard } from './lib/dashboard.jsx';
@@ -87,7 +86,7 @@ function App() {
         try {
           const me = await api(cfg).get('/me');
           setUser(me);
-          setScreen('home');
+          setScreen('dashboard');
         } catch {
           setScreen('welcome');
         }
@@ -101,7 +100,7 @@ function App() {
   const onSetup = (cfg, usr) => {
     setConfig(cfg);
     setUser(usr);
-    setScreen('home');
+    setScreen('dashboard');
   };
 
   const navigate = (to) => {
@@ -123,21 +122,23 @@ function App() {
   const screenContent = (() => {
     if (screen === 'loading') {
       return (
-        <Box padding={1}>
+        <Box flexDirection="column" paddingX={2} paddingY={1} borderStyle="round" borderColor="cyan">
+          <Text color="cyan" bold>chinwag</Text>
+          <Text dimColor>the control layer for agentic development</Text>
+          <Text>{''}</Text>
           <Text dimColor>Connecting...</Text>
         </Box>
       );
     }
     if (screen === 'welcome') return <Welcome onComplete={onSetup} />;
-    if (screen === 'home') return <Home user={user} config={config} navigate={navigate} />;
     if (screen === 'chat') return <Chat config={config} user={user} navigate={navigate} />;
     if (screen === 'customize') return <Customize config={config} user={user} navigate={navigate} refreshUser={refreshUser} />;
-    if (screen === 'dashboard') return <Dashboard config={config} navigate={navigate} />;
+    if (screen === 'dashboard') return <Dashboard config={config} user={user} navigate={navigate} />;
     if (screen === 'discover') return <Discover config={config} navigate={navigate} />;
     return null;
   })();
 
-  const screenLabel = { chat: 'chat', customize: 'settings', dashboard: 'dashboard', discover: 'discover' }[screen] || null;
+  const screenLabel = { chat: 'global chat', customize: 'settings', discover: 'browse tools' }[screen] || null;
 
   return (
     <Box flexDirection="column">

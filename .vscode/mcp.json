@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "chinwag": {
+      "command": "npx",
+      "args": [
+        "chinwag-mcp",
+        "--tool",
+        "vscode"
+      ]
+    }
+  }
+}

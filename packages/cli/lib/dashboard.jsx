@@ -18,13 +18,20 @@ const MIN_WIDTH = 50;
 
 export function Dashboard({ config, user, navigate }) {
   const { stdout } = useStdout();
-  const cols = stdout?.columns || 80;
+  const [cols, setCols] = useState(stdout?.columns || 80);
   const [teamId, setTeamId] = useState(null);
   const [teamName, setTeamName] = useState(null);
   const [toolCount, setToolCount] = useState(0);
   const [context, setContext] = useState(null);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    if (!stdout) return;
+    const onResize = () => setCols(stdout.columns);
+    stdout.on('resize', onResize);
+    return () => stdout.off('resize', onResize);
+  }, [stdout]);
 
   useEffect(() => {
     const cwd = process.cwd();
