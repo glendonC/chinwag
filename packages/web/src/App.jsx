@@ -31,11 +31,15 @@ export default function App() {
     if (pollError) setErrorDismissed(false);
   }, [pollError]);
 
-  // If user logs out while ready, reset to unauthenticated
+  // React to auth state changes
   useEffect(() => {
     if (bootState === 'ready' && !isAuthenticated) {
+      // User logged out
       stopPolling();
       setBootState('unauthenticated');
+    } else if (bootState === 'unauthenticated' && isAuthenticated) {
+      // User just connected via ConnectView
+      setBootState('ready');
     }
   }, [bootState, isAuthenticated]);
 

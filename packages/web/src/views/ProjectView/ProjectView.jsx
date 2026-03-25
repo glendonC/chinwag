@@ -87,7 +87,7 @@ export default function ProjectView() {
       <Tabs tabs={visibleTabs} active={activeTab} onTabChange={setActiveTab}>
         {activeTab === 'agents' && (
           sortedAgents.length > 0 ? (
-            sortedAgents.map((agent) => <AgentRow key={agent.handle} agent={agent} />)
+            sortedAgents.map((agent, i) => <AgentRow key={`${agent.handle}:${i}`} agent={agent} />)
           ) : (
             <EmptyState
               title="No agents connected"
