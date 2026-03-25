@@ -8,7 +8,6 @@ import { getInkColor, getColorList } from './colors.js';
 export function Customize({ config, user, navigate, refreshUser }) {
   const [mode, setMode] = useState('menu');
   const [handleInput, setHandleInput] = useState('');
-  const [statusInput, setStatusInput] = useState(user?.status || '');
   const [cursor, setCursor] = useState(0);
   const colors = getColorList();
   const [colorIdx, setColorIdx] = useState(() => {
@@ -21,7 +20,6 @@ export function Customize({ config, user, navigate, refreshUser }) {
   const menuItems = useMemo(() => [
     { key: 'h', label: 'Change handle', action: 'handle' },
     { key: 'k', label: 'Change color', action: 'color' },
-    { key: 's', label: 'Set status', action: 'status' },
   ], []);
 
   function enterMode(action) {
@@ -29,9 +27,6 @@ export function Customize({ config, user, navigate, refreshUser }) {
       const current = user?.color || config?.color;
       const idx = colors.indexOf(current);
       setColorIdx(idx >= 0 ? idx : 0);
-    }
-    if (action === 'status') {
-      setStatusInput(user?.status || '');
     }
     setMode(action);
   }
@@ -117,22 +112,6 @@ export function Customize({ config, user, navigate, refreshUser }) {
     }
   }
 
-  async function submitStatus() {
-    const value = statusInput.trim();
-    try {
-      if (value) {
-        await api(config).put('/status', { status: value });
-      } else {
-        await api(config).del('/status');
-      }
-      await refreshUser();
-      setMessage({ type: 'success', text: value ? 'Status updated!' : 'Status cleared!' });
-      setMode('menu');
-    } catch (err) {
-      setMessage({ type: 'error', text: err.message });
-    }
-  }
-
   const handle = user?.handle || config?.handle;
   const color = user?.color || config?.color;
 
@@ -184,36 +163,11 @@ export function Customize({ config, user, navigate, refreshUser }) {
     );
   }
 
-  if (mode === 'status') {
-    return (
-      <Box flexDirection="column" padding={1} borderStyle="round" borderColor="gray">
-        <Text bold>Set your status</Text>
-        <Text dimColor>What are you working on? (leave empty to clear)</Text>
-        <Text>{''}</Text>
-        <Box>
-          <Text color="cyan">{'> '}</Text>
-          <TextInput
-            value={statusInput}
-            onChange={setStatusInput}
-            onSubmit={submitStatus}
-            placeholder="building something cool..."
-          />
-        </Box>
-        <Text>{''}</Text>
-        {message && (
-          <Text color={message.type === 'error' ? 'red' : 'green'}>{message.text}</Text>
-        )}
-        <Text dimColor>[enter] save · [esc] back</Text>
-      </Box>
-    );
-  }
-
   return (
     <Box flexDirection="column" padding={1} borderStyle="round" borderColor="gray">
       <Text bold>Settings</Text>
       <Text>{''}</Text>
       <Text>Current: <Text color={getInkColor(color)} bold>{handle}</Text></Text>
-      {user?.status && <Text dimColor>— {user.status}</Text>}
       <Text>{''}</Text>
 
       {menuItems.map((item, i) => {

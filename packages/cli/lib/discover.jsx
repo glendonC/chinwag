@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text, useInput, useStdout } from 'ink';
 import { MCP_TOOLS } from './tools.js';
 import { detectTools, configureTool } from './mcp-config.js';
 import { api } from './api.js';
@@ -7,6 +7,8 @@ import { api } from './api.js';
 const MAX_RECOMMENDATIONS = 9;
 
 export function Discover({ config, navigate }) {
+  const { stdout } = useStdout();
+  const cols = stdout?.columns || 80;
   const [detected, setDetected] = useState([]);
   const [catalog, setCatalog] = useState([]);
   const [categories, setCategories] = useState({});
@@ -167,37 +169,50 @@ export function Discover({ config, navigate }) {
               <Text bold color="cyan">Recommended</Text>
             </Box>
             <Box flexDirection="column" marginBottom={1} paddingLeft={1}>
-              {recommendations.map((tool, i) => (
-                <Text key={tool.id}>
-                  <Text color="cyan" bold>[{i + 1}]</Text>
-                  <Text> {tool.name.padEnd(maxName + 1)}</Text>
-                  <Text dimColor>{tool.description}</Text>
-                  {tool.mcpCompatible && <Text color="green"> [MCP]</Text>}
-                </Text>
-              ))}
+              {(() => {
+                const descAvail = cols - 3 - 4 - (maxName + 1) - 6; // padding, [N], name, [MCP] tag
+                return recommendations.map((tool, i) => {
+                  const desc = descAvail > 10 && tool.description.length > descAvail
+                    ? tool.description.slice(0, descAvail - 1) + '…'
+                    : tool.description;
+                  return (
+                    <Text key={tool.id}>
+                      <Text color="cyan" bold>[{i + 1}]</Text>
+                      <Text> {tool.name.padEnd(maxName + 1)}</Text>
+                      <Text dimColor>{desc}</Text>
+                      {tool.mcpCompatible && <Text color="green"> [MCP]</Text>}
+                    </Text>
+                  );
+                });
+              })()}
             </Box>
           </>
         );
       })()}
 
-      {/* Browse by category */}
+      {/* Browse by category — single-name navigator, never wraps */}
       {categoryKeys.length > 0 && (
         <>
           <Box marginBottom={1}>
             <Text bold color="cyan">Browse</Text>
-            <Text dimColor> (← → to navigate categories)</Text>
-          </Box>
-          <Box paddingLeft={1} marginBottom={1}>
-            {categoryKeys.map(cat => (
-              <Text key={cat}>
-                {selectedCategory === cat ? (
-                  <Text color="cyan" bold>[{categories[cat] || cat}]</Text>
-                ) : (
-                  <Text dimColor> {categories[cat] || cat} </Text>
-                )}
-                <Text> </Text>
-              </Text>
-            ))}
+            {selectedCategory ? (
+              <Text dimColor>  ← </Text>
+            ) : (
+              <Text dimColor>  </Text>
+            )}
+            {selectedCategory ? (
+              <Text bold>{categories[selectedCategory] || selectedCategory}</Text>
+            ) : (
+              <Text dimColor>press ← → to browse categories</Text>
+            )}
+            {selectedCategory && categoryKeys.indexOf(selectedCategory) < categoryKeys.length - 1 ? (
+              <Text dimColor> →</Text>
+            ) : selectedCategory ? (
+              <Text dimColor>  </Text>
+            ) : null}
+            {selectedCategory && (
+              <Text dimColor>  ({categoryKeys.indexOf(selectedCategory) + 1}/{categoryKeys.length})</Text>
+            )}
           </Box>
         </>
       )}
@@ -205,16 +220,23 @@ export function Discover({ config, navigate }) {
       {selectedCategory && categoryGroups[selectedCategory] && (() => {
         const tools = categoryGroups[selectedCategory];
         const maxName = Math.max(...tools.map(t => t.name.length));
+        // Truncate descriptions to fit terminal width
+        const descAvail = cols - 4 - 2 - (maxName + 1) - 6; // padding, bullet, name, [MCP] tag
         return (
           <Box flexDirection="column" paddingLeft={2} marginBottom={1}>
-            {tools.map(tool => (
-              <Text key={tool.id}>
-                <Text dimColor>○</Text>
-                <Text> {tool.name.padEnd(maxName + 1)}</Text>
-                <Text dimColor>{tool.description}</Text>
-                {tool.mcpCompatible && <Text color="green"> [MCP]</Text>}
-              </Text>
-            ))}
+            {tools.map(tool => {
+              const desc = descAvail > 10 && tool.description.length > descAvail
+                ? tool.description.slice(0, descAvail - 1) + '…'
+                : tool.description;
+              return (
+                <Text key={tool.id}>
+                  <Text dimColor>○</Text>
+                  <Text> {tool.name.padEnd(maxName + 1)}</Text>
+                  <Text dimColor>{desc}</Text>
+                  {tool.mcpCompatible && <Text color="green"> [MCP]</Text>}
+                </Text>
+              );
+            })}
           </Box>
         );
       })()}
