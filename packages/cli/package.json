@@ -9,7 +9,8 @@
   "scripts": {
     "build": "esbuild cli.jsx --bundle --platform=node --format=esm --outfile=dist/cli.js --external:ink --external:react --external:ink-text-input && node -e \"const f=require('fs');const c=f.readFileSync('dist/cli.js','utf8');f.writeFileSync('dist/cli.js','#!/usr/bin/env node\\n'+c)\"",
     "dev": "npm run build && node dist/cli.js",
-    "start": "node dist/cli.js"
+    "start": "node dist/cli.js",
+    "test": "vitest run"
   },
   "dependencies": {
     "ink": "^5.1.0",

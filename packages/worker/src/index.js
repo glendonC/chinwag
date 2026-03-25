@@ -17,7 +17,11 @@ export default {
     const method = request.method;
     const path = url.pathname;
 
-    const ALLOWED_ORIGINS = ['https://chinwag.dev', 'https://www.chinwag.dev', 'http://localhost:8788', 'http://localhost:3000', 'http://127.0.0.1:8788'];
+    const PROD_ORIGINS = ['https://chinwag.dev', 'https://www.chinwag.dev'];
+    const DEV_ORIGINS = ['http://localhost:8788', 'http://localhost:3000', 'http://127.0.0.1:8788'];
+    const ALLOWED_ORIGINS = env.ENVIRONMENT === 'production'
+      ? PROD_ORIGINS
+      : [...PROD_ORIGINS, ...DEV_ORIGINS];
     const origin = request.headers.get('Origin') || '';
     const corsHeaders = {
       'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : 'https://chinwag.dev',
@@ -132,8 +136,9 @@ export default {
       }
       return new Response(response.body, { status: response.status, headers });
     } catch (err) {
-      console.error('Request error:', err);
-      return json({ error: 'Internal server error' }, 500, corsHeaders);
+      const ref = crypto.randomUUID().slice(0, 8);
+      console.error(`Request error (ref: ${ref}):`, err);
+      return json({ error: `Internal server error (ref: ${ref})` }, 500, corsHeaders);
     }
   },
 };
@@ -239,7 +244,7 @@ async function handleSetStatus(request, user, env) {
 
   const modResult = await checkContent(status, env);
   if (modResult.blocked) {
-    return json({ error: 'Status could not be set. Please revise.' }, 400);
+    return json({ error: 'Status blocked by content filter. Please revise.' }, 400);
   }
 
   const db = getDB(env);
@@ -309,7 +314,7 @@ function getAgentId(request, user) {
 }
 
 // Parse tool name from agent_id format "tool:hash". Returns 'unknown' for bare UUIDs.
-function getToolFromAgentId(agentId) {
+export function getToolFromAgentId(agentId) {
   const idx = agentId.indexOf(':');
   return idx > 0 ? agentId.slice(0, idx) : 'unknown';
 }
@@ -335,7 +340,7 @@ async function handleUpdateAgentProfile(request, user, env) {
   return json(result);
 }
 
-function sanitizeTags(arr) {
+export function sanitizeTags(arr) {
   if (!Array.isArray(arr)) return [];
   return arr
     .filter(t => typeof t === 'string')
@@ -364,7 +369,7 @@ async function handleDashboardSummary(user, env) {
     capped.map(async (t) => {
       const team = getTeam(env, t.team_id);
       try {
-        const summary = await team.getSummary(user.id);
+        const summary = await team.getSummary(user.id, user.id);
         if (summary.error) {
           // Reconcile: remove stale user_teams entries for teams where membership was lost
           try { await db.removeUserTeam(user.id, t.team_id); } catch {}
@@ -450,7 +455,7 @@ async function handleTeamLeave(request, user, env, teamId) {
 async function handleTeamContext(request, user, env, teamId) {
   const agentId = getAgentId(request, user);
   const team = getTeam(env, teamId);
-  const result = await team.getContext(agentId);
+  const result = await team.getContext(agentId, user.id);
   if (result.error) return json({ error: result.error }, 403);
 
   // Lazy backfill: if user is a member (getContext succeeded), ensure user_teams
@@ -473,7 +478,7 @@ async function handleTeamActivity(request, user, env, teamId) {
 
   const agentId = getAgentId(request, user);
   const team = getTeam(env, teamId);
-  const result = await team.updateActivity(agentId, files, summary);
+  const result = await team.updateActivity(agentId, files, summary, user.id);
   if (result.error) return json({ error: result.error }, teamErrorStatus(result.error));
   return json(result);
 }
@@ -488,7 +493,7 @@ async function handleTeamConflicts(request, user, env, teamId) {
 
   const agentId = getAgentId(request, user);
   const team = getTeam(env, teamId);
-  const result = await team.checkConflicts(agentId, files);
+  const result = await team.checkConflicts(agentId, files, user.id);
   if (result.error) return json({ error: result.error }, 403);
   return json(result);
 }
@@ -496,7 +501,7 @@ async function handleTeamConflicts(request, user, env, teamId) {
 async function handleTeamHeartbeat(request, user, env, teamId) {
   const agentId = getAgentId(request, user);
   const team = getTeam(env, teamId);
-  const result = await team.heartbeat(agentId);
+  const result = await team.heartbeat(agentId, user.id);
   if (result.error) return json({ error: result.error }, teamErrorStatus(result.error));
   return json(result);
 }
@@ -512,10 +517,15 @@ async function handleTeamFile(request, user, env, teamId) {
     return json({ error: 'file path too long' }, 400);
   }
 
+  const db = getDB(env);
+  const fileLimit = await db.checkRateLimit(`file:${user.id}`, 500);
+  if (!fileLimit.allowed) return json({ error: 'File report limit reached (500/day). Try again tomorrow.' }, 429);
+
   const agentId = getAgentId(request, user);
   const team = getTeam(env, teamId);
-  const result = await team.reportFile(agentId, file);
+  const result = await team.reportFile(agentId, file, user.id);
   if (result.error) return json({ error: result.error }, teamErrorStatus(result.error));
+  await db.consumeRateLimit(`file:${user.id}`);
   return json(result);
 }
 
@@ -543,7 +553,7 @@ async function handleTeamSaveMemory(request, user, env, teamId) {
 
   const agentId = getAgentId(request, user);
   const team = getTeam(env, teamId);
-  const result = await team.saveMemory(agentId, text.trim(), category, user.handle);
+  const result = await team.saveMemory(agentId, text.trim(), category, user.handle, user.id);
   if (result.error) return json({ error: result.error }, teamErrorStatus(result.error));
 
   await db.consumeRateLimit(`memory:${user.id}`);
@@ -563,7 +573,7 @@ async function handleTeamSearchMemory(request, user, env, teamId) {
 
   const agentId = getAgentId(request, user);
   const team = getTeam(env, teamId);
-  const result = await team.searchMemories(agentId, query, category, limit);
+  const result = await team.searchMemories(agentId, query, category, limit, user.id);
   if (result.error) return json({ error: result.error }, 403);
   return json(result);
 }
@@ -590,7 +600,7 @@ async function handleTeamUpdateMemory(request, user, env, teamId) {
 
   const agentId = getAgentId(request, user);
   const team = getTeam(env, teamId);
-  const result = await team.updateMemory(agentId, id, text, category);
+  const result = await team.updateMemory(agentId, id, text, category, user.id);
   if (result.error) return json({ error: result.error }, teamErrorStatus(result.error));
   return json(result);
 }
@@ -605,7 +615,7 @@ async function handleTeamDeleteMemory(request, user, env, teamId) {
 
   const agentId = getAgentId(request, user);
   const team = getTeam(env, teamId);
-  const result = await team.deleteMemory(agentId, id);
+  const result = await team.deleteMemory(agentId, id, user.id);
   if (result.error) return json({ error: result.error }, teamErrorStatus(result.error));
   return json(result);
 }
@@ -618,11 +628,16 @@ async function handleTeamClaimFiles(request, user, env, teamId) {
   if (files.length > 20) return json({ error: 'too many files (max 20)' }, 400);
   if (files.some(f => typeof f !== 'string' || f.length > 500)) return json({ error: 'invalid file path' }, 400);
 
+  const db = getDB(env);
+  const lockLimit = await db.checkRateLimit(`locks:${user.id}`, 100);
+  if (!lockLimit.allowed) return json({ error: 'Lock claim limit reached (100/day). Try again tomorrow.' }, 429);
+
   const agentId = getAgentId(request, user);
   const tool = getToolFromAgentId(agentId);
   const team = getTeam(env, teamId);
-  const result = await team.claimFiles(agentId, files, user.handle, tool);
+  const result = await team.claimFiles(agentId, files, user.handle, tool, user.id);
   if (result.error) return json({ error: result.error }, teamErrorStatus(result.error));
+  await db.consumeRateLimit(`locks:${user.id}`);
   return json(result);
 }
 
@@ -635,7 +650,7 @@ async function handleTeamReleaseFiles(request, user, env, teamId) {
 
   const agentId = getAgentId(request, user);
   const team = getTeam(env, teamId);
-  const result = await team.releaseFiles(agentId, files);
+  const result = await team.releaseFiles(agentId, files, user.id);
   if (result.error) return json({ error: result.error }, teamErrorStatus(result.error));
   return json(result);
 }
@@ -643,7 +658,7 @@ async function handleTeamReleaseFiles(request, user, env, teamId) {
 async function handleTeamGetLocks(request, user, env, teamId) {
   const agentId = getAgentId(request, user);
   const team = getTeam(env, teamId);
-  const result = await team.getLockedFiles(agentId);
+  const result = await team.getLockedFiles(agentId, user.id);
   if (result.error) return json({ error: result.error }, 403);
   return json(result);
 }
@@ -656,11 +671,16 @@ async function handleTeamSendMessage(request, user, env, teamId) {
   if (text.length > 500) return json({ error: 'text must be 500 characters or less' }, 400);
   if (target !== undefined && typeof target !== 'string') return json({ error: 'target must be a string' }, 400);
 
+  const db = getDB(env);
+  const msgLimit = await db.checkRateLimit(`messages:${user.id}`, 200);
+  if (!msgLimit.allowed) return json({ error: 'Message limit reached (200/day). Try again tomorrow.' }, 429);
+
   const agentId = getAgentId(request, user);
   const tool = getToolFromAgentId(agentId);
   const team = getTeam(env, teamId);
-  const result = await team.sendMessage(agentId, user.handle, tool, text.trim(), target || null);
+  const result = await team.sendMessage(agentId, user.handle, tool, text.trim(), target || null, user.id);
   if (result.error) return json({ error: result.error }, teamErrorStatus(result.error));
+  await db.consumeRateLimit(`messages:${user.id}`);
   return json(result, 201);
 }
 
@@ -670,7 +690,7 @@ async function handleTeamGetMessages(request, user, env, teamId) {
 
   const agentId = getAgentId(request, user);
   const team = getTeam(env, teamId);
-  const result = await team.getMessages(agentId, since);
+  const result = await team.getMessages(agentId, since, user.id);
   if (result.error) return json({ error: result.error }, 403);
   return json(result);
 }
@@ -686,7 +706,7 @@ async function handleTeamStartSession(request, user, env, teamId) {
 
   const agentId = getAgentId(request, user);
   const team = getTeam(env, teamId);
-  const result = await team.startSession(agentId, user.handle, framework);
+  const result = await team.startSession(agentId, user.handle, framework, user.id);
   if (result.error) return json({ error: result.error }, teamErrorStatus(result.error));
 
   await db.consumeRateLimit(`session:${user.id}`);
@@ -703,7 +723,7 @@ async function handleTeamEndSession(request, user, env, teamId) {
 
   const agentId = getAgentId(request, user);
   const team = getTeam(env, teamId);
-  const result = await team.endSession(agentId, session_id);
+  const result = await team.endSession(agentId, session_id, user.id);
   if (result.error) return json({ error: result.error }, teamErrorStatus(result.error));
   return json(result);
 }
@@ -717,10 +737,15 @@ async function handleTeamSessionEdit(request, user, env, teamId) {
   }
   if (file.length > 500) return json({ error: 'file path too long' }, 400);
 
+  const db = getDB(env);
+  const editLimit = await db.checkRateLimit(`edit:${user.id}`, 1000);
+  if (!editLimit.allowed) return json({ error: 'Edit recording limit reached. Try again tomorrow.' }, 429);
+
   const agentId = getAgentId(request, user);
   const team = getTeam(env, teamId);
-  const result = await team.recordEdit(agentId, file);
+  const result = await team.recordEdit(agentId, file, user.id);
   if (result.error) return json({ error: result.error }, teamErrorStatus(result.error));
+  await db.consumeRateLimit(`edit:${user.id}`);
   return json(result);
 }
 
@@ -731,7 +756,7 @@ async function handleTeamHistory(request, user, env, teamId) {
 
   const agentId = getAgentId(request, user);
   const team = getTeam(env, teamId);
-  const result = await team.getHistory(agentId, days);
+  const result = await team.getHistory(agentId, days, user.id);
   if (result.error) return json({ error: result.error }, 403);
   return json(result);
 }
@@ -756,7 +781,7 @@ function getTeam(env, teamId) {
   return env.TEAM.get(env.TEAM.idFromName(teamId));
 }
 
-function parseTeamPath(path) {
+export function parseTeamPath(path) {
   // Team IDs are t_ + 16 hex chars. Accept that format only.
   const match = path.match(/^\/teams\/(t_[a-f0-9]{16})\/([a-z]+)$/);
   if (!match) return null;
@@ -773,11 +798,15 @@ function json(data, status = 200, extraHeaders = {}) {
 const MAX_BODY_SIZE = 50_000;
 
 async function parseBody(request) {
+  const contentType = request.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    return { _parseError: 'Content-Type must be application/json' };
+  }
   const len = parseInt(request.headers.get('content-length') || '0');
   if (len > MAX_BODY_SIZE) return { _parseError: 'Request body too large' };
   try { return await request.json(); } catch { return { _parseError: 'Invalid JSON body' }; }
 }
 
-function teamErrorStatus(msg) {
+export function teamErrorStatus(msg) {
   return msg?.includes('Not a member') ? 403 : 400;
 }

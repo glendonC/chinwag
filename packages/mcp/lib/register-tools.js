@@ -255,7 +255,7 @@ export function registerTools(server, { team, state, profile }) {
       try {
         const result = await team.deleteMemory(state.teamId, id);
         if (result.error) {
-          return { content: [{ type: 'text', text: result.error }], isError: true };
+          return { content: [{ type: 'text', text: `Failed to delete memory ${id}: ${result.error}` }], isError: true };
         }
         return { content: [{ type: 'text', text: `Memory ${id} deleted.` }] };
       } catch (err) {

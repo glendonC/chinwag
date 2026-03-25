@@ -161,13 +161,16 @@ export class TeamDO extends DurableObject {
     );
   }
 
-  #isMember(agentId) {
-    // Direct match by agent_id (new tool-specific IDs like "cursor:abc123")
-    if (this.sql.exec('SELECT 1 FROM members WHERE agent_id = ?', agentId).toArray().length > 0) {
-      return true;
+  #isMember(agentId, ownerId = null) {
+    // Direct match by agent_id (tool-specific IDs like "cursor:abc123")
+    const row = this.sql.exec('SELECT owner_id FROM members WHERE agent_id = ?', agentId).toArray();
+    if (row.length > 0) {
+      // If ownerId provided, verify the agent belongs to this user (prevents spoofing)
+      return ownerId ? row[0].owner_id === ownerId : true;
     }
     // Fallback: check by owner_id (backward compat for CLI/old clients sending user UUID)
-    return this.sql.exec('SELECT 1 FROM members WHERE owner_id = ?', agentId).toArray().length > 0;
+    const byOwner = ownerId || agentId;
+    return this.sql.exec('SELECT 1 FROM members WHERE owner_id = ?', byOwner).toArray().length > 0;
   }
 
   // --- Membership ---
@@ -205,7 +208,7 @@ export class TeamDO extends DurableObject {
     return { ok: true };
   }
 
-  async heartbeat(agentId) {
+  async heartbeat(agentId, ownerId = null) {
     this.#ensureSchema();
     this.sql.exec("UPDATE members SET last_heartbeat = datetime('now') WHERE agent_id = ?", agentId);
     const row = this.sql.exec('SELECT changes() as c').toArray();
@@ -215,9 +218,9 @@ export class TeamDO extends DurableObject {
 
   // --- Activity ---
 
-  async updateActivity(agentId, files, summary) {
+  async updateActivity(agentId, files, summary, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
+    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
 
     const normalized = files.map(normalizePath);
 
@@ -234,9 +237,9 @@ export class TeamDO extends DurableObject {
     return { ok: true };
   }
 
-  async checkConflicts(agentId, files) {
+  async checkConflicts(agentId, files, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
+    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
 
     const others = this.sql.exec(
       `SELECT m.agent_id, m.owner_handle, m.tool, a.files, a.summary
@@ -298,9 +301,9 @@ export class TeamDO extends DurableObject {
     return { conflicts, locked: lockedFiles };
   }
 
-  async reportFile(agentId, filePath) {
+  async reportFile(agentId, filePath, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
+    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
 
     const normalized = normalizePath(filePath);
 
@@ -332,9 +335,9 @@ export class TeamDO extends DurableObject {
 
   // --- Context ---
 
-  async getContext(agentId) {
+  async getContext(agentId, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
+    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
 
     this.#maybeCleanup();
 
@@ -446,9 +449,9 @@ export class TeamDO extends DurableObject {
 
   // --- Sessions (observability) ---
 
-  async startSession(agentId, handle, framework) {
+  async startSession(agentId, handle, framework, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
+    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
 
     // End any existing open session for this agent
     this.sql.exec(
@@ -465,7 +468,7 @@ export class TeamDO extends DurableObject {
     return { ok: true, session_id: id };
   }
 
-  async endSession(agentId, sessionId) {
+  async endSession(agentId, sessionId, ownerId = null) {
     this.#ensureSchema();
     this.sql.exec(
       `UPDATE sessions SET ended_at = datetime('now') WHERE id = ? AND agent_id = ? AND ended_at IS NULL`,
@@ -476,7 +479,7 @@ export class TeamDO extends DurableObject {
     return { ok: true };
   }
 
-  async recordEdit(agentId, filePath) {
+  async recordEdit(agentId, filePath, ownerId = null) {
     this.#ensureSchema();
     const normalized = normalizePath(filePath);
 
@@ -502,9 +505,9 @@ export class TeamDO extends DurableObject {
     return { ok: true };
   }
 
-  async getHistory(agentId, days) {
+  async getHistory(agentId, days, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
+    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
     const sessions = this.sql.exec(
       `SELECT owner_handle, framework, started_at, ended_at,
              edit_count, files_touched, conflicts_hit, memories_saved,
@@ -526,9 +529,9 @@ export class TeamDO extends DurableObject {
 
   // --- Memory ---
 
-  async saveMemory(agentId, text, category, handle) {
+  async saveMemory(agentId, text, category, handle, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
+    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
 
     if (!VALID_CATEGORIES.includes(category)) {
       return { error: `Category must be one of: ${VALID_CATEGORIES.join(', ')}` };
@@ -577,9 +580,9 @@ export class TeamDO extends DurableObject {
     return { ok: true, id };
   }
 
-  async searchMemories(agentId, query, category, limit = 20) {
+  async searchMemories(agentId, query, category, limit = 20, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
+    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
 
     const cappedLimit = Math.min(Math.max(1, limit), 50);
     let sql, params;
@@ -609,9 +612,9 @@ export class TeamDO extends DurableObject {
     return { memories: rows };
   }
 
-  async updateMemory(agentId, memoryId, text, category) {
+  async updateMemory(agentId, memoryId, text, category, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
+    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
 
     if (text !== undefined && (typeof text !== 'string' || !text.trim())) {
       return { error: 'text must be a non-empty string' };
@@ -637,9 +640,9 @@ export class TeamDO extends DurableObject {
     return { ok: true };
   }
 
-  async deleteMemory(agentId, memoryId) {
+  async deleteMemory(agentId, memoryId, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
+    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
 
     this.sql.exec('DELETE FROM memories WHERE id = ?', memoryId);
     const changed = this.sql.exec('SELECT changes() as c').toArray();
@@ -649,9 +652,9 @@ export class TeamDO extends DurableObject {
 
   // --- File Locks (advisory locking for conflict resolution) ---
 
-  async claimFiles(agentId, files, handle, tool) {
+  async claimFiles(agentId, files, handle, tool, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
+    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
 
     const normalized = files.map(normalizePath);
     const claimed = [];
@@ -691,9 +694,9 @@ export class TeamDO extends DurableObject {
     return { ok: true, claimed, blocked };
   }
 
-  async releaseFiles(agentId, files) {
+  async releaseFiles(agentId, files, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
+    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
 
     if (!files || files.length === 0) {
       // Release all locks for this agent
@@ -707,9 +710,9 @@ export class TeamDO extends DurableObject {
     return { ok: true };
   }
 
-  async getLockedFiles(agentId) {
+  async getLockedFiles(agentId, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
+    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
 
     const locks = this.sql.exec(
       `SELECT l.file_path, l.agent_id, l.owner_handle, l.tool, l.claimed_at,
@@ -726,9 +729,9 @@ export class TeamDO extends DurableObject {
 
   // --- Agent Messages (ephemeral coordination, auto-expire after 1 hour) ---
 
-  async sendMessage(agentId, handle, tool, text, targetAgent) {
+  async sendMessage(agentId, handle, tool, text, targetAgent, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
+    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
 
     const id = crypto.randomUUID();
     this.sql.exec(
@@ -740,19 +743,18 @@ export class TeamDO extends DurableObject {
     return { ok: true, id };
   }
 
-  async getMessages(agentId, since) {
+  async getMessages(agentId, since, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
+    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
 
-    const sinceTime = since || "datetime('now', '-1 hour')";
     const messages = this.sql.exec(
       `SELECT id, from_handle, from_tool, target_agent, text, created_at
        FROM messages
-       WHERE created_at > ${since ? '?' : "datetime('now', '-1 hour')"}
+       WHERE created_at > COALESCE(?, datetime('now', '-1 hour'))
          AND (target_agent IS NULL OR target_agent = ?)
        ORDER BY created_at DESC
        LIMIT 50`,
-      ...(since ? [since, agentId] : [agentId])
+      since || null, agentId
     ).toArray();
 
     return { messages };
@@ -760,9 +762,9 @@ export class TeamDO extends DurableObject {
 
   // --- Summary (lightweight, for cross-project dashboard) ---
 
-  async getSummary(agentId) {
+  async getSummary(agentId, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId)) return { error: 'Not a member of this team' };
+    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
     this.#maybeCleanup();
 
     const active = this.sql.exec(
@@ -825,14 +827,14 @@ export class TeamDO extends DurableObject {
 }
 
 // Strip leading ./ and trailing /, collapse // — so "src/index.js" and "./src/index.js" match
-function normalizePath(p) {
+export function normalizePath(p) {
   return p.replace(/^\.\//, '').replace(/\/+/g, '/').replace(/\/$/, '');
 }
 
 // Extract significant words for fuzzy dedup (lowercase, >2 chars, no stop words)
 const STOP_WORDS = new Set(['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'has', 'have', 'been', 'this', 'that', 'with', 'from', 'they', 'will', 'when', 'make', 'use', 'used', 'uses', 'using', 'must', 'need', 'needs']);
 
-function extractWords(text) {
+export function extractWords(text) {
   return new Set(
     text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/)
       .filter(w => w.length > 2 && !STOP_WORDS.has(w))
@@ -840,7 +842,7 @@ function extractWords(text) {
 }
 
 // Jaccard similarity between two word sets
-function wordSimilarity(a, b) {
+export function wordSimilarity(a, b) {
   if (a.size === 0 && b.size === 0) return 1;
   if (a.size === 0 || b.size === 0) return 0;
   let intersection = 0;

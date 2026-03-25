@@ -9,6 +9,13 @@
   "scripts": {
     "dev:cli": "npm run dev --workspace=packages/cli",
     "dev:worker": "npm run dev --workspace=packages/worker",
-    "deploy": "npm run deploy --workspace=packages/worker"
+    "deploy": "npm run deploy --workspace=packages/worker",
+    "test": "npm run test --workspaces --if-present",
+    "test:worker": "npm run test --workspace=packages/worker",
+    "test:mcp": "npm run test --workspace=packages/mcp",
+    "test:cli": "npm run test --workspace=packages/cli"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
   }
 }
