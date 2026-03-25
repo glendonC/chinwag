@@ -39,16 +39,24 @@ export function Discover({ config, navigate }) {
 
   const detectedIds = new Set(detected.map(t => t.id));
 
-  // Tools not currently detected/configured, capped for keyboard nav
-  const recommendations = catalog
-    .filter(t => !detectedIds.has(t.id) && t.featured)
+  // Smart recommendations: suggest tools from categories the user DOESN'T already cover.
+  // If you have 4 coding agents, recommend code review/terminal/docs tools instead.
+  const detectedCategories = new Set(
+    catalog.filter(t => detectedIds.has(t.id)).map(t => t.category)
+  );
+  const complementary = catalog.filter(t =>
+    !detectedIds.has(t.id) && t.category && !detectedCategories.has(t.category)
+  );
+  // Fall back to featured from any category if no complementary tools found
+  const recommendations = (complementary.length > 0 ? complementary : catalog.filter(t => !detectedIds.has(t.id) && t.featured))
     .slice(0, MAX_RECOMMENDATIONS);
 
-  // Group catalog by category (excluding already-detected tools)
+  // Group catalog by category — skip detected tools AND categories the user already covers
   const categoryGroups = {};
   for (const tool of catalog) {
     if (detectedIds.has(tool.id)) continue;
     const cat = tool.category || 'other';
+    if (detectedCategories.has(cat)) continue; // don't show categories you already have tools in
     if (!categoryGroups[cat]) categoryGroups[cat] = [];
     categoryGroups[cat].push(tool);
   }
@@ -63,7 +71,12 @@ export function Discover({ config, navigate }) {
   }
 
   useInput((ch, key) => {
-    if (ch === 'b' || key.escape) { navigate('home'); return; }
+    if (key.escape) {
+      // Layered escape: close category first, then exit screen
+      if (selectedCategory) { setSelectedCategory(null); return; }
+      navigate('dashboard'); return;
+    }
+    if (ch === 'b') { navigate('dashboard'); return; }
     if (ch === 'q') { navigate('quit'); return; }
 
     // Number keys to quick-add recommendations
@@ -123,40 +136,49 @@ export function Discover({ config, navigate }) {
 
       {detected.length === 0 ? (
         <Box marginBottom={1} paddingLeft={1}>
-          <Text dimColor>No tools detected. Run `chinwag init` first, or `chinwag add {'<tool>'}` to add one.</Text>
+          <Text dimColor>No tools detected. Run `npx chinwag init` first, or `npx chinwag add {'<tool>'}` to add one.</Text>
         </Box>
-      ) : (
-        <Box flexDirection="column" marginBottom={1} paddingLeft={1}>
-          {detected.map(tool => (
-            <Text key={tool.id}>
-              <Text color="green">●</Text>
-              <Text> {tool.name}</Text>
-              <Text dimColor> — {tool.mcpConfig}</Text>
-              {tool.hooks && <Text dimColor> + hooks</Text>}
-              {tool.channel && <Text dimColor> + channel</Text>}
-            </Text>
-          ))}
-        </Box>
-      )}
+      ) : (() => {
+        const maxName = Math.max(...detected.map(t => t.name.length));
+        return (
+          <Box flexDirection="column" marginBottom={1} paddingLeft={1}>
+            {detected.map(tool => {
+              let detail = tool.mcpConfig;
+              if (tool.hooks) detail += ' + hooks';
+              if (tool.channel) detail += ' + channel';
+              return (
+                <Text key={tool.id}>
+                  <Text color="green">●</Text>
+                  <Text> {tool.name.padEnd(maxName + 1)}</Text>
+                  <Text dimColor>{detail}</Text>
+                </Text>
+              );
+            })}
+          </Box>
+        );
+      })()}
 
       {/* Recommendations */}
-      {recommendations.length > 0 && (
-        <>
-          <Box marginBottom={1}>
-            <Text bold color="cyan">Recommended</Text>
-          </Box>
-          <Box flexDirection="column" marginBottom={1} paddingLeft={1}>
-            {recommendations.map((tool, i) => (
-              <Text key={tool.id}>
-                <Text color="cyan" bold>[{i + 1}]</Text>
-                <Text> {tool.name}</Text>
-                <Text dimColor> — {tool.description}</Text>
-                {tool.mcpCompatible && <Text color="green"> [MCP]</Text>}
-              </Text>
-            ))}
-          </Box>
-        </>
-      )}
+      {recommendations.length > 0 && (() => {
+        const maxName = Math.max(...recommendations.map(t => t.name.length));
+        return (
+          <>
+            <Box marginBottom={1}>
+              <Text bold color="cyan">Recommended</Text>
+            </Box>
+            <Box flexDirection="column" marginBottom={1} paddingLeft={1}>
+              {recommendations.map((tool, i) => (
+                <Text key={tool.id}>
+                  <Text color="cyan" bold>[{i + 1}]</Text>
+                  <Text> {tool.name.padEnd(maxName + 1)}</Text>
+                  <Text dimColor>{tool.description}</Text>
+                  {tool.mcpCompatible && <Text color="green"> [MCP]</Text>}
+                </Text>
+              ))}
+            </Box>
+          </>
+        );
+      })()}
 
       {/* Browse by category */}
       {categoryKeys.length > 0 && (
@@ -180,18 +202,22 @@ export function Discover({ config, navigate }) {
         </>
       )}
 
-      {selectedCategory && categoryGroups[selectedCategory] && (
-        <Box flexDirection="column" paddingLeft={2} marginBottom={1}>
-          {categoryGroups[selectedCategory].map(tool => (
-            <Text key={tool.id}>
-              <Text dimColor>○</Text>
-              <Text> {tool.name}</Text>
-              <Text dimColor> — {tool.description}</Text>
-              {tool.mcpCompatible && <Text color="green"> [MCP]</Text>}
-            </Text>
-          ))}
-        </Box>
-      )}
+      {selectedCategory && categoryGroups[selectedCategory] && (() => {
+        const tools = categoryGroups[selectedCategory];
+        const maxName = Math.max(...tools.map(t => t.name.length));
+        return (
+          <Box flexDirection="column" paddingLeft={2} marginBottom={1}>
+            {tools.map(tool => (
+              <Text key={tool.id}>
+                <Text dimColor>○</Text>
+                <Text> {tool.name.padEnd(maxName + 1)}</Text>
+                <Text dimColor>{tool.description}</Text>
+                {tool.mcpCompatible && <Text color="green"> [MCP]</Text>}
+              </Text>
+            ))}
+          </Box>
+        );
+      })()}
 
       {/* Message */}
       {message && (
@@ -206,7 +232,8 @@ export function Discover({ config, navigate }) {
           {recommendations.length > 0 && (
             <><Text color="cyan" bold>[1-{recommendations.length}]</Text><Text dimColor> add  </Text></>
           )}
-          <Text color="cyan" bold>[b]</Text><Text dimColor> back  </Text>
+          <Text color="cyan" bold>[esc]</Text><Text dimColor> back  </Text>
+          <Text color="cyan" bold>[b]</Text><Text dimColor> dashboard  </Text>
           <Text color="cyan" bold>[q]</Text><Text dimColor> quit</Text>
         </Text>
       </Box>

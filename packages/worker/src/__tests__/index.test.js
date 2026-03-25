@@ -44,6 +44,13 @@ describe('CORS', () => {
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://chinwag.dev');
   });
 
+  it('reflects allowed origin for local web dev server (dashboard static)', async () => {
+    const res = await SELF.fetch('http://localhost/stats', {
+      headers: { Origin: 'http://localhost:56790' },
+    });
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:56790');
+  });
+
   it('defaults to chinwag.dev for unknown origin', async () => {
     const res = await SELF.fetch('http://localhost/stats', {
       headers: { Origin: 'https://evil.com' },

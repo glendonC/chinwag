@@ -102,6 +102,7 @@ export async function runInit() {
       const projectName = basename(cwd);
       const result = await client.post('/teams', { name: projectName });
       teamId = result.team_id;
+      await client.post(`/teams/${teamId}/join`, { name: projectName });
       writeFileSync(chinwagFile, JSON.stringify({ team: teamId, name: projectName }, null, 2) + '\n');
       teamName = projectName;
       teamVerb = 'created';
@@ -145,7 +146,7 @@ export async function runInit() {
     }
   } else {
     console.log('');
-    console.log(`  ${dim('No tools detected.')} Run ${chalk.cyan('chinwag add --list')} to see available tools.`);
+    console.log(`  ${dim('No tools detected.')} Run ${chalk.cyan('npx chinwag add --list')} to see available tools.`);
   }
 
   // Next steps

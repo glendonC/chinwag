@@ -57,7 +57,7 @@ export async function runAdd(toolArg) {
   if (match) {
     console.log(`  Unknown tool "${toolArg}". Did you mean "${match.id}"?`);
   } else {
-    console.log(`  Unknown tool "${toolArg}". Run \`chinwag add --list\` to see available tools.`);
+    console.log(`  Unknown tool "${toolArg}". Run \`npx chinwag add --list\` to see available tools.`);
   }
 }
 

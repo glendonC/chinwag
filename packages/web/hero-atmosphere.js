@@ -2,7 +2,7 @@ export function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
-const LABEL_SEQUENCE = ['claude', 'copilot', 'cursor', 'codex', 'windsurf', 'jetbrains', 'aider', 'amazonq', 'zed', 'cline'];
+const LABEL_SEQUENCE = ['claude', 'vscode', 'cursor', 'codex', 'windsurf', 'jetbrains', 'aider', 'amazonq', 'zed', 'cline'];
 
 function getHeroParticleClusters(width, height) {
   return [

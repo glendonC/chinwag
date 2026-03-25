@@ -15,7 +15,8 @@
     "test:mcp": "npm run test --workspace=packages/mcp",
     "test:cli": "npm run test --workspace=packages/cli",
     "dev:web": "node packages/web/dev-server.mjs",
-    "dev:web:py": "python3 packages/web/serve.py"
+    "dev:web:py": "python3 packages/web/serve.py",
+    "og-image": "npm exec --yes --package=@resvg/resvg-js@2.4.0 -- node packages/web/scripts/render-og-image.mjs"
   },
   "devDependencies": {
     "vitest": "^3.2.4"

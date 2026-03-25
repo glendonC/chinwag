@@ -1,6 +1,6 @@
 # Contributing to chinwag
 
-chinwag is the control layer for agentic development: one command connects your AI coding tools into a unified system with shared memory, live coordination, and conflict prevention. The MCP server is the product. After `chinwag init`, it runs invisibly alongside each agent.
+chinwag is the control layer for agentic development: one command connects your AI coding tools into a unified system with shared memory, live coordination, and conflict prevention. The MCP server is the product. After `npx chinwag init` (or a global install and `chinwag init`), it runs invisibly alongside each agent.
 
 We welcome contributions from everyone. Whether you are fixing a typo, reporting a bug, improving documentation, or building a feature, thank you.
 

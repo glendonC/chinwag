@@ -19,9 +19,11 @@ export default {
 
     const PROD_ORIGINS = ['https://chinwag.dev', 'https://www.chinwag.dev'];
     const DEV_ORIGINS = ['http://localhost:8788', 'http://localhost:3000', 'http://127.0.0.1:8788'];
+    // Local static dashboard (dev-server.mjs / serve.py default PORT) may call the deployed API.
+    const LOCAL_WEB_ORIGINS = ['http://localhost:56790', 'http://127.0.0.1:56790'];
     const ALLOWED_ORIGINS = env.ENVIRONMENT === 'production'
-      ? PROD_ORIGINS
-      : [...PROD_ORIGINS, ...DEV_ORIGINS];
+      ? [...PROD_ORIGINS, ...LOCAL_WEB_ORIGINS]
+      : [...PROD_ORIGINS, ...DEV_ORIGINS, ...LOCAL_WEB_ORIGINS];
     const origin = request.headers.get('Origin') || '';
     const corsHeaders = {
       'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : 'https://chinwag.dev',

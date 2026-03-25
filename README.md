@@ -10,9 +10,11 @@ npx chinwag init
 
 This detects your AI tools (Claude Code, Cursor, Windsurf, VS Code, Codex, Aider, JetBrains, Amazon Q), writes MCP configs, and creates a team for your project. After init, your agents automatically coordinate through chinwag.
 
+**Running the `chinwag` command.** `npx chinwag …` always works. The shorter `chinwag …` form is available after a global install: `npm install -g chinwag` (adds the binary to your PATH).
+
 ## What it does
 
-- **Connect** — `chinwag init` detects tools and writes configs. `chinwag add <tool>` expands.
+- **Connect** — `npx chinwag init` detects tools and writes configs. `npx chinwag add <tool>` expands.
 - **Remember** — Agents share a brain. What one agent learns, every agent knows next session.
 - **Coordinate** — Live awareness of every agent. Conflict prevention enforced on Claude Code, advisory on others.
 - **Discover** — Browse 30+ AI dev tools. See what fits your stack. Add with one action.
@@ -20,16 +22,16 @@ This detects your AI tools (Claude Code, Cursor, Windsurf, VS Code, Codex, Aider
 
 ## Teams
 
-The `.chinwag` file gets committed to git. When a teammate runs `chinwag init`, they auto-join the same team. Every agent across every teammate shares memory and gets conflict prevention.
+The `.chinwag` file gets committed to git. When a teammate runs `npx chinwag init`, they auto-join the same team. Every agent across every teammate shares memory and gets conflict prevention.
 
 ## Commands
 
 ```bash
-chinwag init              # Setup: account + team + tool configs
-chinwag add <tool>        # Add a specific tool
-chinwag add --list        # Browse all tools
-chinwag dashboard         # Open web dashboard
-chinwag                   # TUI: dashboard, discover, chat, settings
+npx chinwag init              # Setup: account + team + tool configs
+npx chinwag add <tool>        # Add a specific tool
+npx chinwag add --list        # Browse all tools
+npx chinwag dashboard         # Open web dashboard
+npx chinwag                   # TUI: dashboard, discover, chat, settings
 ```
 
 ## Architecture

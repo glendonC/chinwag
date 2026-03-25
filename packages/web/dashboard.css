@@ -5,15 +5,25 @@
    ═══════════════════════════════════════════ */
 
 :root {
+  /* Align with landing `styles/foundation.css` */
   --sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --display: 'Newsreader', Georgia, serif;
   --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+
+  --text-2xs: 0.625rem;
+  --text-xs: 0.6875rem;
+  --text-sm: 0.75rem;
+  --text-base: 0.8125rem;
+  --text-md: 0.875rem;
+  --text-lg: 1rem;
+  --text-xl: 1.0625rem;
 
   --ink: #181411;
   --muted: rgba(24, 20, 17, 0.64);
   --soft: rgba(24, 20, 17, 0.34);
   --faint: rgba(24, 20, 17, 0.10);
   --ghost: rgba(24, 20, 17, 0.05);
+  --success: #335b4d;
 
   --page-bg: #fafafa;
   --glass: rgba(255, 255, 255, 0.68);
@@ -31,17 +41,62 @@
   --purple: #6d44a8;
   --purple-bg: rgba(109, 68, 168, 0.06);
 
-  --radius: 12px;
+  --radius-xl: 20px;
+  --radius-floating: 10px;
+  --radius-floating-inner: 6px;
+  --radius: var(--radius-floating);
   --radius-sm: 8px;
   --radius-xs: 5px;
 
   --motion: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-smooth: var(--motion);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 /* hidden attribute must win over display declarations */
 [hidden] { display: none !important; }
+
+/* ── Boot splash (first paint until session resolved) ── */
+
+.boot-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: var(--page-bg);
+  color: var(--muted);
+  font-family: var(--sans);
+}
+
+.boot-screen-spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--faint);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: boot-spin 0.75s linear infinite;
+}
+
+.boot-screen-text {
+  font-size: var(--text-sm);
+  letter-spacing: -0.01em;
+}
+
+@keyframes boot-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-screen-spinner {
+    animation: none;
+    border-top-color: var(--soft);
+  }
+}
 
 html, body {
   height: 100%;
@@ -52,7 +107,7 @@ body {
   background: var(--page-bg);
   color: var(--ink);
   font-family: var(--sans);
-  font-size: 14.5px;
+  font-size: var(--text-md);
   font-weight: 400;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
@@ -83,9 +138,25 @@ code {
   width: 100%;
 }
 
+.connect-privacy {
+  margin-top: 16px;
+  font-size: var(--text-sm);
+  color: var(--soft);
+}
+
+.connect-privacy a {
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.connect-privacy a:hover {
+  color: var(--ink);
+}
+
 .connect-brand {
   font-family: var(--sans);
-  font-size: 15px;
+  font-size: var(--text-md);
   font-weight: 500;
   letter-spacing: -0.03em;
   color: var(--ink);
@@ -305,8 +376,27 @@ details[open] > .connect-alt-toggle::before {
   gap: 12px;
 }
 
+.topbar-quiet-link {
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--soft);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+  padding: 4px 6px;
+  border-radius: var(--radius-xs);
+}
+
+.topbar-quiet-link:hover {
+  color: var(--muted);
+}
+
+.topbar-quiet-link:focus-visible {
+  outline: 2px solid var(--info);
+  outline-offset: 2px;
+}
+
 .user-badge {
-  font-size: 13px;
+  font-size: var(--text-base);
   font-weight: 500;
   letter-spacing: -0.01em;
   color: var(--muted);
@@ -336,6 +426,50 @@ details[open] > .connect-alt-toggle::before {
   flex: 1;
   overflow-y: auto;
   overscroll-behavior-y: contain;
+}
+
+.dashboard-error {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px 24px 0;
+  padding: 12px 14px;
+  background: var(--danger-bg);
+  border: 1px solid rgba(179, 58, 58, 0.28);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.dashboard-error-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.dashboard-error-dismiss {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: var(--radius-xs);
+}
+
+.dashboard-error-dismiss:hover {
+  color: var(--ink);
+  background: rgba(179, 58, 58, 0.08);
+}
+
+.dashboard-error-dismiss:focus-visible {
+  outline: 2px solid var(--danger);
+  outline-offset: 2px;
 }
 
 .dashboard-grid {
@@ -764,6 +898,10 @@ details[open] > .connect-alt-toggle::before {
 /* ═══ Responsive ═══ */
 
 @media (max-width: 680px) {
+  .dashboard-error {
+    margin: 12px 14px 0;
+  }
+
   .dashboard-grid {
     grid-template-columns: 1fr;
     padding: 14px;

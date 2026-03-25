@@ -14,4 +14,6 @@
 npx chinwag init
 ```
 
+Use `npx chinwag <command>` so you do not need a global install. To run `chinwag` without the `npx` prefix, install globally: `npm install -g chinwag`.
+
 Documentation: [Architecture](https://github.com/glendonchin/chinwag/blob/main/docs/ARCHITECTURE.md) · [chinwag.dev](https://chinwag.dev)

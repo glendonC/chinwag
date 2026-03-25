@@ -29,7 +29,7 @@ export async function handleTeamCommand(subcmd, arg) {
     }
   } else if (subcmd === 'join') {
     if (!arg) {
-      console.log('Usage: chinwag team join <team-id>');
+      console.log('Usage: npx chinwag team join <team-id>');
       return;
     }
     try {
@@ -45,6 +45,6 @@ export async function handleTeamCommand(subcmd, arg) {
       console.log(`Error: ${err.message}`);
     }
   } else {
-    console.log('Usage: chinwag team <create|join> [team-id]');
+    console.log('Usage: npx chinwag team <create|join> [team-id]');
   }
 }

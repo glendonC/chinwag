@@ -229,3 +229,27 @@ h2 {
     scroll-behavior: auto !important;
   }
 }
+
+@media print {
+  .page-gradients,
+  .gradient-blob {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  .floating-ui .command-pill,
+  .floating-ui .mobile-utility-toggle,
+  .floating-ui .mobile-nav-panel,
+  .floating-ui .mobile-utility-backdrop {
+    display: none !important;
+  }
+
+  .reveal {
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+  }
+}

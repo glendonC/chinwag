@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#fafafa">
   <title>chinwag — dashboard</title>
   <meta name="robots" content="noindex">
   <link rel="icon" href="assets/logo-mark.svg" type="image/svg+xml" sizes="any">
@@ -13,6 +14,11 @@
 </head>
 <body>
 
+  <div id="boot-screen" class="boot-screen" aria-busy="true" aria-live="polite">
+    <div class="boot-screen-spinner" aria-hidden="true"></div>
+    <p class="boot-screen-text">Loading dashboard…</p>
+  </div>
+
   <!-- ── Connect screen ── -->
   <div id="connect-screen" class="connect-screen" hidden>
     <div class="connect-content">
@@ -22,10 +28,11 @@
 
       <div class="connect-command">
         <span class="connect-prompt">$</span>
-        <code>chinwag dashboard</code>
+        <code>npx chinwag dashboard</code>
       </div>
 
-      <p class="connect-note">This opens the dashboard in your browser, already signed in.</p>
+      <p class="connect-note">This opens the dashboard in your browser, already signed in. If you ran <code>npm install -g chinwag</code>, you can use <code>chinwag dashboard</code> instead.</p>
+      <p class="connect-privacy"><a href="privacy.html">Privacy</a></p>
 
       <details class="connect-alt">
         <summary class="connect-alt-toggle">Or connect with a token</summary>
@@ -50,12 +57,17 @@
         <select id="project-select" class="project-select" aria-label="Project"></select>
       </div>
       <div class="topbar-right">
+        <a href="privacy.html" class="topbar-quiet-link">Privacy</a>
         <span id="user-badge" class="user-badge"></span>
         <button id="logout-btn" class="topbar-action" type="button">Sign out</button>
       </div>
     </header>
 
     <main class="dashboard">
+      <div id="dashboard-error" class="dashboard-error" role="alert" hidden>
+        <span id="dashboard-error-text" class="dashboard-error-text"></span>
+        <button id="dashboard-error-dismiss" type="button" class="dashboard-error-dismiss" aria-label="Dismiss error">×</button>
+      </div>
       <!-- All-projects overview (shown when multiple teams, default) -->
       <div id="all-projects-view" class="all-projects-grid" hidden></div>
 

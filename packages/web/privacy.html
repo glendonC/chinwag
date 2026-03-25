@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#fafafa">
+  <meta name="robots" content="noindex">
+  <title>Privacy · chinwag</title>
+  <meta name="description" content="How chinwag handles dashboard authentication and project data.">
+  <link rel="icon" href="assets/logo-mark.svg" type="image/svg+xml" sizes="any">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500&family=Newsreader:opsz,wght@6..72,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/foundation.css">
+  <style>
+    .privacy-page { padding: 96px 28px 64px; max-width: 42rem; margin: 0 auto; }
+    .privacy-page h1 {
+      font-family: var(--display);
+      font-size: clamp(1.75rem, 4vw, 2.25rem);
+      font-weight: 300;
+      letter-spacing: -0.03em;
+      margin-bottom: var(--space-6);
+      color: var(--ink);
+    }
+    .privacy-page p, .privacy-page li {
+      font-family: var(--sans);
+      font-size: var(--text-md);
+      line-height: 1.65;
+      color: var(--muted);
+      margin-bottom: var(--space-5);
+    }
+    .privacy-page strong { color: var(--ink); font-weight: 500; }
+    .privacy-page a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+    .privacy-back { margin-bottom: var(--space-8); font-size: var(--text-sm); }
+    .privacy-back a { color: var(--soft); text-decoration: none; }
+    .privacy-back a:hover { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main class="privacy-page">
+    <p class="privacy-back"><a href="dashboard.html">← Dashboard</a> · <a href="/">Home</a></p>
+    <h1>Privacy</h1>
+    <p>This page describes how the <strong>chinwag web dashboard</strong> (chinwag.dev) handles data when you open it from the CLI or sign in with a token.</p>
+    <p><strong>What you send.</strong> The dashboard sends your bearer token to the chinwag API to load teams, agents, shared memory, and coordination state for projects where you are a member. Tokens are issued when you run <code>npx chinwag init</code> (or <code>chinwag init</code> after <code>npm install -g chinwag</code>) or log in via the CLI; they are stored in <code>~/.chinwag/config.json</code> on your machine.</p>
+    <p><strong>Browser storage.</strong> If you use “connect with a token”, the dashboard may keep the token in <code>sessionStorage</code> for the duration of the browser tab so you stay signed in until you sign out or close the tab.</p>
+    <p><strong>Where data lives.</strong> Project and account data are processed and stored by the chinwag backend (Cloudflare Workers / Durable Objects) as described in the product architecture. We do not sell personal data.</p>
+    <p><strong>Security.</strong> Report vulnerabilities per the project <a href="https://github.com/glendonchin/chinwag/blob/main/SECURITY.md">SECURITY.md</a> on GitHub.</p>
+    <p><strong>Changes.</strong> This notice may be updated as the service evolves. The dashboard link here is the current reference.</p>
+  </main>
+</body>
+</html>

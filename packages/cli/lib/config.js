@@ -15,7 +15,7 @@ export function loadConfig() {
     const raw = readFileSync(CONFIG_FILE, 'utf-8');
     return JSON.parse(raw);
   } catch {
-    console.error('Warning: ~/.chinwag/config.json is corrupted. Run `chinwag init` to reset.');
+    console.error('Warning: ~/.chinwag/config.json is corrupted. Run `npx chinwag init` to reset.');
     return null;
   }
 }

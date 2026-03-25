@@ -36,6 +36,34 @@ const memoryList = $('#memory-list');
 const sessionsList = $('#sessions-list');
 const statusText = $('#status-text');
 const lastUpdate = $('#last-update');
+const bootScreen = $('#boot-screen');
+const dashboardError = $('#dashboard-error');
+const dashboardErrorText = $('#dashboard-error-text');
+const dashboardErrorDismiss = $('#dashboard-error-dismiss');
+
+function hideBoot() {
+  if (bootScreen) {
+    bootScreen.hidden = true;
+    bootScreen.removeAttribute('aria-busy');
+  }
+}
+
+function clearDashboardError() {
+  if (dashboardError) dashboardError.hidden = true;
+}
+
+function showDashboardError(err) {
+  if (!dashboardError || !dashboardErrorText) return;
+  let msg = typeof err === 'string' ? err : (err && err.message) || 'Something went wrong';
+  if (typeof err === 'object' && err && err.status === 408) msg = 'Request timed out. Try again.';
+  if (msg.includes('Failed to fetch') || (err && err.name === 'TypeError')) {
+    msg = 'Cannot reach server. Check your connection.';
+  }
+  dashboardErrorText.textContent = msg;
+  dashboardError.hidden = false;
+}
+
+dashboardErrorDismiss?.addEventListener('click', clearDashboardError);
 
 // ── API ──
 
@@ -110,6 +138,7 @@ function logout() {
   consecutiveFailures = 0;
   sessionStorage.removeItem(TOKEN_KEY);
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  clearDashboardError();
   appScreen.hidden = true;
   connectScreen.hidden = false;
   connectError.hidden = true;
@@ -127,14 +156,28 @@ function logout() {
 async function boot() {
   try {
     const hashToken = readTokenFromHash();
-    if (hashToken) { await authenticate(hashToken); return startApp(); }
+    if (hashToken) {
+      await authenticate(hashToken);
+      hideBoot();
+      return startApp();
+    }
 
     const stored = sessionStorage.getItem(TOKEN_KEY);
-    if (stored) { await authenticate(stored); return startApp(); }
+    if (stored) {
+      await authenticate(stored);
+      hideBoot();
+      return startApp();
+    }
   } catch (err) {
     console.error('[chinwag] Boot auth failed:', err);
+    hideBoot();
+    connectScreen.hidden = false;
+    connectError.textContent = 'Saved session expired or invalid. Connect again.';
+    connectError.hidden = false;
+    return;
   }
 
+  hideBoot();
   connectScreen.hidden = false;
 }
 
@@ -175,6 +218,7 @@ async function tryConnect() {
 // ── App ──
 
 async function startApp() {
+  clearDashboardError();
   connectScreen.hidden = true;
   appScreen.hidden = false;
   userBadge.textContent = user.handle;
@@ -182,7 +226,8 @@ async function startApp() {
     await loadTeams();
   } catch (err) {
     console.error('[chinwag] loadTeams error:', err);
-    statusText.textContent = err.message || 'Failed to load projects';
+    showDashboardError(err);
+    statusText.textContent = 'Could not load projects';
   }
   startPolling();
 }
@@ -202,7 +247,7 @@ async function loadTeams() {
     opt.textContent = 'No projects';
     opt.disabled = true;
     projectSelect.appendChild(opt);
-    statusText.textContent = 'Run chinwag init in a project to get started.';
+    statusText.textContent = 'Run npx chinwag init in a project to get started.';
     return;
   }
 
@@ -294,6 +339,7 @@ async function fetchDashboardSummary() {
     if (sumJson === prevSummaryJson) return;
     prevSummaryJson = sumJson;
 
+    clearDashboardError();
     const summaries = data.teams || [];
     renderAllProjects(summaries);
 
@@ -308,7 +354,8 @@ async function fetchDashboardSummary() {
     if (err.status === 401) { logout(); return; }
     consecutiveFailures++;
     if (consecutiveFailures >= 3) startPolling();
-    statusText.textContent = err.message;
+    showDashboardError(err);
+    statusText.textContent = 'Refresh failed';
   }
 }
 
@@ -317,7 +364,7 @@ function renderAllProjects(summaries) {
     allProjectsView.innerHTML = `
       <div class="empty-state" style="grid-column:1/-1;padding:40px 0;text-align:center;">
         <p class="empty-text">No projects</p>
-        <p class="empty-hint">Run chinwag init in a project to get started.</p>
+        <p class="empty-hint">Run npx chinwag init in a project to get started.</p>
       </div>`;
     return;
   }
@@ -380,6 +427,7 @@ async function fetchContext() {
     if (ctxJson === prevContextJson) return;
     prevContextJson = ctxJson;
 
+    clearDashboardError();
     renderAgents(ctx.members || []);
     renderConflicts(ctx.members || []);
     renderLocks(ctx.locks || []);
@@ -394,7 +442,8 @@ async function fetchContext() {
     if (err.status === 401) { logout(); return; }
     consecutiveFailures++;
     if (consecutiveFailures >= 3) startPolling();
-    statusText.textContent = err.message;
+    showDashboardError(err);
+    statusText.textContent = 'Refresh failed';
   }
 }
 
