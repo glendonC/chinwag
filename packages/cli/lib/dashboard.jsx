@@ -45,7 +45,7 @@ export function Dashboard({ config, navigate }) {
     }
 
     fetchContext();
-    const interval = setInterval(fetchContext, 15000);
+    const interval = setInterval(fetchContext, 5000);
     return () => clearInterval(interval);
   }, [teamId, refreshKey]);
 

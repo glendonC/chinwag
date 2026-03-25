@@ -149,7 +149,11 @@ export class DatabaseDO extends DurableObject {
       return { error: 'Handle must be 3-20 characters, alphanumeric + underscores only' };
     }
 
-    if (this.#handleExists(newHandle)) {
+    // Check if taken by another user (exclude self)
+    const taken = this.sql.exec(
+      'SELECT 1 FROM users WHERE handle = ? AND id != ?', newHandle, userId
+    ).toArray().length > 0;
+    if (taken) {
       return { error: 'Handle already taken' };
     }
 

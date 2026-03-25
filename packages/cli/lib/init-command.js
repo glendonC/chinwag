@@ -16,25 +16,29 @@ export async function runInit() {
 
   // Step 1: Account
   let config;
+  let accountLine;
   if (configExists()) {
     config = loadConfig();
     try {
       const me = await api(config).get('/me');
-      log('account', `${me.handle} (${me.color})`);
+      accountLine = `${me.handle} (${me.color})`;
     } catch (err) {
       if (err.status === 401 || err.status === 403) {
         // Token invalid — re-create
         config = await createAccount();
+        accountLine = `${config.handle} (${config.color}) — created`;
       } else {
         // Network error or server issue — don't create a new account
-        log('account', `could not reach server: ${err.message}`);
         console.log('');
+        console.log('  Could not reach server: ' + err.message);
         console.log('  Check your internet connection and try again.');
+        console.log('');
         return;
       }
     }
   } else {
     config = await createAccount();
+    accountLine = `${config.handle} (${config.color}) — created`;
   }
 
   const client = api(config);
@@ -42,15 +46,18 @@ export async function runInit() {
   // Step 2: Team
   const chinwagFile = join(cwd, '.chinwag');
   let teamId;
+  let teamLine;
   if (existsSync(chinwagFile)) {
     try {
       const data = JSON.parse(readFileSync(chinwagFile, 'utf-8'));
       teamId = data.team;
       // Join existing team (idempotent), pass project name for dashboard display
       await client.post(`/teams/${teamId}/join`, { name: basename(cwd) });
-      log('team', `${teamId} (joined)`);
+      teamLine = `${data.name || teamId} (joined)`;
     } catch (err) {
-      log('team', `failed to join: ${err.message}`);
+      console.log('');
+      console.log(`  Failed to join team: ${err.message}`);
+      console.log('');
       return;
     }
   } else {
@@ -59,18 +66,17 @@ export async function runInit() {
       const result = await client.post('/teams', { name: projectName });
       teamId = result.team_id;
       writeFileSync(chinwagFile, JSON.stringify({ team: teamId, name: projectName }, null, 2) + '\n');
-      log('team', `${teamId} (created)`);
+      teamLine = `${projectName} (created)`;
     } catch (err) {
-      log('team', `failed to create: ${err.message}`);
+      console.log('');
+      console.log(`  Failed to create team: ${err.message}`);
+      console.log('');
       return;
     }
   }
 
   // Step 3: Detect tools — iterate the registry, not hardcoded checks
   const detected = detectTools(cwd);
-  if (detected.length === 0) {
-    log('tools', 'none detected — run `chinwag add --list` to see available tools');
-  }
 
   // Step 4: Write MCP configs — deduplicate by config path (multiple tools may share one)
   const configsWritten = new Set();
@@ -92,16 +98,24 @@ export async function runInit() {
     configured.push(`${tool.name.padEnd(12)} ${detail}`);
   }
 
-  // Step 5: Print summary
+  // Step 5: Print one cohesive summary
   console.log('');
   console.log('chinwag init');
   console.log('');
+  console.log(`  Account: ${accountLine}`);
+  console.log(`  Team:    ${teamLine}`);
+
   if (configured.length > 0) {
+    console.log('');
     console.log('  Configured:');
     for (const line of configured) {
       console.log(`    ${line}`);
     }
+  } else {
+    console.log('');
+    console.log('  No tools detected. Run `chinwag add --list` to see available tools.');
   }
+
   console.log('');
   console.log('  Next: open any configured tool in this directory.');
   console.log('  Your agents will automatically coordinate through chinwag.');
@@ -117,10 +131,5 @@ async function createAccount() {
   const result = await initAccount();
   const config = { token: result.token, handle: result.handle, color: result.color };
   saveConfig(config);
-  log('account', `${result.handle} (${result.color}) — created`);
   return config;
-}
-
-function log(label, msg) {
-  console.log(`  ${label}: ${msg}`);
 }
