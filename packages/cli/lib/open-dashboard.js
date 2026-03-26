@@ -38,11 +38,6 @@ export async function openDashboard() {
       console.log(`  ${url}`);
       return;
     }
-
-    console.log('');
-    console.log('  Dashboard opened in your browser.');
-    console.log(`  URL: ${DASHBOARD_URL}`);
-    console.log('');
   } catch {
     console.log(`  Could not open browser. Open this URL manually:`);
     console.log(`  ${url}`);
