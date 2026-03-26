@@ -1,7 +1,8 @@
 // MCP tool and resource registration.
 // All 10 chinwag tools + 1 resource, extracted from index.js.
 
-import { z } from 'zod';
+import { basename } from 'path';
+import * as z from 'zod/v4';
 import {
   refreshContext,
   teamPreamble,
@@ -23,10 +24,19 @@ function errorResult(err) {
   return { content: [{ type: 'text', text: msg }], isError: true };
 }
 
+function normalizePath(filePath) {
+  return filePath.replace(/^\.\//, '').replace(/\/+/g, '/').replace(/\/$/, '');
+}
+
 // --- Tools ---
 
 export function registerTools(server, { team, state, profile }) {
-  server.tool(
+  const addTool = server.registerTool?.bind(server) || server.tool?.bind(server);
+  if (!addTool) {
+    throw new TypeError('MCP server does not support tool registration');
+  }
+
+  addTool(
     'chinwag_join_team',
     {
       description: 'Join a chinwag team for multi-agent coordination. Agents on the same team can see what each other is working on and detect file conflicts before they happen.',
@@ -36,7 +46,7 @@ export function registerTools(server, { team, state, profile }) {
     },
     async ({ team_id }) => {
       try {
-        await team.joinTeam(team_id);
+        await team.joinTeam(team_id, basename(process.cwd()));
         state.teamId = team_id;
         clearContextCache();
 
@@ -47,19 +57,28 @@ export function registerTools(server, { team, state, profile }) {
           }
         }, 30_000);
 
+        let sessionStarted = false;
         try {
           const session = await team.startSession(state.teamId, profile.framework);
-          if (session?.session_id) state.sessionId = session.session_id;
-        } catch {}
+          if (session?.session_id) {
+            state.sessionId = session.session_id;
+            sessionStarted = true;
+          }
+        } catch (err) {
+          console.error('[chinwag] Failed to start session after join:', err.message);
+        }
 
-        return { content: [{ type: 'text', text: `Joined team ${team_id}. Session started.` }] };
+        const text = sessionStarted
+          ? `Joined team ${team_id}. Session started.`
+          : `Joined team ${team_id}. Team membership is active, but session start failed.`;
+        return { content: [{ type: 'text', text }] };
       } catch (err) {
         return errorResult(err);
       }
     }
   );
 
-  server.tool(
+  addTool(
     'chinwag_update_activity',
     {
       description: 'Report what files you are currently working on. IMPORTANT: Call this immediately after chinwag_claim_files to broadcast your activity. Other agents across all tools will see this in their team context.',
@@ -80,7 +99,7 @@ export function registerTools(server, { team, state, profile }) {
     }
   );
 
-  server.tool(
+  addTool(
     'chinwag_check_conflicts',
     {
       description: 'Check if any teammate agents are working on the same files you plan to edit. Call this BEFORE starting edits on shared code to avoid merge conflicts.',
@@ -115,27 +134,36 @@ export function registerTools(server, { team, state, profile }) {
         // Offline fallback: check cached context for potential conflicts
         const cached = getCachedContext();
         if (cached?.members) {
-          const myFiles = new Set(files);
+          const myFiles = new Set(files.map(normalizePath));
           const warnings = [];
           for (const m of cached.members) {
             if (m.status !== 'active' || !m.activity?.files) continue;
-            const overlap = m.activity.files.filter(f => myFiles.has(f));
+            const overlap = m.activity.files.map(normalizePath).filter(f => myFiles.has(f));
             if (overlap.length > 0) {
               const who = m.tool && m.tool !== 'unknown' ? `${m.handle} (${m.tool})` : m.handle;
               warnings.push(`⚠ ${who} was working on ${overlap.join(', ')} (cached)`);
             }
           }
           if (warnings.length > 0) {
-            return { content: [{ type: 'text', text: `[offline — cached check]\n${warnings.join('\n')}` }] };
+            return {
+              content: [{ type: 'text', text: `[offline — cached overlap only]\n${warnings.join('\n')}\nDo not treat this as live clearance to edit.` }],
+              isError: true,
+            };
           }
-          return { content: [{ type: 'text', text: '[offline] No cached conflicts. Proceed with caution.' }] };
+          return {
+            content: [{ type: 'text', text: '[offline — cached data only] No overlapping files were found in cache. Do not treat this as live clearance to edit.' }],
+            isError: true,
+          };
         }
-        return { content: [{ type: 'text', text: '[offline] Could not check conflicts. Proceed with caution.' }] };
+        return {
+          content: [{ type: 'text', text: '[offline] Could not reach chinwag to check conflicts. Do not treat this as clearance to edit.' }],
+          isError: true,
+        };
       }
     }
   );
 
-  server.tool(
+  addTool(
     'chinwag_get_team_context',
     {
       description: 'Get the full state of your team: who is online, what everyone is working on, and any file overlaps. Use this to orient yourself before starting work.',
@@ -194,7 +222,7 @@ export function registerTools(server, { team, state, profile }) {
     }
   );
 
-  server.tool(
+  addTool(
     'chinwag_save_memory',
     {
       description: 'Save a project fact or learning that other agents on the team should know. Use this when you discover something important about the project that would help other agents. These persist across sessions and are shared with all team agents.',
@@ -215,7 +243,7 @@ export function registerTools(server, { team, state, profile }) {
     }
   );
 
-  server.tool(
+  addTool(
     'chinwag_search_memory',
     {
       description: 'Search team project memories by keyword and/or category. Use this to find specific knowledge the team has saved, like setup requirements, conventions, or past decisions.',
@@ -242,7 +270,7 @@ export function registerTools(server, { team, state, profile }) {
     }
   );
 
-  server.tool(
+  addTool(
     'chinwag_delete_memory',
     {
       description: 'Delete a team memory by ID. Use chinwag_search_memory first to find the ID of the memory to delete. Use this to remove outdated, incorrect, or redundant knowledge.',
@@ -264,7 +292,7 @@ export function registerTools(server, { team, state, profile }) {
     }
   );
 
-  server.tool(
+  addTool(
     'chinwag_claim_files',
     {
       description: 'Claim advisory locks on files you are about to edit. Other agents will be warned if they try to edit locked files. Locks auto-release when your session ends or you stop heartbeating.',
@@ -292,7 +320,7 @@ export function registerTools(server, { team, state, profile }) {
     }
   );
 
-  server.tool(
+  addTool(
     'chinwag_release_files',
     {
       description: 'Release advisory locks on files you previously claimed. Call this when you are done editing files so other agents can work on them.',
@@ -312,7 +340,7 @@ export function registerTools(server, { team, state, profile }) {
     }
   );
 
-  server.tool(
+  addTool(
     'chinwag_send_message',
     {
       description: 'Send a message to other agents on the team. Messages are ephemeral (auto-expire after 1 hour). Use this to coordinate with other agents — e.g. "I just refactored auth.js, rebase before editing" or "Need help with failing tests in api/".',

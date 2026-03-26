@@ -1,7 +1,9 @@
 // chinwag API client
 // Pure utility — no store imports to avoid circular deps.
 
-export const API_URL = 'https://chinwag-api.glendonchin.workers.dev';
+const DEFAULT_API_URL = 'https://chinwag-api.glendonchin.workers.dev';
+
+export const API_URL = import.meta.env.VITE_CHINWAG_API_URL || DEFAULT_API_URL;
 
 /**
  * Make an authenticated API request.

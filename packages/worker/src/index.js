@@ -382,7 +382,11 @@ async function handleDashboardSummary(user, env) {
         const summary = await team.getSummary(user.id, user.id);
         if (summary.error) {
           // Reconcile: remove stale user_teams entries for teams where membership was lost
-          try { await db.removeUserTeam(user.id, t.team_id); } catch {}
+          try {
+            await db.removeUserTeam(user.id, t.team_id);
+          } catch (err) {
+            console.error(`[chinwag] Failed to reconcile stale team ${t.team_id}:`, err);
+          }
           return null;
         }
         return {
@@ -390,7 +394,8 @@ async function handleDashboardSummary(user, env) {
           team_name: t.team_name,
           ...summary,
         };
-      } catch {
+      } catch (err) {
+        console.error(`[chinwag] Failed to build dashboard summary for team ${t.team_id}:`, err);
         return null;
       }
     })
@@ -824,5 +829,7 @@ async function parseBody(request) {
 }
 
 export function teamErrorStatus(msg) {
-  return msg?.includes('Not a member') ? 403 : 400;
+  return msg?.includes('Not a member') || msg?.includes('Not your agent') || msg?.includes('Only the author')
+    ? 403
+    : 400;
 }

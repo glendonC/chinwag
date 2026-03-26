@@ -21,6 +21,9 @@ function createFakeServer() {
     tool(name, opts, handler) {
       tools.set(name, { opts, handler });
     },
+    registerTool(name, opts, handler) {
+      tools.set(name, { opts, handler });
+    },
     resource() {}, // no-op for this test file
     _tools: tools,
     async callTool(name, args = {}) {
@@ -114,7 +117,7 @@ describe('registerTools', () => {
       expect(state.teamId).toBe('t_newteam');
       expect(state.sessionId).toBe('sess_123');
       expect(state.heartbeatInterval).not.toBeNull();
-      expect(team.joinTeam).toHaveBeenCalledWith('t_newteam');
+      expect(team.joinTeam).toHaveBeenCalledWith('t_newteam', expect.any(String));
       expect(team.startSession).toHaveBeenCalled();
       expect(clearContextCache).toHaveBeenCalled();
 
@@ -154,7 +157,7 @@ describe('registerTools', () => {
     it('still succeeds when startSession fails', async () => {
       team.startSession.mockRejectedValue(new Error('session error'));
       const result = await server.callTool('chinwag_join_team', { team_id: 't_ok' });
-      expect(result.content[0].text).toMatch(/Joined team/);
+      expect(result.content[0].text).toMatch(/session start failed/i);
       expect(state.sessionId).toBeNull();
       clearInterval(state.heartbeatInterval);
     });
@@ -242,6 +245,7 @@ describe('registerTools', () => {
       });
 
       const result = await server.callTool('chinwag_check_conflicts', { files: ['shared.js'] });
+      expect(result.isError).toBe(true);
       expect(result.content[0].text).toMatch(/offline/);
       expect(result.content[0].text).toMatch(/bob \(cursor\) was working on shared\.js/);
     });
@@ -251,7 +255,8 @@ describe('registerTools', () => {
       getCachedContext.mockReturnValue(null);
 
       const result = await server.callTool('chinwag_check_conflicts', { files: ['a.js'] });
-      expect(result.content[0].text).toMatch(/offline.*Could not check/);
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toMatch(/offline.*Could not reach chinwag/);
     });
 
     it('returns auth error on 401 instead of offline fallback', async () => {
@@ -273,7 +278,8 @@ describe('registerTools', () => {
       });
 
       const result = await server.callTool('chinwag_check_conflicts', { files: ['different.js'] });
-      expect(result.content[0].text).toMatch(/No cached conflicts/);
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toMatch(/No overlapping files were found in cache/);
     });
   });
 

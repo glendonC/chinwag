@@ -130,7 +130,7 @@ describe('writeHooksConfig', () => {
     // Should have both the existing hook and the chinwag hook
     expect(content.hooks.PreToolUse).toHaveLength(2);
     expect(content.hooks.PreToolUse[0].command).toBe('some-other-hook');
-    expect(content.hooks.PreToolUse[1].command).toBe('chinwag-hook check-conflict');
+    expect(content.hooks.PreToolUse[1].hooks[0].command).toBe('chinwag-hook check-conflict');
   });
 });
 

@@ -182,6 +182,54 @@ describe('updateMemory', () => {
   });
 });
 
+describe('memory ownership', () => {
+  const team = () => getTeam('memory-ownership-tests');
+  const authorAgent = 'cursor:authorhash:aaaa';
+  const authorOwner = 'user-author-mem';
+  const peerAgent = 'claude:peerhash:bbbb';
+  const peerOwner = 'user-peer-mem';
+  let memoryId;
+
+  it('setup: join author and peer, create memory', async () => {
+    await team().join(authorAgent, authorOwner, 'alice', 'cursor');
+    await team().join(peerAgent, peerOwner, 'bob', 'claude');
+    const res = await team().saveMemory(authorAgent, 'Author-owned memory', 'config', 'alice', authorOwner);
+    expect(res.ok).toBe(true);
+    memoryId = res.id;
+  });
+
+  it('rejects updates from another team member', async () => {
+    const res = await team().updateMemory(peerAgent, memoryId, 'Hijacked text', undefined, peerOwner);
+    expect(res.error).toBe('Only the author can update this memory');
+  });
+
+  it('rejects deletes from another team member', async () => {
+    const res = await team().deleteMemory(peerAgent, memoryId, peerOwner);
+    expect(res.error).toBe('Only the author can delete this memory');
+  });
+});
+
+describe('memory ownership across tool sessions', () => {
+  const team = () => getTeam('memory-identity-tests');
+  const ownerId = 'user-shared-mem';
+  const cursorAgent = 'cursor:sharedhash:1111';
+  const claudeAgent = 'claude:sharedhash:2222';
+  let memoryId;
+
+  it('setup: join same owner from two tools and create memory', async () => {
+    await team().join(cursorAgent, ownerId, 'alice', 'cursor');
+    await team().join(claudeAgent, ownerId, 'alice', 'claude');
+    const res = await team().saveMemory(cursorAgent, 'Shared owner memory', 'pattern', 'alice', ownerId);
+    expect(res.ok).toBe(true);
+    memoryId = res.id;
+  });
+
+  it('allows the same owner to update memory from another tool session', async () => {
+    const res = await team().updateMemory(claudeAgent, memoryId, 'Shared owner memory updated', undefined, ownerId);
+    expect(res.ok).toBe(true);
+  });
+});
+
 // --- getSummary ---
 
 describe('getSummary', () => {
@@ -283,6 +331,38 @@ describe('recordEdit extended', () => {
     const res = await freshTeam().recordEdit('cursor:nosess', 'file.js', 'user-nosess');
     expect(res.ok).toBe(true);
     expect(res.skipped).toBe(true);
+  });
+});
+
+describe('session ownership', () => {
+  const team = () => getTeam('session-ownership-tests');
+  const ownerAgent = 'cursor:ownerhash:aaaa';
+  const ownerId = 'user-owner-session';
+  const peerAgent = 'claude:peerhash:bbbb';
+  const peerId = 'user-peer-session';
+  let sessionId;
+
+  it('setup: join two agents and start owner session', async () => {
+    await team().join(ownerAgent, ownerId, 'alice', 'cursor');
+    await team().join(peerAgent, peerId, 'bob', 'claude');
+    const res = await team().startSession(ownerAgent, 'alice', 'react', ownerId);
+    expect(res.ok).toBe(true);
+    sessionId = res.session_id;
+  });
+
+  it('rejects heartbeat spoofing another agent', async () => {
+    const res = await team().heartbeat(ownerAgent, peerId);
+    expect(res.error).toBe('Not a member of this team');
+  });
+
+  it('rejects recordEdit spoofing another agent', async () => {
+    const res = await team().recordEdit(ownerAgent, 'src/hijack.js', peerId);
+    expect(res.error).toBe('Not a member of this team');
+  });
+
+  it('rejects endSession spoofing another agent', async () => {
+    const res = await team().endSession(ownerAgent, sessionId, peerId);
+    expect(res.error).toBe('Not a member of this team');
   });
 });
 

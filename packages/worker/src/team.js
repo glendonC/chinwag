@@ -161,16 +161,58 @@ export class TeamDO extends DurableObject {
     );
   }
 
-  #isMember(agentId, ownerId = null) {
-    // Direct match by agent_id (tool-specific IDs like "cursor:abc123")
-    const row = this.sql.exec('SELECT owner_id FROM members WHERE agent_id = ?', agentId).toArray();
-    if (row.length > 0) {
-      // If ownerId provided, verify the agent belongs to this user (prevents spoofing)
-      return ownerId ? row[0].owner_id === ownerId : true;
+  #findExactMember(agentId) {
+    const rows = this.sql.exec(
+      'SELECT agent_id, owner_id FROM members WHERE agent_id = ?',
+      agentId
+    ).toArray();
+    return rows[0] || null;
+  }
+
+  #findPrefixedMember(agentId) {
+    const rows = this.sql.exec(
+      "SELECT agent_id, owner_id FROM members WHERE agent_id LIKE ? || ':%' ORDER BY last_heartbeat DESC LIMIT 1",
+      agentId
+    ).toArray();
+    return rows[0] || null;
+  }
+
+  #findLatestMemberForOwner(ownerId) {
+    const rows = this.sql.exec(
+      "SELECT agent_id, owner_id FROM members WHERE owner_id = ? ORDER BY last_heartbeat DESC LIMIT 1",
+      ownerId
+    ).toArray();
+    return rows[0] || null;
+  }
+
+  #resolveOwnedAgentId(agentId, ownerId = null) {
+    const exact = this.#findExactMember(agentId);
+    if (exact) {
+      return !ownerId || exact.owner_id === ownerId ? exact.agent_id : null;
     }
-    // Fallback: check by owner_id (backward compat for CLI/old clients sending user UUID)
-    const byOwner = ownerId || agentId;
-    return this.sql.exec('SELECT 1 FROM members WHERE owner_id = ?', byOwner).toArray().length > 0;
+
+    const prefixed = this.#findPrefixedMember(agentId);
+    if (prefixed) {
+      return !ownerId || prefixed.owner_id === ownerId ? prefixed.agent_id : null;
+    }
+
+    // Legacy callers may still send the authenticated user id instead of X-Agent-Id.
+    if (ownerId && agentId === ownerId) {
+      const latest = this.#findLatestMemberForOwner(ownerId);
+      return latest?.agent_id || null;
+    }
+
+    return null;
+  }
+
+  #agentIdentityKey(agentId) {
+    if (typeof agentId !== 'string' || !agentId) return '';
+    const parts = agentId.split(':');
+    return parts.length >= 2 && parts[1] ? parts[1] : agentId;
+  }
+
+  #isMember(agentId, ownerId = null) {
+    return Boolean(this.#resolveOwnedAgentId(agentId, ownerId));
   }
 
   // --- Membership ---
@@ -226,7 +268,9 @@ export class TeamDO extends DurableObject {
 
   async heartbeat(agentId, ownerId = null) {
     this.#ensureSchema();
-    this.sql.exec("UPDATE members SET last_heartbeat = datetime('now') WHERE agent_id = ?", agentId);
+    const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
+    if (!resolved) return { error: 'Not a member of this team' };
+    this.sql.exec("UPDATE members SET last_heartbeat = datetime('now') WHERE agent_id = ?", resolved);
     const row = this.sql.exec('SELECT changes() as c').toArray();
     if (row[0].c === 0) return { error: 'Not a member of this team' };
     return { ok: true };
@@ -236,7 +280,8 @@ export class TeamDO extends DurableObject {
 
   async updateActivity(agentId, files, summary, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
+    const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
+    if (!resolved) return { error: 'Not a member of this team' };
 
     const normalized = files.map(normalizePath);
 
@@ -247,15 +292,16 @@ export class TeamDO extends DurableObject {
          files = excluded.files,
          summary = excluded.summary,
          updated_at = datetime('now')`,
-      agentId, JSON.stringify(normalized), summary
+      resolved, JSON.stringify(normalized), summary
     );
-    this.sql.exec("UPDATE members SET last_heartbeat = datetime('now') WHERE agent_id = ?", agentId);
+    this.sql.exec("UPDATE members SET last_heartbeat = datetime('now') WHERE agent_id = ?", resolved);
     return { ok: true };
   }
 
   async checkConflicts(agentId, files, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
+    const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
+    if (!resolved) return { error: 'Not a member of this team' };
 
     const others = this.sql.exec(
       `SELECT m.agent_id, m.owner_handle, m.tool, a.files, a.summary
@@ -263,7 +309,7 @@ export class TeamDO extends DurableObject {
        LEFT JOIN activities a ON a.agent_id = m.agent_id
        WHERE m.agent_id != ?
          AND m.last_heartbeat > datetime('now', '-' || ? || ' seconds')`,
-      agentId, HEARTBEAT_ACTIVE_SECONDS
+      resolved, HEARTBEAT_ACTIVE_SECONDS
     ).toArray();
 
     const myFiles = new Set(files.map(normalizePath));
@@ -291,7 +337,7 @@ export class TeamDO extends DurableObject {
       const lockRows = this.sql.exec(
         `SELECT file_path, owner_handle, tool, claimed_at FROM locks
          WHERE file_path IN (${placeholders}) AND agent_id != ?`,
-        ...fileList, agentId
+        ...fileList, resolved
       ).toArray();
       for (const lock of lockRows) {
         lockedFiles.push({
@@ -310,7 +356,7 @@ export class TeamDO extends DurableObject {
       this.sql.exec(
         `UPDATE sessions SET conflicts_hit = conflicts_hit + 1
          WHERE agent_id = ? AND ended_at IS NULL`,
-        agentId
+        resolved
       );
     }
 
@@ -319,12 +365,12 @@ export class TeamDO extends DurableObject {
 
   async reportFile(agentId, filePath, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
-
+    const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
+    if (!resolved) return { error: 'Not a member of this team' };
     const normalized = normalizePath(filePath);
 
     const existing = this.sql.exec(
-      'SELECT files FROM activities WHERE agent_id = ?', agentId
+      'SELECT files FROM activities WHERE agent_id = ?', resolved
     ).toArray();
 
     let files = [];
@@ -343,9 +389,9 @@ export class TeamDO extends DurableObject {
        ON CONFLICT(agent_id) DO UPDATE SET
          files = excluded.files,
          updated_at = datetime('now')`,
-      agentId, JSON.stringify(files), `Editing ${normalized}`
+      resolved, JSON.stringify(files), `Editing ${normalized}`
     );
-    this.sql.exec("UPDATE members SET last_heartbeat = datetime('now') WHERE agent_id = ?", agentId);
+    this.sql.exec("UPDATE members SET last_heartbeat = datetime('now') WHERE agent_id = ?", resolved);
     return { ok: true };
   }
 
@@ -353,7 +399,8 @@ export class TeamDO extends DurableObject {
 
   async getContext(agentId, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
+    const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
+    if (!resolved) return { error: 'Not a member of this team' };
 
     this.#maybeCleanup();
 
@@ -387,7 +434,7 @@ export class TeamDO extends DurableObject {
     ).toArray();
 
     const recentSessions = this.sql.exec(`
-      SELECT owner_handle, framework, started_at, ended_at,
+      SELECT agent_id, owner_handle, framework, started_at, ended_at,
              edit_count, files_touched, conflicts_hit, memories_saved,
              ROUND((julianday(COALESCE(ended_at, datetime('now'))) - julianday(started_at)) * 24 * 60) as duration_minutes
       FROM sessions
@@ -447,7 +494,7 @@ export class TeamDO extends DurableObject {
        WHERE created_at > datetime('now', '-1 hour')
          AND (target_agent IS NULL OR target_agent = ?)
        ORDER BY created_at DESC LIMIT 10`,
-      agentId
+      resolved
     ).toArray();
 
     return {
@@ -456,10 +503,15 @@ export class TeamDO extends DurableObject {
       locks,
       memories,
       messages,
-      recentSessions: recentSessions.map(s => ({
-        ...s,
-        files_touched: JSON.parse(s.files_touched || '[]'),
-      })),
+      recentSessions: recentSessions.map(s => {
+        // Parse tool name from agent_id (format: "tool:hash")
+        const toolFromAgent = s.agent_id?.includes(':') ? s.agent_id.split(':')[0] : null;
+        return {
+          ...s,
+          tool: toolFromAgent && toolFromAgent !== 'unknown' ? toolFromAgent : null,
+          files_touched: JSON.parse(s.files_touched || '[]'),
+        };
+      }),
     };
   }
 
@@ -467,28 +519,42 @@ export class TeamDO extends DurableObject {
 
   async startSession(agentId, handle, framework, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
+    const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
+    if (!resolved) return { error: 'Not a member of this team' };
 
     // End any existing open session for this agent
     this.sql.exec(
       `UPDATE sessions SET ended_at = datetime('now') WHERE agent_id = ? AND ended_at IS NULL`,
-      agentId
+      resolved
+    );
+    // Also close orphaned sessions for same owner where agent is no longer active
+    // (handles agent_id changes, e.g. --tool flag added/removed)
+    this.sql.exec(
+      `UPDATE sessions SET ended_at = datetime('now')
+       WHERE owner_handle = ? AND ended_at IS NULL
+       AND agent_id NOT IN (
+         SELECT agent_id FROM members
+         WHERE last_heartbeat > datetime('now', '-' || ? || ' seconds')
+       )`,
+      handle, HEARTBEAT_STALE_SECONDS
     );
 
     const id = crypto.randomUUID();
     this.sql.exec(
       `INSERT INTO sessions (id, agent_id, owner_handle, framework, started_at)
        VALUES (?, ?, ?, ?, datetime('now'))`,
-      id, agentId, handle, framework || 'unknown'
+      id, resolved, handle, framework || 'unknown'
     );
     return { ok: true, session_id: id };
   }
 
   async endSession(agentId, sessionId, ownerId = null) {
     this.#ensureSchema();
+    const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
+    if (!resolved) return { error: 'Not a member of this team' };
     this.sql.exec(
       `UPDATE sessions SET ended_at = datetime('now') WHERE id = ? AND agent_id = ? AND ended_at IS NULL`,
-      sessionId, agentId
+      sessionId, resolved
     );
     const changed = this.sql.exec('SELECT changes() as c').toArray();
     if (changed[0].c === 0) return { error: 'Session not found or not owned by this agent' };
@@ -497,12 +563,14 @@ export class TeamDO extends DurableObject {
 
   async recordEdit(agentId, filePath, ownerId = null) {
     this.#ensureSchema();
+    const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
+    if (!resolved) return { error: 'Not a member of this team' };
     const normalized = normalizePath(filePath);
 
-    // Find the active session for this agent
+    // Find the active session for this agent (or resolved session)
     const sessions = this.sql.exec(
       'SELECT id, files_touched FROM sessions WHERE agent_id = ? AND ended_at IS NULL ORDER BY started_at DESC LIMIT 1',
-      agentId
+      resolved
     ).toArray();
 
     if (sessions.length === 0) return { ok: true, skipped: true }; // No active session — caller can log if needed
@@ -523,7 +591,7 @@ export class TeamDO extends DurableObject {
 
   async getHistory(agentId, days, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
+    if (!this.#resolveOwnedAgentId(agentId, ownerId)) return { error: 'Not a member of this team' };
     const sessions = this.sql.exec(
       `SELECT owner_handle, framework, started_at, ended_at,
              edit_count, files_touched, conflicts_hit, memories_saved,
@@ -547,7 +615,8 @@ export class TeamDO extends DurableObject {
 
   async saveMemory(agentId, text, category, handle, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
+    const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
+    if (!resolved) return { error: 'Not a member of this team' };
 
     if (!VALID_CATEGORIES.includes(category)) {
       return { error: `Category must be one of: ${VALID_CATEGORIES.join(', ')}` };
@@ -575,7 +644,7 @@ export class TeamDO extends DurableObject {
     this.sql.exec(
       `INSERT INTO memories (id, text, category, source_agent, source_handle, created_at, relevance_score)
        VALUES (?, ?, ?, ?, ?, datetime('now'), 1.0)`,
-      id, text, category, agentId, handle || 'unknown'
+      id, text, category, resolved, handle || 'unknown'
     );
 
     this.sql.exec(
@@ -589,7 +658,7 @@ export class TeamDO extends DurableObject {
     this.sql.exec(
       `UPDATE sessions SET memories_saved = memories_saved + 1
        WHERE agent_id = ? AND ended_at IS NULL`,
-      agentId
+      resolved
     );
     this.#recordMetric('memories_saved');
 
@@ -598,7 +667,7 @@ export class TeamDO extends DurableObject {
 
   async searchMemories(agentId, query, category, limit = 20, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
+    if (!this.#resolveOwnedAgentId(agentId, ownerId)) return { error: 'Not a member of this team' };
 
     const cappedLimit = Math.min(Math.max(1, limit), 50);
     let sql, params;
@@ -630,7 +699,8 @@ export class TeamDO extends DurableObject {
 
   async updateMemory(agentId, memoryId, text, category, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
+    const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
+    if (!resolved) return { error: 'Not a member of this team' };
 
     if (text !== undefined && (typeof text !== 'string' || !text.trim())) {
       return { error: 'text must be a non-empty string' };
@@ -639,9 +709,14 @@ export class TeamDO extends DurableObject {
       return { error: `Category must be one of: ${VALID_CATEGORIES.join(', ')}` };
     }
 
-    // Verify memory exists
-    const existing = this.sql.exec('SELECT id FROM memories WHERE id = ?', memoryId).toArray();
+    const existing = this.sql.exec(
+      'SELECT id, source_agent FROM memories WHERE id = ?',
+      memoryId
+    ).toArray();
     if (existing.length === 0) return { error: 'Memory not found' };
+    if (this.#agentIdentityKey(existing[0].source_agent) !== this.#agentIdentityKey(resolved)) {
+      return { error: 'Only the author can update this memory' };
+    }
 
     if (text !== undefined && category !== undefined) {
       this.sql.exec('UPDATE memories SET text = ?, category = ?, relevance_score = 1.0 WHERE id = ?',
@@ -658,8 +733,17 @@ export class TeamDO extends DurableObject {
 
   async deleteMemory(agentId, memoryId, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
+    const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
+    if (!resolved) return { error: 'Not a member of this team' };
 
+    const existing = this.sql.exec(
+      'SELECT source_agent FROM memories WHERE id = ?',
+      memoryId
+    ).toArray();
+    if (existing.length === 0) return { error: 'Memory not found' };
+    if (this.#agentIdentityKey(existing[0].source_agent) !== this.#agentIdentityKey(resolved)) {
+      return { error: 'Only the author can delete this memory' };
+    }
     this.sql.exec('DELETE FROM memories WHERE id = ?', memoryId);
     const changed = this.sql.exec('SELECT changes() as c').toArray();
     if (changed[0].c === 0) return { error: 'Memory not found' };
@@ -670,7 +754,8 @@ export class TeamDO extends DurableObject {
 
   async claimFiles(agentId, files, handle, tool, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
+    const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
+    if (!resolved) return { error: 'Not a member of this team' };
 
     const normalized = files.map(normalizePath);
     const claimed = [];
@@ -682,7 +767,7 @@ export class TeamDO extends DurableObject {
         'SELECT agent_id, owner_handle, tool, claimed_at FROM locks WHERE file_path = ?', file
       ).toArray();
 
-      if (existing.length > 0 && existing[0].agent_id !== agentId) {
+      if (existing.length > 0 && existing[0].agent_id !== resolved) {
         const lock = existing[0];
         blocked.push({
           file,
@@ -702,7 +787,7 @@ export class TeamDO extends DurableObject {
            owner_handle = excluded.owner_handle,
            tool = excluded.tool,
            claimed_at = datetime('now')`,
-        file, agentId, handle || 'unknown', tool || 'unknown'
+        file, resolved, handle || 'unknown', tool || 'unknown'
       );
       claimed.push(file);
     }
@@ -712,15 +797,16 @@ export class TeamDO extends DurableObject {
 
   async releaseFiles(agentId, files, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
+    const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
+    if (!resolved) return { error: 'Not a member of this team' };
 
     if (!files || files.length === 0) {
       // Release all locks for this agent
-      this.sql.exec('DELETE FROM locks WHERE agent_id = ?', agentId);
+      this.sql.exec('DELETE FROM locks WHERE agent_id = ?', resolved);
     } else {
       const normalized = files.map(normalizePath);
       for (const file of normalized) {
-        this.sql.exec('DELETE FROM locks WHERE file_path = ? AND agent_id = ?', file, agentId);
+        this.sql.exec('DELETE FROM locks WHERE file_path = ? AND agent_id = ?', file, resolved);
       }
     }
     return { ok: true };
@@ -728,7 +814,7 @@ export class TeamDO extends DurableObject {
 
   async getLockedFiles(agentId, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
+    if (!this.#resolveOwnedAgentId(agentId, ownerId)) return { error: 'Not a member of this team' };
 
     const locks = this.sql.exec(
       `SELECT l.file_path, l.agent_id, l.owner_handle, l.tool, l.claimed_at,
@@ -747,13 +833,14 @@ export class TeamDO extends DurableObject {
 
   async sendMessage(agentId, handle, tool, text, targetAgent, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
+    const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
+    if (!resolved) return { error: 'Not a member of this team' };
 
     const id = crypto.randomUUID();
     this.sql.exec(
       `INSERT INTO messages (id, from_agent, from_handle, from_tool, target_agent, text, created_at)
        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`,
-      id, agentId, handle || 'unknown', tool || 'unknown', targetAgent || null, text
+      id, resolved, handle || 'unknown', tool || 'unknown', targetAgent || null, text
     );
     this.#recordMetric('messages_sent');
     return { ok: true, id };
@@ -761,7 +848,8 @@ export class TeamDO extends DurableObject {
 
   async getMessages(agentId, since, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
+    const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
+    if (!resolved) return { error: 'Not a member of this team' };
 
     const messages = this.sql.exec(
       `SELECT id, from_handle, from_tool, target_agent, text, created_at
@@ -770,7 +858,7 @@ export class TeamDO extends DurableObject {
          AND (target_agent IS NULL OR target_agent = ?)
        ORDER BY created_at DESC
        LIMIT 50`,
-      since || null, agentId
+      since || null, resolved
     ).toArray();
 
     return { messages };
@@ -780,7 +868,7 @@ export class TeamDO extends DurableObject {
 
   async getSummary(agentId, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#isMember(agentId, ownerId)) return { error: 'Not a member of this team' };
+    if (!this.#resolveOwnedAgentId(agentId, ownerId)) return { error: 'Not a member of this team' };
     this.#maybeCleanup();
 
     const active = this.sql.exec(

@@ -61,6 +61,12 @@ The CLI points to the production API by default. To point it at your local worke
 CHINWAG_API_URL=http://localhost:8787 CHINWAG_WS_URL=ws://localhost:8787/ws/chat npm run dev:cli
 ```
 
+The web dashboard defaults to the production API too. To point the Vite app at a local or staging worker:
+
+```bash
+VITE_CHINWAG_API_URL=http://localhost:8787 npm run dev --workspace=packages/web
+```
+
 ## Project structure
 
 chinwag is a monorepo with four packages:

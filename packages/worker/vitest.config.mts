@@ -6,6 +6,12 @@ export default defineConfig({
     cloudflareTest({
       main: './src/index.js',
       wrangler: { configPath: './wrangler.toml' },
+      miniflare: {
+        bindings: {
+          AI: null,
+          ENVIRONMENT: 'test',
+        },
+      },
     }),
   ],
 });
