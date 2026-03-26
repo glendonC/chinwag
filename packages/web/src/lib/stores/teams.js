@@ -1,13 +1,32 @@
 import { createStore, useStore } from 'zustand';
 import { api } from '../api.js';
 import { authActions } from './auth.js';
+import { requestRefresh } from './refresh.js';
 
 /** Set of team IDs we've joined this session (for the /join call) */
 const joinedTeams = new Set();
+let joinedTeamsToken = null;
 
-const teamStore = createStore((set, get) => ({
+function syncJoinedTeamsCache(token) {
+  if (joinedTeamsToken !== token) {
+    joinedTeams.clear();
+    joinedTeamsToken = token;
+  }
+}
+
+function formatTeamLoadError(err) {
+  if (err?.status === 401) return 'Your session expired. Sign in again.';
+  if (err?.status === 408) return 'Request timed out while loading projects.';
+  if (err?.message?.includes('Failed to fetch') || err?.name === 'TypeError') {
+    return 'Cannot reach server to load projects.';
+  }
+  return err?.message || 'Could not load projects.';
+}
+
+const teamStore = createStore((set) => ({
   teams: [],
   activeTeamId: null,
+  teamsError: null,
 
   /**
    * Load all teams for the current user.
@@ -15,20 +34,21 @@ const teamStore = createStore((set, get) => ({
    */
   async loadTeams() {
     const { token } = authActions.getState();
+    syncJoinedTeamsCache(token);
     try {
       const result = await api('GET', '/me/teams', null, token);
       const teamList = result.teams || [];
-      set({ teams: teamList });
-
-      if (teamList.length > 1) {
-        set({ activeTeamId: null }); // overview mode
-      } else if (teamList.length === 1) {
-        set({ activeTeamId: teamList[0].team_id });
-      } else {
-        set({ activeTeamId: null });
-      }
-    } catch {
-      set({ teams: [], activeTeamId: null });
+      set({
+        teams: teamList,
+        activeTeamId: teamList.length === 1 ? teamList[0].team_id : null,
+        teamsError: null,
+      });
+    } catch (err) {
+      set({
+        teams: [],
+        activeTeamId: null,
+        teamsError: formatTeamLoadError(err),
+      });
     }
   },
 
@@ -42,8 +62,9 @@ const teamStore = createStore((set, get) => ({
    * Only calls once per session per team.
    */
   async ensureJoined(teamId) {
-    if (joinedTeams.has(teamId)) return;
     const { token } = authActions.getState();
+    syncJoinedTeamsCache(token);
+    if (joinedTeams.has(teamId)) return;
     try {
       await api('POST', `/teams/${teamId}/join`, {}, token);
       joinedTeams.add(teamId);
@@ -65,4 +86,27 @@ export const teamActions = {
   selectTeam: (id) => teamStore.getState().selectTeam(id),
   ensureJoined: (id) => teamStore.getState().ensureJoined(id),
   subscribe: teamStore.subscribe,
+
+  async updateMemory(teamId, id, text, category) {
+    const { token } = authActions.getState();
+    const body = { id };
+    if (text !== undefined) body.text = text;
+    if (category !== undefined) body.category = category;
+    await api('PUT', `/teams/${teamId}/memory`, body, token);
+    requestRefresh();
+  },
+
+  async deleteMemory(teamId, id) {
+    const { token } = authActions.getState();
+    await api('DELETE', `/teams/${teamId}/memory`, { id }, token);
+    requestRefresh();
+  },
+
+  async sendMessage(teamId, text, target) {
+    const { token } = authActions.getState();
+    const body = { text };
+    if (target) body.target = target;
+    await api('POST', `/teams/${teamId}/messages`, body, token);
+    requestRefresh();
+  },
 };

@@ -200,7 +200,11 @@ export async function handleCreateTeam(request, user, env) {
   const team = getTeam(env, teamId);
   await team.join(agentId, user.id, user.handle, tool);
 
-  try { await db.addUserTeam(user.id, teamId, name); } catch {}
+  try {
+    await db.addUserTeam(user.id, teamId, name);
+  } catch (err) {
+    console.error(`[chinwag] Failed to record created team ${teamId} for user ${user.id}:`, err);
+  }
   await db.consumeRateLimit(`team:${user.id}`);
 
   return json({ team_id: teamId }, 201);

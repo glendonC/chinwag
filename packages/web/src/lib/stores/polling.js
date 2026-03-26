@@ -2,6 +2,7 @@ import { createStore, useStore } from 'zustand';
 import { api } from '../api.js';
 import { authActions } from './auth.js';
 import { teamActions } from './teams.js';
+import { requestRefresh, setRefreshHandler } from './refresh.js';
 
 const POLL_MS = 5000;
 const SLOW_POLL_MS = 30000;
@@ -25,15 +26,18 @@ async function poll() {
   try {
     if (activeTeamId === null) {
       // Overview mode
+      pollingStore.setState({ contextData: null });
       const data = await api('GET', '/me/dashboard', null, token);
-      pollingStore.setState({ dashboardData: data });
+      if (teamActions.getState().activeTeamId !== null) return;
+      pollingStore.setState({ dashboardData: data, contextData: null });
     } else {
       // Single team mode
+      pollingStore.setState({ dashboardData: null });
       await teamActions.ensureJoined(activeTeamId);
       const data = await api('GET', `/teams/${activeTeamId}/context`, null, token);
       // Verify we haven't switched teams during the request
       if (teamActions.getState().activeTeamId !== activeTeamId) return;
-      pollingStore.setState({ contextData: data });
+      pollingStore.setState({ contextData: data, dashboardData: null });
     }
 
     pollingStore.setState({ pollError: null, lastUpdate: new Date() });
@@ -53,6 +57,8 @@ async function poll() {
     if (consecutiveFailures >= 3) restartPolling();
   }
 }
+
+setRefreshHandler(poll);
 
 function restartPolling() {
   stopPolling();
@@ -92,7 +98,6 @@ if (typeof document !== 'undefined') {
     if (document.hidden) {
       stopPolling();
     } else if (authActions.getState().token) {
-      poll();
       startPolling();
     }
   });
@@ -100,7 +105,7 @@ if (typeof document !== 'undefined') {
 
 /** Force an immediate poll cycle (use after mutations to refresh data). */
 export function forceRefresh() {
-  poll();
+  requestRefresh();
 }
 
 /** React hook — use inside components */

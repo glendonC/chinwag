@@ -21,7 +21,7 @@ This document is the high-level map of chinwag: what we are building, how the pi
 1. **Connect:** `npx chinwag init` detects tools, writes configs, hooks everything up. `chinwag add <tool>` expands. One command, all tools unified.
 2. **Remember:** Agents share a brain. Knowledge compounds across tools, sessions, and teammates. What one agent learns, every agent knows next session.
 3. **Coordinate:** Live awareness of every agent across every tool. Conflict prevention enforced on Claude Code, advisory everywhere else. No platform does cross-tool coordination the way chinwag does.
-4. **Discover:** See your full AI workflow. Browse 30+ AI dev tools. See what fits your stack. Add with one action from TUI or web.
+4. **Discover:** See your full AI workflow. Browse AI dev tools. See what fits your stack. Add with one action from TUI or web.
 5. **Observe:** See what agents are doing, how long they have been at it, where they are stuck, what they have accomplished. Across all tools and projects.
 
 ## Who this is for
@@ -144,7 +144,7 @@ This single command:
 
 1. Creates an account (if first run): generates token, saves to `~/.chinwag/config.json`
 2. Creates a team for the project (or joins existing if `.chinwag` file exists)
-3. Writes MCP config files for all detected tools (driven by registry in `packages/cli/lib/tools.js`):
+3. Writes MCP config files for all detected tools (driven by the CLI registry in `packages/cli/lib/tools.js`; the broader discover catalog lives in `packages/worker/src/catalog.js` and is served by `GET /tools/catalog`):
    - `.mcp.json`: Claude Code, Codex, Aider, Amazon Q
    - `.cursor/mcp.json`: Cursor
    - `.windsurf/mcp.json`: Windsurf
@@ -167,7 +167,7 @@ The `.chinwag` file is committed to the repo. When a teammate clones and runs `n
 | **JetBrains** | Basic: tool-based | MCP tools via `.idea/mcp.json`. IntelliJ, PyCharm, WebStorm, etc. |
 | **Amazon Q** | Basic: tool-based | MCP tools available. Shares `.mcp.json`. |
 
-Claude Code gets the deepest integration because it supports hooks (enforceable system-level interception) and channels (server-initiated push). Other tools improve as their MCP implementations mature. Tool detection is driven by a declarative registry (`packages/cli/lib/tools.js`): adding a new tool means adding one entry, not modifying detection logic.
+Claude Code gets the deepest integration because it supports hooks (enforceable system-level interception) and channels (server-initiated push). Other tools improve as their MCP implementations mature. Tool detection and MCP config writing are driven by a declarative CLI registry (`packages/cli/lib/tools.js`); the broader discover catalog is maintained in the worker (`packages/worker/src/catalog.js`).
 
 ## Containers
 
@@ -218,11 +218,12 @@ The monorepo has four packages:
 
 | File | Responsibility |
 |---|---|
-| `index.js` | MCP server entry point. Registers 5 tools (`chinwag_join_team`, `chinwag_update_activity`, `chinwag_check_conflicts`, `chinwag_get_team_context`, `chinwag_save_memory`) and 1 resource (profile). Stdio transport. Pull-on-any-call preamble. |
+| `index.js` | MCP server entry point. Loads config and profile, creates the stdio server, and delegates tool/resource registration. Pull-on-any-call preamble. |
+| `lib/register-tools.js` | Registers the chinwag MCP tools plus the profile resource. Handles team context, memories, locks, messaging, and related agent coordination flows. |
 | `hook.js` | Claude Code hook handler. Three modes: `check-conflict` (PreToolUse: blocks conflicting edits), `report-edit` (PostToolUse: reports file edits + session tracking), `session-start` (SessionStart: injects team context with stuckness insights). |
 | `channel.js` | Claude Code channel server. Polls team context every 10s, diffs against previous state, pushes notifications for joins, leaves, file activity, conflicts, stuckness (15min threshold), and new memories. |
 | `lib/api.js` | HTTP client with Bearer token auth, 10s fetch timeout, retry with exponential backoff on 5xx/network errors. |
-| `lib/team.js` | Team operation wrappers: delegates to backend API for all 12 team endpoints. |
+| `lib/team.js` | Team operation wrappers: delegates to backend API for join/leave, context, activity, memory, locks, messaging, and session/history endpoints. |
 | `lib/config.js` | Reads `~/.chinwag/config.json` and `.chinwag` team file. |
 | `lib/profile.js` | Auto-detects languages, frameworks, tools, and platforms from project files and environment variables. |
 
@@ -250,7 +251,7 @@ The monorepo has four packages:
 1. Developer runs `npx chinwag init` in a project directory
 2. CLI calls `POST /auth/init` (no auth required)
 3. Worker creates user in DatabaseDO: generates UUID, token, random two-word handle, random color
-4. Worker writes `token:{uuid} → user_id` to KV
+4. Worker writes `token:{bearer-token} → user_id` to KV
 5. CLI saves `{token, handle, color}` to `~/.chinwag/config.json`
 6. CLI creates team via `POST /teams`, writes `.chinwag` file with team ID
 7. CLI writes MCP config files for detected tools (`.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json`)

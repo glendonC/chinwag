@@ -41,7 +41,16 @@ cd chinwag
 npm install
 ```
 
-This installs dependencies for all packages via npm workspaces.
+This installs the root workspace dependencies for `packages/cli`, `packages/worker`, and `packages/mcp`.
+
+If you are working on the web dashboard, install its dependencies separately:
+
+```bash
+cd packages/web
+npm install
+```
+
+`packages/web` keeps its own `package-lock.json` and is not part of the root npm workspaces.
 
 ### Running locally
 
@@ -52,7 +61,10 @@ npm run dev:cli
 # Worker: start local dev server (Wrangler local mode)
 npm run dev:worker
 
-# Run both in separate terminals for full-stack development
+# Web dashboard: run the Vite app
+npm run dev:web
+
+# Run the pieces you need in separate terminals for full-stack development
 ```
 
 The CLI points to the production API by default. To point it at your local worker:
@@ -74,7 +86,7 @@ chinwag is a monorepo with four packages:
 ```
 packages/
   mcp/          MCP server (the product: shared brain for agents)
-    index.js      Server entry: 5 tools, 1 resource, stdio transport
+    index.js      Server entry: stdio transport, config/profile bootstrap
     hook.js       Claude Code hook handler (check-conflict, report-edit, session-start)
     channel.js    Claude Code channel server (real-time push via state diffing)
     lib/          API client, team operations, config, profile detection
@@ -101,10 +113,11 @@ packages/
       room.js       RoomDO: WebSocket chat rooms
       moderation.js Content moderation (blocklist + Llama Guard 3)
 
-  web/          Static site (Cloudflare Pages)
-    index.html    Single-page site with OpenGraph meta tags
-    script.js     Scroll journey, section navigation
-    styles/       CSS split into foundation, header, landing, responsive
+  web/          Landing page + React dashboard (Cloudflare Pages)
+    dashboard.html SPA entry for the authenticated dashboard
+    src/          React app: views, components, stores, tests
+    index.html    Landing page with marketing copy and install flow
+    vite.config.js Vite config for dashboard builds
 ```
 
 If you are unsure which package your change belongs in, follow where the behavior lives: user-facing display is CLI, server logic is worker, marketing and landing is web.
@@ -158,7 +171,7 @@ Good first contributions also include:
 
 ### Testing
 
-Testing infrastructure is not yet set up. If you are adding tests (very welcome), propose your test framework choice in the PR.
+Vitest is set up across the repo. Prefer targeted unit or integration tests in the package you are changing.
 
 For manual testing:
 
@@ -168,6 +181,9 @@ cd packages/cli && npm run dev
 
 # Worker changes: use local Wrangler dev server
 cd packages/worker && npx wrangler dev
+
+# Web changes: run the dashboard locally
+npm run dev:web
 
 # Test API endpoints directly
 curl http://localhost:8787/stats
@@ -181,6 +197,7 @@ npm run test:cli
 npm run test:mcp
 npm run test:worker
 npm run test:web
+npm run test
 ```
 
 ### Per-package notes
@@ -204,8 +221,9 @@ npm run test:web
 
 **Web (`packages/web/`)**
 
-- Static HTML/CSS/JS. No build step, no framework.
-- Fetches live stats from the production API.
+- Landing page plus React 19 dashboard, built with Vite and Zustand.
+- Fetches the same public API as the CLI and MCP server.
+- Keeps its own `package-lock.json`; run `npm install` inside `packages/web` when working on it.
 - Deployed on Cloudflare Pages.
 
 ## Commit conventions

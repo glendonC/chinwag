@@ -17,3 +17,28 @@ npx chinwag init
 Use `npx chinwag <command>` so you do not need a global install. To run `chinwag` without the `npx` prefix, install globally: `npm install -g chinwag`.
 
 Documentation: [Architecture](https://github.com/glendonchin/chinwag/blob/main/docs/ARCHITECTURE.md) · [chinwag.dev](https://chinwag.dev)
+
+## Commands
+
+```bash
+npx chinwag init          # account + team + MCP config
+npx chinwag add <tool>    # add one MCP-configurable tool
+npx chinwag add --list    # browse the discover catalog
+npx chinwag dashboard     # open the web dashboard
+npx chinwag               # launch the terminal dashboard
+```
+
+## Development
+
+From the repo root:
+
+```bash
+npm run dev --workspace=packages/cli
+npm run test --workspace=packages/cli
+```
+
+## Environment
+
+- `CHINWAG_API_URL`: override the default API base URL
+- `CHINWAG_WS_URL`: override the chat WebSocket URL
+- `CHINWAG_DASHBOARD_URL`: override the browser dashboard URL opened by the CLI

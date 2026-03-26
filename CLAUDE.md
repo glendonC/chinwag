@@ -42,7 +42,7 @@ chinwag is the control layer for agentic development. One command connects all y
 1. **Connect:** `npx chinwag init` detects tools, writes configs, hooks everything up. `chinwag add <tool>` expands. One command, all tools unified.
 2. **Remember:** Agents share a brain. Knowledge compounds across tools, sessions, and teammates. What one agent learns, every agent knows next session.
 3. **Coordinate:** Live awareness of every agent across every tool. Conflict prevention enforced on Claude Code, advisory everywhere else. No platform does cross-tool coordination the way chinwag does.
-4. **Discover:** See your full AI workflow. Browse 30+ AI dev tools. See what fits your stack. Add with one action from TUI or web.
+4. **Discover:** See your full AI workflow. Browse AI dev tools. See what fits your stack. Add with one action from TUI or web.
 5. **Observe:** See what agents are doing, how long they've been at it, where they're stuck, what they've accomplished. Across all tools and projects.
 
 #### Who it's for (ICP)

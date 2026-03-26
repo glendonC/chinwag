@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { usePollingStore } from '../../lib/stores/polling.js';
+import { useTeamStore } from '../../lib/stores/teams.js';
 import ProjectCard from '../../components/ProjectCard/ProjectCard.jsx';
 import EmptyState from '../../components/EmptyState/EmptyState.jsx';
 import styles from './OverviewView.module.css';
@@ -15,6 +16,7 @@ function buildSummary(active, conflicts, memories) {
 
 export default function OverviewView() {
   const dashboardData = usePollingStore((s) => s.dashboardData);
+  const teamsError = useTeamStore((s) => s.teamsError);
   const summaries = dashboardData?.teams ?? [];
 
   const totalActive = useMemo(
@@ -57,8 +59,8 @@ export default function OverviewView() {
 
           <EmptyState
             large={true}
-            title="No projects yet"
-            hint='Run <code>npx chinwag init</code> in a project to get started'
+            title={teamsError ? 'Could not load projects' : 'No projects yet'}
+            hint={teamsError || <>Run <code>npx chinwag init</code> in a project to get started</>}
           />
         </>
       )}

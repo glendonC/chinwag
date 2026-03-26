@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { authActions } from '../../lib/stores/auth.js';
 import { teamActions } from '../../lib/stores/teams.js';
-import { startPolling } from '../../lib/stores/polling.js';
 import styles from './ConnectView.module.css';
 
 export default function ConnectView({ error: initialError = null }) {
@@ -28,7 +27,6 @@ export default function ConnectView({ error: initialError = null }) {
     try {
       await authActions.authenticate(t);
       await teamActions.loadTeams();
-      startPolling();
       // App.jsx will react to isAuthenticated becoming true
     } catch (err) {
       setConnectError(err.message || 'Invalid token. Try generating a new one.');

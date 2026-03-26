@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
-import { existsSync, readFileSync } from 'fs';
+import { cpSync, existsSync, mkdirSync, readFileSync } from 'fs';
 import { basename, join } from 'path';
 import { homedir } from 'os';
-import { execFileSync } from 'child_process';
+import { fileURLToPath } from 'url';
 import { api } from './api.js';
 import { buildDashboardView, CATEGORY_COLORS, MEMORY_CATEGORIES, formatDuration, formatFiles, smartSummary, shortAgentId } from './dashboard-view.js';
 import { getInkColor } from './colors.js';
@@ -17,7 +17,19 @@ try {
   PKG_VERSION = pkg.version;
 } catch { /* fallback */ }
 
+let VSCODE_EXTENSION = { publisher: 'chinwag', name: 'chinwag', version: PKG_VERSION };
+try {
+  const pkg = JSON.parse(readFileSync(new URL('../../vscode/package.json', import.meta.url), 'utf-8'));
+  VSCODE_EXTENSION = {
+    publisher: pkg.publisher || 'chinwag',
+    name: pkg.name || 'chinwag',
+    version: pkg.version || PKG_VERSION,
+  };
+} catch { /* fallback */ }
+
 const MIN_WIDTH = 50;
+const IDE_COMMAND_SHORTCUT = process.platform === 'darwin' ? 'Cmd+Shift+P' : 'Ctrl+Shift+P';
+const IDE_EXTENSION_DIR = fileURLToPath(new URL('../../vscode/', import.meta.url));
 
 export function Dashboard({ config, user, navigate }) {
   const { stdout } = useStdout();
@@ -196,21 +208,23 @@ export function Dashboard({ config, user, navigate }) {
     if (input === 'w') { openDashboard().catch(() => {}); return; }
     if (input === 'e') {
       // Install/update chinwag extension into IDE
-      const extName = 'chinwag.chinwag-0.1.0';
-      const extSrc = new URL('../../vscode', import.meta.url).pathname;
-      const target = existsSync(join(homedir(), '.cursor'))
-        ? join(homedir(), '.cursor', 'extensions', extName)
-        : join(homedir(), '.vscode', 'extensions', extName);
+      const extName = `${VSCODE_EXTENSION.publisher}.${VSCODE_EXTENSION.name}-${VSCODE_EXTENSION.version}`;
+      // All VS Code forks: Cursor, Windsurf, VS Code, Void, etc.
+      const ideDirs = ['.cursor', '.windsurf', '.vscode'];
+      const ideDir = ideDirs.find(d => existsSync(join(homedir(), d))) || '.vscode';
+      const target = join(homedir(), ideDir, 'extensions', extName);
       const wasInstalled = existsSync(target);
       try {
-        execFileSync('mkdir', ['-p', target], { stdio: 'ignore' });
-        execFileSync('cp', [join(extSrc, 'package.json'), join(extSrc, 'extension.js'), target], { stdio: 'ignore' });
+        mkdirSync(target, { recursive: true });
+        cpSync(join(IDE_EXTENSION_DIR, 'package.json'), join(target, 'package.json'));
+        cpSync(join(IDE_EXTENSION_DIR, 'extension.js'), join(target, 'extension.js'));
+        try { cpSync(join(IDE_EXTENSION_DIR, 'logo-mark.svg'), join(target, 'logo-mark.svg')); } catch {}
         setFlashMsg(wasInstalled
-          ? 'Updated — Cmd+Shift+P → "chinwag: Open Dashboard"'
-          : 'Installed — restart IDE, then Cmd+Shift+P → "chinwag: Open Dashboard"');
+          ? `Updated — ${IDE_COMMAND_SHORTCUT} → "chinwag: Open Dashboard"`
+          : `Installed — restart IDE, then ${IDE_COMMAND_SHORTCUT} → "chinwag: Open Dashboard"`);
       } catch {
         if (wasInstalled) {
-          setFlashMsg('Cmd+Shift+P → "chinwag: Open Dashboard"');
+          setFlashMsg(`${IDE_COMMAND_SHORTCUT} → "chinwag: Open Dashboard"`);
         } else {
           setFlashMsg('Could not install extension');
         }

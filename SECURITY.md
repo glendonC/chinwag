@@ -33,7 +33,7 @@ chinwag takes security seriously. This document describes how to report vulnerab
 | Boundary | Implication |
 |---|---|
 | All network input | Every HTTP request and WebSocket message is treated as untrusted and validated server-side |
-| User-generated content | All text (notes, chat messages, status) passes through two-layer moderation before persistence or broadcast |
+| User-generated content | All text (memories, chat messages, status updates) passes through two-layer moderation before persistence or broadcast |
 | Authentication tokens | Bearer tokens are validated on every request via KV lookup; no session cookies, no client-side trust |
 | WebSocket messages | Validated for type, length (280 char max), and rate (10/min) on every frame |
 | Client-supplied identity | Handle and color are resolved server-side from the authenticated token, never accepted from the client payload |
@@ -42,11 +42,11 @@ chinwag takes security seriously. This document describes how to report vulnerab
 
 - Authentication bypass or token leakage
 - Cross-Site WebSocket Hijacking (CSWSH) against the chat endpoint
-- Injection attacks through note content, chat messages, status text, or handle names
+- Injection attacks through memory content, chat messages, status text, or handle names
 - Moderation bypass (both blocklist and AI layer)
 - Rate limit bypass (account creation, chat messages)
 - Data leakage between Durable Object instances (cross-room, cross-user)
-- Unauthorized access to another user's inbox, notes, or profile
+- Unauthorized access to another user's team messages, memories, or profile
 - Denial of service achievable by a single authenticated user (resource exhaustion within the Worker)
 - Vulnerabilities in the WebSocket upgrade or connection lifecycle
 - Sensitive data exposure in error responses or logs

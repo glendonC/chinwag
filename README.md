@@ -17,7 +17,7 @@ This detects your AI tools (Claude Code, Cursor, Windsurf, VS Code, Codex, Aider
 - **Connect** — `npx chinwag init` detects tools and writes configs. `npx chinwag add <tool>` expands.
 - **Remember** — Agents share a brain. What one agent learns, every agent knows next session.
 - **Coordinate** — Live awareness of every agent. Conflict prevention enforced on Claude Code, advisory on others.
-- **Discover** — Browse 30+ AI dev tools. See what fits your stack. Add with one action.
+- **Discover** — Browse AI dev tools from one catalog. See what fits your stack. Add with one action.
 - **Observe** — See what agents are doing across all tools and projects.
 
 ## Teams
@@ -43,10 +43,11 @@ Monorepo with four packages: MCP server (agent interface), Cloudflare Workers ba
 ```bash
 npm run dev:cli           # Build + run CLI
 npm run dev:worker        # Local worker dev server
+npm run dev:web           # Web dashboard (after `cd packages/web && npm install`)
 npm run deploy            # Deploy worker to production
 ```
 
-See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for setup and code style.
+`packages/web` keeps its own lockfile, so install dependencies there when you are working on the dashboard. See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for setup and code style.
 
 ## Security
 

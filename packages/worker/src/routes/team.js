@@ -18,7 +18,11 @@ export async function handleTeamJoin(request, user, env, teamId) {
   if (result.error) return json({ error: result.error }, 400);
 
   const db = getDB(env);
-  try { await db.addUserTeam(user.id, teamId, name); } catch {}
+  try {
+    await db.addUserTeam(user.id, teamId, name);
+  } catch (err) {
+    console.error(`[chinwag] Failed to sync joined team ${teamId} for user ${user.id}:`, err);
+  }
 
   return json(result);
 }
@@ -30,7 +34,11 @@ export async function handleTeamLeave(request, user, env, teamId) {
   if (result.error) return json({ error: result.error }, 400);
 
   const db = getDB(env);
-  try { await db.removeUserTeam(user.id, teamId); } catch {}
+  try {
+    await db.removeUserTeam(user.id, teamId);
+  } catch (err) {
+    console.error(`[chinwag] Failed to remove team ${teamId} for user ${user.id}:`, err);
+  }
 
   return json(result);
 }
@@ -42,7 +50,11 @@ export async function handleTeamContext(request, user, env, teamId) {
   if (result.error) return json({ error: result.error }, 403);
 
   const db = getDB(env);
-  try { await db.addUserTeam(user.id, teamId); } catch {}
+  try {
+    await db.addUserTeam(user.id, teamId);
+  } catch (err) {
+    console.error(`[chinwag] Failed to backfill team ${teamId} for user ${user.id}:`, err);
+  }
 
   return json(result);
 }

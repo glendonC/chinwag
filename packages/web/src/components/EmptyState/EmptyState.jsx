@@ -7,7 +7,7 @@ export default function EmptyState({ title, hint = '', large = false }) {
     <div className={cls} role="status">
       <p className={styles.emptyTitle}>{title}</p>
       {hint && (
-        <p className={styles.emptyHint} dangerouslySetInnerHTML={{ __html: hint }} />
+        <p className={styles.emptyHint}>{hint}</p>
       )}
     </div>
   );

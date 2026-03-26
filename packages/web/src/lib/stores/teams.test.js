@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-async function loadTeamsModule({ token = 'tok_123', apiMock = vi.fn(), forceRefreshMock = vi.fn() } = {}) {
+async function loadTeamsModule({ token = 'tok_123', apiMock = vi.fn(), requestRefreshMock = vi.fn() } = {}) {
   vi.resetModules();
   vi.doMock('../api.js', () => ({
     api: apiMock,
@@ -10,11 +10,11 @@ async function loadTeamsModule({ token = 'tok_123', apiMock = vi.fn(), forceRefr
       getState: () => ({ token }),
     },
   }));
-  vi.doMock('./polling.js', () => ({
-    forceRefresh: forceRefreshMock,
+  vi.doMock('./refresh.js', () => ({
+    requestRefresh: requestRefreshMock,
   }));
   const mod = await import('./teams.js');
-  return { ...mod, apiMock, forceRefreshMock };
+  return { ...mod, apiMock, requestRefreshMock };
 }
 
 afterEach(() => {
@@ -51,7 +51,7 @@ describe('team store', () => {
     });
   });
 
-  it('clears teams when loading fails', async () => {
+  it('records a load error when loading teams fails', async () => {
     const apiMock = vi.fn().mockRejectedValue(new Error('offline'));
     const { teamActions } = await loadTeamsModule({ apiMock });
 
@@ -60,6 +60,7 @@ describe('team store', () => {
     expect(teamActions.getState()).toMatchObject({
       teams: [],
       activeTeamId: null,
+      teamsError: 'offline',
     });
   });
 
@@ -74,10 +75,37 @@ describe('team store', () => {
     expect(apiMock).toHaveBeenCalledWith('POST', '/teams/t_repeat/join', {}, 'tok_123');
   });
 
+  it('resets the join cache when the auth token changes', async () => {
+    const tokenState = { token: 'tok_123' };
+    vi.resetModules();
+    const apiMock = vi.fn().mockResolvedValue({ ok: true });
+    const requestRefreshMock = vi.fn();
+    vi.doMock('../api.js', () => ({
+      api: apiMock,
+    }));
+    vi.doMock('./auth.js', () => ({
+      authActions: {
+        getState: () => tokenState,
+      },
+    }));
+    vi.doMock('./refresh.js', () => ({
+      requestRefresh: requestRefreshMock,
+    }));
+    const { teamActions } = await import('./teams.js');
+
+    await teamActions.ensureJoined('t_repeat');
+    tokenState.token = 'tok_456';
+    await teamActions.ensureJoined('t_repeat');
+
+    expect(apiMock).toHaveBeenCalledTimes(2);
+    expect(apiMock).toHaveBeenNthCalledWith(1, 'POST', '/teams/t_repeat/join', {}, 'tok_123');
+    expect(apiMock).toHaveBeenNthCalledWith(2, 'POST', '/teams/t_repeat/join', {}, 'tok_456');
+  });
+
   it('updates memory and triggers a refresh', async () => {
     const apiMock = vi.fn().mockResolvedValue({ ok: true });
-    const forceRefreshMock = vi.fn();
-    const { teamActions } = await loadTeamsModule({ apiMock, forceRefreshMock });
+    const requestRefreshMock = vi.fn();
+    const { teamActions } = await loadTeamsModule({ apiMock, requestRefreshMock });
 
     await teamActions.updateMemory('t_team', 'mem_1', 'Updated note', 'decision');
 
@@ -86,13 +114,13 @@ describe('team store', () => {
       text: 'Updated note',
       category: 'decision',
     }, 'tok_123');
-    expect(forceRefreshMock).toHaveBeenCalledTimes(1);
+    expect(requestRefreshMock).toHaveBeenCalledTimes(1);
   });
 
   it('deletes memories and sends messages through the API', async () => {
     const apiMock = vi.fn().mockResolvedValue({ ok: true });
-    const forceRefreshMock = vi.fn();
-    const { teamActions } = await loadTeamsModule({ apiMock, forceRefreshMock });
+    const requestRefreshMock = vi.fn();
+    const { teamActions } = await loadTeamsModule({ apiMock, requestRefreshMock });
 
     await teamActions.deleteMemory('t_team', 'mem_1');
     await teamActions.sendMessage('t_team', 'Heads up', 'cursor:abc123');
@@ -102,6 +130,6 @@ describe('team store', () => {
       text: 'Heads up',
       target: 'cursor:abc123',
     }, 'tok_123');
-    expect(forceRefreshMock).toHaveBeenCalledTimes(2);
+    expect(requestRefreshMock).toHaveBeenCalledTimes(2);
   });
 });

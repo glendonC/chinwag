@@ -8,6 +8,7 @@ async function flushPromises() {
 async function loadPollingModule({
   token = 'tok_123',
   activeTeamId = null,
+  teamState = { activeTeamId },
   apiMock = vi.fn(),
   ensureJoinedMock = vi.fn(),
   logoutMock = vi.fn(),
@@ -36,7 +37,7 @@ async function loadPollingModule({
   }));
   vi.doMock('./teams.js', () => ({
     teamActions: {
-      getState: () => ({ activeTeamId }),
+      getState: () => teamState,
       ensureJoined: ensureJoinedMock,
     },
   }));
@@ -87,6 +88,30 @@ describe('polling store', () => {
     });
   });
 
+  it('clears the inactive data branch when switching modes', async () => {
+    const teamState = { activeTeamId: null };
+    const apiMock = vi.fn()
+      .mockResolvedValueOnce({ teams: [{ team_id: 't_one' }] })
+      .mockResolvedValueOnce({ members: [{ handle: 'alice' }] });
+    const ensureJoinedMock = vi.fn().mockResolvedValue({ ok: true });
+    const { forceRefresh, pollingActions } = await loadPollingModule({
+      teamState,
+      apiMock,
+      ensureJoinedMock,
+    });
+
+    forceRefresh();
+    await flushPromises();
+    expect(pollingActions.getState().dashboardData).toEqual({ teams: [{ team_id: 't_one' }] });
+
+    teamState.activeTeamId = 't_active';
+    forceRefresh();
+    await flushPromises();
+
+    expect(pollingActions.getState().dashboardData).toBeNull();
+    expect(pollingActions.getState().contextData).toEqual({ members: [{ handle: 'alice' }] });
+  });
+
   it('logs out on 401 responses', async () => {
     const err = new Error('Unauthorized');
     err.status = 401;
@@ -115,5 +140,16 @@ describe('polling store', () => {
     const { listeners } = await loadPollingModule({ apiMock, withDocument: true });
 
     expect(listeners.has('visibilitychange')).toBe(true);
+  });
+
+  it('resumes polling with a single immediate fetch when the tab becomes visible', async () => {
+    const apiMock = vi.fn().mockResolvedValue({ teams: [] });
+    const { listeners, stopPolling } = await loadPollingModule({ apiMock, withDocument: true });
+
+    listeners.get('visibilitychange')?.();
+    await flushPromises();
+
+    expect(apiMock).toHaveBeenCalledTimes(1);
+    stopPolling();
   });
 });
