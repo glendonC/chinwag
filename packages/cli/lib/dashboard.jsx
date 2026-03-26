@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
 import { existsSync, readFileSync } from 'fs';
 import { basename, join } from 'path';
+import { homedir } from 'os';
+import { execFileSync } from 'child_process';
 import { api } from './api.js';
+import { buildDashboardView, CATEGORY_COLORS, MEMORY_CATEGORIES, formatDuration, formatFiles, smartSummary, shortAgentId } from './dashboard-view.js';
 import { getInkColor } from './colors.js';
 import { detectTools } from './mcp-config.js';
 import { openDashboard } from './open-dashboard.js';
@@ -15,10 +18,6 @@ try {
 } catch { /* fallback */ }
 
 const MIN_WIDTH = 50;
-const MAX_AGENTS = 5;
-const MAX_MEMORIES = 8;
-const MEMORY_CATEGORIES = [null, 'gotcha', 'pattern', 'config', 'decision', 'reference'];
-const CATEGORY_COLORS = { gotcha: 'yellow', pattern: 'magenta', config: 'blue', decision: 'green', reference: 'gray' };
 
 export function Dashboard({ config, user, navigate }) {
   const { stdout } = useStdout();
@@ -98,6 +97,12 @@ export function Dashboard({ config, user, navigate }) {
   }, [teamId, teamName, refreshKey, config?.token]);
 
   useInput((input, key) => {
+    // When terminal is too narrow, only allow quit
+    if (cols < MIN_WIDTH) {
+      if (input === 'q') navigate('quit');
+      return;
+    }
+
     // Tab switches section focus
     if (key.tab) {
       setActiveSection(prev => prev === 'agents' ? 'memory' : 'agents');
@@ -189,95 +194,62 @@ export function Dashboard({ config, user, navigate }) {
       setRefreshKey(k => k + 1);
     }
     if (input === 'w') { openDashboard().catch(() => {}); return; }
+    if (input === 'e') {
+      // Install/update chinwag extension into IDE
+      const extName = 'chinwag.chinwag-0.1.0';
+      const extSrc = new URL('../../vscode', import.meta.url).pathname;
+      const target = existsSync(join(homedir(), '.cursor'))
+        ? join(homedir(), '.cursor', 'extensions', extName)
+        : join(homedir(), '.vscode', 'extensions', extName);
+      const wasInstalled = existsSync(target);
+      try {
+        execFileSync('mkdir', ['-p', target], { stdio: 'ignore' });
+        execFileSync('cp', [join(extSrc, 'package.json'), join(extSrc, 'extension.js'), target], { stdio: 'ignore' });
+        setFlashMsg(wasInstalled
+          ? 'Updated — Cmd+Shift+P → "chinwag: Open Dashboard"'
+          : 'Installed — restart IDE, then Cmd+Shift+P → "chinwag: Open Dashboard"');
+      } catch {
+        if (wasInstalled) {
+          setFlashMsg('Cmd+Shift+P → "chinwag: Open Dashboard"');
+        } else {
+          setFlashMsg('Could not install extension');
+        }
+      }
+      setTimeout(() => setFlashMsg(null), 5000);
+      return;
+    }
     if (input === 'f') { navigate('discover'); return; }
     if (input === 'c') { navigate('chat'); return; }
     if (input === 's') { navigate('customize'); return; }
   });
 
-  // ── Helpers ────────────────────────────────────────────
-
-  // Tool name lookup: 'claude-code' → 'Claude Code'
-  const toolNameMap = new Map(detectedTools.map(t => [t.id, t.name]));
-  const getToolName = (toolId) => {
-    if (!toolId || toolId === 'unknown') return null;
-    return toolNameMap.get(toolId) || toolId;
-  };
-
-  const fmtDur = (mins) => {
-    if (mins == null) return null;
-    return mins >= 60
-      ? `${Math.floor(mins / 60)}h ${Math.round(mins % 60)}m`
-      : `${Math.round(mins)}m`;
-  };
-
-  // Format file list: short basenames, cap at 3
-  const fmtFiles = (files) => {
-    if (!files?.length) return null;
-    const names = files.map(f => basename(f));
-    if (names.length <= 3) return names.join(', ');
-    return `${names[0]}, ${names[1]} + ${names.length - 2} more`;
-  };
-
-  // Filter out summaries that just restate the file path
-  const smartSummary = (activity) => {
-    if (!activity?.summary) return null;
-    const s = activity.summary;
-    if (/^editing\s/i.test(s)) return null;
-    if (activity.files?.length === 1 && s.toLowerCase().includes(basename(activity.files[0]).toLowerCase())) return null;
-    return s;
-  };
-
-  // ── Computed values ────────────────────────────────────
-
   const userColor = getInkColor(user?.color);
-  const projectDir = teamName || basename(process.cwd());
-  const dividerWidth = Math.min(cols - 4, 50);
-
-  const members = context?.members || [];
-  // Only show members with a real tool identity — filters out TUI/CLI auth entries
-  const activeAgents = members.filter(m => m.status === 'active' && m.tool && m.tool !== 'unknown');
-  const agentsWithWork = activeAgents.filter(m => m.activity?.files?.length > 0);
-
-  // Team mode: show handles only when multiple people are present
-  const uniqueHandles = new Set(activeAgents.map(m => m.handle));
-  const isTeam = uniqueHandles.size > 1;
-
-  // Conflicts
-  const fileOwners = new Map();
-  for (const m of agentsWithWork) {
-    const label = getToolName(m.tool) ? `${m.handle} (${getToolName(m.tool)})` : m.handle;
-    for (const f of m.activity.files) {
-      if (!fileOwners.has(f)) fileOwners.set(f, []);
-      fileOwners.get(f).push(label);
-    }
-  }
-  const conflicts = [...fileOwners.entries()].filter(([, owners]) => owners.length > 1);
-
-  // Memory — with category filtering
-  const memories = context?.memories || [];
-  const filteredMemories = memoryFilter
-    ? memories.filter(m => m.category === memoryFilter)
-    : memories;
-  const visibleMemories = filteredMemories.slice(0, MAX_MEMORIES);
-  const memoryOverflow = filteredMemories.length - MAX_MEMORIES;
-
-  // Messages
-  const messages = context?.messages || [];
-
-  // Telemetry
-  const toolsConfigured = context?.tools_configured || [];
-  const usage = context?.usage || {};
-
-  // Recent sessions — only when no live agents
-  const recentSessions = (context?.recentSessions || []).filter(s => {
-    if (s.ended_at && !s.edit_count && !(s.files_touched?.length)) return false;
-    return true;
+  const {
+    getToolName,
+    dividerWidth,
+    projectDir,
+    activeAgents,
+    conflicts,
+    memories,
+    filteredMemories,
+    visibleMemories,
+    memoryOverflow,
+    messages,
+    toolsConfigured,
+    usage,
+    recentSessions,
+    showRecent,
+    visibleAgents,
+    agentOverflow,
+    toolCounts,
+    isTeam,
+  } = buildDashboardView({
+    context,
+    detectedTools,
+    memoryFilter,
+    cols,
+    projectDir: teamName || basename(process.cwd()),
   });
-  const showRecent = recentSessions.length > 0 && activeAgents.length === 0;
-
-  // Agents to display — capped
-  const visibleAgents = activeAgents.slice(0, MAX_AGENTS);
-  const agentOverflow = activeAgents.length - MAX_AGENTS;
 
   useEffect(() => {
     if (selectedIdx >= visibleAgents.length) {
@@ -290,18 +262,6 @@ export function Dashboard({ config, user, navigate }) {
       setMemorySelectedIdx(visibleMemories.length > 0 ? visibleMemories.length - 1 : -1);
     }
   }, [memorySelectedIdx, visibleMemories.length]);
-
-  // Detect duplicate tool types for agent disambiguation
-  const toolCounts = new Map();
-  for (const a of activeAgents) {
-    toolCounts.set(a.tool, (toolCounts.get(a.tool) || 0) + 1);
-  }
-  const shortId = (agentId) => {
-    if (!agentId) return '';
-    const parts = agentId.split(':');
-    if (parts.length >= 3) return parts[2].slice(0, 4);
-    return '';
-  };
 
   // ── Layout pieces ──────────────────────────────────────
 
@@ -324,6 +284,7 @@ export function Dashboard({ config, user, navigate }) {
       <Text>
         <Text color="cyan" bold>[Tab]</Text><Text dimColor> {activeSection === 'agents' ? 'memory' : 'agents'}  </Text>
         <Text color="cyan" bold>[w]</Text><Text dimColor> browser  </Text>
+        <Text color="cyan" bold>[e]</Text><Text dimColor> editor  </Text>
         <Text color="cyan" bold>[f]</Text><Text dimColor> discover  </Text>
         <Text color="cyan" bold>[c]</Text><Text dimColor> chat  </Text>
         <Text color="cyan" bold>[s]</Text><Text dimColor> settings  </Text>
@@ -352,6 +313,8 @@ export function Dashboard({ config, user, navigate }) {
         <Text>{''}</Text>
         <Text dimColor>Terminal too narrow ({cols} cols).</Text>
         <Text dimColor>Widen to at least {MIN_WIDTH}.</Text>
+        <Text>{''}</Text>
+        <Text><Text color="cyan" bold>[q]</Text><Text dimColor> quit</Text></Text>
       </Box>
     );
   }
@@ -402,11 +365,11 @@ export function Dashboard({ config, user, navigate }) {
           <>
             {visibleAgents.map((m, idx) => {
               const toolName = getToolName(m.tool);
-              const dur = fmtDur(m.session_minutes);
+              const dur = formatDuration(m.session_minutes);
               const showShortId = toolCounts.get(m.tool) > 1;
               const isSelected = activeSection === 'agents' && idx === selectedIdx;
               const allFiles = m.activity?.files || [];
-              const files = fmtFiles(allFiles);
+              const files = formatFiles(allFiles);
               const summary = smartSummary(m.activity);
 
               return (
@@ -417,7 +380,7 @@ export function Dashboard({ config, user, navigate }) {
                       : <Text color="green">  ● </Text>
                     }
                     <Text bold>{toolName || 'Unknown'}</Text>
-                    {showShortId && <Text dimColor> #{shortId(m.agent_id)}</Text>}
+                    {showShortId && <Text dimColor> #{shortAgentId(m.agent_id)}</Text>}
                     {isTeam && <Text dimColor>  {m.handle}</Text>}
                     {dur && <Text dimColor>  {dur}</Text>}
                   </Text>
@@ -448,9 +411,6 @@ export function Dashboard({ config, user, navigate }) {
               <Text dimColor>  + {agentOverflow} more — <Text color="cyan" bold>[w]</Text> to see all</Text>
             )}
           </>
-        )}
-        {flashMsg && (
-          <Text dimColor>  {flashMsg}</Text>
         )}
       </Box>
 
@@ -578,7 +538,7 @@ export function Dashboard({ config, user, navigate }) {
           <Text bold>Recent</Text>
           <Text dimColor>{'─'.repeat(dividerWidth)}</Text>
           {recentSessions.slice(0, 5).map(s => {
-            const dur = fmtDur(s.duration_minutes) || '0m';
+            const dur = formatDuration(s.duration_minutes) || '0m';
             const fileCount = s.files_touched?.length || 0;
             const hasActivity = s.edit_count > 0 || fileCount > 0;
             const toolName = s.tool ? getToolName(s.tool) : null;
@@ -591,6 +551,12 @@ export function Dashboard({ config, user, navigate }) {
               </Text>
             );
           })}
+        </Box>
+      )}
+
+      {flashMsg && (
+        <Box paddingX={1} paddingTop={1}>
+          <Text color="green" bold>{flashMsg}</Text>
         </Box>
       )}
 
