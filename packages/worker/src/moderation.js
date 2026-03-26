@@ -78,27 +78,3 @@ export async function checkContent(text, env) {
 
   return { blocked: false };
 }
-
-// In-memory rate limiting per isolate.
-const rateLimits = new Map();
-
-export function checkRateLimit(key, maxPerMinute = 10) {
-  const now = Date.now();
-  const windowMs = 60_000;
-
-  let entry = rateLimits.get(key);
-  if (!entry || now - entry.windowStart > windowMs) {
-    entry = { windowStart: now, count: 0 };
-    rateLimits.set(key, entry);
-  }
-
-  entry.count++;
-
-  if (rateLimits.size > 500) {
-    for (const [k, e] of rateLimits) {
-      if (now - e.windowStart > 120_000) rateLimits.delete(k);
-    }
-  }
-
-  return entry.count <= maxPerMinute;
-}

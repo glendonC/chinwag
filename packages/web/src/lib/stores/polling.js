@@ -98,7 +98,18 @@ if (typeof document !== 'undefined') {
   });
 }
 
+/** Force an immediate poll cycle (use after mutations to refresh data). */
+export function forceRefresh() {
+  poll();
+}
+
 /** React hook — use inside components */
 export function usePollingStore(selector) {
   return useStore(pollingStore, selector);
 }
+
+/** Direct access — use outside components and in tests */
+export const pollingActions = {
+  getState: () => pollingStore.getState(),
+  subscribe: pollingStore.subscribe,
+};

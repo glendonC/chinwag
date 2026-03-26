@@ -3,11 +3,33 @@
 // Uses fetch() for WebSocket upgrades, RPC for Lobby communication.
 
 import { DurableObject } from 'cloudflare:workers';
-import { isBlocked, checkRateLimit } from './moderation.js';
+import { isBlocked } from './moderation.js';
 
 const MAX_HISTORY = 50;
 const MAX_MESSAGE_LENGTH = 280;
 const MAX_CHAT_PER_MINUTE = 10;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_PRUNE_AFTER_MS = 120_000;
+
+export function checkWindowedRateLimit(rateLimits, key, maxPerMinute = 10, now = Date.now()) {
+  let entry = rateLimits.get(key);
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+    entry = { windowStart: now, count: 0 };
+    rateLimits.set(key, entry);
+  }
+
+  entry.count++;
+
+  if (rateLimits.size > 500) {
+    for (const [storedKey, storedEntry] of rateLimits) {
+      if (now - storedEntry.windowStart > RATE_LIMIT_PRUNE_AFTER_MS) {
+        rateLimits.delete(storedKey);
+      }
+    }
+  }
+
+  return entry.count <= maxPerMinute;
+}
 
 export class RoomDO extends DurableObject {
   constructor(ctx, env) {
@@ -15,6 +37,7 @@ export class RoomDO extends DurableObject {
     // WebSocket → { handle, color }
     this.sessions = new Map();
     this.history = [];
+    this.chatRateLimits = new Map();
     this.roomId = null;
   }
 
@@ -79,7 +102,7 @@ export class RoomDO extends DurableObject {
       const content = (data.content || '').trim();
       if (!content || content.length > MAX_MESSAGE_LENGTH) return;
 
-      if (!checkRateLimit(`chat:${session.handle}`, MAX_CHAT_PER_MINUTE)) {
+      if (!checkWindowedRateLimit(this.chatRateLimits, `chat:${session.handle}`, MAX_CHAT_PER_MINUTE)) {
         ws.send(JSON.stringify({
           type: 'system',
           content: 'Slow down — max 10 messages per minute.',

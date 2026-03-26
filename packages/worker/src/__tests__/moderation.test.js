@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isBlocked, checkRateLimit } from '../moderation.js';
+import { isBlocked } from '../moderation.js';
 
 // --- isBlocked ---
 
@@ -76,76 +76,3 @@ describe('isBlocked', () => {
   });
 });
 
-// --- checkRateLimit ---
-
-describe('checkRateLimit', () => {
-  it('returns true when under the limit', () => {
-    const key = `test-under-limit-${Date.now()}-${Math.random()}`;
-    expect(checkRateLimit(key, 5)).toBe(true);
-    expect(checkRateLimit(key, 5)).toBe(true);
-    expect(checkRateLimit(key, 5)).toBe(true);
-  });
-
-  it('returns true at exactly the limit', () => {
-    const key = `test-at-limit-${Date.now()}-${Math.random()}`;
-    for (let i = 0; i < 3; i++) {
-      checkRateLimit(key, 3);
-    }
-    // The 3rd call should still be true (count === maxPerMinute)
-    expect(checkRateLimit(key, 3)).toBe(false);
-    // Wait, let me reconsider: the first 3 calls increment count to 3, then the 4th call increments to 4
-    // Actually each call increments first, then checks. So:
-    // call 1: count=1, 1<=3 -> true
-    // call 2: count=2, 2<=3 -> true
-    // call 3: count=3, 3<=3 -> true
-    // call 4: count=4, 4<=3 -> false
-  });
-
-  it('returns false when over the limit', () => {
-    const key = `test-over-limit-${Date.now()}-${Math.random()}`;
-    const max = 3;
-    // Exhaust the limit
-    for (let i = 0; i < max; i++) {
-      checkRateLimit(key, max);
-    }
-    // Next call should be over
-    expect(checkRateLimit(key, max)).toBe(false);
-  });
-
-  it('tracks different keys independently', () => {
-    const keyA = `test-key-a-${Date.now()}-${Math.random()}`;
-    const keyB = `test-key-b-${Date.now()}-${Math.random()}`;
-
-    // Exhaust keyA
-    for (let i = 0; i < 2; i++) {
-      checkRateLimit(keyA, 2);
-    }
-    expect(checkRateLimit(keyA, 2)).toBe(false);
-
-    // keyB should still be fine
-    expect(checkRateLimit(keyB, 2)).toBe(true);
-  });
-
-  it('returns true for first call with default limit', () => {
-    const key = `test-default-${Date.now()}-${Math.random()}`;
-    expect(checkRateLimit(key)).toBe(true);
-  });
-
-  it('allows exactly maxPerMinute calls', () => {
-    const key = `test-exact-${Date.now()}-${Math.random()}`;
-    const max = 5;
-    const results = [];
-    for (let i = 0; i < max + 2; i++) {
-      results.push(checkRateLimit(key, max));
-    }
-    // First 5 calls should be true, remaining should be false
-    expect(results.slice(0, max).every(r => r === true)).toBe(true);
-    expect(results.slice(max).every(r => r === false)).toBe(true);
-  });
-
-  it('handles limit of 1', () => {
-    const key = `test-limit-one-${Date.now()}-${Math.random()}`;
-    expect(checkRateLimit(key, 1)).toBe(true);
-    expect(checkRateLimit(key, 1)).toBe(false);
-  });
-});

@@ -14,8 +14,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { loadConfig, configExists } from './lib/config.js';
 import { api } from './lib/api.js';
 import { findTeamFile } from './lib/team.js';
-import { detectToolName, generateAgentId } from './lib/identity.js';
-import { resolveSessionAgentId } from '../shared/session-registry.js';
+import { detectToolName } from './lib/identity.js';
+import { resolveAgentIdentity } from './lib/lifecycle.js';
 
 let PKG = { version: '0.0.0' };
 try {
@@ -43,10 +43,7 @@ async function main() {
   }
 
   const toolName = detectToolName('claude-code');
-  const agentId = resolveSessionAgentId({
-    tool: toolName,
-    fallbackAgentId: generateAgentId(config.token, toolName),
-  });
+  const { agentId } = resolveAgentIdentity(config.token, toolName);
   const client = api(config, { agentId });
   console.error(`[chinwag-channel] Tool: ${toolName}, Agent ID: ${agentId}`);
 

@@ -12,8 +12,7 @@ import { basename } from 'path';
 import { loadConfig, configExists } from './lib/config.js';
 import { api } from './lib/api.js';
 import { findTeamFile } from './lib/team.js';
-import { generateAgentId } from './lib/identity.js';
-import { resolveSessionAgentId } from '../shared/session-registry.js';
+import { resolveAgentIdentity } from './lib/lifecycle.js';
 
 const subcommand = process.argv[2];
 
@@ -29,13 +28,8 @@ async function main() {
   if (!teamId) process.exit(0);
 
   // Hooks are always Claude Code
-  const fallbackAgentId = generateAgentId(config.token, 'claude-code');
-  const agentId = resolveSessionAgentId({
-    tool: 'claude-code',
-    fallbackAgentId,
-  });
+  const { agentId, hasExactSession } = resolveAgentIdentity(config.token, 'claude-code');
   const client = api(config, { agentId });
-  const hasExactSession = agentId !== fallbackAgentId;
 
   switch (subcommand) {
     case 'check-conflict':
