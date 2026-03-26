@@ -3,6 +3,7 @@
 // shared project memory, and session history (observability).
 
 import { DurableObject } from 'cloudflare:workers';
+import { normalizePath, extractWords, wordSimilarity } from './lib/text-utils.js';
 
 // --- Tuning constants ---
 const HEARTBEAT_ACTIVE_SECONDS = 60;    // Heartbeat within this window = "active"
@@ -497,12 +498,29 @@ export class TeamDO extends DurableObject {
       resolved
     ).toArray();
 
+    // Telemetry — tool usage breakdown + key metrics
+    const toolMetrics = this.sql.exec(
+      "SELECT metric, count FROM telemetry WHERE metric LIKE 'tool:%' ORDER BY count DESC LIMIT 10"
+    ).toArray();
+    const tools_configured = toolMetrics.map(t => ({
+      tool: t.metric.replace('tool:', ''),
+      joins: t.count,
+    }));
+
+    const keyMetrics = this.sql.exec(
+      "SELECT metric, count FROM telemetry WHERE metric NOT LIKE 'tool:%'"
+    ).toArray();
+    const usage = {};
+    for (const m of keyMetrics) usage[m.metric] = m.count;
+
     return {
       members: memberList,
       conflicts,
       locks,
       memories,
       messages,
+      tools_configured,
+      usage,
       recentSessions: recentSessions.map(s => {
         // Parse tool name from agent_id (format: "tool:hash")
         const toolFromAgent = s.agent_id?.includes(':') ? s.agent_id.split(':')[0] : null;
@@ -930,26 +948,5 @@ export class TeamDO extends DurableObject {
   }
 }
 
-// Strip leading ./ and trailing /, collapse // — so "src/index.js" and "./src/index.js" match
-export function normalizePath(p) {
-  return p.replace(/^\.\//, '').replace(/\/+/g, '/').replace(/\/$/, '');
-}
-
-// Extract significant words for fuzzy dedup (lowercase, >2 chars, no stop words)
-const STOP_WORDS = new Set(['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'has', 'have', 'been', 'this', 'that', 'with', 'from', 'they', 'will', 'when', 'make', 'use', 'used', 'uses', 'using', 'must', 'need', 'needs']);
-
-export function extractWords(text) {
-  return new Set(
-    text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/)
-      .filter(w => w.length > 2 && !STOP_WORDS.has(w))
-  );
-}
-
-// Jaccard similarity between two word sets
-export function wordSimilarity(a, b) {
-  if (a.size === 0 && b.size === 0) return 1;
-  if (a.size === 0 || b.size === 0) return 0;
-  let intersection = 0;
-  for (const w of a) { if (b.has(w)) intersection++; }
-  return intersection / (a.size + b.size - intersection);
-}
+// Re-export utilities for backward compatibility
+export { normalizePath, extractWords, wordSimilarity } from './lib/text-utils.js';
