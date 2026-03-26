@@ -217,7 +217,7 @@ export function Dashboard({ config, user, navigate }) {
       try {
         mkdirSync(target, { recursive: true });
         cpSync(join(IDE_EXTENSION_DIR, 'package.json'), join(target, 'package.json'));
-        cpSync(join(IDE_EXTENSION_DIR, 'extension.js'), join(target, 'extension.js'));
+        cpSync(join(IDE_EXTENSION_DIR, 'dist', 'extension.js'), join(target, 'extension.js'));
         try { cpSync(join(IDE_EXTENSION_DIR, 'logo-mark.svg'), join(target, 'logo-mark.svg')); } catch {}
         setFlashMsg(wasInstalled
           ? `Updated — ${IDE_COMMAND_SHORTCUT} → "chinwag: Open Dashboard"`

@@ -9,7 +9,7 @@
   },
   "categories": ["Other"],
   "activationEvents": ["workspaceContains:.chinwag"],
-  "main": "./extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {

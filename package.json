@@ -7,6 +7,7 @@
     "packages/mcp"
   ],
   "scripts": {
+    "build:vscode": "esbuild packages/vscode/extension.js --bundle --platform=node --format=cjs --outfile=packages/vscode/dist/extension.js --external:vscode",
     "dev:cli": "npm run dev --workspace=packages/cli",
     "dev:worker": "npm run dev --workspace=packages/worker",
     "deploy": "npm run deploy --workspace=packages/worker",
