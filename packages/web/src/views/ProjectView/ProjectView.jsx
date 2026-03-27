@@ -15,7 +15,6 @@ import StatCard from '../../components/StatCard/StatCard.jsx';
 import Tabs from '../../components/Tabs/Tabs.jsx';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
 import ViewHeader from '../../components/ViewHeader/ViewHeader.jsx';
-import { collectMemoryTags } from '../../lib/utils.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
 import styles from './ProjectView.module.css';
 
@@ -127,17 +126,11 @@ export default function ProjectView() {
     usage.memories_saved > 0 ? { label: 'memories saved', value: usage.memories_saved } : null,
     usage.messages_sent > 0 ? { label: 'messages sent', value: usage.messages_sent } : null,
   ].filter(Boolean)), [usage]);
-  const projectSubtitle = useMemo(() => {
-    const fileLabel = filesInPlay.length === 1 ? 'file' : 'files';
-    const conflictLabel = conflicts.length === 1 ? 'conflict' : 'conflicts';
-    return `${activeAgents.length} active agents, ${filesInPlay.length} ${fileLabel} in play, ${conflicts.length} ${conflictLabel}.`;
-  }, [activeAgents.length, filesInPlay.length, conflicts.length]);
-
   const tabs = [
-    { id: 'now', label: 'Now', badge: activeAgents.length || null },
-    { id: 'knowledge', label: 'Knowledge', badge: memories.length || null },
-    { id: 'history', label: 'History', badge: allSessions.length || null },
-    { id: 'stack', label: 'Stack', badge: toolSummaries.length || null },
+    { id: 'now', label: 'Activity', badge: activeAgents.length || null },
+    { id: 'knowledge', label: 'Memory', badge: memories.length || null },
+    { id: 'history', label: 'Sessions', badge: allSessions.length || null },
+    { id: 'stack', label: 'Tools', badge: toolSummaries.length || null },
   ];
 
   const handleUpdateMemory = useCallback(async (id, text, tags) => {
@@ -160,53 +153,33 @@ export default function ProjectView() {
       <ViewHeader
         eyebrow="Project"
         title={activeTeam?.team_name || 'Project'}
-        subtitle={projectSubtitle}
-        meta={
-          <div className={styles.headerMeta}>
-            <span className={styles.headerMetaLabel}>Last 24 hours</span>
-            <strong className={styles.headerMetaValue}>
-              {allSessions.length} session{allSessions.length === 1 ? '' : 's'}
-            </strong>
-            <span className={styles.headerMetaCaption}>
-              {sessionEditCount} edits across {filesTouchedCount} files
-            </span>
-          </div>
-        }
       />
 
       <div className={styles.hero}>
         <StatCard
           label="Active agents"
           value={activeAgents.length}
-          hint="Working right now"
           tone={activeAgents.length > 0 ? 'accent' : 'default'}
         />
         <StatCard
           label="Conflicts"
           value={conflicts.length}
-          hint="Need coordination"
           tone={conflicts.length > 0 ? 'danger' : 'default'}
         />
         <StatCard
-          label="Knowledge"
+          label="Memory"
           value={memories.length}
-          hint="Shared team memories"
           tone={memories.length > 0 ? 'success' : 'default'}
         />
         <StatCard
           label="Sessions 24h"
           value={allSessions.length}
-          hint={`${sessionEditCount} edits across ${filesTouchedCount} files`}
         />
       </div>
 
       <section className={styles.timelineSection}>
         <div className={styles.timelineCopy}>
-          <span className={styles.sectionEyebrow}>Activity</span>
-          <h2 className={styles.sectionTitle}>Last 24 hours</h2>
-          <p className={styles.sectionHint}>
-            Session activity and current live work in this repo.
-          </p>
+          <h2 className={styles.sectionTitle}>Activity</h2>
         </div>
         <ActivityTimeline sessions={allSessions} liveCount={activeAgents.length} />
       </section>
@@ -216,10 +189,7 @@ export default function ProjectView() {
           <div className={styles.tabGrid}>
             <section className={styles.block}>
               <div className={styles.blockHeader}>
-                <div>
-                  <span className={styles.sectionEyebrow}>Agents</span>
-                  <h3 className={styles.blockTitle}>Agents</h3>
-                </div>
+                <h3 className={styles.blockTitle}>Agents</h3>
                 {offlineAgents.length > 0 ? (
                   <span className={styles.blockMeta}>{offlineAgents.length} offline</span>
                 ) : null}
@@ -232,16 +202,13 @@ export default function ProjectView() {
                   ))}
                 </div>
               ) : (
-                <EmptyState title="No agents connected yet" hint="Open a connected tool in this repo to start reporting live activity." />
+                <EmptyState title="No agents connected" hint="Open a connected tool in this repo." />
               )}
             </section>
 
             <section className={styles.block}>
               <div className={styles.blockHeader}>
-                <div>
-                  <span className={styles.sectionEyebrow}>Files</span>
-                  <h3 className={styles.blockTitle}>Files</h3>
-                </div>
+                <h3 className={styles.blockTitle}>Files</h3>
               </div>
 
               {conflicts.length > 0 ? <ConflictBanner conflicts={conflicts} /> : null}
@@ -255,7 +222,7 @@ export default function ProjectView() {
                   ))}
                 </div>
               ) : (
-                <p className={styles.emptyHint}>No files in play right now.</p>
+                <p className={styles.emptyHint}>No files in play.</p>
               )}
 
               {locks.length > 0 ? (
@@ -265,7 +232,7 @@ export default function ProjectView() {
                   ))}
                 </div>
               ) : (
-                <p className={styles.emptyHint}>No file locks reported.</p>
+                <p className={styles.emptyHint}>No file locks.</p>
               )}
             </section>
           </div>
@@ -275,10 +242,7 @@ export default function ProjectView() {
           <div className={styles.tabGrid}>
             <section className={styles.block}>
               <div className={styles.blockHeader}>
-                <div>
-                  <span className={styles.sectionEyebrow}>Memory</span>
-                  <h3 className={styles.blockTitle}>Memory</h3>
-                </div>
+                <h3 className={styles.blockTitle}>Memory</h3>
                 <span className={styles.blockMeta}>{memories.length}</span>
               </div>
 
@@ -305,16 +269,13 @@ export default function ProjectView() {
                   ))}
                 </div>
               ) : (
-                <EmptyState title="No knowledge captured yet" hint="Memories saved by connected agents will show up here for the whole team." />
+                <EmptyState title="No memory saved" hint="Saved memories appear here." />
               )}
             </section>
 
             <section className={styles.block}>
               <div className={styles.blockHeader}>
-                <div>
-                  <span className={styles.sectionEyebrow}>Messages</span>
-                  <h3 className={styles.blockTitle}>Messages</h3>
-                </div>
+                <h3 className={styles.blockTitle}>Messages</h3>
                 {messages.length > 0 ? <span className={styles.blockMeta}>{messages.length}</span> : null}
               </div>
 
@@ -337,10 +298,7 @@ export default function ProjectView() {
           <div className={styles.tabGrid}>
             <section className={styles.block}>
               <div className={styles.blockHeader}>
-                <div>
-                  <span className={styles.sectionEyebrow}>Sessions</span>
-                  <h3 className={styles.blockTitle}>Sessions</h3>
-                </div>
+                <h3 className={styles.blockTitle}>Sessions</h3>
               </div>
 
               {sessions.length > 0 ? (
@@ -350,16 +308,13 @@ export default function ProjectView() {
                   ))}
                 </div>
               ) : (
-                <EmptyState title="No recent sessions" hint="Session history will appear here after connected tools start reporting work." />
+                <EmptyState title="No recent sessions" hint="Reported sessions appear here." />
               )}
             </section>
 
             <section className={styles.block}>
               <div className={styles.blockHeader}>
-                <div>
-                  <span className={styles.sectionEyebrow}>Summary</span>
-                  <h3 className={styles.blockTitle}>Summary</h3>
-                </div>
+                <h3 className={styles.blockTitle}>Summary</h3>
               </div>
 
               <div className={styles.summaryGrid}>
@@ -394,10 +349,7 @@ export default function ProjectView() {
           <div className={styles.tabGrid}>
             <section className={styles.block}>
               <div className={styles.blockHeader}>
-                <div>
-                  <span className={styles.sectionEyebrow}>Tools</span>
-                  <h3 className={styles.blockTitle}>Configured tools</h3>
-                </div>
+                <h3 className={styles.blockTitle}>Configured tools</h3>
               </div>
 
               {toolSummaries.length > 0 ? (
@@ -423,16 +375,13 @@ export default function ProjectView() {
                   ))}
                 </div>
               ) : (
-                <EmptyState title="No tools configured" hint="Run chinwag in this repo to connect tools and see them here." />
+                <EmptyState title="No tools configured" hint="Run npx chinwag init in this repo." />
               )}
             </section>
 
             <section className={styles.block}>
               <div className={styles.blockHeader}>
-                <div>
-                  <span className={styles.sectionEyebrow}>Usage</span>
-                  <h3 className={styles.blockTitle}>Usage</h3>
-                </div>
+                <h3 className={styles.blockTitle}>Usage</h3>
               </div>
 
               {usageEntries.length > 0 ? (
@@ -442,7 +391,7 @@ export default function ProjectView() {
                   ))}
                 </div>
               ) : (
-                <p className={styles.emptyHint}>Usage will appear here once the project starts recording coordination events.</p>
+                <p className={styles.emptyHint}>No usage reported.</p>
               )}
             </section>
           </div>

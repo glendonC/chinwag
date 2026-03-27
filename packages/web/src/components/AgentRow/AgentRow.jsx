@@ -1,4 +1,5 @@
 import { formatDuration } from '../../lib/utils.js';
+import ToolIcon from '../ToolIcon/ToolIcon.jsx';
 import styles from './AgentRow.module.css';
 
 export default function AgentRow({ agent }) {
@@ -21,7 +22,10 @@ export default function AgentRow({ agent }) {
 
   return (
     <div className={`${styles.row} ${isActive ? '' : styles.offline}`}>
-      <span className={`${styles.dot} ${isActive ? styles.dotOn : styles.dotOff}`} />
+      <div className={styles.identity}>
+        <span className={`${styles.dot} ${isActive ? styles.dotOn : styles.dotOff}`} />
+        {tool && <ToolIcon tool={tool} size={16} monochrome={!isActive} />}
+      </div>
       <div className={styles.info}>
         <span className={styles.tool}>{label}</span>
         {fileDisplay && <span className={styles.files}>{fileDisplay}</span>}

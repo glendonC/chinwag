@@ -1,8 +1,10 @@
 .card {
-  padding: 20px 0;
+  padding: 22px 22px 20px;
   cursor: pointer;
   outline: none;
-  transition: opacity 0.15s;
+  border-radius: 18px;
+  background: transparent;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
   animation: cardFadeIn 0.3s var(--motion) both;
 }
 
@@ -12,7 +14,15 @@
 .card:nth-child(n+4) { animation-delay: 120ms; }
 
 .card:hover {
-  opacity: 0.7;
+  transform: translateY(-2px);
+  background: rgba(0, 0, 0, 0.02);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.04);
+}
+
+.cardFeatured {
+  width: 100%;
+  max-width: none;
+  padding: 28px 28px 24px;
 }
 
 .card:focus-visible {
@@ -23,96 +33,176 @@
 
 .cardHeader {
   display: flex;
-  align-items: flex-start;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.cardFeatured .cardHeader {
+  justify-content: flex-start;
+  align-items: baseline;
+  gap: 12px;
 }
 
 .cardName {
-  font-size: 15px;
+  font-size: 1.25rem;
   font-weight: 400;
   color: var(--ink);
   opacity: var(--opacity-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
   min-width: 0;
+  letter-spacing: -0.04em;
+  line-height: 1.12;
 }
 
-.cardIndicators {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.cardFeatured .cardName {
+  font-size: clamp(1.55rem, 2.2vw, 2rem);
+}
+
+.cardMeta {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: 400;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
-.indicatorActive {
+.cardBody {
   display: flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 11px;
-  font-weight: 400;
-  color: #34c759;
+  flex-direction: column;
+  gap: 18px;
 }
 
-.indicatorDot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #34c759;
+.cardFeatured .cardBody {
+  display: grid;
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  gap: 34px;
+  align-items: end;
 }
 
-.indicatorConflict {
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--danger);
+.primaryMetric {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.primaryValue {
+  font-size: clamp(2.8rem, 5vw, 4.25rem);
+  font-weight: 200;
+  letter-spacing: -0.08em;
+  line-height: 0.9;
+  color: var(--ink);
+}
+
+.primaryCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 8px;
+}
+
+.primaryLabel {
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.primaryHint {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.metaGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .cardStats {
-  display: flex;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 18px;
+}
+
+.cardFeatured .cardStats {
+  grid-template-columns: repeat(3, minmax(100px, max-content));
+  justify-content: start;
+  align-items: end;
 }
 
 .cardStat {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 3px;
 }
 
 .cardStatValue {
-  font-size: 18px;
-  font-weight: 200;
-  letter-spacing: -0.02em;
+  font-size: 1.05rem;
+  font-weight: 400;
+  letter-spacing: -0.04em;
   line-height: 1.1;
   color: var(--ink);
 }
 
 .cardStatLabel {
-  font-size: 10px;
-  font-weight: 300;
-  color: var(--ink);
-  opacity: var(--opacity-secondary);
-  letter-spacing: 0.03em;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  line-height: 1.35;
 }
 
 .cardTools {
   display: flex;
+  align-items: center;
+  gap: 8px;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
+  justify-content: flex-start;
 }
 
 .toolChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.035);
+}
+
+.toolMore {
   font-family: var(--mono);
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.03em;
-  color: var(--ink);
-  opacity: var(--opacity-tertiary);
+  font-size: 11px;
+  color: var(--soft);
+}
+
+.emptyTools {
+  margin-top: 18px;
+  font-size: var(--text-sm);
+  color: var(--soft);
 }
 
 @keyframes cardFadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: 18px;
+  }
+
+  .cardFeatured {
+    padding: 20px 18px 18px;
+    max-width: none;
+  }
+
+  .cardFeatured .cardBody {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .cardStats {
+    grid-template-columns: 1fr;
+  }
 }

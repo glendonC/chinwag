@@ -3,10 +3,11 @@
    Clean, minimal, Apple-inspired.
    ═══════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&display=swap');
 
 :root {
   --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  --display: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
   --mono: 'SF Mono', 'IBM Plex Mono', ui-monospace, monospace;
 
   --text-2xs: 0.625rem;
@@ -27,18 +28,21 @@
   --soft: rgba(0, 0, 0, 0.3);
   --faint: rgba(0, 0, 0, 0.08);
   --ghost: rgba(0, 0, 0, 0.04);
+  --hairline: rgba(0, 0, 0, 0.06);
   --page-bg: #ffffff;
 
-  --accent: #007aff;
-  --accent-bg: rgba(0, 122, 255, 0.06);
-  --warn: #ff9500;
-  --warn-bg: rgba(255, 149, 0, 0.06);
-  --danger: #ff3b30;
-  --danger-bg: rgba(255, 59, 48, 0.06);
-  --info: #5856d6;
-  --info-bg: rgba(88, 86, 214, 0.06);
-  --purple: #af52de;
-  --purple-bg: rgba(175, 82, 222, 0.06);
+  --accent: #1d46ff;
+  --accent-bg: rgba(29, 70, 255, 0.08);
+  --success: #18b46f;
+  --success-bg: rgba(24, 180, 111, 0.08);
+  --warn: #ff9b3f;
+  --warn-bg: rgba(255, 155, 63, 0.08);
+  --danger: #ff6b57;
+  --danger-bg: rgba(255, 107, 87, 0.08);
+  --info: #5d58de;
+  --info-bg: rgba(93, 88, 222, 0.08);
+  --purple: #8a63ff;
+  --purple-bg: rgba(138, 99, 255, 0.08);
 
   --radius: 12px;
   --radius-sm: 8px;
@@ -46,8 +50,8 @@
 
   --motion: cubic-bezier(0.25, 0.1, 0.25, 1);
 
-  --sidebar-width: 240px;
-  --content-max-width: 920px;
+  --sidebar-width: 224px;
+  --content-max-width: 1080px;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -64,6 +68,7 @@ body {
   font-size: var(--text-md);
   font-weight: 400;
   line-height: 1.5;
+  letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

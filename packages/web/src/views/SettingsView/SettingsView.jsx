@@ -3,6 +3,7 @@ import { useAuthStore, authActions } from '../../lib/stores/auth.js';
 import { stopPolling } from '../../lib/stores/polling.js';
 import { api } from '../../lib/api.js';
 import { COLOR_PALETTE } from '../../lib/utils.js';
+import ViewHeader from '../../components/ViewHeader/ViewHeader.jsx';
 import styles from './SettingsView.module.css';
 
 export default function SettingsView() {
@@ -61,7 +62,21 @@ export default function SettingsView() {
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.title}>Settings</h1>
+      <ViewHeader
+        eyebrow="Settings"
+        title="Settings"
+      />
+
+      <div className={styles.profilePreview}>
+        <span
+          className={styles.profileSwatch}
+          style={{ background: COLOR_PALETTE.find((entry) => entry.name === user?.color)?.hex || '#98989d' }}
+        />
+        <div className={styles.profileCopy}>
+          <strong className={styles.profileHandle}>{user?.handle || 'Unknown user'}</strong>
+          <span className={styles.profileMeta}>Current account</span>
+        </div>
+      </div>
 
       <section className={styles.section}>
         <h2 className={styles.sectionLabel}>Account</h2>
@@ -124,12 +139,6 @@ export default function SettingsView() {
           </div>
         </div>
 
-        {user?.user_id && (
-          <div className={styles.field}>
-            <span className={styles.fieldLabel}>User ID</span>
-            <span className={styles.fieldValueMono}>{user.user_id}</span>
-          </div>
-        )}
       </section>
 
       <section className={styles.section}>

@@ -1,0 +1,88 @@
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.chart {
+  display: grid;
+  grid-template-columns: repeat(18, minmax(0, 1fr));
+  align-items: end;
+  gap: 10px;
+  min-height: 84px;
+}
+
+.column {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  min-height: 72px;
+}
+
+.bar {
+  width: 100%;
+  max-width: 18px;
+  min-height: 10px;
+  border-radius: 999px;
+  background: rgba(29, 70, 255, 0.14);
+}
+
+.barCurrent {
+  background: var(--accent);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rangeLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+.legendText {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.emptyTrack {
+  display: grid;
+  grid-template-columns: repeat(18, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.emptyTick {
+  height: 34px;
+  border-radius: 999px;
+  background: var(--ghost);
+}
+
+.emptyLabel {
+  font-size: var(--text-sm);
+  color: var(--soft);
+}

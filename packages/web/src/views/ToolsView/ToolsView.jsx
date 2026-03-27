@@ -2,6 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../../lib/stores/auth.js';
 import { usePollingStore } from '../../lib/stores/polling.js';
 import { api } from '../../lib/api.js';
+import StatCard from '../../components/StatCard/StatCard.jsx';
+import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
+import ViewHeader from '../../components/ViewHeader/ViewHeader.jsx';
 import styles from './ToolsView.module.css';
 
 export default function ToolsView() {
@@ -77,6 +80,16 @@ export default function ToolsView() {
   }, [catalog, activeCategory]);
 
   const categoryList = useMemo(() => Object.entries(categories), [categories]);
+  const connectedProjects = dashboardSnapshot?.teams?.length || 0;
+  const discoveryTools = useMemo(() => {
+    return [...filteredTools].sort((a, b) => {
+      const aConfigured = userToolIds.has(a.id) ? 1 : 0;
+      const bConfigured = userToolIds.has(b.id) ? 1 : 0;
+      if (aConfigured !== bConfigured) return aConfigured - bConfigured;
+      if (a.featured !== b.featured) return a.featured ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [filteredTools, userToolIds]);
 
   if (loading) {
     return (
@@ -88,9 +101,20 @@ export default function ToolsView() {
 
   return (
     <div className={styles.page}>
+      <ViewHeader
+        eyebrow="Tools"
+        title="Tools"
+      />
+
+      <div className={styles.hero}>
+        <StatCard label="Configured" value={userTools.length} tone={userTools.length > 0 ? 'accent' : 'default'} />
+        <StatCard label="Available" value={catalog?.length || 0} />
+        <StatCard label="Projects" value={connectedProjects} tone={connectedProjects > 0 ? 'success' : 'default'} />
+      </div>
+
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>Your tools</h2>
+          <h2 className={styles.sectionTitle}>Configured tools</h2>
           {userTools.length > 0 && (
             <span className={styles.sectionCount}>{userTools.length} configured</span>
           )}
@@ -101,27 +125,33 @@ export default function ToolsView() {
               const catalogEntry = catalog?.find(c => c.id === t.tool);
               const displayName = catalogEntry?.name || t.tool;
               return (
-                <div key={t.tool} className={styles.yourToolRow}>
-                  <span className={styles.yourToolDot} />
-                  <span className={styles.yourToolName}>{displayName}</span>
-                  <span className={styles.yourToolProjects}>
-                    {t.projects.join(', ')}
-                  </span>
-                  <span className={styles.yourToolJoins}>{t.joins} joins</span>
-                </div>
+                <article key={t.tool} className={styles.yourToolCard}>
+                  <div className={styles.yourToolHeader}>
+                    <div className={styles.yourToolIdentity}>
+                      <ToolIcon tool={t.tool} size={22} />
+                      <div>
+                        <span className={styles.yourToolName}>{displayName}</span>
+                        <span className={styles.yourToolProjects}>
+                          {t.projects.join(', ')}
+                        </span>
+                      </div>
+                    </div>
+                    <span className={styles.yourToolJoins}>{t.joins} joins</span>
+                  </div>
+                </article>
               );
             })}
           </div>
         ) : (
           <p className={styles.emptyHint}>
-            No tools configured yet. Run <code>npx chinwag init</code> in a project.
+            Run <code>npx chinwag init</code> in a project.
           </p>
         )}
       </section>
 
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>Discover</h2>
+          <h2 className={styles.sectionTitle}>Catalog</h2>
         </div>
 
         <div className={styles.categoryTabs}>
@@ -143,27 +173,34 @@ export default function ToolsView() {
         </div>
 
         <div className={styles.toolList}>
-          {filteredTools.map(tool => {
+          {discoveryTools.map(tool => {
             const isConfigured = userToolIds.has(tool.id);
             return (
-              <div key={tool.id} className={styles.toolItem}>
+              <article key={tool.id} className={styles.toolItem}>
                 <div className={styles.toolTop}>
-                  <span className={styles.toolName}>{tool.name}</span>
-                  {isConfigured && <span className={styles.toolConfigured}>configured</span>}
-                  {tool.featured && !isConfigured && <span className={styles.toolFeatured}>featured</span>}
-                  {tool.website && (
-                    <a
-                      href={tool.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={styles.toolLink}
-                      aria-label={`Visit ${tool.name} website`}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                        <path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1v-3M10 2h4v4M7 9l7-7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </a>
-                  )}
+                  <div className={styles.toolIdentity}>
+                    <ToolIcon tool={tool.id} size={24} />
+                    <div>
+                      <span className={styles.toolName}>{tool.name}</span>
+                      <span className={styles.toolCategory}>{categories[tool.category] || tool.category}</span>
+                    </div>
+                  </div>
+                  <div className={styles.toolFlags}>
+                    {isConfigured && <span className={styles.toolConfigured}>configured</span>}
+                    {tool.website && (
+                      <a
+                        href={tool.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={styles.toolLink}
+                        aria-label={`Visit ${tool.name} website`}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                          <path d="M6 2H3a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1v-3M10 2h4v4M7 9l7-7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </a>
+                    )}
+                  </div>
                 </div>
                 {tool.description && (
                   <p className={styles.toolDesc}>{tool.description}</p>
@@ -171,10 +208,10 @@ export default function ToolsView() {
                 {tool.installCmd && (
                   <code className={styles.toolInstall}>{tool.installCmd}</code>
                 )}
-              </div>
+              </article>
             );
           })}
-          {filteredTools.length === 0 && (
+          {discoveryTools.length === 0 && (
             <p className={styles.emptyHint}>No tools in this category.</p>
           )}
         </div>

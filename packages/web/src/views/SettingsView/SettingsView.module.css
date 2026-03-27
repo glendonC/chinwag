@@ -2,13 +2,36 @@
   animation: viewFadeIn 0.25s var(--motion) both;
 }
 
-.title {
-  font-size: var(--text-2xl);
-  font-weight: 300;
-  color: var(--ink);
-  opacity: var(--opacity-primary);
+.profilePreview {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 38px;
+}
+
+.profileSwatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.profileCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profileHandle {
+  font-size: var(--text-lg);
+  font-weight: 400;
   letter-spacing: -0.03em;
-  margin-bottom: 48px;
+}
+
+.profileMeta {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
 }
 
 .section {
@@ -16,12 +39,13 @@
 }
 
 .sectionLabel {
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--ink);
-  opacity: var(--opacity-secondary);
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  color: var(--soft);
   margin-bottom: 20px;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 .field {
@@ -30,15 +54,16 @@
   justify-content: space-between;
   padding: 14px 0;
   min-height: 44px;
+  gap: 14px;
 }
 
 .fieldLabel {
   font-size: 14px;
-  font-weight: 300;
+  font-weight: 400;
   color: var(--ink);
   opacity: var(--opacity-secondary);
   flex-shrink: 0;
-  width: 80px;
+  width: 110px;
 }
 
 .fieldValueRow {
@@ -77,7 +102,7 @@
   font-size: 13px;
   color: var(--ink);
   background: var(--ghost);
-  border: none;
+  border: 1px solid transparent;
   border-radius: var(--radius-xs);
   padding: 6px 10px;
   outline: none;
@@ -86,7 +111,7 @@
 }
 
 .fieldInput:focus {
-  box-shadow: 0 0 0 2px var(--accent);
+  border-color: rgba(29, 70, 255, 0.25);
 }
 
 .fieldInput::placeholder {
@@ -119,8 +144,8 @@
   font-family: var(--sans);
   font-size: 12px;
   font-weight: 400;
-  padding: 4px 12px;
-  border-radius: 4px;
+  padding: 6px 12px;
+  border-radius: 999px;
   cursor: pointer;
   border: none;
 }
@@ -147,8 +172,8 @@
 }
 
 .colorDot {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   border: none;
   cursor: pointer;

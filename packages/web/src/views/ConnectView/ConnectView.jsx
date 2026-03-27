@@ -62,9 +62,8 @@ export default function ConnectView({ error: initialError = null }) {
           <span className={styles.connectBrand}>chinwag</span>
         </div>
 
-        {/* Title */}
         <h1 className={styles.connectTitle}>Open your dashboard.</h1>
-        <p className={styles.connectSubtitle}>Run this in any project where chinwag is set up:</p>
+        <p className={styles.connectSubtitle}>Run this in a configured repo:</p>
 
         {/* Command box */}
         <button className={styles.commandBox} onClick={copyCommand} title="Copy to clipboard">
@@ -85,13 +84,8 @@ export default function ConnectView({ error: initialError = null }) {
           </span>
         </button>
 
-        <p className={styles.connectNote}>
-          If you've installed chinwag globally, you can run <code>chinwag dashboard</code> from anywhere.
-        </p>
-
-        {/* Token section */}
         <details className={styles.tokenSection}>
-          <summary className={styles.tokenToggle}>Or connect with a token</summary>
+          <summary className={styles.tokenToggle}>Use token</summary>
           <div className={styles.tokenForm}>
             <input
               type="password"
@@ -116,7 +110,6 @@ export default function ConnectView({ error: initialError = null }) {
           </div>
         </details>
 
-        {/* Privacy */}
         <a className={styles.connectPrivacy} href="/privacy.html" target="_blank" rel="noopener">Privacy</a>
       </div>
     </div>

@@ -2,70 +2,102 @@
   animation: viewFadeIn 0.25s var(--motion) both;
 }
 
-/* ── Hero: large thin numbers ── */
-.hero {
-  display: flex;
-  gap: 56px;
-  padding: 0 0 48px;
-  margin-bottom: 32px;
-}
-
-.heroStat {
+.headerMeta {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
-.heroLabel {
-  font-size: 12px;
-  font-weight: 300;
-  color: var(--ink);
-  opacity: var(--opacity-secondary);
-  letter-spacing: 0.01em;
+.headerMetaLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
-.heroValue {
-  font-size: 56px;
-  font-weight: 200;
-  letter-spacing: -0.03em;
-  line-height: 1;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
+.headerMetaValue {
+  font-size: var(--text-xl);
+  font-weight: 400;
+  letter-spacing: -0.04em;
 }
 
-.heroActive {
-  color: var(--accent);
+.headerMetaCaption {
+  font-size: var(--text-sm);
+  color: var(--muted);
 }
 
-.heroDanger {
-  color: var(--danger);
+.hero {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 22px;
+  padding-bottom: 40px;
 }
 
-/* ── Sections ── */
-.section {
-  padding: 32px 0 8px;
+.timelineSection {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  gap: 32px;
+  align-items: end;
+  padding-bottom: 42px;
 }
 
-.sectionHeader {
+.timelineCopy {
   display: flex;
-  align-items: baseline;
+  flex-direction: column;
   gap: 8px;
-  margin-bottom: 12px;
+}
+
+.sectionEyebrow {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  color: var(--soft);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 .sectionTitle {
-  font-size: 14px;
+  font-size: clamp(1.35rem, 2.3vw, 2rem);
   font-weight: 400;
-  color: var(--ink);
-  opacity: var(--opacity-secondary);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.05em;
+  line-height: 1.05;
 }
 
-.sectionCount {
-  font-size: 12px;
-  font-weight: 300;
-  color: var(--ink);
-  opacity: var(--opacity-tertiary);
+.sectionHint {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  max-width: 34ch;
+}
+
+.tabGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.9fr);
+  gap: 28px;
+}
+
+.block {
+  min-width: 0;
+}
+
+.blockHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.blockTitle {
+  font-size: clamp(1.2rem, 1.8vw, 1.6rem);
+  font-weight: 400;
+  letter-spacing: -0.04em;
+}
+
+.blockMeta {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  white-space: nowrap;
 }
 
 .sectionBody {
@@ -74,84 +106,141 @@
 }
 
 .emptyHint {
-  font-size: 13px;
-  color: var(--ink);
-  font-weight: 300;
-  opacity: var(--opacity-secondary);
+  font-size: var(--text-sm);
+  color: var(--soft);
 }
 
-/* ── Usage ── */
-.usageGrid {
+.fileCloud {
   display: flex;
-  gap: 32px;
   flex-wrap: wrap;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 18px;
 }
 
-.usageStat {
+.fileChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.04);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.memorySummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.memoryCategory {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.memoryCategoryCount {
+  font-size: 1.05rem;
+  font-weight: 400;
+  letter-spacing: -0.04em;
+}
+
+.memoryCategoryLabel {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  text-transform: capitalize;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 18px;
+}
+
+.summaryItem {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.usageStatLabel {
-  font-size: 11px;
+.summaryValue {
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
   font-weight: 300;
-  color: var(--ink);
-  opacity: var(--opacity-secondary);
+  letter-spacing: -0.06em;
+  line-height: 0.95;
 }
 
-.usageStatValue {
-  font-size: 24px;
-  font-weight: 200;
-  letter-spacing: -0.02em;
-  line-height: 1;
-  color: var(--ink);
+.summaryLabel {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  line-height: 1.35;
 }
 
-.toolBreakdown {
-  max-width: 320px;
-}
-
-.toolRow {
+.fileList {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 3px 0;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 22px;
 }
 
-.toolName {
+.fileRow {
   font-family: var(--mono);
   font-size: 11px;
   color: var(--muted);
-  width: 90px;
-  flex-shrink: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.toolStack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.toolRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 0.9fr);
+  gap: 16px;
+  align-items: center;
+}
+
+.toolIdentity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.toolCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.toolLabel {
+  font-size: var(--text-md);
+  color: var(--ink);
+}
+
+.toolMeta {
+  font-size: var(--text-sm);
+  color: var(--muted);
 }
 
 .toolBar {
-  flex: 1;
-  height: 2px;
+  display: block;
+  height: 6px;
+  border-radius: 999px;
   background: var(--ghost);
-  border-radius: 1px;
   overflow: hidden;
 }
 
 .toolBarFill {
   display: block;
   height: 100%;
+  border-radius: 999px;
   background: var(--accent);
-  border-radius: 1px;
-}
-
-.toolCount {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--soft);
-  min-width: 16px;
-  text-align: right;
 }
 
 @keyframes viewFadeIn {
@@ -159,12 +248,23 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@media (max-width: 900px) {
+  .hero {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .timelineSection,
+  .tabGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 600px) {
   .hero {
-    gap: 24px;
-    flex-wrap: wrap;
+    gap: 18px;
   }
-  .heroValue {
-    font-size: 40px;
+
+  .summaryGrid {
+    grid-template-columns: 1fr;
   }
 }

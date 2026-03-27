@@ -1,28 +1,31 @@
 .lockRow {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
-  padding: 8px 0;
+  padding: 10px 0;
   font-size: var(--text-base);
 }
 
 .lockFile {
   font-family: var(--mono);
-  font-size: var(--text-base);
+  font-size: 11px;
   color: var(--warn);
   font-weight: 400;
 }
 
 .lockOwner {
-  font-size: var(--text-base);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
   color: var(--ink);
   opacity: var(--opacity-secondary);
-  font-weight: 300;
+  font-weight: 400;
 }
 
 .lockTime {
-  font-size: var(--text-sm);
-  color: var(--ink);
-  opacity: var(--opacity-tertiary);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--soft);
   margin-left: auto;
 }

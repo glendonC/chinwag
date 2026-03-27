@@ -38,12 +38,15 @@
 
 /* ── Main ── */
 .main {
+  min-width: 0;
   overflow-y: auto;
   background: var(--page-bg);
 }
 
 .content {
-  padding: 40px 56px 80px;
+  width: min(100%, var(--content-max-width));
+  margin: 0 auto;
+  padding: 24px 56px 88px;
   max-width: var(--content-max-width);
 }
 
@@ -54,7 +57,7 @@
   justify-content: space-between;
   margin: 12px 56px 0;
   max-width: 700px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   background: var(--danger-bg);
   border-radius: var(--radius-xs);
 }
@@ -82,6 +85,8 @@
   .layout {
     grid-template-columns: 1fr;
   }
-  .content { padding: 20px 20px 60px; }
+  .content {
+    padding: 20px 20px 64px;
+  }
   .errorBanner { margin: 8px 20px 0; }
 }

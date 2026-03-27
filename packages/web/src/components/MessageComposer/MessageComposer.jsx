@@ -34,7 +34,7 @@ export default function MessageComposer({ onSend }) {
         <input
           type="text"
           className={styles.input}
-          placeholder="Message your team..."
+          placeholder="Message"
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}

@@ -1,30 +1,38 @@
 .row {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 8px 0;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .tool {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 400;
   color: var(--ink);
   opacity: var(--opacity-primary);
+  letter-spacing: -0.02em;
 }
 
 .live {
   font-size: 10px;
-  font-weight: 400;
-  color: #34c759;
+  font-weight: 500;
+  color: var(--success);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.1em;
 }
 
 .meta {
   font-family: var(--mono);
-  font-size: 12px;
-  color: var(--ink);
-  opacity: var(--opacity-tertiary);
+  font-size: 11px;
+  color: var(--soft);
   margin-left: auto;
   font-variant-numeric: tabular-nums;
+  text-align: right;
 }

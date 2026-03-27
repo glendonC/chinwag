@@ -2,11 +2,41 @@
   animation: viewFadeIn 0.25s var(--motion) both;
 }
 
+.headerMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.headerMetaLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.headerMetaValue {
+  font-size: var(--text-xl);
+  font-weight: 400;
+  letter-spacing: -0.04em;
+}
+
+.headerMetaCaption {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+  margin-bottom: 54px;
+}
+
 .loadingText {
-  font-size: 13px;
-  font-weight: 300;
-  color: var(--ink);
-  opacity: var(--opacity-secondary);
+  font-size: var(--text-sm);
+  color: var(--muted);
 }
 
 .section {
@@ -15,90 +45,107 @@
 
 .sectionHeader {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 16px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.sectionEyebrow {
+  display: inline-block;
+  margin-bottom: 6px;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 .sectionTitle {
-  font-size: 14px;
+  font-size: clamp(1.3rem, 2vw, 1.9rem);
   font-weight: 400;
   color: var(--ink);
-  opacity: var(--opacity-secondary);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.04em;
 }
 
 .sectionCount {
-  font-size: 12px;
-  font-weight: 300;
-  color: var(--ink);
-  opacity: var(--opacity-tertiary);
+  font-size: var(--text-sm);
+  color: var(--muted);
 }
 
 .yourTools {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 18px;
 }
 
-.yourToolRow {
+.yourToolCard {
+  padding: 18px;
+  border-radius: 18px;
+  background: transparent;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.yourToolCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.04);
+}
+
+.yourToolHeader {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.yourToolIdentity {
+  display: flex;
   gap: 10px;
-  padding: 10px 0;
-}
-
-.yourToolDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #34c759;
-  flex-shrink: 0;
+  min-width: 0;
 }
 
 .yourToolName {
-  font-size: 14px;
+  display: block;
+  font-size: var(--text-md);
   font-weight: 400;
   color: var(--ink);
-  opacity: var(--opacity-primary);
+  letter-spacing: -0.03em;
 }
 
 .yourToolProjects {
-  font-size: 12px;
-  font-weight: 300;
-  color: var(--ink);
-  opacity: var(--opacity-tertiary);
-  flex: 1;
+  display: block;
+  margin-top: 4px;
+  font-size: var(--text-sm);
+  color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .yourToolJoins {
   font-family: var(--mono);
-  font-size: 12px;
-  color: var(--ink);
-  opacity: var(--opacity-tertiary);
+  font-size: 11px;
+  color: var(--soft);
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
 
 .categoryTabs {
   display: flex;
-  gap: 4px;
-  margin-bottom: 24px;
+  gap: 8px;
+  margin-bottom: 26px;
   flex-wrap: wrap;
 }
 
 .categoryTab {
   font-family: var(--sans);
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 400;
   color: var(--ink);
-  opacity: var(--opacity-tertiary);
-  background: none;
+  opacity: var(--opacity-secondary);
+  background: rgba(0, 0, 0, 0.035);
   border: none;
-  border-radius: 20px;
-  padding: 5px 14px;
+  border-radius: 999px;
+  padding: 7px 14px;
   cursor: pointer;
   transition: opacity 0.15s, color 0.15s, background 0.15s;
 }
@@ -114,48 +161,79 @@
 }
 
 .toolList {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 18px;
 }
 
 .toolItem {
-  padding: 16px 0;
+  padding: 18px;
+  border-radius: 18px;
+  background: transparent;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.toolItem:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.04);
 }
 
 .toolTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.toolIdentity {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.toolFlags {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
 .toolName {
-  font-size: 15px;
+  display: block;
+  font-size: var(--text-md);
   font-weight: 400;
   color: var(--ink);
-  opacity: var(--opacity-primary);
+  letter-spacing: -0.03em;
+}
+
+.toolCategory {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--soft);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
 }
 
 .toolConfigured {
   font-size: 10px;
-  font-weight: 400;
-  color: #34c759;
+  font-weight: 500;
+  color: var(--success);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
 }
 
 .toolFeatured {
   font-size: 10px;
-  font-weight: 400;
+  font-weight: 500;
   color: var(--accent);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
 }
 
 .toolLink {
   color: var(--soft);
   display: flex;
   align-items: center;
-  margin-left: auto;
   transition: color 0.15s;
 }
 
@@ -164,11 +242,9 @@
 }
 
 .toolDesc {
-  font-size: 13px;
-  font-weight: 300;
-  color: var(--ink);
-  opacity: var(--opacity-secondary);
-  margin-top: 4px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  margin-top: 14px;
   line-height: 1.5;
 }
 
@@ -177,18 +253,17 @@
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 400;
-  color: var(--ink);
-  opacity: var(--opacity-tertiary);
-  margin-top: 6px;
+  color: var(--muted);
+  margin-top: 14px;
   background: var(--ghost);
-  padding: 3px 8px;
-  border-radius: 4px;
+  padding: 6px 10px;
+  border-radius: 999px;
 }
 
 .emptyHint {
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--ink);
-  font-weight: 300;
+  font-weight: 400;
   opacity: var(--opacity-secondary);
 }
 
@@ -203,4 +278,22 @@
 @keyframes viewFadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 900px) {
+  .hero {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .sectionHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

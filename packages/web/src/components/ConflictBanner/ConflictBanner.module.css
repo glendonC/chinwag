@@ -1,46 +1,53 @@
 .conflictsBanner {
-  padding: 12px 0;
-  margin-bottom: 8px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  border-radius: 18px;
+  background: var(--danger-bg);
 }
 
 .conflictsHeader {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 .conflictsIcon {
   font-size: 14px;
-  font-weight: 400;
+  font-weight: 500;
   color: var(--danger);
+  line-height: 1;
 }
 
 .conflictsTitle {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 400;
   color: var(--danger);
-  opacity: var(--opacity-primary);
-  letter-spacing: 0.01em;
+  letter-spacing: -0.02em;
+}
+
+.conflictsSubtitle {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .conflictRow {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  padding: 2px 0;
+  gap: 10px;
+  padding: 4px 0;
 }
 
 .conflictFile {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11px;
   color: var(--danger);
   font-weight: 400;
 }
 
 .conflictOwners {
   font-size: 12px;
-  color: var(--ink);
-  opacity: var(--opacity-secondary);
-  font-weight: 300;
+  color: var(--muted);
+  font-weight: 400;
 }

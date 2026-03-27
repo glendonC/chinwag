@@ -1,4 +1,5 @@
 import { formatDuration } from '../../lib/utils.js';
+import ToolIcon from '../ToolIcon/ToolIcon.jsx';
 import styles from './SessionRow.module.css';
 
 export default function SessionRow({ session }) {
@@ -11,6 +12,7 @@ export default function SessionRow({ session }) {
   const tool = session.framework && session.framework !== 'unknown'
     ? session.framework
     : (session.tool || null);
+  const toolIcon = session.tool && session.tool !== 'unknown' ? session.tool : null;
 
   const parts = [duration];
   if (editCount > 0) parts.push(`${editCount} edits`);
@@ -18,7 +20,10 @@ export default function SessionRow({ session }) {
 
   return (
     <div className={styles.row}>
-      <span className={styles.tool}>{tool || 'Agent'}</span>
+      <div className={styles.identity}>
+        {toolIcon ? <ToolIcon tool={toolIcon} size={16} monochrome={true} /> : null}
+        <span className={styles.tool}>{tool || 'Agent'}</span>
+      </div>
       {isLive && <span className={styles.live}>live</span>}
       <span className={styles.meta}>{parts.join(' \u00b7 ')}</span>
     </div>
