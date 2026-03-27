@@ -33,6 +33,12 @@ Do not solve problems with static lists, hardcoded values, or patterns that requ
 
 This same principle applies everywhere: prefer intelligent systems over growing config files.
 
+### Model-agnostic coordination infrastructure
+
+chinwag is the coordination layer that agents operate on. It provides the network, the shared state, and the primitives — agents bring the intelligence. Every design decision follows from this: primitives are freeform and unopinionated so they scale as models get smarter, not against them. Memory uses freeform tags, not fixed categories. Search returns results by recency — agents are the semantic ranker. Conflict detection surfaces data — agents decide what to do with it.
+
+This is a structural bet. Agents will be dramatically more capable with every model generation. The infrastructure they coordinate through should amplify that capability, not constrain it. chinwag's primitives (save, search, lock, message, report) will still be the right primitives when agents are 10x more autonomous than they are today.
+
 ### Vision: The control layer for agentic development
 
 chinwag is the control layer for agentic development. One command connects all your AI coding tools into a unified system: shared memory, live coordination, conflict prevention, workflow visibility. It works across every MCP-compatible tool, across team members, and across projects.

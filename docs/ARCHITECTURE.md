@@ -12,7 +12,9 @@ This document is the high-level map of chinwag: what we are building, how the pi
 
 **Who.** chinwag is for solo developers using several AI tools across a few active projects; small teams (2 to 5 people) on the same repo with different preferred tools; and team leads who need visibility into agent activity and coordination.
 
-**Promise.** chinwag is the vendor-neutral control layer for agentic development: connect your stack with `npx chinwag init`, share project memory across tools and teammates, get live coordination and conflict prevention where the tool allows it, and see your workflow in one place. Agents are the primary user. Value shows up through the MCP server that runs beside each session.
+**Promise.** chinwag is the vendor-neutral coordination infrastructure for agentic development: connect your stack with `npx chinwag init`, share project memory across tools and teammates, get live coordination and conflict prevention where the tool allows it, and see your workflow in one place. Agents are the primary user. Value shows up through the MCP server that runs beside each session.
+
+**Design philosophy.** chinwag provides the network, shared state, and coordination primitives. Agents bring the intelligence. Primitives are freeform and unopinionated — memory uses arbitrary tags, search returns by recency, conflict detection surfaces data without prescribing action. This scales with every model generation: as agents get smarter, the infrastructure amplifies that capability instead of constraining it.
 
 **Non-goals.** chinwag is not an agent orchestrator, not a standalone APM or observability product, not a community or social product, not a replacement for static project instructions like CLAUDE.md or AGENTS.md, and not a marketplace for arbitrary MCP servers. Discover is about AI dev tools for your workflow.
 
@@ -272,10 +274,10 @@ The monorepo has four packages:
 ### Shared Project Memory
 
 1. Agent discovers a project fact ("tests require Redis", "deploy needs AWS_REGION=us-west-2")
-2. Agent calls `chinwag_save_memory` MCP tool with the fact
-3. MCP server sends to backend, TeamDO persists in SQLite with metadata (source agent, timestamp, category)
-4. Future agent sessions on the same team receive relevant memories via `chinwag_get_team_context`
-5. Stale memories decay based on age and relevance signals
+2. Agent calls `chinwag_save_memory` MCP tool with the fact and optional freeform tags
+3. MCP server sends to backend, TeamDO persists in SQLite with metadata (source agent, timestamp, tags)
+4. Future agent sessions on the same team find memories via `chinwag_search_memory` (text search, tag filter) or receive recent memories in `chinwag_get_team_context`
+5. Memories are team knowledge — any team member can update or delete. Agents manage relevance themselves; chinwag stores and retrieves
 
 ### Chat (Secondary)
 
