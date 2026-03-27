@@ -137,7 +137,8 @@ async function sessionStart(client, teamId, hasExactSession) {
         console.log('');
         console.log('Project knowledge:');
         for (const mem of ctx.memories) {
-          console.log(`  [${mem.category}] ${mem.text}`);
+          const tagStr = mem.tags?.length ? ` [${mem.tags.join(', ')}]` : '';
+          console.log(`  ${mem.text}${tagStr}`);
         }
       }
 

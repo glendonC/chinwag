@@ -5,11 +5,10 @@ import { basename, join } from 'path';
 import { homedir } from 'os';
 import { fileURLToPath } from 'url';
 import { api } from './api.js';
-import { buildDashboardView, CATEGORY_COLORS, MEMORY_CATEGORIES, formatDuration, formatFiles, smartSummary, shortAgentId } from './dashboard-view.js';
-import { getInkColor } from './colors.js';
+import { buildDashboardView, collectTags, formatDuration, formatFiles, smartSummary } from './dashboard-view.js';
+
 import { detectTools } from './mcp-config.js';
 import { openDashboard } from './open-dashboard.js';
-import { pingAgentTerminal } from '../../shared/session-registry.js';
 
 let PKG_VERSION = '0.1.0';
 try {
@@ -135,16 +134,6 @@ export function Dashboard({ config, user, navigate }) {
         return;
       }
       if (key.escape) { setSelectedIdx(-1); return; }
-      if (key.return && selectedIdx >= 0 && selectedIdx < visibleAgents.length) {
-        const agent = visibleAgents[selectedIdx];
-        if (pingAgentTerminal(agent.agent_id)) {
-          setFlashMsg('Pinged — check your terminal tabs');
-        } else {
-          setFlashMsg('Terminal not found');
-        }
-        setTimeout(() => setFlashMsg(null), 3000);
-        return;
-      }
     }
 
     if (activeSection === 'memory') {
@@ -165,11 +154,12 @@ export function Dashboard({ config, user, navigate }) {
       }
     }
 
-    // Memory filter: [m] cycles categories
+    // Memory filter: [m] cycles tags
     if (input === 'm') {
-      const currentIdx = MEMORY_CATEGORIES.indexOf(memoryFilter);
-      const nextIdx = (currentIdx + 1) % MEMORY_CATEGORIES.length;
-      setMemoryFilter(MEMORY_CATEGORIES[nextIdx]);
+      const tags = [null, ...collectTags(memories)];
+      const currentIdx = tags.indexOf(memoryFilter);
+      const nextIdx = (currentIdx + 1) % tags.length;
+      setMemoryFilter(tags[nextIdx]);
       setMemorySelectedIdx(-1);
       setDeleteConfirm(false);
       return;
@@ -237,10 +227,8 @@ export function Dashboard({ config, user, navigate }) {
     if (input === 's') { navigate('customize'); return; }
   });
 
-  const userColor = getInkColor(user?.color);
   const {
     getToolName,
-    dividerWidth,
     projectDir,
     activeAgents,
     conflicts,
@@ -249,8 +237,6 @@ export function Dashboard({ config, user, navigate }) {
     visibleMemories,
     memoryOverflow,
     messages,
-    toolsConfigured,
-    usage,
     recentSessions,
     showRecent,
     visibleAgents,
@@ -279,42 +265,27 @@ export function Dashboard({ config, user, navigate }) {
 
   // ── Layout pieces ──────────────────────────────────────
 
-  const splashHeader = (
-    <Box borderStyle="round" paddingX={1} marginX={1} marginTop={1} flexDirection="column">
-      <Text>
-        <Text color="cyan" bold>chinwag</Text>
-        <Text dimColor>  v{PKG_VERSION}</Text>
-      </Text>
-      <Text>
-        <Text color={userColor} bold>@{user?.handle || 'unknown'}</Text>
-        <Text dimColor>  ·  {projectDir}</Text>
-      </Text>
-    </Box>
-  );
+  const header = null;
 
-  // Dynamic nav bar based on active section
   const navBar = (
-    <Box paddingX={1} paddingTop={1} flexDirection="column">
+    <Box paddingX={1} paddingTop={1}>
       <Text>
-        <Text color="cyan" bold>[Tab]</Text><Text dimColor> {activeSection === 'agents' ? 'memory' : 'agents'}  </Text>
+        {activeSection === 'memory' ? (
+          <>
+            <Text color="cyan" bold>[Tab]</Text><Text dimColor> agents  </Text>
+            <Text color="cyan" bold>[m]</Text><Text dimColor> filter  </Text>
+            {memorySelectedIdx >= 0 && (
+              <><Text color="cyan" bold>[d]</Text><Text dimColor> delete  </Text></>
+            )}
+          </>
+        ) : (
+          <><Text color="cyan" bold>[Tab]</Text><Text dimColor> memory  </Text></>
+        )}
         <Text color="cyan" bold>[w]</Text><Text dimColor> browser  </Text>
-        <Text color="cyan" bold>[e]</Text><Text dimColor> editor  </Text>
-        <Text color="cyan" bold>[f]</Text><Text dimColor> discover  </Text>
-        <Text color="cyan" bold>[c]</Text><Text dimColor> chat  </Text>
+        <Text color="cyan" bold>[f]</Text><Text dimColor> tools  </Text>
         <Text color="cyan" bold>[s]</Text><Text dimColor> settings  </Text>
         <Text color="cyan" bold>[q]</Text><Text dimColor> quit</Text>
       </Text>
-      {activeSection === 'memory' && (
-        <Text>
-          <Text color="cyan" bold>[m]</Text><Text dimColor> filter  </Text>
-          {memorySelectedIdx >= 0 && (
-            <>
-              <Text color="cyan" bold>[d]</Text><Text dimColor> delete  </Text>
-            </>
-          )}
-          <Text dimColor>↑↓ select</Text>
-        </Text>
-      )}
     </Box>
   );
 
@@ -336,7 +307,7 @@ export function Dashboard({ config, user, navigate }) {
   if (error) {
     return (
       <Box flexDirection="column">
-        {splashHeader}
+        {header}
         <Box paddingX={1} paddingTop={1}>
           <Text color="red">{error}</Text>
         </Box>
@@ -348,7 +319,7 @@ export function Dashboard({ config, user, navigate }) {
   if (!context) {
     return (
       <Box flexDirection="column">
-        {splashHeader}
+        {header}
         <Box paddingX={1} paddingTop={1}>
           <Text dimColor>Connecting...</Text>
         </Box>
@@ -361,18 +332,18 @@ export function Dashboard({ config, user, navigate }) {
 
   return (
     <Box flexDirection="column">
-      {splashHeader}
+      {header}
 
       {/* Agents — the core section, always visible */}
       <Box flexDirection="column" paddingX={1} paddingTop={1}>
         <Text>
           <Text bold>Agents</Text>
-          {activeSection === 'agents' && <Text color="cyan"> *</Text>}
           {activeAgents.length > 0 && (
-            <Text dimColor>  {activeAgents.length} running  ↑↓</Text>
+            <Text dimColor>  {activeAgents.length} active</Text>
           )}
+          {activeSection === 'agents' && activeAgents.length > 0 && <Text dimColor>  ↑↓</Text>}
         </Text>
-        <Text dimColor>{'─'.repeat(dividerWidth)}</Text>
+
         {activeAgents.length === 0 ? (
           <Text dimColor>  No agents running. Start an AI tool to see it here.</Text>
         ) : (
@@ -380,7 +351,10 @@ export function Dashboard({ config, user, navigate }) {
             {visibleAgents.map((m, idx) => {
               const toolName = getToolName(m.tool);
               const dur = formatDuration(m.session_minutes);
-              const showShortId = toolCounts.get(m.tool) > 1;
+              const hasDupes = toolCounts.get(m.tool) > 1;
+              const toolNum = hasDupes
+                ? visibleAgents.slice(0, idx).filter(a => a.tool === m.tool).length + 1
+                : 0;
               const isSelected = activeSection === 'agents' && idx === selectedIdx;
               const allFiles = m.activity?.files || [];
               const files = formatFiles(allFiles);
@@ -394,8 +368,8 @@ export function Dashboard({ config, user, navigate }) {
                       : <Text color="green">  ● </Text>
                     }
                     <Text bold>{toolName || 'Unknown'}</Text>
-                    {showShortId && <Text dimColor> #{shortAgentId(m.agent_id)}</Text>}
                     {isTeam && <Text dimColor>  {m.handle}</Text>}
+                    {summary && <Text>  {summary}</Text>}
                     {dur && <Text dimColor>  {dur}</Text>}
                   </Text>
                   {isSelected ? (
@@ -406,17 +380,9 @@ export function Dashboard({ config, user, navigate }) {
                           ))
                         : <Text dimColor>{'      '}No activity reported yet</Text>
                       }
-                      {m.activity?.summary && !/^editing\s/i.test(m.activity.summary) && (
-                        <Text dimColor>{'      '}"{m.activity.summary}"</Text>
-                      )}
                     </Box>
-                  ) : (files || summary) ? (
-                    <Text dimColor>
-                      {'    '}
-                      {files || ''}
-                      {files && summary ? ` — "${summary}"` : ''}
-                      {!files && summary ? `"${summary}"` : ''}
-                    </Text>
+                  ) : files ? (
+                    <Text dimColor>{'    '}{files}</Text>
                   ) : null}
                 </Box>
               );
@@ -432,7 +398,7 @@ export function Dashboard({ config, user, navigate }) {
       {conflicts.length > 0 && (
         <Box flexDirection="column" paddingX={1} paddingTop={1}>
           <Text color="red" bold>Conflicts</Text>
-          <Text dimColor>{'─'.repeat(dividerWidth)}</Text>
+  
           {conflicts.map(([file, owners]) => (
             <Text key={file}>
               <Text color="red">  ! {basename(file)}</Text>
@@ -449,7 +415,7 @@ export function Dashboard({ config, user, navigate }) {
             <Text bold>Messages</Text>
             <Text dimColor>  {messages.length} recent</Text>
           </Text>
-          <Text dimColor>{'─'.repeat(dividerWidth)}</Text>
+  
           {messages.slice(0, 5).map((msg, i) => {
             const from = msg.from_tool && msg.from_tool !== 'unknown'
               ? `${msg.from_handle} (${msg.from_tool})`
@@ -471,33 +437,33 @@ export function Dashboard({ config, user, navigate }) {
       <Box flexDirection="column" paddingX={1} paddingTop={1}>
         <Text>
           <Text bold>Memory</Text>
-          {activeSection === 'memory' && <Text color="cyan"> *</Text>}
           {memories.length > 0 && <Text dimColor>  {memories.length} saved</Text>}
           {memoryFilter && <Text color="yellow">  [{memoryFilter}]</Text>}
+          {activeSection === 'memory' && <Text dimColor>  ↑↓</Text>}
         </Text>
-        <Text dimColor>{'─'.repeat(dividerWidth)}</Text>
+
         {filteredMemories.length === 0 ? (
           <Text dimColor>
             {memoryFilter
               ? `  No ${memoryFilter} memories. [m] to change filter.`
-              : '  None yet — agents save gotchas, configs, patterns, and decisions here.'}
+              : '  None yet — agents save project knowledge here.'}
           </Text>
         ) : (
           <>
             {visibleMemories.map((mem, idx) => {
-              const prefix = `  [${mem.category}]  `;
-              const maxText = cols - prefix.length - 4;
+              const tagStr = mem.tags?.length ? `[${mem.tags.join(', ')}]` : '';
+              const prefixLen = 4 + (tagStr ? tagStr.length + 2 : 0);
+              const maxText = cols - prefixLen - 4;
               const text = mem.text.length > maxText ? mem.text.slice(0, maxText - 1) + '…' : mem.text;
               const isMemSelected = activeSection === 'memory' && idx === memorySelectedIdx;
-              const catColor = CATEGORY_COLORS[mem.category] || 'gray';
               return (
                 <Text key={mem.id || idx}>
                   {isMemSelected
                     ? <Text color="cyan">  ▸ </Text>
                     : <Text>{'  '}</Text>
                   }
-                  <Text color={catColor}>[{mem.category}]</Text>
-                  <Text>  {text}</Text>
+                  {tagStr && <Text dimColor>{tagStr}  </Text>}
+                  <Text>{text}</Text>
                   {isMemSelected && mem.source_handle && (
                     <Text dimColor>  — {mem.source_handle}</Text>
                   )}
@@ -517,42 +483,13 @@ export function Dashboard({ config, user, navigate }) {
         )}
       </Box>
 
-      {/* Stats — compact telemetry when data exists */}
-      {(toolsConfigured.length > 0 || Object.keys(usage).length > 0) && (
-        <Box flexDirection="column" paddingX={1} paddingTop={1}>
-          <Text bold>Stats</Text>
-          <Text dimColor>{'─'.repeat(dividerWidth)}</Text>
-          <Text>
-            {'  '}
-            {usage.conflict_checks > 0 && (
-              <Text dimColor>Checks: {usage.conflict_checks}  </Text>
-            )}
-            {usage.conflicts_found > 0 && (
-              <Text color="red">Found: {usage.conflicts_found}  </Text>
-            )}
-            {usage.memories_saved > 0 && (
-              <Text dimColor>Saved: {usage.memories_saved}  </Text>
-            )}
-            {usage.messages_sent > 0 && (
-              <Text dimColor>Msgs: {usage.messages_sent}</Text>
-            )}
-          </Text>
-          {toolsConfigured.length > 0 && (
-            <Text dimColor>
-              {'  Tools: '}
-              {toolsConfigured.map(t => `${t.tool} (${t.joins})`).join(', ')}
-            </Text>
-          )}
-        </Box>
-      )}
-
       {/* Recent — past work, only when no agents are live */}
       {showRecent && (
         <Box flexDirection="column" paddingX={1} paddingTop={1}>
           <Text bold>Recent</Text>
-          <Text dimColor>{'─'.repeat(dividerWidth)}</Text>
+  
           {recentSessions.slice(0, 5).map(s => {
-            const dur = formatDuration(s.duration_minutes) || '0m';
+            const dur = formatDuration(s.duration_minutes) || '0 min';
             const fileCount = s.files_touched?.length || 0;
             const hasActivity = s.edit_count > 0 || fileCount > 0;
             const toolName = s.tool ? getToolName(s.tool) : null;

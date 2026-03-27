@@ -10,6 +10,7 @@ import {
   getCachedContext,
   clearContextCache,
 } from './context.js';
+import { setTerminalTitle } from '../../shared/session-registry.js';
 
 // --- Helpers ---
 
@@ -105,6 +106,11 @@ export function registerTools(server, { team, state, profile }) {
       if (!state.teamId) return noTeam();
       try {
         await team.updateActivity(state.teamId, files, summary);
+        // Set terminal tab title to the agent's task — stable identity
+        if (state.tty && summary) {
+          const label = summary.length > 40 ? summary.slice(0, 39) + '…' : summary;
+          setTerminalTitle(state.tty, `chinwag · ${label}`);
+        }
         const preamble = await teamPreamble(team, state.teamId);
         return { content: [{ type: 'text', text: `${preamble}Activity updated: ${summary}` }] };
       } catch (err) {
@@ -228,7 +234,8 @@ export function registerTools(server, { team, state, profile }) {
         lines.push('');
         lines.push('Project knowledge:');
         for (const mem of ctx.memories) {
-          lines.push(`  [${mem.category}] ${mem.text}`);
+          const tagStr = mem.tags?.length ? ` [${mem.tags.join(', ')}]` : '';
+          lines.push(`  ${mem.text}${tagStr}`);
         }
       }
 
@@ -239,18 +246,19 @@ export function registerTools(server, { team, state, profile }) {
   addTool(
     'chinwag_save_memory',
     {
-      description: 'Save a project fact or learning that other agents on the team should know. Use this when you discover something important about the project that would help other agents. These persist across sessions and are shared with all team agents.',
+      description: 'Save project knowledge that persists across sessions and is shared with all agents on the team. Store anything worth remembering: setup requirements, conventions, architecture decisions, gotchas, useful links, or context that would help a future agent working in this codebase. You decide what to store and how to tag it.',
       inputSchema: z.object({
-        text: z.string().max(2000).describe('The fact or learning to save. Be specific and actionable, e.g. "Tests require Redis running on port 6379" or "API docs: https://docs.stripe.com/api"'),
-        category: z.enum(['gotcha', 'pattern', 'config', 'decision', 'reference']).describe('Category: "gotcha" (pitfalls), "pattern" (conventions), "config" (setup facts), "decision" (architecture), "reference" (URLs, docs, external resources)'),
+        text: z.string().max(2000).describe('The knowledge to save. Be specific and actionable.'),
+        tags: z.array(z.string().max(50)).max(10).optional().describe('Optional tags for organization (e.g. ["setup", "redis", "testing"]). Use whatever labels make sense.'),
       }),
     },
-    async ({ text, category }) => {
+    async ({ text, tags }) => {
       if (!state.teamId) return noTeam();
       try {
-        await team.saveMemory(state.teamId, text, category);
+        await team.saveMemory(state.teamId, text, tags);
         const preamble = await teamPreamble(team, state.teamId);
-        return { content: [{ type: 'text', text: `${preamble}Memory saved [${category}]: ${text}` }] };
+        const tagStr = tags?.length ? ` [${tags.join(', ')}]` : '';
+        return { content: [{ type: 'text', text: `${preamble}Memory saved${tagStr}: ${text}` }] };
       } catch (err) {
         return errorResult(err);
       }
@@ -260,27 +268,27 @@ export function registerTools(server, { team, state, profile }) {
   addTool(
     'chinwag_update_memory',
     {
-      description: 'Update an existing team memory. Use chinwag_search_memory first to find the ID. Only the original author can update a memory. Use this to correct or improve knowledge without creating duplicates.',
+      description: 'Update an existing team memory. Use chinwag_search_memory first to find the ID. Any team member can update any memory — memories are team knowledge. Use this to correct, improve, or re-tag knowledge without creating duplicates.',
       inputSchema: z.object({
         id: z.string().describe('Memory ID to update (UUID format, get from chinwag_search_memory)'),
         text: z.string().max(2000).optional().describe('Updated text content'),
-        category: z.enum(['gotcha', 'pattern', 'config', 'decision', 'reference']).optional().describe('Updated category'),
+        tags: z.array(z.string().max(50)).max(10).optional().describe('Updated tags'),
       }),
     },
-    async ({ id, text, category }) => {
+    async ({ id, text, tags }) => {
       if (!state.teamId) return noTeam();
-      if (!text && !category) {
-        return { content: [{ type: 'text', text: 'Provide at least one of text or category to update.' }], isError: true };
+      if (!text && !tags) {
+        return { content: [{ type: 'text', text: 'Provide at least one of text or tags to update.' }], isError: true };
       }
       try {
-        const result = await team.updateMemory(state.teamId, id, text, category);
+        const result = await team.updateMemory(state.teamId, id, text, tags);
         if (result.error) {
           return { content: [{ type: 'text', text: `Failed to update memory ${id}: ${result.error}` }], isError: true };
         }
         const preamble = await teamPreamble(team, state.teamId);
         const parts = [];
-        if (text) parts.push(`text updated`);
-        if (category) parts.push(`category → ${category}`);
+        if (text) parts.push('text updated');
+        if (tags) parts.push(`tags → ${tags.join(', ')}`);
         return { content: [{ type: 'text', text: `${preamble}Memory ${id} updated (${parts.join(', ')}).` }] };
       } catch (err) {
         return errorResult(err);
@@ -291,23 +299,24 @@ export function registerTools(server, { team, state, profile }) {
   addTool(
     'chinwag_search_memory',
     {
-      description: 'Search team project memories by keyword and/or category. Use this to find specific knowledge the team has saved, like setup requirements, conventions, or past decisions.',
+      description: 'Search team project memories by keyword and/or tags. Use this to find knowledge the team has saved before starting work or when you need context.',
       inputSchema: z.object({
         query: z.string().max(200).optional().describe('Search text (matches against memory content)'),
-        category: z.enum(['gotcha', 'pattern', 'config', 'decision', 'reference']).optional().describe('Filter by category'),
+        tags: z.array(z.string().max(50)).max(10).optional().describe('Filter by tags (returns memories matching ANY of the listed tags)'),
         limit: z.number().min(1).max(50).optional().describe('Max results (default 20)'),
       }),
     },
-    async ({ query, category, limit }) => {
+    async ({ query, tags, limit }) => {
       if (!state.teamId) return noTeam();
       try {
-        const result = await team.searchMemories(state.teamId, query, category, limit);
+        const result = await team.searchMemories(state.teamId, query, tags, limit);
         if (!result.memories || result.memories.length === 0) {
           return { content: [{ type: 'text', text: 'No memories found.' }] };
         }
-        const lines = result.memories.map(m =>
-          `[${m.category}] ${m.text} (id: ${m.id}, by ${m.source_handle})`
-        );
+        const lines = result.memories.map(m => {
+          const tagStr = m.tags?.length ? ` [${m.tags.join(', ')}]` : '';
+          return `${m.text}${tagStr} (id: ${m.id}, by ${m.source_handle})`;
+        });
         return { content: [{ type: 'text', text: lines.join('\n') }] };
       } catch (err) {
         return errorResult(err);

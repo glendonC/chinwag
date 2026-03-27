@@ -2,14 +2,15 @@ import { basename } from 'path';
 
 export const MAX_AGENTS = 5;
 export const MAX_MEMORIES = 8;
-export const MEMORY_CATEGORIES = [null, 'gotcha', 'pattern', 'config', 'decision', 'reference'];
-export const CATEGORY_COLORS = {
-  gotcha: 'yellow',
-  pattern: 'magenta',
-  config: 'blue',
-  decision: 'green',
-  reference: 'gray',
-};
+
+// Collect unique tags from a set of memories for dynamic filtering
+export function collectTags(memories) {
+  const tags = new Set();
+  for (const m of memories) {
+    if (m.tags?.length) for (const t of m.tags) tags.add(t);
+  }
+  return [...tags].sort();
+}
 
 export function createToolNameResolver(detectedTools) {
   const toolNameMap = new Map((detectedTools || []).map(t => [t.id, t.name]));
@@ -21,9 +22,13 @@ export function createToolNameResolver(detectedTools) {
 
 export function formatDuration(minutes) {
   if (minutes == null) return null;
-  return minutes >= 60
-    ? `${Math.floor(minutes / 60)}h ${Math.round(minutes % 60)}m`
-    : `${Math.round(minutes)}m`;
+  const m = Math.round(minutes);
+  if (m >= 60) {
+    const h = Math.floor(m / 60);
+    const rem = m % 60;
+    return rem > 0 ? `${h}h ${rem}m` : `${h}h`;
+  }
+  return `${m} min`;
 }
 
 export function formatFiles(files) {
@@ -86,7 +91,7 @@ export function buildDashboardView({
 
   const memories = context?.memories || [];
   const filteredMemories = memoryFilter
-    ? memories.filter(memory => memory.category === memoryFilter)
+    ? memories.filter(memory => memory.tags?.includes(memoryFilter))
     : memories;
   const visibleMemories = filteredMemories.slice(0, MAX_MEMORIES);
   const memoryOverflow = filteredMemories.length - MAX_MEMORIES;
@@ -158,7 +163,8 @@ export function generateDashboardMd(context, user, projectDir, getToolName) {
     lines.push('_No memories yet._', '');
   } else {
     for (const memory of memories) {
-      lines.push(`- **[${memory.category}]** ${memory.text}`);
+      const tagStr = memory.tags?.length ? `**[${memory.tags.join(', ')}]** ` : '';
+      lines.push(`- ${tagStr}${memory.text}`);
     }
     lines.push('');
   }

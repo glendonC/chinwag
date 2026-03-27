@@ -23,7 +23,7 @@ describe('dashboard view helpers', () => {
   });
 
   it('formats durations and file summaries compactly', () => {
-    expect(formatDuration(42)).toBe('42m');
+    expect(formatDuration(42)).toBe('42 min');
     expect(formatDuration(90)).toBe('1h 30m');
     expect(formatFiles(['src/a.js', 'src/b.js', 'src/c.js', 'src/d.js'])).toBe('a.js, b.js + 2 more');
   });
@@ -74,8 +74,8 @@ describe('dashboard view helpers', () => {
           },
         ],
         memories: [
-          { id: 'm1', category: 'decision', text: 'Use TeamDO for coordination' },
-          { id: 'm2', category: 'config', text: 'Run worker on port 8787' },
+          { id: 'm1', tags: ['decision'], text: 'Use TeamDO for coordination' },
+          { id: 'm2', tags: ['config'], text: 'Run worker on port 8787' },
         ],
         recentSessions: [
           { owner_handle: 'alice', duration_minutes: 12, edit_count: 2, files_touched: ['src/shared.js'] },
@@ -85,7 +85,7 @@ describe('dashboard view helpers', () => {
 
     expect(view.activeAgents).toHaveLength(2);
     expect(view.conflicts).toEqual([['src/shared.js', ['alice (Claude Code)', 'bob (Cursor)']]]);
-    expect(view.filteredMemories).toEqual([{ id: 'm1', category: 'decision', text: 'Use TeamDO for coordination' }]);
+    expect(view.filteredMemories).toEqual([{ id: 'm1', tags: ['decision'], text: 'Use TeamDO for coordination' }]);
     expect(view.showRecent).toBe(false);
     expect(view.projectDir).toBe('chinwag');
   });

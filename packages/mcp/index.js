@@ -15,6 +15,7 @@ import { findTeamFile, teamHandlers } from './lib/team.js';
 import { detectToolName, generateSessionAgentId } from './lib/identity.js';
 import { cleanupProcessSession, registerProcessSession } from './lib/lifecycle.js';
 import { registerTools, registerResources } from './lib/register-tools.js';
+import { setTerminalTitle } from '../shared/session-registry.js';
 
 let PKG = { version: '0.0.0' };
 try {
@@ -42,7 +43,10 @@ async function main() {
   let parentTty = null;
   try {
     ({ tty: parentTty } = registerProcessSession(agentId, toolName));
-    if (parentTty) console.error(`[chinwag] Terminal: ${parentTty}`);
+    if (parentTty) {
+      console.error(`[chinwag] Terminal: ${parentTty}`);
+      setTerminalTitle(parentTty, `chinwag · ${basename(process.cwd())}`);
+    }
   } catch {}
 
   // Scan environment and register profile
@@ -60,6 +64,7 @@ async function main() {
     teamId: findTeamFile(),
     heartbeatInterval: null,
     sessionId: null,
+    tty: parentTty,
   };
 
   const team = teamHandlers(client);

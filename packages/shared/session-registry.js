@@ -1,5 +1,5 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'fs';
-import { execFileSync } from 'child_process';
+import { execFile, execFileSync } from 'child_process';
 import { homedir } from 'os';
 import { join } from 'path';
 
@@ -117,6 +117,16 @@ export function resolveSessionAgentId({
   }
 }
 
+export function setTerminalTitle(tty, title) {
+  if (!tty) return false;
+  try {
+    appendFileSync(tty, `\x1b]0;${title}\x07`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function pingAgentTerminal(agentId, {
   homeDir = homedir(),
   recordAlive = isSessionRecordAlive,
@@ -124,6 +134,9 @@ export function pingAgentTerminal(agentId, {
   const record = readSessionRecord(agentId, { homeDir });
   if (!record?.tty || !recordAlive(record)) return false;
   try {
+    // iTerm2/Kitty: request attention — pulses the tab orange
+    appendFileSync(record.tty, '\x1b]1337;RequestAttention=yes\x07');
+    // Terminal bell (flashes tab in most terminals if bells enabled)
     appendFileSync(record.tty, '\x07');
     return true;
   } catch {

@@ -113,6 +113,8 @@ describe('session registry', () => {
     });
 
     expect(pinged).toBe(true);
-    expect(fs.readFileSync(fakeTty, 'utf-8')).toBe('\x07');
+    const written = fs.readFileSync(fakeTty, 'utf-8');
+    expect(written).toContain('\x1b]1337;RequestAttention=yes\x07');
+    expect(written).toContain('\x07');
   });
 });

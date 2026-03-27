@@ -71,11 +71,20 @@ if (process.argv[2] === 'dashboard') {
 // Set terminal tab title
 process.stdout.write('\x1b]0;chinwag\x07');
 
+const SPINNER = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+
 function App() {
   const [screen, setScreen] = useState('loading');
   const [config, setConfig] = useState(null);
   const [user, setUser] = useState(null);
+  const [spin, setSpin] = useState(0);
   const { exit } = useApp();
+
+  useEffect(() => {
+    if (screen !== 'loading') return;
+    const id = setInterval(() => setSpin(s => (s + 1) % SPINNER.length), 80);
+    return () => clearInterval(id);
+  }, [screen]);
 
   useEffect(() => {
     async function init() {
@@ -122,11 +131,8 @@ function App() {
   const screenContent = (() => {
     if (screen === 'loading') {
       return (
-        <Box flexDirection="column" paddingX={2} paddingY={1} borderStyle="round" borderColor="cyan">
-          <Text color="cyan" bold>chinwag</Text>
-          <Text dimColor>the control layer for agentic development</Text>
-          <Text>{''}</Text>
-          <Text dimColor>Connecting...</Text>
+        <Box paddingX={1} paddingTop={2}>
+          <Text><Text color="cyan">{SPINNER[spin]}</Text><Text dimColor>  connecting</Text></Text>
         </Box>
       );
     }
