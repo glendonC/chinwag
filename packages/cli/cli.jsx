@@ -1,6 +1,7 @@
 import React, { useState, useEffect, Component } from 'react';
 import { render, Box, Text, useApp, useInput } from 'ink';
 import { basename } from 'path';
+import { readFileSync } from 'fs';
 import { loadConfig, saveConfig, configExists, deleteConfig } from './lib/config.js';
 import { api } from './lib/api.js';
 import { Welcome } from './lib/init.jsx';
@@ -10,6 +11,12 @@ import { Dashboard } from './lib/dashboard.jsx';
 import { Discover } from './lib/discover.jsx';
 import { ControlShell } from './lib/shell.jsx';
 import { useTerminalControl } from './lib/terminal-control.js';
+
+let PKG_VERSION = '0.1.0';
+try {
+  const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
+  PKG_VERSION = pkg.version || PKG_VERSION;
+} catch {}
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -80,10 +87,10 @@ if (process.argv[2] === 'dashboard') {
 
 const SPINNER = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 const PRIMARY_MODES = [
-  { key: 'dashboard', label: 'operator-panel', shortLabel: 'panel', accent: 'cyan' },
-  { key: 'discover', label: 'tool-registry', shortLabel: 'registry', accent: 'yellow' },
-  { key: 'chat', label: 'team-chat', shortLabel: 'chat', accent: 'magenta' },
-  { key: 'customize', label: 'identity', shortLabel: 'identity', accent: 'green' },
+  { key: 'dashboard', label: 'main', shortLabel: 'main', accent: 'cyan' },
+  { key: 'discover', label: 'tools', shortLabel: 'tools', accent: 'yellow' },
+  { key: 'chat', label: 'chat', shortLabel: 'chat', accent: 'magenta' },
+  { key: 'customize', label: 'settings', shortLabel: 'settings', accent: 'green' },
 ];
 
 function App() {
@@ -194,6 +201,7 @@ function App() {
                 layout={{ viewportRows, compact }}
                 showSessionIntro={!hasInteracted}
                 projectLabel={projectLabel}
+                appVersion={PKG_VERSION}
               />
             );
           }

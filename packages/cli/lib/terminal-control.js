@@ -8,11 +8,30 @@ function canControlTerminal() {
   return Boolean(process.stdout?.isTTY);
 }
 
+export function getTerminalUiCapabilities() {
+  const term = String(process.env.TERM || '').toLowerCase();
+  const noColor = process.env.NO_COLOR != null && process.env.NO_COLOR !== '0';
+  const forceColor = process.env.FORCE_COLOR != null && process.env.FORCE_COLOR !== '0';
+
+  let colorDepth = 1;
+  try {
+    colorDepth = process.stdout?.getColorDepth?.() || 1;
+  } catch {}
+
+  const hasNamedTerminal = Boolean(term && term !== 'dumb' && term !== 'unknown');
+  const hasBasicColor = forceColor || (!noColor && hasNamedTerminal && colorDepth >= 4);
+  const hasBackgroundFill = forceColor || (!noColor && hasNamedTerminal && colorDepth >= 8);
+
+  return {
+    hasBasicColor,
+    hasBackgroundFill,
+    isLowFidelity: !hasBasicColor,
+  };
+}
+
 function supportsAlternateScreen() {
   if (!canControlTerminal()) return false;
-  const term = String(process.env.TERM || '').toLowerCase();
-  if (!term || term === 'dumb' || term === 'unknown') return false;
-  return true;
+  return !getTerminalUiCapabilities().isLowFidelity;
 }
 
 function writeEscape(sequence) {
