@@ -98,7 +98,6 @@ function App() {
   const [config, setConfig] = useState(null);
   const [user, setUser] = useState(null);
   const [spin, setSpin] = useState(0);
-  const [hasInteracted, setHasInteracted] = useState(false);
   const { exit } = useApp();
   const projectLabel = basename(process.cwd());
   const isPrimaryMode = PRIMARY_MODES.some(mode => mode.key === screen);
@@ -159,10 +158,6 @@ function App() {
   };
 
   useInput((input, key) => {
-    if (screen !== 'loading' && screen !== 'welcome' && (input || key.tab || key.leftArrow || key.rightArrow || key.upArrow || key.downArrow || key.return || key.escape)) {
-      setHasInteracted(true);
-    }
-
     if (!isPrimaryMode || !key.tab) return;
 
     const idx = PRIMARY_MODES.findIndex(mode => mode.key === screen);
@@ -196,10 +191,8 @@ function App() {
             return (
               <Dashboard
                 config={config}
-                user={user}
                 navigate={navigate}
-                layout={{ viewportRows, compact }}
-                showSessionIntro={!hasInteracted}
+                layout={{ viewportRows }}
                 projectLabel={projectLabel}
                 appVersion={PKG_VERSION}
               />

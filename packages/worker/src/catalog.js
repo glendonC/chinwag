@@ -1,17 +1,11 @@
-// Tool Catalog — single source of truth for the full AI dev tool catalog.
-// CLI and web fetch this instead of maintaining their own static lists.
-// MCP_TOOLS (tools chinwag writes configs for) are a subset marked with mcpConfigurable: true.
+import { buildMcpToolCatalogEntries } from '../../shared/tool-registry.js';
+
+// Tool Catalog — discovery surface for the full AI dev tool catalog.
+// MCP-configurable tools are derived from the shared canonical registry so
+// runtime integration and discovery cannot drift apart.
 
 export const TOOL_CATALOG = [
-  // MCP-configurable tools (chinwag writes config for these)
-  { id: 'claude-code', name: 'Claude Code', description: 'Terminal AI coding agent with hooks, channels, and agent teams', category: 'coding-agent', website: 'https://claude.ai/code', installCmd: 'npm install -g @anthropic-ai/claude-code', mcpCompatible: true, mcpConfigurable: true, featured: true },
-  { id: 'cursor', name: 'Cursor', description: 'AI-native code editor with inline completions and chat', category: 'coding-agent', website: 'https://cursor.com', mcpCompatible: true, mcpConfigurable: true, featured: true },
-  { id: 'windsurf', name: 'Windsurf', description: 'AI IDE with autonomous Cascade agent and memory', category: 'coding-agent', website: 'https://windsurf.com', mcpCompatible: true, mcpConfigurable: true, featured: true },
-  { id: 'vscode', name: 'VS Code', description: 'Code editor with Copilot, Cline, and Continue extensions', category: 'coding-agent', website: 'https://code.visualstudio.com', mcpCompatible: true, mcpConfigurable: true },
-  { id: 'codex', name: 'Codex', description: 'OpenAI terminal coding agent with cloud sandboxes', category: 'coding-agent', website: 'https://openai.com/index/codex/', installCmd: 'npm install -g @openai/codex', mcpCompatible: true, mcpConfigurable: true },
-  { id: 'aider', name: 'Aider', description: 'Terminal pair programmer that edits code in your repo', category: 'coding-agent', website: 'https://aider.chat', installCmd: 'pip install aider-chat', mcpCompatible: true, mcpConfigurable: true, featured: true },
-  { id: 'jetbrains', name: 'JetBrains', description: 'AI assistant across IntelliJ, PyCharm, WebStorm, and more', category: 'coding-agent', website: 'https://www.jetbrains.com/ai/', mcpCompatible: true, mcpConfigurable: true },
-  { id: 'amazon-q', name: 'Amazon Q', description: 'AWS AI assistant for coding, debugging, and deployment', category: 'coding-agent', website: 'https://aws.amazon.com/q/developer/', mcpCompatible: true, mcpConfigurable: true },
+  ...buildMcpToolCatalogEntries(),
 
   // Discovery-only coding agents
   { id: 'cline', name: 'Cline', description: 'Autonomous AI coding agent for VS Code', category: 'coding-agent', website: 'https://cline.bot', mcpCompatible: true },

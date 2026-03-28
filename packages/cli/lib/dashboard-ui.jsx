@@ -1,26 +1,13 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 
-export function getAnimatedGlyph(kind, frame = 0) {
+export function getAnimatedGlyph(kind) {
   if (kind === 'running') return '●';
   if (kind === 'checking') return '○';
   if (kind === 'selected') return '▸';
   if (kind === 'failed') return '✗';
   if (kind === 'done') return '✓';
   return '•';
-}
-
-export function StatusBadge({ label, color }) {
-  return <Text color={color} bold>[{label}]</Text>;
-}
-
-export function SectionHeading({ title, subtitle = null, color = 'cyan' }) {
-  return (
-    <Text>
-      <Text color={color} bold>{title}</Text>
-      {subtitle ? <Text dimColor>  {subtitle}</Text> : null}
-    </Text>
-  );
 }
 
 export function CommandHint({ commandKey, label, color = 'cyan' }) {

@@ -7,7 +7,6 @@ import { api } from './api.js';
 import {
   buildCombinedAgentRows,
   buildDashboardView,
-  countLiveAgents,
   formatFiles,
   shortAgentId,
 } from './dashboard-view.js';
@@ -29,6 +28,11 @@ import {
   createManagedAgentLaunch,
   listManagedAgentTools,
 } from './managed-agents.js';
+import {
+  getSavedLauncherPreference,
+  resolvePreferredManagedTool,
+  saveLauncherPreference,
+} from './launcher-preferences.js';
 import { getProjectContext } from './project.js';
 
 // Strip ANSI escape codes, OSC sequences, cursor controls, and carriage returns
@@ -95,7 +99,7 @@ function PanelViewNav({ items, activeKey }) {
   );
 }
 
-export function Dashboard({ config, navigate, layout, showSessionIntro = false, projectLabel = null, appVersion = '0.1.0' }) {
+export function Dashboard({ config, navigate, layout, projectLabel = null, appVersion = '0.1.0' }) {
   const { stdout } = useStdout();
   const [cols, setCols] = useState(stdout?.columns || 80);
   const viewportRows = layout?.viewportRows || 18;
@@ -111,7 +115,7 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
 
   // Navigation state
   const [selectedIdx, setSelectedIdx] = useState(-1);
-  const [mainFocus, setMainFocus] = useState('project');
+  const [mainFocus, setMainFocus] = useState('launcher');
   const [activeSection, setActiveSection] = useState('overview');
   const [notice, setNotice] = useState(null);
   const noticeTimer = useRef(null);
@@ -134,15 +138,16 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
   const [focusedAgent, setFocusedAgent] = useState(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
 
-  // Compose: null | 'command' | 'targeted' | 'spawn' | 'pick-agent'
+  // Compose: null | 'command' | 'targeted' | 'launch'
   const [composeMode, setComposeMode] = useState(null);
   const [composeText, setComposeText] = useState('');
   const [composeTarget, setComposeTarget] = useState(null);
   const [composeTargetLabel, setComposeTargetLabel] = useState(null);
+  const [launchToolId, setLaunchToolId] = useState(null);
+  const [preferredLaunchToolId, setPreferredLaunchToolId] = useState(null);
 
   // Process manager state
   const [managedAgents, setManagedAgents] = useState([]);
-  const [spawnTool, setSpawnTool] = useState(null);
   const previousManagedStatuses = useRef(new Map());
   const [managedToolStates, setManagedToolStates] = useState({});
   const [managedToolStatusTick, setManagedToolStatusTick] = useState(0);
@@ -292,6 +297,11 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
     }
   }, []);
 
+  useEffect(() => {
+    if (!teamId) return;
+    setPreferredLaunchToolId(getSavedLauncherPreference(teamId));
+  }, [teamId]);
+
   // ── Helpers ──────────────────────────────────────────
 
   function flash(msg, duration = 3000) {
@@ -320,7 +330,6 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
     setComposeText('');
     setComposeTarget(null);
     setComposeTargetLabel(null);
-    setSpawnTool(null);
     setSearchActive(false);
     setMemorySearch('');
     setAddingMemory(false);
@@ -373,18 +382,53 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
     setComposeText(initialText);
   }
 
-  function openNewTaskFlow() {
-    if (readyCliAgents.length === 1) {
-      setSpawnTool(readyCliAgents[0]);
-      setComposeMode('spawn');
-      setComposeText('');
+  function rememberLaunchTool(toolId) {
+    if (!teamId || !toolId) return;
+    if (saveLauncherPreference(teamId, toolId)) {
+      setPreferredLaunchToolId(toolId);
+    }
+  }
+
+  function closeLaunchComposer() {
+    setComposeMode(null);
+    setComposeText('');
+  }
+
+  function selectLaunchTool(tool, { startCompose = false, draftText = composeText } = {}) {
+    if (!tool) return;
+    setLaunchToolId(tool.id);
+    if (startCompose) {
+      setMode('overview');
+      setActiveSection('overview');
+      setMainFocus('launcher');
+      setComposeMode('launch');
+      setComposeText(draftText);
+    }
+  }
+
+  function openLaunchComposer(preselectedTool = null, initialTaskText = '') {
+    if (!installedCliAgents.length) {
+      flash('No managed launchers are configured yet.', { tone: 'warning' });
       return;
     }
-    if (readyCliAgents.length > 1) {
-      setComposeMode('pick-agent');
-      return;
+
+    clearCompose();
+    setMode('overview');
+    setActiveSection('overview');
+    setMainFocus('launcher');
+
+    const initialTool = preselectedTool
+      || (selectedLaunchTool && canLaunchSelectedTool ? selectedLaunchTool : null)
+      || preferredLaunchTool
+      || readyCliAgents[0]
+      || selectedLaunchTool
+      || installedCliAgents[0]
+      || null;
+    if (initialTool) {
+      setLaunchToolId(initialTool.id);
     }
-    flash('No tools are ready to start. Try /fix or /recheck.', { tone: 'warning' });
+    setComposeMode('launch');
+    setComposeText(initialTaskText);
   }
 
   function resolveReadyTool(query) {
@@ -411,8 +455,7 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
 
     if (verb === 'new' || verb === 'start') {
       if (!rest) {
-        openNewTaskFlow();
-        clearCompose();
+        openLaunchComposer();
         return;
       }
 
@@ -421,25 +464,22 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
       if (explicitTool) {
         const taskText = taskParts.join(' ').trim();
         if (taskText) {
-          handleSpawnAgent(explicitTool, taskText);
+          launchManagedTask(explicitTool, taskText);
         } else {
-          setSpawnTool(explicitTool);
-          setComposeMode('spawn');
-          setComposeText('');
+          openLaunchComposer(explicitTool);
           return;
         }
         clearCompose();
         return;
       }
 
-      if (readyCliAgents.length === 1) {
-        handleSpawnAgent(readyCliAgents[0], rest);
+      if (selectedLaunchTool && canLaunchSelectedTool) {
+        launchManagedTask(selectedLaunchTool, rest);
         clearCompose();
         return;
       }
 
-      flash('Use /new <tool> <task> or press [n] to choose a tool.', { tone: 'warning' });
-      clearCompose();
+      openLaunchComposer(null, rest);
       return;
     }
 
@@ -485,14 +525,13 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
       return;
     }
 
-    if (readyCliAgents.length === 1) {
-      handleSpawnAgent(readyCliAgents[0], text);
+    if (selectedLaunchTool && canLaunchSelectedTool) {
+      launchManagedTask(selectedLaunchTool, text);
       clearCompose();
       return;
     }
 
-    flash('Try /new, /fix, /recheck, or /memory.', { tone: 'info', autoClearMs: 5000 });
-    clearCompose();
+    openLaunchComposer(null, text);
   }
 
   function getAgentIntent(agent) {
@@ -544,16 +583,6 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
     return parts.join(' · ');
   }
 
-  function getProjectSummary() {
-    if (activeAgentCount > 0) {
-      return `${activeAgentCount} live agent${activeAgentCount === 1 ? '' : 's'}`;
-    }
-    if (attentionItems.length > 0) {
-      return 'No agents running';
-    }
-    return 'No agents running';
-  }
-
   function getRecentResultSummary(agent) {
     const status = getManagedToolState(agent.toolId);
     if (agent._failed && status.detail) return status.detail;
@@ -568,6 +597,14 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
     return state === 'needs_auth' || state === 'unavailable';
   });
   const checkingCliAgents = installedCliAgents.filter(tool => getManagedToolState(tool.id).state === 'checking');
+  const preferredLaunchTool = resolvePreferredManagedTool(readyCliAgents, preferredLaunchToolId);
+  const selectedLaunchTool = installedCliAgents.find(tool => tool.id === launchToolId)
+    || preferredLaunchTool
+    || readyCliAgents[0]
+    || installedCliAgents[0]
+    || null;
+  const selectedLaunchToolState = selectedLaunchTool ? getManagedToolState(selectedLaunchTool.id) : null;
+  const canLaunchSelectedTool = selectedLaunchToolState?.state === 'ready';
 
   // ── API actions ──────────────────────────────────────
 
@@ -605,13 +642,17 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
       });
   }
 
-  function handleSpawnAgent(toolInfo, task) {
-    if (!toolInfo || !task.trim()) return;
+  function handleSpawnAgent(toolInfo, task, options = {}) {
+    if (!toolInfo || !task.trim()) return false;
+    const {
+      flashSuccess = true,
+      successMessage = `Started ${toolInfo.name}`,
+    } = options;
     const toolState = getManagedToolState(toolInfo.id);
     if (toolState.state !== 'ready') {
       const recoveryHint = toolState.recoveryCommand ? ` Run \`${toolState.recoveryCommand}\`.` : '';
       flash(`${toolState.detail || `${toolInfo.name} is not ready`}.${recoveryHint}`, { tone: 'warning' });
-      return;
+      return false;
     }
 
     try {
@@ -626,12 +667,24 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
       const result = spawnAgent(launch);
       if (result.status === 'failed') {
         flash(`Failed to start ${toolInfo.name}`, { tone: 'error' });
-        return;
+        return false;
       }
-      flash(`Started ${toolInfo.name}`, { tone: 'success', autoClearMs: 4000 });
+      if (flashSuccess) {
+        flash(successMessage, { tone: 'success', autoClearMs: 4000 });
+      }
+      return true;
     } catch (err) {
       flash(err?.message || `Failed to start ${toolInfo.name}`, { tone: 'error' });
+      return false;
     }
+  }
+
+  function launchManagedTask(toolInfo, task, options = {}) {
+    const didStart = handleSpawnAgent(toolInfo, task, options);
+    if (didStart) {
+      rememberLaunchTool(toolInfo.id);
+    }
+    return didStart;
   }
 
   function handleKillAgent(agent) {
@@ -677,7 +730,7 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
       setFocusedAgent(null);
     }
 
-    handleSpawnAgent({
+    launchManagedTask({
       id: agent.tool,
       name: agent.toolName || agent._display,
       cmd: agent.cmd,
@@ -715,7 +768,6 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
     filteredMemories,
     visibleMemories,
     visibleAgents,
-    isTeam,
   } = buildDashboardView({
     context,
     detectedTools,
@@ -734,22 +786,8 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
   const recentManagedResults = combinedAgents
     .filter(agent => agent._managed && agent._dead)
     .sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
-  const activeAgentCount = countLiveAgents(liveAgents);
   const selectedAgent = selectedIdx >= 0 ? liveAgents[selectedIdx] : null;
   const mainSelectedAgent = mainFocus === 'agents' ? selectedAgent : null;
-  const quietAgents = liveAgents
-    .filter(agent => !agent._dead && agent.minutes_since_update != null && agent.minutes_since_update >= 15)
-    .sort((a, b) => (b.minutes_since_update || 0) - (a.minutes_since_update || 0));
-  const attentionItems = [
-    ...conflicts.slice(0, 3).map(([file, owners]) => ({
-      kind: 'conflict',
-      text: `${basename(file)} · ${owners.join(' & ')}`,
-    })),
-    ...quietAgents.slice(0, 2).map(agent => ({
-      kind: 'quiet',
-      text: `${agent._display}${agent.handle ? ` · ${agent.handle}` : ''} quiet for ${Math.round(agent.minutes_since_update)}m`,
-    })),
-  ];
   const knowledgeVisible = activeSection === 'memory' || searchActive || addingMemory
     ? visibleMemories
     : visibleMemories.slice(0, Math.min(1, visibleMemories.length));
@@ -801,12 +839,7 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
   useEffect(() => {
     if (liveAgents.length === 0) {
       if (selectedIdx !== -1) setSelectedIdx(-1);
-      if (mainFocus !== 'project') setMainFocus('project');
-      return;
-    }
-    if (liveAgents.length > 0 && selectedIdx === -1) {
-      setSelectedIdx(0);
-      if (mainFocus === 'project') setMainFocus('agents');
+      if (mainFocus !== 'launcher') setMainFocus('launcher');
       return;
     }
     if (selectedIdx >= liveAgents.length) {
@@ -820,9 +853,18 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
     }
   }, [memorySelectedIdx, visibleMemories.length]);
 
+  useEffect(() => {
+    if (launchToolId && installedCliAgents.some(tool => tool.id === launchToolId)) return;
+
+    const fallbackTool = preferredLaunchTool || readyCliAgents[0] || installedCliAgents[0] || null;
+    if (fallbackTool) {
+      setLaunchToolId(fallbackTool.id);
+    }
+  }, [launchToolId, installedCliAgents, preferredLaunchTool, readyCliAgents]);
+
   // ── Composing state ──────────────────────────────────
 
-  const isComposing = (composeMode && composeMode !== 'pick-agent') || searchActive || addingMemory;
+  const isComposing = Boolean((composeMode && composeMode !== 'launch') || searchActive || addingMemory);
 
   // ── Input handling ───────────────────────────────────
 
@@ -868,27 +910,32 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
 
     // ── Overview mode input ────────────────────────────
 
+    if (composeMode === 'launch') {
+      if (key.escape) {
+        closeLaunchComposer();
+        return;
+      }
+
+      if (!canLaunchSelectedTool) {
+        const num = parseInt(input, 10);
+        if (num >= 1 && num <= launcherChoices.length) {
+          selectLaunchTool(launcherChoices[num - 1], { startCompose: true });
+          return;
+        }
+      }
+
+      return;
+    }
+
     // When composing text, only handle Esc
     if (isComposing) {
       if (key.escape) clearCompose();
       return;
     }
 
-    // Agent picker mode
-    if (composeMode === 'pick-agent') {
-      if (key.escape) { clearCompose(); return; }
-      const num = parseInt(input, 10);
-      if (num >= 1 && num <= readyCliAgents.length) {
-        setSpawnTool(readyCliAgents[num - 1]);
-        setComposeMode('spawn');
-        setComposeText('');
-      }
-      return;
-    }
-
     if (activeSection === 'overview') {
       if (key.downArrow) {
-        if (mainFocus === 'project' && liveAgents.length > 0) {
+        if (mainFocus === 'launcher' && liveAgents.length > 0) {
           setMainFocus('agents');
           setSelectedIdx(prev => prev >= 0 ? prev : 0);
           return;
@@ -904,16 +951,12 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
           return;
         }
         if (mainFocus === 'agents') {
-          setMainFocus('project');
+          setMainFocus('launcher');
           return;
         }
       }
-      if (key.return && mainFocus === 'project') {
-        const result = openPath(projectRoot);
-        flash(
-          result.ok ? 'Opened project folder' : `Unable to open project folder${result.error ? `: ${result.error}` : ''}`,
-          result.ok ? { tone: 'success', autoClearMs: 4000 } : { tone: 'error' }
-        );
+      if (key.return && mainFocus === 'launcher') {
+        openLaunchComposer();
         return;
       }
       if (key.return && mainSelectedAgent) {
@@ -930,6 +973,23 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
         handleKillAgent(mainSelectedAgent);
         return;
       }
+    }
+
+    if (activeSection === 'overview' && mainFocus === 'launcher') {
+      const num = parseInt(input, 10);
+      if (num >= 1 && num <= launcherChoices.length) {
+        selectLaunchTool(launcherChoices[num - 1], { startCompose: true, draftText: '' });
+        return;
+      }
+    }
+
+    if (input === 'o') {
+      const result = openPath(projectRoot);
+      flash(
+        result.ok ? 'Opened project folder' : `Unable to open project folder${result.error ? `: ${result.error}` : ''}`,
+        result.ok ? { tone: 'success', autoClearMs: 4000 } : { tone: 'error' }
+      );
+      return;
     }
 
     // Knowledge focus toggle
@@ -1008,13 +1068,13 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
     }
 
     // [n] — spawn a new agent
-    if (input === 'n' && readyCliAgents.length > 0) {
-      openNewTaskFlow();
+    if (input === 'n' && installedCliAgents.length > 0) {
+      openLaunchComposer();
       return;
     }
 
-    if (input === 'n' && installedCliAgents.length > 0 && readyCliAgents.length === 0) {
-      flash('No tools are ready to start. Press [u] after signing in.', { tone: 'warning' });
+    if (input === 'n' && installedCliAgents.length === 0) {
+      flash('No managed launchers are configured yet.', { tone: 'warning' });
       return;
     }
 
@@ -1030,7 +1090,7 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
 
     // [/] — command palette or memory search
     if (input === '/') {
-      if (activeSection === 'agents') {
+      if (activeSection === 'overview' || activeSection === 'agents') {
         beginCommandInput('/');
         return;
       }
@@ -1065,12 +1125,17 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
       handleCommandSubmit(composeText);
       return;
     }
-    if (composeMode === 'spawn' && spawnTool) {
-      handleSpawnAgent(spawnTool, composeText);
-    } else {
-      sendMessage(composeText, composeTarget, composeTargetLabel);
-    }
+    sendMessage(composeText, composeTarget, composeTargetLabel);
     clearCompose();
+  }
+
+  function onTaskLaunchSubmit() {
+    if (!selectedLaunchTool || !canLaunchSelectedTool) return;
+    const didStart = launchManagedTask(selectedLaunchTool, composeText, { flashSuccess: false });
+    if (didStart) {
+      setComposeText('');
+      flash(`Started ${selectedLaunchTool.name}. Enter another task or press [esc].`, { tone: 'success', autoClearMs: 5000 });
+    }
   }
 
   function onMemorySubmit() {
@@ -1100,16 +1165,13 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
       return items;
     }
 
-    if (composeMode === 'pick-agent') {
-      return [
-        { key: `1-${readyCliAgents.length}`, label: 'select', color: 'green' },
-        { key: 'esc', label: 'cancel', color: 'cyan' },
-      ];
-    }
-
     if (isComposing) {
       return [
-        { key: 'enter', label: composeMode === 'spawn' ? 'start' : 'send', color: 'green' },
+        {
+          key: 'enter',
+          label: addingMemory ? 'save' : searchActive ? 'search' : 'send',
+          color: 'green',
+        },
         { key: 'esc', label: 'cancel', color: 'cyan' },
       ];
     }
@@ -1167,7 +1229,9 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
     return (
       <Box flexDirection="column">
         <Box paddingX={1} paddingTop={1}><Text color="red">{error}</Text></Box>
-        {commandBar}
+        <Box paddingX={1} paddingTop={1}>
+          <HintRow hints={[{ commandKey: 'q', label: 'quit', color: 'gray' }]} />
+        </Box>
       </Box>
     );
   }
@@ -1293,31 +1357,6 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
 
   const inputBars = (
     <>
-      {composeMode === 'pick-agent' && (
-        <Box flexDirection="column" paddingX={1} paddingTop={1}>
-          <Text bold>  Delegate task</Text>
-          {readyCliAgents.map((agent, i) => (
-            <Text key={agent.id}>
-              <Text>    </Text>
-              <Text color="cyan" bold>[{i + 1}]</Text>
-              <Text> {agent.name}</Text>
-            </Text>
-          ))}
-        </Box>
-      )}
-
-      {composeMode === 'spawn' && spawnTool && (
-        <Box paddingX={1} paddingTop={1}>
-          <Text color="cyan">  {spawnTool?.name || spawnTool}{'> '}</Text>
-          <TextInput
-            value={composeText}
-            onChange={setComposeText}
-            onSubmit={onComposeSubmit}
-            placeholder="Describe the task to delegate..."
-          />
-        </Box>
-      )}
-
       {composeMode === 'command' && (
         <Box flexDirection="column" paddingX={1} paddingTop={1}>
           <Box>
@@ -1373,10 +1412,10 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
 
   const commandBar = (
     <Box paddingX={1} paddingTop={1} flexDirection="column">
-      <Box borderStyle="round" borderColor={isComposing || composeMode === 'pick-agent' ? 'cyan' : 'gray'} paddingX={1} flexDirection="column">
+      <Box borderStyle="round" borderColor={isComposing ? 'cyan' : 'gray'} paddingX={1} flexDirection="column">
         {inputBars}
-        {!isComposing && composeMode !== 'pick-agent' && (
-          <Text dimColor>  {'>'} Type a task or /command</Text>
+        {!isComposing && (
+          <Text dimColor>  {'>'} Press / for commands</Text>
         )}
       </Box>
       <NoticeLine notice={notice} />
@@ -1393,7 +1432,6 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
                   { commandKey: 'q', label: 'quit', color: 'gray' },
                 ]
               : [
-                  ...(activeSection === 'overview' && hasLiveAgents ? [{ commandKey: 's', label: 'sessions', color: 'cyan' }] : []),
                   ...(activeSection === 'agents' ? [{ commandKey: '↑↓', label: 'select', color: 'cyan' }] : []),
                   { commandKey: 'q', label: 'quit', color: 'gray' },
                 ]
@@ -1402,15 +1440,15 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
     </Box>
   );
 
-  const overlayBar = (composeMode || searchActive || addingMemory || notice) ? (
+  const overlayBar = ((composeMode && composeMode !== 'launch') || searchActive || addingMemory || notice) ? (
     <Box paddingTop={1} flexDirection="column">
-      {isComposing || composeMode === 'pick-agent' ? (
+      {isComposing ? (
         <Box borderStyle="round" borderColor="cyan" paddingX={1} flexDirection="column">
           {inputBars}
         </Box>
       ) : null}
       <NoticeLine notice={notice} />
-      {(isComposing || composeMode === 'pick-agent') ? (
+      {isComposing ? (
         <HintRow hints={navItems.map(item => ({
           commandKey: item.key,
           label: item.label,
@@ -1420,18 +1458,40 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
     </Box>
   ) : null;
 
+  const launcherSummary = selectedLaunchTool
+    ? selectedLaunchTool.name
+    : readyCliAgents.length > 1
+      ? `Choose from ${readyCliAgents.length} ready tools`
+      : checkingCliAgents.length > 0
+        ? 'Checking tools'
+        : unavailableCliAgents.some(tool => getManagedToolState(tool.id).recoveryCommand)
+          ? 'Unavailable. Press [f] or [u].'
+          : installedCliAgents.length > 0
+            ? 'Unavailable. Press [u].'
+            : 'Not configured';
+  const launcherChoices = readyCliAgents.length > 0 ? readyCliAgents : installedCliAgents;
+
   const mainActionHints = [
-    ...(mainFocus === 'project' ? [{ commandKey: 'enter', label: 'open', color: 'cyan' }] : []),
+    ...(composeMode === 'launch' && canLaunchSelectedTool ? [{ commandKey: 'enter', label: 'start', color: 'green' }] : []),
+    ...(composeMode === 'launch' ? [{ commandKey: 'esc', label: 'close', color: 'cyan' }] : []),
+    ...(composeMode !== 'launch' && mainFocus === 'launcher' && installedCliAgents.length > 0 ? [{ commandKey: 'n', label: 'compose', color: 'cyan' }] : []),
+    ...(composeMode !== 'launch' && launcherChoices.length > 1 ? [{ commandKey: `1-${launcherChoices.length}`, label: 'pick launcher', color: 'cyan' }] : []),
     ...(hasLiveAgents ? [{ commandKey: '↑↓', label: 'move', color: 'cyan' }] : []),
     ...(mainSelectedAgent ? [{ commandKey: 'enter', label: 'inspect', color: 'cyan' }] : []),
     ...(mainSelectedAgent && isAgentAddressable(mainSelectedAgent) ? [{ commandKey: 'm', label: 'message', color: 'cyan' }] : []),
     ...(mainSelectedAgent?._managed && !mainSelectedAgent._dead ? [{ commandKey: 'x', label: 'stop', color: 'red' }] : []),
+    { commandKey: '/', label: 'commands', color: 'cyan' },
+    ...(installedCliAgents.length > 0 ? [{ commandKey: 'u', label: 'recheck', color: 'yellow' }] : []),
+    ...(unavailableCliAgents.some(tool => getManagedToolState(tool.id).recoveryCommand)
+      ? [{ commandKey: 'f', label: 'fix', color: 'yellow' }]
+      : []),
+    { commandKey: 'o', label: 'folder', color: 'cyan' },
     { commandKey: 'q', label: 'quit', color: 'gray' },
   ];
 
   const mainPane = (
     <Box flexDirection="column" paddingTop={1}>
-      <Box borderStyle="round" borderColor={mainFocus === 'project' ? 'cyan' : 'gray'} paddingX={1} flexDirection="column">
+      <Box borderStyle="round" borderColor={mainFocus === 'launcher' ? 'cyan' : 'gray'} paddingX={1} flexDirection="column">
         <Text>
           <Text color="magenta" bold>chinwag</Text>
           <Text dimColor> (v{appVersion})</Text>
@@ -1441,30 +1501,85 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
           <Text color="cyan" bold>{projectDisplayName}</Text>
         </Text>
         <Text>
-          <Text color={mainFocus === 'project' ? 'cyan' : 'gray'}>{mainFocus === 'project' ? '› ' : '  '}</Text>
           <Text dimColor>directory: </Text>
-          <Text color={mainFocus === 'project' ? 'cyan' : 'white'} underline>{projectDisplayPath}</Text>
+          <Text>{projectDisplayPath}</Text>
         </Text>
-      </Box>
-
-      <Box paddingTop={1}>
-        <Text color={readyCliAgents.length > 0 ? 'cyan' : 'gray'} bold={readyCliAgents.length > 0}>[n]</Text>
-        <Text bold={readyCliAgents.length > 0}> new task</Text>
-        {readyCliAgents.length === 0 ? <Text dimColor>  no launchable tools ready</Text> : null}
-      </Box>
-
-      <Box flexDirection="column" paddingTop={2}>
         <Text>
-          <Text bold>agents</Text>
-          <Text dimColor>  {liveAgents.length > 0 ? `${liveAgents.length} live` : 'none live'}</Text>
+          <Text dimColor>launcher: </Text>
+          <Text color={canLaunchSelectedTool ? 'cyan' : selectedLaunchTool ? 'yellow' : 'white'}>{launcherSummary}</Text>
+          {selectedLaunchTool && !canLaunchSelectedTool && selectedLaunchToolState?.detail ? (
+            <Text dimColor>  {selectedLaunchToolState.detail}</Text>
+          ) : null}
         </Text>
-
-        {liveAgents.length === 0 ? (
-          <Box flexDirection="column" paddingTop={1}>
-            <Text dimColor>No live agents.</Text>
-            <Text dimColor>Agents started elsewhere appear here automatically.</Text>
+        {launcherChoices.length > 0 ? (
+          <Box flexWrap="wrap" paddingTop={1}>
+            {launcherChoices.map((tool, idx) => {
+              const state = getManagedToolState(tool.id).state;
+              const selected = selectedLaunchTool?.id === tool.id;
+              const ready = state === 'ready';
+              return (
+                <Box key={tool.id} marginRight={2}>
+                  <Text color={selected ? 'cyan' : ready ? 'white' : 'gray'} bold={selected || ready}>[{idx + 1}] {tool.name}</Text>
+                  {!ready ? <Text dimColor> unavailable</Text> : null}
+                </Box>
+              );
+            })}
           </Box>
+        ) : null}
+        {composeMode === 'launch' && selectedLaunchTool ? (
+          canLaunchSelectedTool ? (
+            <Box flexDirection="column" paddingTop={1}>
+              <Box>
+                <Text color={mainFocus === 'launcher' ? 'cyan' : 'gray'}>{mainFocus === 'launcher' ? '› ' : '  '}</Text>
+                <Text color="cyan">{selectedLaunchTool.name}{'> '}</Text>
+                <TextInput
+                  value={composeText}
+                  onChange={setComposeText}
+                  onSubmit={onTaskLaunchSubmit}
+                  placeholder="Describe the task to delegate..."
+                />
+              </Box>
+              {launcherChoices.length > 1 ? (
+                <Text dimColor>Press [esc], then choose another launcher.</Text>
+              ) : null}
+            </Box>
+          ) : (
+            <Box flexDirection="column" paddingTop={1}>
+              <Text color="yellow">{selectedLaunchToolState?.detail || `${selectedLaunchTool.name} is not ready`}</Text>
+              <Text dimColor>
+                {launcherChoices.some(tool => getManagedToolState(tool.id).state === 'ready')
+                  ? 'Pick a ready launcher above, or press [f]/[u].'
+                  : 'Press [f] or [u] to make a launcher ready.'}
+              </Text>
+            </Box>
+          )
         ) : (
+          <Text>
+            <Text color={mainFocus === 'launcher' ? 'cyan' : 'gray'}>{mainFocus === 'launcher' ? '› ' : '  '}</Text>
+            <Text color={installedCliAgents.length > 0 ? 'cyan' : 'gray'} bold={installedCliAgents.length > 0}>[n]</Text>
+            <Text bold={mainFocus === 'launcher'}> new task</Text>
+            <Text dimColor>  {installedCliAgents.length > 0 ? 'start here' : 'no launchers configured'}</Text>
+          </Text>
+        )}
+      </Box>
+
+      {recentResult ? (
+        <Box paddingTop={1}>
+          <Text dimColor>Last result: {recentResult._display} · {getRecentResultSummary(recentResult)}</Text>
+        </Box>
+      ) : null}
+
+      {liveAgents.length === 0 ? (
+        <Box flexDirection="column" paddingTop={2}>
+          <Text dimColor>No live agents yet.</Text>
+          <Text dimColor>Agents started elsewhere appear here automatically.</Text>
+        </Box>
+      ) : (
+        <Box flexDirection="column" paddingTop={2}>
+          <Text>
+            <Text bold>live agents</Text>
+            <Text dimColor>  {liveAgents.length} live</Text>
+          </Text>
           <Box flexDirection="column" paddingTop={1}>
             {visibleSessionRows.items.map((agent, idx) => {
               const absoluteIdx = visibleSessionRows.start + idx;
@@ -1475,6 +1590,7 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
                 <Box key={agent.agent_id || agent.id} flexDirection="column" paddingBottom={1}>
                   <Text>
                     <Text color={isSelected && mainFocus === 'agents' ? 'cyan' : 'gray'}>{isSelected && mainFocus === 'agents' ? '› ' : '  '}</Text>
+                    <Text color={agent._managed ? 'green' : 'cyan'}>● </Text>
                     <Text bold={isSelected && mainFocus === 'agents'}>{getAgentDisplayLabel(agent)}</Text>
                   </Text>
                   <Text>
@@ -1485,8 +1601,8 @@ export function Dashboard({ config, navigate, layout, showSessionIntro = false, 
               );
             })}
           </Box>
-        )}
-      </Box>
+        </Box>
+      )}
 
       <HintRow hints={mainActionHints} />
       {overlayBar}
