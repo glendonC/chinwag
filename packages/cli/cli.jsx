@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Component } from 'react';
 import { render, Box, Text, useApp, useInput } from 'ink';
+import { basename } from 'path';
 import { loadConfig, saveConfig, configExists, deleteConfig } from './lib/config.js';
 import { api } from './lib/api.js';
 import { Welcome } from './lib/init.jsx';
@@ -7,6 +8,8 @@ import { Chat } from './lib/chat.jsx';
 import { Customize } from './lib/customize.jsx';
 import { Dashboard } from './lib/dashboard.jsx';
 import { Discover } from './lib/discover.jsx';
+import { ControlShell } from './lib/shell.jsx';
+import { useTerminalControl } from './lib/terminal-control.js';
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -61,6 +64,13 @@ if (process.argv[2] === 'team') {
   process.exit(0);
 }
 
+// Handle run command before launching TUI
+if (process.argv[2] === 'run') {
+  const { runManagedAgentCommand } = await import('./lib/run-command.js');
+  const exitCode = await runManagedAgentCommand(process.argv.slice(3));
+  process.exit(exitCode);
+}
+
 // Handle dashboard command — open web dashboard in browser
 if (process.argv[2] === 'dashboard') {
   const { openDashboard } = await import('./lib/open-dashboard.js');
@@ -68,17 +78,30 @@ if (process.argv[2] === 'dashboard') {
   process.exit(0);
 }
 
-// Set terminal tab title
-process.stdout.write('\x1b]0;chinwag\x07');
-
 const SPINNER = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+const PRIMARY_MODES = [
+  { key: 'dashboard', label: 'operator-panel', shortLabel: 'panel', accent: 'cyan' },
+  { key: 'discover', label: 'tool-registry', shortLabel: 'registry', accent: 'yellow' },
+  { key: 'chat', label: 'team-chat', shortLabel: 'chat', accent: 'magenta' },
+  { key: 'customize', label: 'identity', shortLabel: 'identity', accent: 'green' },
+];
 
 function App() {
   const [screen, setScreen] = useState('loading');
   const [config, setConfig] = useState(null);
   const [user, setUser] = useState(null);
   const [spin, setSpin] = useState(0);
+  const [hasInteracted, setHasInteracted] = useState(false);
   const { exit } = useApp();
+  const projectLabel = basename(process.cwd());
+  const isPrimaryMode = PRIMARY_MODES.some(mode => mode.key === screen);
+  const shellModes = screen === 'loading'
+    ? [{ key: 'loading', label: 'boot', shortLabel: 'boot', accent: 'cyan' }, ...PRIMARY_MODES]
+    : screen === 'welcome'
+      ? [{ key: 'welcome', label: 'setup', shortLabel: 'setup', accent: 'cyan' }, ...PRIMARY_MODES]
+      : PRIMARY_MODES;
+
+  useTerminalControl(`chinwag · ${projectLabel || 'control plane'}`);
 
   useEffect(() => {
     if (screen !== 'loading') return;
@@ -128,37 +151,58 @@ function App() {
     } catch {}
   };
 
-  const screenContent = (() => {
-    if (screen === 'loading') {
-      return (
-        <Box paddingX={1} paddingTop={2}>
-          <Text><Text color="cyan">{SPINNER[spin]}</Text><Text dimColor>  connecting</Text></Text>
-        </Box>
-      );
+  useInput((input, key) => {
+    if (screen !== 'loading' && screen !== 'welcome' && (input || key.tab || key.leftArrow || key.rightArrow || key.upArrow || key.downArrow || key.return || key.escape)) {
+      setHasInteracted(true);
     }
-    if (screen === 'welcome') return <Welcome onComplete={onSetup} />;
-    if (screen === 'chat') return <Chat config={config} user={user} navigate={navigate} />;
-    if (screen === 'customize') return <Customize config={config} user={user} navigate={navigate} refreshUser={refreshUser} />;
-    if (screen === 'dashboard') return <Dashboard config={config} user={user} navigate={navigate} />;
-    if (screen === 'discover') return <Discover config={config} navigate={navigate} />;
-    return null;
-  })();
 
-  const screenLabel = { chat: 'global chat', customize: 'settings', discover: 'browse tools' }[screen] || null;
+    if (!isPrimaryMode || !key.tab) return;
+
+    const idx = PRIMARY_MODES.findIndex(mode => mode.key === screen);
+    if (idx === -1) return;
+
+    const delta = key.shift ? -1 : 1;
+    const nextIdx = (idx + delta + PRIMARY_MODES.length) % PRIMARY_MODES.length;
+    setScreen(PRIMARY_MODES[nextIdx].key);
+  });
 
   return (
-    <Box flexDirection="column">
-      {screenLabel && (
-        <Text>
-          <Text color="cyan" dimColor>── </Text>
-          <Text color="cyan" bold>chinwag</Text>
-          <Text dimColor> · {screenLabel}</Text>
-        </Text>
+    <ControlShell
+      modeItems={shellModes}
+      activeMode={screen}
+      user={user}
+    >
+      {({ viewportRows, compact }) => (
+        <ErrorBoundary>
+          {(() => {
+          if (screen === 'loading') {
+            return (
+              <Box paddingTop={1}>
+                <Text><Text color="cyan">{SPINNER[spin]}</Text><Text dimColor>  connecting to chinwag</Text></Text>
+              </Box>
+            );
+          }
+          if (screen === 'welcome') return <Welcome onComplete={onSetup} />;
+          if (screen === 'chat') return <Chat config={config} user={user} navigate={navigate} layout={{ viewportRows }} />;
+          if (screen === 'customize') return <Customize config={config} user={user} navigate={navigate} refreshUser={refreshUser} layout={{ viewportRows }} />;
+          if (screen === 'dashboard') {
+            return (
+              <Dashboard
+                config={config}
+                user={user}
+                navigate={navigate}
+                layout={{ viewportRows, compact }}
+                showSessionIntro={!hasInteracted}
+                projectLabel={projectLabel}
+              />
+            );
+          }
+          if (screen === 'discover') return <Discover config={config} navigate={navigate} layout={{ viewportRows }} />;
+          return null;
+          })()}
+        </ErrorBoundary>
       )}
-      <ErrorBoundary>
-        {screenContent}
-      </ErrorBoundary>
-    </Box>
+    </ControlShell>
   );
 }
 

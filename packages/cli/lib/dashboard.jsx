@@ -1,56 +1,133 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
-import { cpSync, existsSync, mkdirSync, readFileSync } from 'fs';
-import { basename, join } from 'path';
-import { homedir } from 'os';
-import { fileURLToPath } from 'url';
+import TextInput from 'ink-text-input';
+import { basename } from 'path';
 import { api } from './api.js';
-import { buildDashboardView, collectTags, formatDuration, formatFiles, smartSummary } from './dashboard-view.js';
-
+import {
+  buildCombinedAgentRows,
+  buildDashboardView,
+  countLiveAgents,
+  formatFiles,
+} from './dashboard-view.js';
 import { detectTools } from './mcp-config.js';
-import { openDashboard } from './open-dashboard.js';
+import { openCommandInTerminal } from './open-command-in-terminal.js';
+import { spawnAgent, killAgent, getAgents, getOutput, onUpdate, removeAgent } from './process-manager.js';
+import {
+  HintRow,
+} from './dashboard-ui.jsx';
+import { ModeRail } from './shell.jsx';
+import {
+  AttentionSection,
+  KnowledgePanel,
+  OverviewSummary,
+  SessionsPanel,
+} from './dashboard-sections.jsx';
+import {
+  checkManagedAgentToolAvailability,
+  classifyManagedAgentFailure,
+  createManagedAgentLaunch,
+  listManagedAgentTools,
+} from './managed-agents.js';
+import { getProjectContext } from './project.js';
 
-let PKG_VERSION = '0.1.0';
-try {
-  const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf-8'));
-  PKG_VERSION = pkg.version;
-} catch { /* fallback */ }
-
-let VSCODE_EXTENSION = { publisher: 'chinwag', name: 'chinwag', version: PKG_VERSION };
-try {
-  const pkg = JSON.parse(readFileSync(new URL('../../vscode/package.json', import.meta.url), 'utf-8'));
-  VSCODE_EXTENSION = {
-    publisher: pkg.publisher || 'chinwag',
-    name: pkg.name || 'chinwag',
-    version: pkg.version || PKG_VERSION,
-  };
-} catch { /* fallback */ }
+// Strip ANSI escape codes, OSC sequences, cursor controls, and carriage returns
+function stripAnsi(str) {
+  return str
+    .replace(/\x1b\][^\x07]*\x07/g, '')          // OSC sequences (title, etc.)
+    .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '')       // CSI sequences (colors, cursor)
+    .replace(/\x1b\([A-Z]/g, '')                    // Character set selection
+    .replace(/\x1b[=>MNOP78]/g, '')                 // Other escape sequences
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '') // Control characters (keep \n \r \t)
+    .replace(/\r/g, '');
+}
 
 const MIN_WIDTH = 50;
-const IDE_COMMAND_SHORTCUT = process.platform === 'darwin' ? 'Cmd+Shift+P' : 'Ctrl+Shift+P';
-const IDE_EXTENSION_DIR = fileURLToPath(new URL('../../vscode/', import.meta.url));
 
-export function Dashboard({ config, user, navigate }) {
+function getVisibleWindow(items, selectedIdx, maxItems) {
+  if (!items?.length || items.length <= maxItems) {
+    return { items: items || [], start: 0 };
+  }
+
+  if (selectedIdx == null || selectedIdx < 0) {
+    return { items: items.slice(0, maxItems), start: 0 };
+  }
+
+  const half = Math.floor(maxItems / 2);
+  let start = Math.max(0, selectedIdx - half);
+  if (start + maxItems > items.length) {
+    start = Math.max(0, items.length - maxItems);
+  }
+
+  return {
+    items: items.slice(start, start + maxItems),
+    start,
+  };
+}
+
+function SessionIntroCard({ projectName }) {
+  return (
+    <Box flexDirection="column" paddingTop={1} paddingBottom={1}>
+      <Text color="magenta" bold>chinwag is the control layer for agentic development.</Text>
+      <Text dimColor>{projectName} is now your shared operator panel for live agents, memory, and coordination.</Text>
+      <Text dimColor>Start with `/new` to launch a managed task, `[s]` to inspect live sessions, or `[tab]` to browse other modes.</Text>
+    </Box>
+  );
+}
+
+export function Dashboard({ config, navigate, layout, showSessionIntro = false, projectLabel = null }) {
   const { stdout } = useStdout();
   const [cols, setCols] = useState(stdout?.columns || 80);
+  const viewportRows = layout?.viewportRows || 18;
+
+  // Project state
   const [teamId, setTeamId] = useState(null);
   const [teamName, setTeamName] = useState(null);
+  const [projectRoot, setProjectRoot] = useState(process.cwd());
   const [detectedTools, setDetectedTools] = useState([]);
   const [context, setContext] = useState(null);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Navigation state
   const [selectedIdx, setSelectedIdx] = useState(-1);
+  const [activeSection, setActiveSection] = useState('overview');
   const [flashMsg, setFlashMsg] = useState(null);
 
   // Memory management
-  const [memoryFilter, setMemoryFilter] = useState(null);
   const [memorySelectedIdx, setMemorySelectedIdx] = useState(-1);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleteMsg, setDeleteMsg] = useState(null);
 
-  // Section focus: 'agents' | 'memory'
-  const [activeSection, setActiveSection] = useState('agents');
+  // Memory search
+  const [memorySearch, setMemorySearch] = useState('');
+  const [searchActive, setSearchActive] = useState(false);
 
+  // Memory add
+  const [addingMemory, setAddingMemory] = useState(false);
+  const [memoryInput, setMemoryInput] = useState('');
+
+  // Mode: 'overview' | 'agent-focus'
+  const [mode, setMode] = useState('overview');
+  const [focusedAgent, setFocusedAgent] = useState(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+
+  // Compose: null | 'command' | 'targeted' | 'spawn' | 'pick-agent'
+  const [composeMode, setComposeMode] = useState(null);
+  const [composeText, setComposeText] = useState('');
+  const [composeTarget, setComposeTarget] = useState(null);
+  const [composeTargetLabel, setComposeTargetLabel] = useState(null);
+
+  // Process manager state
+  const [managedAgents, setManagedAgents] = useState([]);
+  const [spawnTool, setSpawnTool] = useState(null);
+  const previousManagedStatuses = useRef(new Map());
+  const [managedToolStates, setManagedToolStates] = useState({});
+  const [managedToolStatusTick, setManagedToolStatusTick] = useState(0);
+
+  // CLI agents
+  const [installedCliAgents] = useState(() => listManagedAgentTools());
+
+  // ── Terminal resize ──────────────────────────────────
   useEffect(() => {
     if (!stdout) return;
     const onResize = () => setCols(stdout.columns);
@@ -58,30 +135,28 @@ export function Dashboard({ config, user, navigate }) {
     return () => stdout.off('resize', onResize);
   }, [stdout]);
 
+  // ── .chinwag file discovery ──────────────────────────
   useEffect(() => {
-    const cwd = process.cwd();
-    const chinwagFile = join(cwd, '.chinwag');
-    if (!existsSync(chinwagFile)) {
+    const project = getProjectContext(process.cwd());
+    if (!project) {
       setError('No .chinwag file found. Run `npx chinwag init` first.');
       return;
     }
-    try {
-      const data = JSON.parse(readFileSync(chinwagFile, 'utf-8'));
-      if (!data.team) {
-        setError('Invalid .chinwag file — missing team ID.');
-        return;
-      }
-      setTeamId(data.team);
-      setTeamName(data.name || data.team);
-    } catch {
-      setError('Could not read .chinwag file.');
+    if (project.error) {
+      setError(project.error);
+      return;
     }
 
+    setTeamId(project.teamId);
+    setTeamName(project.teamName);
+    setProjectRoot(project.root);
+
     try {
-      setDetectedTools(detectTools(cwd));
+      setDetectedTools(detectTools(project.root));
     } catch {}
   }, []);
 
+  // ── API polling ──────────────────────────────────────
   useEffect(() => {
     if (!teamId) return;
     const client = api(config);
@@ -107,26 +182,639 @@ export function Dashboard({ config, user, navigate }) {
     return () => clearInterval(interval);
   }, [teamId, teamName, refreshKey, config?.token]);
 
+  // ── Process manager sync + duration ticker ───────────
+  useEffect(() => {
+    setManagedAgents(getAgents());
+    const unsub = onUpdate(() => setManagedAgents(getAgents()));
+    // Tick every 10s to update duration display
+    const ticker = setInterval(() => setManagedAgents(getAgents()), 10000);
+    return () => { unsub(); clearInterval(ticker); };
+  }, []);
+
+  useEffect(() => {
+    if (!installedCliAgents.length) return;
+
+    let cancelled = false;
+
+    async function checkManagedTools() {
+      setManagedToolStates(prev => {
+        const next = { ...prev };
+        for (const tool of installedCliAgents) {
+          const existing = next[tool.id];
+          if (!existing || existing.source !== 'runtime') {
+            next[tool.id] = { toolId: tool.id, state: 'checking', detail: 'Checking readiness' };
+          }
+        }
+        return next;
+      });
+
+      const results = await Promise.all(
+        installedCliAgents.map(tool => checkManagedAgentToolAvailability(tool, { cwd: projectRoot }))
+      );
+
+      if (cancelled) return;
+
+      setManagedToolStates(prev => {
+        const next = { ...prev };
+        for (const result of results) {
+          if (next[result.toolId]?.source === 'runtime') continue;
+          next[result.toolId] = result;
+        }
+        return next;
+      });
+    }
+
+    checkManagedTools();
+    return () => {
+      cancelled = true;
+    };
+  }, [installedCliAgents, managedToolStatusTick, projectRoot]);
+
+  useEffect(() => {
+    const previous = previousManagedStatuses.current;
+    for (const agent of managedAgents) {
+      const lastStatus = previous.get(agent.id);
+      if (lastStatus === 'running' && agent.status !== 'running') {
+        const failureStatus = agent.status === 'failed'
+          ? classifyManagedAgentFailure(agent.toolId, getOutput(agent.id, 200).join('\n'))
+          : null;
+        if (failureStatus) {
+          setManagedToolStates(prev => ({
+            ...prev,
+            [agent.toolId]: failureStatus,
+          }));
+        }
+
+        const preview = agent.outputPreview ? `: ${agent.outputPreview}` : '';
+        flash(
+          failureStatus?.detail
+            || (agent.status === 'exited'
+              ? `${agent.toolName} finished${preview}`
+              : `${agent.toolName} failed${preview}`),
+          5000
+        );
+      }
+      previous.set(agent.id, agent.status);
+    }
+
+    const liveIds = new Set(managedAgents.map(agent => agent.id));
+    for (const id of [...previous.keys()]) {
+      if (!liveIds.has(id)) previous.delete(id);
+    }
+  }, [managedAgents]);
+
+  // ── Helpers ──────────────────────────────────────────
+
+  function flash(msg, duration = 3000) {
+    setFlashMsg(msg);
+    setTimeout(() => setFlashMsg(null), duration);
+  }
+
+  function clearCompose() {
+    setComposeMode(null);
+    setComposeText('');
+    setComposeTarget(null);
+    setComposeTargetLabel(null);
+    setSpawnTool(null);
+    setSearchActive(false);
+    setMemorySearch('');
+    setAddingMemory(false);
+    setMemoryInput('');
+  }
+
+  function refreshManagedToolStates({ clearRuntimeFailures = false } = {}) {
+    setManagedToolStates(prev => {
+      if (!clearRuntimeFailures) return prev;
+      const next = {};
+      for (const [toolId, status] of Object.entries(prev)) {
+        if (status?.source !== 'runtime') next[toolId] = status;
+      }
+      return next;
+    });
+    setManagedToolStatusTick(tick => tick + 1);
+    flash('Rechecking tools you can start...');
+  }
+
+  function getManagedToolState(toolId) {
+    return managedToolStates[toolId] || { toolId, state: 'checking', detail: 'Checking readiness' };
+  }
+
+  function isAgentAddressable(agent) {
+    if (!agent?.agent_id) return false;
+    if (agent._managed) return agent.status === 'running';
+    return agent.status === 'active';
+  }
+
+  function getAgentTargetLabel(agent) {
+    if (!agent) return 'agent';
+    if (agent.handle && agent._display) return `${agent.handle} (${agent._display})`;
+    return agent.handle || agent._display || 'agent';
+  }
+
+  function beginTargetedMessage(agent) {
+    if (!isAgentAddressable(agent)) {
+      flash('Select a running agent to message directly');
+      return;
+    }
+
+    setComposeTarget(agent.agent_id);
+    setComposeTargetLabel(getAgentTargetLabel(agent));
+    setComposeMode('targeted');
+    setComposeText('');
+  }
+
+  function beginCommandInput(initialText = '') {
+    setComposeMode('command');
+    setComposeText(initialText);
+  }
+
+  function openNewTaskFlow() {
+    if (readyCliAgents.length === 1) {
+      setSpawnTool(readyCliAgents[0]);
+      setComposeMode('spawn');
+      setComposeText('');
+      return;
+    }
+    if (readyCliAgents.length > 1) {
+      setComposeMode('pick-agent');
+      return;
+    }
+    flash('No tools are ready to start. Try /fix or /recheck.');
+  }
+
+  function resolveReadyTool(query) {
+    if (!query) return null;
+    const normalized = query.toLowerCase();
+    return readyCliAgents.find((tool) => (
+      tool.id === normalized
+      || tool.name.toLowerCase() === normalized
+      || tool.name.toLowerCase().startsWith(normalized)
+      || tool.id.startsWith(normalized)
+    )) || null;
+  }
+
+  function handleCommandSubmit(rawText) {
+    const text = rawText.trim().replace(/^\//, '').trim();
+    if (!text) {
+      clearCompose();
+      return;
+    }
+
+    const [verbRaw, ...restParts] = text.split(/\s+/);
+    const verb = verbRaw.toLowerCase();
+    const rest = restParts.join(' ').trim();
+
+    if (verb === 'new' || verb === 'start') {
+      if (!rest) {
+        openNewTaskFlow();
+        clearCompose();
+        return;
+      }
+
+      const [toolToken, ...taskParts] = rest.split(/\s+/);
+      const explicitTool = resolveReadyTool(toolToken);
+      if (explicitTool) {
+        const taskText = taskParts.join(' ').trim();
+        if (taskText) {
+          handleSpawnAgent(explicitTool, taskText);
+        } else {
+          setSpawnTool(explicitTool);
+          setComposeMode('spawn');
+          setComposeText('');
+          return;
+        }
+        clearCompose();
+        return;
+      }
+
+      if (readyCliAgents.length === 1) {
+        handleSpawnAgent(readyCliAgents[0], rest);
+        clearCompose();
+        return;
+      }
+
+      flash('Use /new <tool> <task> or press [n] to choose a tool.');
+      clearCompose();
+      return;
+    }
+
+    if (verb === 'fix') {
+      handleFixLauncher();
+      clearCompose();
+      return;
+    }
+
+    if (verb === 'recheck' || verb === 'refresh') {
+      refreshManagedToolStates({ clearRuntimeFailures: true });
+      clearCompose();
+      return;
+    }
+
+    if (verb === 'knowledge' || verb === 'memory') {
+      setActiveSection('memory');
+      setMemorySelectedIdx(-1);
+      clearCompose();
+      return;
+    }
+
+    if (verb === 'sessions' || verb === 'agents') {
+      setActiveSection('agents');
+      setSelectedIdx(liveAgents.length > 0 ? 0 : -1);
+      clearCompose();
+      return;
+    }
+
+    if (verb === 'message') {
+      if (selectedAgent && isAgentAddressable(selectedAgent)) {
+        beginTargetedMessage(selectedAgent);
+      } else {
+        flash('Select a live agent to message.');
+        clearCompose();
+      }
+      return;
+    }
+
+    if (verb === 'help') {
+      flash('Try /new, /fix, /recheck, or /knowledge.');
+      clearCompose();
+      return;
+    }
+
+    if (readyCliAgents.length === 1) {
+      handleSpawnAgent(readyCliAgents[0], text);
+      clearCompose();
+      return;
+    }
+
+    flash('Try /new, /fix, /recheck, or /knowledge.');
+    clearCompose();
+  }
+
+  function getAgentIntent(agent) {
+    if (!agent) return null;
+    if (agent._managed && agent._dead && agent.outputPreview) return agent.outputPreview;
+    if (agent._summary) return agent._summary;
+    const files = formatFiles(agent.activity?.files || []);
+    if (files) return `Working in ${files}`;
+    if (agent._managed && agent.task) return `Delegated task: ${agent.task}`;
+    return 'Connected and waiting for work';
+  }
+
+  function getAgentMeta(agent) {
+    if (!agent) return null;
+
+    const parts = [];
+    if (agent._managed) {
+      parts.push(agent._connected ? 'started from chinwag' : 'starting from chinwag');
+    } else {
+      parts.push('connected via MCP');
+    }
+
+    const files = formatFiles(agent.activity?.files || []);
+    if (files) parts.push(files);
+
+    if (agent.minutes_since_update != null && agent.minutes_since_update > 0) {
+      parts.push(`updated ${Math.round(agent.minutes_since_update)}m ago`);
+    }
+
+    return parts.join(' · ');
+  }
+
+  function getProjectSummary() {
+    if (activeAgentCount > 0) {
+      return `${activeAgentCount} live agent${activeAgentCount === 1 ? '' : 's'}`;
+    }
+    if (attentionItems.length > 0) {
+      return 'No agents running';
+    }
+    return 'No agents running';
+  }
+
+  function getRecentResultSummary(agent) {
+    const status = getManagedToolState(agent.toolId);
+    if (agent._failed && status.detail) return status.detail;
+    if (agent.outputPreview) return agent.outputPreview;
+    if (agent.task) return agent.task;
+    return agent._failed ? 'Task failed' : 'Task completed';
+  }
+
+  const readyCliAgents = installedCliAgents.filter(tool => getManagedToolState(tool.id).state === 'ready');
+  const unavailableCliAgents = installedCliAgents.filter(tool => {
+    const state = getManagedToolState(tool.id).state;
+    return state === 'needs_auth' || state === 'unavailable';
+  });
+  const checkingCliAgents = installedCliAgents.filter(tool => getManagedToolState(tool.id).state === 'checking');
+
+  // ── API actions ──────────────────────────────────────
+
+  function sendMessage(text, target) {
+    if (!teamId || !text.trim()) return;
+    api(config).post(`/teams/${teamId}/messages`, { text: text.trim(), target: target || undefined })
+      .then(() => { flash('Message sent'); setRefreshKey(k => k + 1); })
+      .catch(() => flash('Failed to send message'));
+  }
+
+  function saveMemory(text) {
+    if (!teamId || !text.trim()) return;
+    api(config).post(`/teams/${teamId}/memory`, { text: text.trim() })
+      .then(() => { flash('Saved'); setRefreshKey(k => k + 1); })
+      .catch(() => flash('Failed to save'));
+  }
+
+  function deleteMemoryItem(mem) {
+    if (!mem?.id || !teamId) return;
+    api(config).del(`/teams/${teamId}/memory`, { id: mem.id })
+      .then(() => {
+        setDeleteMsg('Deleted');
+        setDeleteConfirm(false);
+        setMemorySelectedIdx(-1);
+        setRefreshKey(k => k + 1);
+        setTimeout(() => setDeleteMsg(null), 2000);
+      })
+      .catch(() => {
+        setDeleteMsg('Delete failed');
+        setDeleteConfirm(false);
+        setTimeout(() => setDeleteMsg(null), 2000);
+      });
+  }
+
+  function handleSpawnAgent(toolInfo, task) {
+    if (!toolInfo || !task.trim()) return;
+    const toolState = getManagedToolState(toolInfo.id);
+    if (toolState.state !== 'ready') {
+      const recoveryHint = toolState.recoveryCommand ? ` Run \`${toolState.recoveryCommand}\`.` : '';
+      flash(`${toolState.detail || `${toolInfo.name} is not ready`}.${recoveryHint}`, 5000);
+      return;
+    }
+
+    try {
+      const launch = createManagedAgentLaunch({
+        tool: toolInfo,
+        task,
+        cwd: projectRoot,
+        token: config?.token,
+        cols: stdout?.columns,
+        rows: stdout?.rows,
+      });
+      const result = spawnAgent(launch);
+      if (result.status === 'failed') {
+        flash(`Failed to start ${toolInfo.name}`, 5000);
+        return;
+      }
+      flash(`Started ${toolInfo.name}`);
+    } catch (err) {
+      flash(err?.message || `Failed to start ${toolInfo.name}`, 5000);
+    }
+  }
+
+  function handleKillAgent(agent) {
+    if (!agent?._managed) return;
+    const didKill = killAgent(agent.id);
+    if (!didKill) {
+      flash(agent._dead ? 'Agent already stopped' : 'Failed to stop agent');
+      return;
+    }
+
+    flash(`Stopping ${agent._display}`);
+    if (mode === 'agent-focus') {
+      setMode('overview');
+      setFocusedAgent(null);
+    }
+  }
+
+  function handleRemoveAgent(agent) {
+    if (!agent?._managed) return;
+    const removed = removeAgent(agent.id);
+    if (removed) {
+      flash('Removed');
+      if (mode === 'agent-focus') {
+        setMode('overview');
+        setFocusedAgent(null);
+      }
+    } else {
+      flash('Unable to remove agent');
+    }
+  }
+
+  function handleRestartAgent(agent) {
+    if (!agent?._managed || !agent._dead) return;
+
+    const removed = removeAgent(agent.id);
+    if (!removed) {
+      flash('Unable to restart agent');
+      return;
+    }
+
+    if (mode === 'agent-focus') {
+      setMode('overview');
+      setFocusedAgent(null);
+    }
+
+    handleSpawnAgent({
+      id: agent.tool,
+      name: agent.toolName || agent._display,
+      cmd: agent.cmd,
+      args: agent.args,
+      taskArg: agent.taskArg,
+    }, agent.task);
+  }
+
+  function handleFixLauncher(tool = unavailableCliAgents[0]) {
+    if (!tool) {
+      flash('No fix action is available');
+      return;
+    }
+
+    const status = getManagedToolState(tool.id);
+    if (!status.recoveryCommand) {
+      flash(`${tool.name} does not have an automatic fix action`);
+      return;
+    }
+
+    const result = openCommandInTerminal(status.recoveryCommand, projectRoot);
+    if (result.ok) {
+      flash(`Opened ${tool.name} fix flow. Finish it, then press [u].`, 5000);
+    } else {
+      flash(`Run \`${status.recoveryCommand}\` manually, then press [u].`, 5000);
+    }
+  }
+
+  // ── Data ─────────────────────────────────────────────
+
+  const {
+    getToolName,
+    conflicts,
+    memories,
+    filteredMemories,
+    visibleMemories,
+    visibleAgents,
+    isTeam,
+  } = buildDashboardView({
+    context,
+    detectedTools,
+    memoryFilter: null,
+    memorySearch: searchActive ? memorySearch : '',
+    cols,
+    projectDir: teamName || basename(process.cwd()),
+  });
+
+  const combinedAgents = buildCombinedAgentRows({
+    managedAgents,
+    connectedAgents: visibleAgents,
+    getToolName,
+  });
+  const liveAgents = combinedAgents.filter(agent => !agent._dead);
+  const recentManagedResults = combinedAgents
+    .filter(agent => agent._managed && agent._dead)
+    .sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
+  const activeAgentCount = countLiveAgents(liveAgents);
+  const selectedAgent = selectedIdx >= 0 ? liveAgents[selectedIdx] : null;
+  const quietAgents = liveAgents
+    .filter(agent => !agent._dead && agent.minutes_since_update != null && agent.minutes_since_update >= 15)
+    .sort((a, b) => (b.minutes_since_update || 0) - (a.minutes_since_update || 0));
+  const attentionItems = [
+    ...conflicts.slice(0, 3).map(([file, owners]) => ({
+      kind: 'conflict',
+      text: `${basename(file)} · ${owners.join(' & ')}`,
+    })),
+    ...quietAgents.slice(0, 2).map(agent => ({
+      kind: 'quiet',
+      text: `${agent._display}${agent.handle ? ` · ${agent.handle}` : ''} quiet for ${Math.round(agent.minutes_since_update)}m`,
+    })),
+  ];
+  const knowledgeVisible = activeSection === 'memory' || searchActive || addingMemory
+    ? visibleMemories
+    : visibleMemories.slice(0, Math.min(1, visibleMemories.length));
+  const duplicateIssueToolIds = new Set(unavailableCliAgents.map(tool => tool.id));
+  const recentResult = recentManagedResults.find(agent => !duplicateIssueToolIds.has(agent.toolId)) || null;
+
+  const hasLiveAgents = liveAgents.length > 0;
+  const hasRecentManagedResults = Boolean(recentResult);
+  const hasMemories = memories.length > 0;
+  const isEmpty = !hasLiveAgents && !hasRecentManagedResults && !hasMemories && installedCliAgents.length === 0;
+  const visibleSessionRows = getVisibleWindow(liveAgents, selectedIdx, Math.max(4, viewportRows - 11));
+  const visibleKnowledgeRows = getVisibleWindow(knowledgeVisible, memorySelectedIdx, Math.max(4, viewportRows - 11));
+  const commandEntries = [
+    { name: '/new', description: 'Start a new task' },
+    ...(unavailableCliAgents.some(tool => getManagedToolState(tool.id).recoveryCommand)
+      ? [{ name: '/fix', description: 'Open the main setup fix flow' }]
+      : []),
+    ...(installedCliAgents.length > 0
+      ? [{ name: '/recheck', description: 'Refresh available tools and setup state' }]
+      : []),
+    ...(hasMemories
+      ? [{ name: '/knowledge', description: 'Open project knowledge' }]
+      : []),
+    ...(hasLiveAgents
+      ? [{ name: '/sessions', description: 'Open the active session list' }]
+      : []),
+    ...(selectedAgent && isAgentAddressable(selectedAgent)
+      ? [{ name: '/message', description: `Message ${selectedAgent._display}` }]
+      : []),
+    { name: '/help', description: 'Show command help' },
+  ];
+  const commandQuery = composeMode === 'command'
+    ? composeText.trim().replace(/^\//, '').toLowerCase()
+    : '';
+  const commandSuggestions = commandEntries.filter((entry) => {
+    if (!composeText.trim().startsWith('/')) return false;
+    if (!commandQuery) return true;
+    const normalized = entry.name.slice(1).toLowerCase();
+    return normalized.startsWith(commandQuery) || entry.description.toLowerCase().includes(commandQuery);
+  });
+
+  // Clamp selection indices
+  useEffect(() => {
+    if (selectedIdx >= liveAgents.length) {
+      setSelectedIdx(liveAgents.length > 0 ? liveAgents.length - 1 : -1);
+    }
+  }, [selectedIdx, liveAgents.length]);
+
+  useEffect(() => {
+    if (memorySelectedIdx >= visibleMemories.length) {
+      setMemorySelectedIdx(visibleMemories.length > 0 ? visibleMemories.length - 1 : -1);
+    }
+  }, [memorySelectedIdx, visibleMemories.length]);
+
+  // ── Composing state ──────────────────────────────────
+
+  const isComposing = (composeMode && composeMode !== 'pick-agent') || searchActive || addingMemory;
+
+  // ── Input handling ───────────────────────────────────
+
   useInput((input, key) => {
-    // When terminal is too narrow, only allow quit
     if (cols < MIN_WIDTH) {
       if (input === 'q') navigate('quit');
       return;
     }
 
-    // Tab switches section focus
-    if (key.tab) {
-      setActiveSection(prev => prev === 'agents' ? 'memory' : 'agents');
+    // ── Agent focus mode input ─────────────────────────
+    if (mode === 'agent-focus') {
+      if (key.escape) {
+        setMode('overview');
+        setFocusedAgent(null);
+        setShowDiagnostics(false);
+        return;
+      }
+      if (input === 'x' && focusedAgent?._managed) {
+        if (focusedAgent._dead) {
+          handleRemoveAgent(focusedAgent);
+        } else {
+          handleKillAgent(focusedAgent);
+        }
+        return;
+      }
+      if (input === 'r' && focusedAgent?._managed && focusedAgent._dead) {
+        handleRestartAgent(focusedAgent);
+        return;
+      }
+      if (input === 'l' && focusedAgent?._managed) {
+        setShowDiagnostics(prev => !prev);
+        return;
+      }
+      if (input === '/' && isAgentAddressable(focusedAgent)) {
+        setMode('overview');
+        setFocusedAgent(null);
+        setShowDiagnostics(false);
+        beginTargetedMessage(focusedAgent);
+        return;
+      }
+      return;
+    }
+
+    // ── Overview mode input ────────────────────────────
+
+    // When composing text, only handle Esc
+    if (isComposing) {
+      if (key.escape) clearCompose();
+      return;
+    }
+
+    // Agent picker mode
+    if (composeMode === 'pick-agent') {
+      if (key.escape) { clearCompose(); return; }
+      const num = parseInt(input, 10);
+      if (num >= 1 && num <= readyCliAgents.length) {
+        setSpawnTool(readyCliAgents[num - 1]);
+        setComposeMode('spawn');
+        setComposeText('');
+      }
+      return;
+    }
+
+    // Knowledge focus toggle
+    if (input === 'k' && hasMemories) {
+      setActiveSection(prev => prev === 'memory' ? 'overview' : 'memory');
       setSelectedIdx(-1);
       setMemorySelectedIdx(-1);
       setDeleteConfirm(false);
       return;
     }
 
-    // Section-specific arrow navigation
+    // Agent section navigation
     if (activeSection === 'agents') {
-      if (key.downArrow && visibleAgents.length > 0) {
-        setSelectedIdx(prev => Math.min(prev + 1, visibleAgents.length - 1));
+      if (key.downArrow && liveAgents.length > 0) {
+        setSelectedIdx(prev => Math.min(prev + 1, liveAgents.length - 1));
         return;
       }
       if (key.upArrow) {
@@ -134,11 +822,52 @@ export function Dashboard({ config, user, navigate }) {
         return;
       }
       if (key.escape) { setSelectedIdx(-1); return; }
+
+      // Enter on selected agent → focus mode
+      if (key.return) {
+        if (selectedIdx >= 0 && selectedIdx < liveAgents.length) {
+          const agent = liveAgents[selectedIdx];
+          setFocusedAgent(agent);
+          setMode('agent-focus');
+          setShowDiagnostics(false);
+          return;
+        }
+        beginCommandInput('');
+        return;
+      }
+
+      // [x] on selected managed agent → stop (running) or remove (exited)
+      if (input === 'x' && selectedIdx >= 0) {
+        const agent = liveAgents[selectedIdx];
+        if (agent?._managed) {
+          if (agent._dead) {
+            handleRemoveAgent(agent);
+          } else {
+            handleKillAgent(agent);
+          }
+          return;
+        }
+      }
+
+      if (input === 'r' && selectedIdx >= 0) {
+        const agent = liveAgents[selectedIdx];
+        if (agent?._managed && agent._dead) {
+          handleRestartAgent(agent);
+          return;
+        }
+      }
     }
 
+    if (input === 's' && hasLiveAgents) {
+      setActiveSection('agents');
+      setSelectedIdx(liveAgents.length > 0 ? 0 : -1);
+      return;
+    }
+
+    // Memory section navigation
     if (activeSection === 'memory') {
-      if (key.downArrow && filteredMemories.length > 0) {
-        setMemorySelectedIdx(prev => Math.min(prev + 1, filteredMemories.length - 1));
+      if (key.downArrow && visibleMemories.length > 0) {
+        setMemorySelectedIdx(prev => Math.min(prev + 1, visibleMemories.length - 1));
         setDeleteConfirm(false);
         return;
       }
@@ -154,150 +883,198 @@ export function Dashboard({ config, user, navigate }) {
       }
     }
 
-    // Memory filter: [m] cycles tags
-    if (input === 'm') {
-      const tags = [null, ...collectTags(memories)];
-      const currentIdx = tags.indexOf(memoryFilter);
-      const nextIdx = (currentIdx + 1) % tags.length;
-      setMemoryFilter(tags[nextIdx]);
-      setMemorySelectedIdx(-1);
-      setDeleteConfirm(false);
+    // [n] — spawn a new agent
+    if (input === 'n' && readyCliAgents.length > 0) {
+      openNewTaskFlow();
       return;
     }
 
-    // Memory delete: [d] on selected memory
-    if (input === 'd' && activeSection === 'memory' && memorySelectedIdx >= 0) {
-      if (!deleteConfirm) {
-        setDeleteConfirm(true);
+    if (input === 'n' && installedCliAgents.length > 0 && readyCliAgents.length === 0) {
+      flash('No tools are ready to start. Press [u] after signing in.');
+      return;
+    }
+
+    if (input === 'u' && installedCliAgents.length > 0) {
+      refreshManagedToolStates({ clearRuntimeFailures: true });
+      return;
+    }
+
+    if (input === 'f' && unavailableCliAgents.some(tool => getManagedToolState(tool.id).recoveryCommand)) {
+      handleFixLauncher(unavailableCliAgents.find(tool => getManagedToolState(tool.id).recoveryCommand));
+      return;
+    }
+
+    // [/] — command palette or memory search
+    if (input === '/') {
+      if (activeSection === 'agents') {
+        beginCommandInput('/');
         return;
       }
-      // Confirmed — delete
-      const mem = filteredMemories[memorySelectedIdx];
-      if (mem?.id && teamId) {
-        const client = api(config);
-        client.del(`/teams/${teamId}/memory`, { id: mem.id }).then(() => {
-          setDeleteMsg('Memory deleted');
-          setDeleteConfirm(false);
-          setMemorySelectedIdx(-1);
-          setRefreshKey(k => k + 1);
-          setTimeout(() => setDeleteMsg(null), 2000);
-        }).catch(() => {
-          setDeleteMsg('Delete failed');
-          setDeleteConfirm(false);
-          setTimeout(() => setDeleteMsg(null), 2000);
-        });
+      if (activeSection === 'memory') {
+        setSearchActive(true);
+        return;
       }
+    }
+
+    // [a] — add memory
+    if (input === 'a' && activeSection === 'memory') {
+      setAddingMemory(true);
+      setMemoryInput('');
+      return;
+    }
+
+    // [d] — delete memory
+    if (input === 'd' && activeSection === 'memory' && memorySelectedIdx >= 0) {
+      if (!deleteConfirm) { setDeleteConfirm(true); return; }
+      deleteMemoryItem(visibleMemories[memorySelectedIdx]);
       return;
     }
 
     if (input === 'q') { navigate('quit'); return; }
-    if (input === 'r') {
-      setContext(null);
-      setRefreshKey(k => k + 1);
-    }
-    if (input === 'w') { openDashboard().catch(() => {}); return; }
-    if (input === 'e') {
-      // Install/update chinwag extension into IDE
-      const extName = `${VSCODE_EXTENSION.publisher}.${VSCODE_EXTENSION.name}-${VSCODE_EXTENSION.version}`;
-      // All VS Code forks: Cursor, Windsurf, VS Code, Void, etc.
-      const ideDirs = ['.cursor', '.windsurf', '.vscode'];
-      const ideDir = ideDirs.find(d => existsSync(join(homedir(), d))) || '.vscode';
-      const target = join(homedir(), ideDir, 'extensions', extName);
-      const wasInstalled = existsSync(target);
-      try {
-        mkdirSync(target, { recursive: true });
-        cpSync(join(IDE_EXTENSION_DIR, 'package.json'), join(target, 'package.json'));
-        cpSync(join(IDE_EXTENSION_DIR, 'dist', 'extension.js'), join(target, 'extension.js'));
-        try { cpSync(join(IDE_EXTENSION_DIR, 'logo-mark.svg'), join(target, 'logo-mark.svg')); } catch {}
-        setFlashMsg(wasInstalled
-          ? `Updated — ${IDE_COMMAND_SHORTCUT} → "chinwag: Open Dashboard"`
-          : `Installed — restart IDE, then ${IDE_COMMAND_SHORTCUT} → "chinwag: Open Dashboard"`);
-      } catch {
-        if (wasInstalled) {
-          setFlashMsg(`${IDE_COMMAND_SHORTCUT} → "chinwag: Open Dashboard"`);
-        } else {
-          setFlashMsg('Could not install extension');
-        }
-      }
-      setTimeout(() => setFlashMsg(null), 5000);
+
+    if (
+      activeSection === 'agents' &&
+      input &&
+      input.length === 1 &&
+      !key.ctrl &&
+      !key.meta &&
+      !['q', 'n', 'u', 'f', '/'].includes(input)
+    ) {
+      beginCommandInput(input);
       return;
     }
-    if (input === 'f') { navigate('discover'); return; }
-    if (input === 'c') { navigate('chat'); return; }
-    if (input === 's') { navigate('customize'); return; }
   });
 
-  const {
-    getToolName,
-    projectDir,
-    activeAgents,
-    conflicts,
-    memories,
-    filteredMemories,
-    visibleMemories,
-    memoryOverflow,
-    messages,
-    recentSessions,
-    showRecent,
-    visibleAgents,
-    agentOverflow,
-    toolCounts,
-    isTeam,
-  } = buildDashboardView({
-    context,
-    detectedTools,
-    memoryFilter,
-    cols,
-    projectDir: teamName || basename(process.cwd()),
-  });
+  // ── Submit handlers ──────────────────────────────────
 
-  useEffect(() => {
-    if (selectedIdx >= visibleAgents.length) {
-      setSelectedIdx(visibleAgents.length > 0 ? visibleAgents.length - 1 : -1);
+  function onComposeSubmit() {
+    if (composeMode === 'command') {
+      handleCommandSubmit(composeText);
+      return;
     }
-  }, [selectedIdx, visibleAgents.length]);
-
-  useEffect(() => {
-    if (memorySelectedIdx >= visibleMemories.length) {
-      setMemorySelectedIdx(visibleMemories.length > 0 ? visibleMemories.length - 1 : -1);
+    if (composeMode === 'spawn' && spawnTool) {
+      handleSpawnAgent(spawnTool, composeText);
+    } else {
+      sendMessage(composeText, composeTarget);
     }
-  }, [memorySelectedIdx, visibleMemories.length]);
+    clearCompose();
+  }
 
-  // ── Layout pieces ──────────────────────────────────────
+  function onMemorySubmit() {
+    saveMemory(memoryInput);
+    setAddingMemory(false);
+    setMemoryInput('');
+  }
 
-  const header = null;
+  // ── Nav bar builder ──────────────────────────────────
 
-  const navBar = (
-    <Box paddingX={1} paddingTop={1}>
-      <Text>
-        {activeSection === 'memory' ? (
-          <>
-            <Text color="cyan" bold>[Tab]</Text><Text dimColor> agents  </Text>
-            <Text color="cyan" bold>[m]</Text><Text dimColor> filter  </Text>
-            {memorySelectedIdx >= 0 && (
-              <><Text color="cyan" bold>[d]</Text><Text dimColor> delete  </Text></>
-            )}
-          </>
-        ) : (
-          <><Text color="cyan" bold>[Tab]</Text><Text dimColor> memory  </Text></>
-        )}
-        <Text color="cyan" bold>[w]</Text><Text dimColor> browser  </Text>
-        <Text color="cyan" bold>[f]</Text><Text dimColor> tools  </Text>
-        <Text color="cyan" bold>[s]</Text><Text dimColor> settings  </Text>
-        <Text color="cyan" bold>[q]</Text><Text dimColor> quit</Text>
-      </Text>
+  function buildNavItems() {
+    if (mode === 'agent-focus') {
+      const items = [{ key: 'esc', label: 'back', color: 'cyan' }];
+      if (focusedAgent?._managed && !focusedAgent._dead) {
+        items.push({ key: 'x', label: 'stop', color: 'red' });
+      }
+      if (focusedAgent?._managed && focusedAgent._dead) {
+        items.push({ key: 'r', label: 'restart', color: 'green' });
+        items.push({ key: 'x', label: 'remove', color: 'red' });
+      }
+      if (isAgentAddressable(focusedAgent)) {
+        items.push({ key: '/', label: 'message', color: 'cyan' });
+      }
+      if (focusedAgent?._managed) {
+        items.push({ key: 'l', label: showDiagnostics ? 'hide diagnostics' : 'diagnostics', color: 'yellow' });
+      }
+      return items;
+    }
+
+    if (composeMode === 'pick-agent') {
+      return [
+        { key: `1-${readyCliAgents.length}`, label: 'select', color: 'green' },
+        { key: 'esc', label: 'cancel', color: 'cyan' },
+      ];
+    }
+
+    if (isComposing) {
+      return [
+        { key: 'enter', label: composeMode === 'spawn' ? 'start' : 'send', color: 'green' },
+        { key: 'esc', label: 'cancel', color: 'cyan' },
+      ];
+    }
+
+    const items = [{ key: '/', label: 'commands', color: 'cyan' }];
+
+    if (activeSection === 'overview' && hasLiveAgents) {
+      items.push({ key: 's', label: 'sessions', color: 'cyan' });
+    }
+
+    if (activeSection === 'agents' && hasLiveAgents) {
+      items.push({ key: '↑↓', label: 'select', color: 'cyan' });
+      if (selectedIdx >= 0) {
+        items.push({ key: 'enter', label: 'inspect', color: 'cyan' });
+        const sel = selectedAgent;
+        if (sel?._managed && !sel._dead) items.push({ key: 'x', label: 'stop', color: 'red' });
+      }
+      if (selectedAgent && isAgentAddressable(selectedAgent)) {
+        items.push({ key: '/', label: 'message', color: 'cyan' });
+      }
+      items.push({ key: 'esc', label: 'back', color: 'cyan' });
+    }
+
+    if (activeSection === 'memory' && hasMemories) {
+      items.push({ key: '/', label: 'search', color: 'cyan' });
+      items.push({ key: 'a', label: 'add', color: 'green' });
+      if (memorySelectedIdx >= 0) items.push({ key: 'd', label: 'delete', color: 'red' });
+      items.push({ key: 'esc', label: 'back', color: 'cyan' });
+    }
+
+    items.push({ key: 'q', label: 'quit', color: 'gray' });
+    return items;
+  }
+
+  const navItems = buildNavItems();
+
+  const focusBar = (
+    <Box paddingX={1} paddingTop={1} borderTop={true} borderColor="gray">
+      <HintRow hints={navItems.map(item => ({
+        commandKey: item.key,
+        label: item.label,
+        color: item.color || 'cyan',
+      }))} />
     </Box>
   );
 
-  // ── Guards ─────────────────────────────────────────────
+  const dashboardRail = (
+    <Box paddingTop={1}>
+      <ModeRail
+        items={[
+          { key: 'overview', label: 'overview', accent: 'cyan' },
+          { key: 'agents', label: 'sessions', meta: liveAgents.length > 0 ? String(liveAgents.length) : null, accent: 'green' },
+          { key: 'memory', label: 'knowledge', meta: memories.length > 0 ? String(memories.length) : null, accent: 'magenta' },
+        ]}
+        activeKey={mode === 'agent-focus' ? 'agents' : activeSection}
+      />
+    </Box>
+  );
+
+  function renderSectionIntro(title, summary, color = 'cyan') {
+    return (
+      <Box flexDirection="column" paddingTop={1}>
+        <Text color={color} bold>{title}</Text>
+        {summary ? <Text dimColor>{summary}</Text> : null}
+      </Box>
+    );
+  }
+
+  const introBlock = showSessionIntro && mode !== 'agent-focus' && activeSection === 'overview'
+    ? <SessionIntroCard projectName={teamName || projectLabel || basename(projectRoot)} />
+    : null;
+
+  // ── Guards ───────────────────────────────────────────
 
   if (cols < MIN_WIDTH) {
     return (
       <Box flexDirection="column" padding={1}>
-        <Text color="cyan" bold>chinwag</Text>
-        <Text>{''}</Text>
-        <Text dimColor>Terminal too narrow ({cols} cols).</Text>
-        <Text dimColor>Widen to at least {MIN_WIDTH}.</Text>
+        <Text dimColor>Terminal too narrow ({cols} cols). Widen to at least {MIN_WIDTH}.</Text>
         <Text>{''}</Text>
         <Text><Text color="cyan" bold>[q]</Text><Text dimColor> quit</Text></Text>
       </Box>
@@ -307,211 +1084,341 @@ export function Dashboard({ config, user, navigate }) {
   if (error) {
     return (
       <Box flexDirection="column">
-        {header}
-        <Box paddingX={1} paddingTop={1}>
-          <Text color="red">{error}</Text>
-        </Box>
-        {navBar}
+        <Box paddingX={1} paddingTop={1}><Text color="red">{error}</Text></Box>
+        {commandBar}
       </Box>
     );
   }
 
   if (!context) {
     return (
-      <Box flexDirection="column">
-        {header}
-        <Box paddingX={1} paddingTop={1}>
-          <Text dimColor>Connecting...</Text>
-        </Box>
-        {navBar}
+      <Box flexDirection="column" paddingX={1} paddingTop={1}>
+        <Text dimColor>Loading team context...</Text>
       </Box>
     );
   }
 
-  // ── Main render ────────────────────────────────────────
+  // ── Agent focus view ─────────────────────────────────
 
-  return (
-    <Box flexDirection="column">
-      {header}
+  if (mode === 'agent-focus' && focusedAgent) {
+    const freshAgent = focusedAgent._managed
+      ? (combinedAgents.find(agent => agent._managed && agent.id === focusedAgent.id) || focusedAgent)
+      : (combinedAgents.find(agent => !agent._managed && agent.agent_id === focusedAgent.agent_id) || focusedAgent);
+    const isRunning = freshAgent._managed ? freshAgent.status === 'running' : freshAgent.status === 'active';
+    const isDead = freshAgent._managed ? freshAgent._dead : freshAgent.status !== 'active';
+    const exitCode = freshAgent._exitCode;
+    const outputLines = showDiagnostics && freshAgent._managed
+      ? getOutput(freshAgent.id, 12)
+          .map(line => stripAnsi(line))
+          .map(line => line.trimEnd())
+          .filter(Boolean)
+      : [];
+    const agentFiles = freshAgent.activity?.files || [];
+    const agentConflicts = conflicts.filter(([file]) => agentFiles.includes(file));
+    const sourceLabel = freshAgent._managed ? 'Started from chinwag' : 'Connected from external tool';
+    const quietLabel = freshAgent.minutes_since_update != null && freshAgent.minutes_since_update >= 15
+      ? `Quiet for ${Math.round(freshAgent.minutes_since_update)}m`
+      : null;
+    const outputSummary = freshAgent.outputPreview || null;
 
-      {/* Agents — the core section, always visible */}
-      <Box flexDirection="column" paddingX={1} paddingTop={1}>
-        <Text>
-          <Text bold>Agents</Text>
-          {activeAgents.length > 0 && (
-            <Text dimColor>  {activeAgents.length} active</Text>
-          )}
-          {activeSection === 'agents' && activeAgents.length > 0 && <Text dimColor>  ↑↓</Text>}
-        </Text>
+    return (
+      <Box flexDirection="column">
+        {dashboardRail}
+        {renderSectionIntro('session inspector', sourceLabel, 'green')}
 
-        {activeAgents.length === 0 ? (
-          <Text dimColor>  No agents running. Start an AI tool to see it here.</Text>
-        ) : (
-          <>
-            {visibleAgents.map((m, idx) => {
-              const toolName = getToolName(m.tool);
-              const dur = formatDuration(m.session_minutes);
-              const hasDupes = toolCounts.get(m.tool) > 1;
-              const toolNum = hasDupes
-                ? visibleAgents.slice(0, idx).filter(a => a.tool === m.tool).length + 1
-                : 0;
-              const isSelected = activeSection === 'agents' && idx === selectedIdx;
-              const allFiles = m.activity?.files || [];
-              const files = formatFiles(allFiles);
-              const summary = smartSummary(m.activity);
-
-              return (
-                <Box key={m.agent_id || m.handle} flexDirection="column">
-                  <Text>
-                    {isSelected
-                      ? <Text color="cyan">  ▸ </Text>
-                      : <Text color="green">  ● </Text>
-                    }
-                    <Text bold>{toolName || 'Unknown'}</Text>
-                    {isTeam && <Text dimColor>  {m.handle}</Text>}
-                    {summary && <Text>  {summary}</Text>}
-                    {dur && <Text dimColor>  {dur}</Text>}
-                  </Text>
-                  {isSelected ? (
-                    <Box flexDirection="column">
-                      {allFiles.length > 0
-                        ? allFiles.map(f => (
-                            <Text key={f} dimColor>{'      '}{basename(f)}</Text>
-                          ))
-                        : <Text dimColor>{'      '}No activity reported yet</Text>
-                      }
-                    </Box>
-                  ) : files ? (
-                    <Text dimColor>{'    '}{files}</Text>
-                  ) : null}
-                </Box>
-              );
-            })}
-            {agentOverflow > 0 && (
-              <Text dimColor>  + {agentOverflow} more — <Text color="cyan" bold>[w]</Text> to see all</Text>
-            )}
-          </>
-        )}
-      </Box>
-
-      {/* Conflicts — only when agents overlap on files */}
-      {conflicts.length > 0 && (
         <Box flexDirection="column" paddingX={1} paddingTop={1}>
-          <Text color="red" bold>Conflicts</Text>
-  
-          {conflicts.map(([file, owners]) => (
-            <Text key={file}>
-              <Text color="red">  ! {basename(file)}</Text>
-              <Text dimColor> — {owners.join(' & ')}</Text>
+          <Text>
+            {isRunning
+              ? <Text color="green">{'\u25CF'} </Text>
+              : isDead
+                ? <Text color="red">{'\u25CF'} </Text>
+                : <Text color="green">{'\u25CF'} </Text>
+            }
+            <Text bold>{freshAgent._display}</Text>
+            {freshAgent.handle && <Text dimColor>  {freshAgent.handle}</Text>}
+            {freshAgent._duration && <Text dimColor>  {freshAgent._duration}</Text>}
+          </Text>
+          <Text>{''}</Text>
+          <Text bold>Session</Text>
+          <Text dimColor>  {sourceLabel}</Text>
+          {isRunning && <Text color="green">  Live</Text>}
+          {isDead && exitCode === 0 && <Text dimColor>  Completed</Text>}
+          {isDead && exitCode !== 0 && <Text color="red">  Exited with error (code {exitCode ?? 'unknown'})</Text>}
+          {freshAgent.agent_id && <Text dimColor>  Agent ID  {freshAgent.agent_id}</Text>}
+
+          <Text>{''}</Text>
+          <Text bold>Work</Text>
+          {getAgentIntent(freshAgent) ? (
+            <Text>  {getAgentIntent(freshAgent)}</Text>
+          ) : (
+            <Text dimColor>  No current work summary</Text>
+          )}
+          {freshAgent._managed && freshAgent._dead && outputSummary && (
+            <Text dimColor>  Final response: {outputSummary}</Text>
+          )}
+          {agentFiles.length > 0 ? (
+            <Box flexDirection="column">
+              {agentFiles.map(file => (
+                <Text key={file} dimColor>  {basename(file)}</Text>
+              ))}
+            </Box>
+          ) : (
+            <Text dimColor>  No files reported yet</Text>
+          )}
+
+          <Text>{''}</Text>
+          <Text bold>Coordination</Text>
+          {quietLabel ? <Text color="yellow">  {quietLabel}</Text> : <Text dimColor>  No quiet-session signal</Text>}
+          {agentConflicts.length > 0 ? (
+            <Box flexDirection="column">
+              {agentConflicts.map(([file, owners]) => (
+                <Text key={file} color="red">  Conflict on {basename(file)} · {owners.join(' & ')}</Text>
+              ))}
+            </Box>
+          ) : (
+            <Text dimColor>  No active conflicts involving this agent</Text>
+          )}
+          {getAgentMeta(freshAgent) && <Text dimColor>  {getAgentMeta(freshAgent)}</Text>}
+
+          {freshAgent._managed && (
+            <>
+              <Text>{''}</Text>
+              <Text bold>Diagnostics</Text>
+              {!showDiagnostics ? (
+                <Text dimColor>  Hidden by default. Press [l] to inspect captured process output.</Text>
+              ) : outputLines.length > 0 ? (
+                <Box flexDirection="column">
+                  {outputLines.map((line, idx) => (
+                    <Text key={`${freshAgent.id}-${idx}`} dimColor>  {line}</Text>
+                  ))}
+                </Box>
+              ) : (
+                <Text dimColor>  No captured output yet</Text>
+              )}
+            </>
+          )}
+        </Box>
+
+        {flashMsg && (
+          <Box paddingX={1} paddingTop={1}>
+            <Text color="green" bold>{flashMsg}</Text>
+          </Box>
+        )}
+
+        {focusBar}
+      </Box>
+    );
+  }
+
+  // ── Input bars (compose/search/add) ──────────────────
+
+  const inputBars = (
+    <>
+      {composeMode === 'pick-agent' && (
+        <Box flexDirection="column" paddingX={1} paddingTop={1}>
+          <Text bold>  Delegate task</Text>
+          {readyCliAgents.map((agent, i) => (
+            <Text key={agent.id}>
+              <Text>    </Text>
+              <Text color="cyan" bold>[{i + 1}]</Text>
+              <Text> {agent.name}</Text>
             </Text>
           ))}
         </Box>
       )}
 
-      {/* Messages — show if any exist */}
-      {messages.length > 0 && (
+      {composeMode === 'spawn' && spawnTool && (
+        <Box paddingX={1} paddingTop={1}>
+          <Text color="cyan">  {spawnTool?.name || spawnTool}{'> '}</Text>
+          <TextInput
+            value={composeText}
+            onChange={setComposeText}
+            onSubmit={onComposeSubmit}
+            placeholder="Describe the task to delegate..."
+          />
+        </Box>
+      )}
+
+      {composeMode === 'command' && (
         <Box flexDirection="column" paddingX={1} paddingTop={1}>
-          <Text>
-            <Text bold>Messages</Text>
-            <Text dimColor>  {messages.length} recent</Text>
-          </Text>
-  
-          {messages.slice(0, 5).map((msg, i) => {
-            const from = msg.from_tool && msg.from_tool !== 'unknown'
-              ? `${msg.from_handle} (${msg.from_tool})`
-              : msg.from_handle;
-            return (
-              <Text key={i}>
-                <Text color="blue">  {from}</Text>
-                <Text dimColor>  {msg.text}</Text>
-              </Text>
-            );
-          })}
-          {messages.length > 5 && (
-            <Text dimColor>  + {messages.length - 5} more</Text>
+          <Box>
+            <Text color="cyan">  /{'>'}</Text>
+            <TextInput
+              value={composeText}
+              onChange={setComposeText}
+              onSubmit={onComposeSubmit}
+              placeholder="new, fix, recheck, knowledge"
+            />
+          </Box>
+          {commandSuggestions.length > 0 && (
+            <Box flexDirection="column" marginLeft={2}>
+              {commandSuggestions.slice(0, 5).map((entry, idx) => (
+                <Text key={entry.name}>
+                  <Text color={idx === 0 ? 'cyan' : 'gray'}>{idx === 0 ? '  ▸ ' : '    '}</Text>
+                  <Text color={idx === 0 ? 'cyan' : 'white'}>{entry.name}</Text>
+                  <Text dimColor>  {entry.description}</Text>
+                </Text>
+              ))}
+            </Box>
           )}
         </Box>
       )}
 
-      {/* Memory — project knowledge saved by agents */}
-      <Box flexDirection="column" paddingX={1} paddingTop={1}>
-        <Text>
-          <Text bold>Memory</Text>
-          {memories.length > 0 && <Text dimColor>  {memories.length} saved</Text>}
-          {memoryFilter && <Text color="yellow">  [{memoryFilter}]</Text>}
-          {activeSection === 'memory' && <Text dimColor>  ↑↓</Text>}
-        </Text>
-
-        {filteredMemories.length === 0 ? (
-          <Text dimColor>
-            {memoryFilter
-              ? `  No ${memoryFilter} memories. [m] to change filter.`
-              : '  None yet — agents save project knowledge here.'}
-          </Text>
-        ) : (
-          <>
-            {visibleMemories.map((mem, idx) => {
-              const tagStr = mem.tags?.length ? `[${mem.tags.join(', ')}]` : '';
-              const prefixLen = 4 + (tagStr ? tagStr.length + 2 : 0);
-              const maxText = cols - prefixLen - 4;
-              const text = mem.text.length > maxText ? mem.text.slice(0, maxText - 1) + '…' : mem.text;
-              const isMemSelected = activeSection === 'memory' && idx === memorySelectedIdx;
-              return (
-                <Text key={mem.id || idx}>
-                  {isMemSelected
-                    ? <Text color="cyan">  ▸ </Text>
-                    : <Text>{'  '}</Text>
-                  }
-                  {tagStr && <Text dimColor>{tagStr}  </Text>}
-                  <Text>{text}</Text>
-                  {isMemSelected && mem.source_handle && (
-                    <Text dimColor>  — {mem.source_handle}</Text>
-                  )}
-                </Text>
-              );
-            })}
-            {memoryOverflow > 0 && (
-              <Text dimColor>  + {memoryOverflow} more — <Text color="cyan" bold>[w]</Text> to browse all</Text>
-            )}
-          </>
-        )}
-        {deleteConfirm && (
-          <Text color="red">  Press [d] again to confirm delete, [Esc] to cancel</Text>
-        )}
-        {deleteMsg && (
-          <Text dimColor>  {deleteMsg}</Text>
-        )}
-      </Box>
-
-      {/* Recent — past work, only when no agents are live */}
-      {showRecent && (
-        <Box flexDirection="column" paddingX={1} paddingTop={1}>
-          <Text bold>Recent</Text>
-  
-          {recentSessions.slice(0, 5).map(s => {
-            const dur = formatDuration(s.duration_minutes) || '0 min';
-            const fileCount = s.files_touched?.length || 0;
-            const hasActivity = s.edit_count > 0 || fileCount > 0;
-            const toolName = s.tool ? getToolName(s.tool) : null;
-            return (
-              <Text key={`${s.owner_handle}-${s.started_at}`}>
-                <Text>  {toolName || 'Agent'}</Text>
-                <Text dimColor>  {s.owner_handle}</Text>
-                <Text dimColor>  {dur}</Text>
-                {hasActivity && <Text dimColor>  {s.edit_count} edits  {fileCount} files</Text>}
-              </Text>
-            );
-          })}
+      {composeMode === 'targeted' && (
+        <Box paddingX={1} paddingTop={1}>
+          <Text color="cyan">  @{composeTargetLabel || 'agent'}{'> '}</Text>
+          <TextInput
+            value={composeText}
+            onChange={setComposeText}
+            onSubmit={onComposeSubmit}
+            placeholder="Send a coordination note..."
+          />
         </Box>
       )}
 
-      {flashMsg && (
+      {searchActive && (
         <Box paddingX={1} paddingTop={1}>
+          <Text color="yellow">  knowledge{'> '}</Text>
+          <TextInput value={memorySearch} onChange={setMemorySearch} placeholder="Search shared knowledge..." />
+        </Box>
+      )}
+
+      {addingMemory && (
+        <Box paddingX={1} paddingTop={1}>
+          <Text color="green">  save{'> '}</Text>
+          <TextInput value={memoryInput} onChange={setMemoryInput} onSubmit={onMemorySubmit} placeholder="Save shared knowledge..." />
+        </Box>
+      )}
+    </>
+  );
+
+  const commandBar = (
+    <Box paddingX={1} paddingTop={1} flexDirection="column">
+      <Box borderStyle="round" borderColor={isComposing || composeMode === 'pick-agent' ? 'cyan' : 'gray'} paddingX={1} flexDirection="column">
+        {inputBars}
+        {!isComposing && composeMode !== 'pick-agent' && (
+          <Text dimColor>  {'>'} Type a task or /command</Text>
+        )}
+      </Box>
+      {flashMsg && (
+        <Box paddingTop={1}>
           <Text color="green" bold>{flashMsg}</Text>
         </Box>
       )}
+      <Box paddingTop={1}>
+        <HintRow hints={
+          mode === 'agent-focus'
+            ? []
+            : activeSection === 'memory'
+              ? [
+                  { commandKey: '/', label: 'search', color: 'cyan' },
+                  { commandKey: 'a', label: 'add', color: 'green' },
+                  ...(memorySelectedIdx >= 0 ? [{ commandKey: 'd', label: 'delete', color: 'red' }] : []),
+                  { commandKey: 'esc', label: 'back', color: 'cyan' },
+                  { commandKey: 'q', label: 'quit', color: 'gray' },
+                ]
+              : [
+                  ...(activeSection === 'overview' && hasLiveAgents ? [{ commandKey: 's', label: 'sessions', color: 'cyan' }] : []),
+                  ...(activeSection === 'agents' ? [{ commandKey: '↑↓', label: 'select', color: 'cyan' }] : []),
+                  { commandKey: 'q', label: 'quit', color: 'gray' },
+                ]
+        } />
+      </Box>
+    </Box>
+  );
 
-      {navBar}
+  // ── Empty state ──────────────────────────────────────
+
+  if (isEmpty) {
+    return (
+      <Box flexDirection="column">
+        {dashboardRail}
+        {renderSectionIntro('operator overview', 'No connected or managed agents yet. Open an editor session or launch one from chinwag.')}
+        {introBlock}
+
+        <Box flexDirection="column" paddingX={1} paddingTop={1}>
+          <Text bold>  workspace · {teamName || basename(projectRoot)}</Text>
+          <Text dimColor>  Open any connected AI tool in this repo and it will appear here.</Text>
+          {readyCliAgents.length > 0 && (
+            <Text dimColor>  Type a task or use `/new` to start one here.</Text>
+          )}
+          {unavailableCliAgents.length > 0 && (
+            <Text dimColor>
+              {'  '}Tools needing setup: {unavailableCliAgents.map(tool => {
+                const status = getManagedToolState(tool.id);
+                return `${tool.name}${status.recoveryCommand ? ` (${status.recoveryCommand})` : ''}`;
+              }).join(', ')}
+            </Text>
+          )}
+        </Box>
+        {commandBar}
+      </Box>
+    );
+  }
+
+  if (activeSection === 'memory') {
+    return (
+      <Box flexDirection="column">
+        {dashboardRail}
+        {renderSectionIntro('knowledge index', 'Shared memory across your agents and teammates.', 'magenta')}
+
+        <KnowledgePanel
+          memories={memories}
+          filteredMemories={filteredMemories}
+          knowledgeVisible={visibleKnowledgeRows.items}
+          windowStart={visibleKnowledgeRows.start}
+          memorySearch={memorySearch}
+          memorySelectedIdx={memorySelectedIdx}
+          deleteConfirm={deleteConfirm}
+          deleteMsg={deleteMsg}
+        />
+
+        {commandBar}
+      </Box>
+    );
+  }
+
+  if (activeSection === 'agents') {
+    return (
+      <Box flexDirection="column">
+        {dashboardRail}
+        {renderSectionIntro('session grid', `${liveAgents.length} active session${liveAgents.length === 1 ? '' : 's'} across managed and connected agents.`, 'green')}
+
+        <SessionsPanel
+          liveAgents={visibleSessionRows.items}
+          totalCount={liveAgents.length}
+          windowStart={visibleSessionRows.start}
+          selectedIdx={selectedIdx}
+          getAgentIntent={getAgentIntent}
+          cols={cols}
+        />
+
+        {commandBar}
+      </Box>
+    );
+  }
+
+  // ── Overview render ──────────────────────────────────
+
+  return (
+    <Box flexDirection="column">
+      {dashboardRail}
+      {renderSectionIntro('operator overview', getProjectSummary())}
+      {introBlock}
+
+      <AttentionSection items={attentionItems} cols={cols} />
+
+      <OverviewSummary
+        readyTools={readyCliAgents}
+        unavailableTools={unavailableCliAgents}
+        checkingTools={checkingCliAgents}
+        getManagedToolState={getManagedToolState}
+        liveAgents={liveAgents}
+        recentResult={recentResult}
+        cols={cols}
+      />
+
+      {commandBar}
     </Box>
   );
 }
