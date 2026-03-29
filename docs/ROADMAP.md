@@ -56,7 +56,7 @@ Membership checks on all team endpoints, team ID entropy, rate limits, input val
 
 ## What is next
 
-### Polish: harden what we shipped
+### Phase 1 — Polish: harden what we shipped
 
 The core works. Before adding surface area, make it bulletproof.
 
@@ -64,15 +64,31 @@ The core works. Before adding surface area, make it bulletproof.
 - [ ] Replace polling with push where possible (channel polls every 10s per agent, dashboard every 5s; evaluate WebSocket push from TeamDO)
 - [ ] CORS origin checking (currently `*`; tighten when dashboard auth hardens)
 - [ ] Tool usage telemetry: record which tools users configure to prioritize integrations
-
-### Ship: testing, CI, npm
-
 - [ ] Unit tests for MCP server tools (vitest)
 - [ ] Integration tests for `chinwag init` → config generation → tool detection
 - [ ] Worker API endpoint tests
 - [ ] GitHub Actions workflow: lint, test, build
 - [ ] Publish `chinwag` CLI and `chinwag-mcp` packages to npm
 - [ ] End-to-end test: `npm install -g chinwag` → `npx chinwag init` → agent connection
+
+### Phase 2 — Process management
+
+Two-tier agent model: managed CLI agents with full lifecycle control, connected IDE agents with coordination only.
+
+- [ ] `lib/process-manager.js`: Spawn CLI agents via node-pty, track PIDs, kill/restart
+- [ ] `chinwag run "task description"` CLI command: spawn a managed agent with a task
+- [ ] `[n]` new agent flow in TUI dashboard: pick tool, enter task, spawn
+- [ ] `[x]` stop on managed agents in dashboard
+- [ ] Managed vs connected agent distinction in data model (agent type, spawn source, PID tracking)
+- [ ] Dashboard unified agent list: managed agents show stop/restart controls, connected agents show activity only
+- [ ] Process exit handling: cleanup on crash, report session end, surface exit status
+
+### Phase 3 — Advanced control
+
+- [ ] Hook-based pause/resume for Claude Code agents (PreToolUse hook returns pause signal)
+- [ ] Advisory stop signals for connected IDE agents (message via MCP context that agents read and follow)
+- [ ] Agent output streaming in TUI (split pane or dedicated view for managed agent stdout)
+- [ ] `chinwag spawn` for headless/background agents (no terminal needed, output logged)
 
 ---
 
@@ -86,8 +102,7 @@ Revisit once pillars are solid and adoption signals are clear.
 
 ## Non-goals
 
-- **Not an agent orchestrator.** chinwag coordinates agents already running in their native tools. It does not spawn or manage them.
-- **Not an APM.** Observation supports the workflow, not a separate monitoring product.
+- **Not a standalone APM.** Observation supports the workflow, not a separate monitoring product.
 - **Not a community platform.** Chat is secondary.
 - **Not a replacement for CLAUDE.md or AGENTS.md.** Those are static per-tool instructions; chinwag is dynamic shared memory and real-time coordination.
 - **Not an MCP server registry.** Discover is about AI dev tools for your workflow, not arbitrary MCP servers.

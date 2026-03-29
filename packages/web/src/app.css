@@ -19,6 +19,13 @@
   --text-xl: 1.25rem;
   --text-2xl: 1.5rem;
 
+  --display-hero: clamp(2.5rem, 5.8vw, 4.8rem);
+  --display-page: clamp(1.9rem, 4.4vw, 3.6rem);
+  --display-section: clamp(1.75rem, 3vw, 2.5rem);
+  --display-inline: clamp(2rem, 4.2vw, 3.2rem);
+  --display-line: 0.96;
+  --display-spacing: -0.075em;
+
   --opacity-primary: 0.92;
   --opacity-secondary: 0.45;
   --opacity-tertiary: 0.28;
@@ -47,8 +54,13 @@
   --radius: 12px;
   --radius-sm: 8px;
   --radius-xs: 6px;
+  --control-radius: 14px;
+  --control-radius-lg: 18px;
 
   --motion: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --motion-fast: 140ms;
+  --motion-base: 220ms;
+  --motion-slow: 320ms;
 
   --sidebar-width: 216px;
   --content-max-width: 1120px;

@@ -6,6 +6,17 @@ import {
 } from '../lifecycle.js';
 
 describe('resolveAgentIdentity', () => {
+  it('uses an explicitly configured agent id when present', () => {
+    const identity = resolveAgentIdentity('tok_123', 'claude-code', {
+      configuredAgentId: 'claude-code:abc123:def45678',
+    });
+
+    expect(identity).toMatchObject({
+      agentId: 'claude-code:abc123:def45678',
+      hasExactSession: true,
+    });
+  });
+
   it('falls back to the deterministic base id when no exact session exists', () => {
     const identity = resolveAgentIdentity('tok_123', 'claude-code', {
       resolveSessionAgentIdFn: ({ fallbackAgentId }) => fallbackAgentId,

@@ -5,10 +5,19 @@ import {
   SESSION_COMMAND_MARKER,
   writeSessionRecord,
 } from '../../shared/session-registry.js';
-import { generateAgentId } from './identity.js';
+import { generateAgentId, getConfiguredAgentId } from './identity.js';
 
 export function resolveAgentIdentity(token, toolName, options = {}) {
   const fallbackAgentId = generateAgentId(token, toolName);
+  const configuredAgentId = options.configuredAgentId ?? getConfiguredAgentId(toolName);
+  if (configuredAgentId) {
+    return {
+      agentId: configuredAgentId,
+      fallbackAgentId,
+      hasExactSession: true,
+    };
+  }
+
   const resolveSession = options.resolveSessionAgentIdFn || resolveSessionAgentId;
   const agentId = resolveSession({
     tool: toolName,

@@ -14,8 +14,11 @@ export default function SettingsView() {
   const [handleValue, setHandleValue] = useState('');
   const [handleError, setHandleError] = useState(null);
   const [handleSaving, setHandleSaving] = useState(false);
-
   const [colorSaving, setColorSaving] = useState(false);
+  const [hoveredColor, setHoveredColor] = useState(null);
+
+  const previewColorName = hoveredColor || user?.color || 'white';
+  const previewColor = getColorHex(previewColorName) || '#98989d';
 
   function startEditHandle() {
     setHandleValue(user?.handle || '');
@@ -61,88 +64,77 @@ export default function SettingsView() {
   }
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} style={{ '--preview-color': previewColor }}>
       <ViewHeader eyebrow="Configure" title="Settings" />
 
-      <div className={styles.profilePreview}>
-        <span
-          className={styles.profileSwatch}
-          style={{ background: getColorHex(user?.color) || '#98989d' }}
-        />
-        <div className={styles.profileCopy}>
-          <strong className={styles.profileHandle}>{user?.handle || 'Unknown user'}</strong>
-          <span className={styles.profileMeta}>Current account</span>
-        </div>
-      </div>
+      <section className={styles.identitySection}>
+        <span className={styles.sectionLabel}>Identity</span>
 
-      <section className={styles.section}>
-        <h2 className={styles.sectionLabel}>Account</h2>
-
-        <div className={styles.field}>
-          <span className={styles.fieldLabel}>Handle</span>
+        <div className={styles.handleSection}>
           {editingHandle ? (
-            <div className={styles.fieldEdit}>
-              <input
-                className={styles.fieldInput}
-                value={handleValue}
-                onChange={(e) => setHandleValue(e.target.value)}
-                onKeyDown={handleHandleKeyDown}
-                maxLength={20}
-                autoFocus
-                disabled={handleSaving}
-                placeholder="3-20 chars"
-              />
-              <button className={styles.btnSave} onClick={saveHandle} disabled={handleSaving}>
-                {handleSaving ? 'Saving...' : 'Save'}
-              </button>
-              <button className={styles.btnCancel} onClick={() => setEditingHandle(false)} disabled={handleSaving}>
-                Cancel
-              </button>
-              {handleError && <span className={styles.fieldError}>{handleError}</span>}
+            <div className={styles.handleEditor}>
+              <div className={styles.handleEditorRow}>
+                <input
+                  className={styles.handleInput}
+                  value={handleValue}
+                  onChange={(e) => setHandleValue(e.target.value)}
+                  onKeyDown={handleHandleKeyDown}
+                  maxLength={20}
+                  autoFocus
+                  disabled={handleSaving}
+                  placeholder="3-20 chars"
+                />
+                <button className={`${styles.actionButton} ${styles.actionButtonPrimary}`} onClick={saveHandle} disabled={handleSaving}>
+                  {handleSaving ? 'Saving...' : 'Save'}
+                </button>
+                <button className={styles.actionButton} onClick={() => setEditingHandle(false)} disabled={handleSaving}>
+                  Cancel
+                </button>
+              </div>
+              {handleError ? <span className={styles.handleError}>{handleError}</span> : null}
             </div>
           ) : (
-            <div className={styles.fieldValueRow}>
-              <span className={styles.fieldValue}>
-                {user?.handle || '\u2014'}
-              </span>
-              <button className={styles.btnEdit} onClick={startEditHandle} aria-label="Edit handle">
+            <button className={styles.handleButton} onClick={startEditHandle} aria-label="Edit handle">
+              <span className={styles.handleValue}>{user?.handle || 'Unknown user'}</span>
+              <span className={styles.handleAction}>
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                   <path d="M11.5 1.5l3 3L5 14H2v-3z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
                 </svg>
-              </button>
-            </div>
+                <span>Edit</span>
+              </span>
+            </button>
           )}
         </div>
 
-        <div className={styles.field}>
-          <span className={styles.fieldLabel}>Color</span>
+        <div className={styles.colorSection}>
+          <span className={styles.sectionLabel}>Color</span>
           <div className={styles.colorPicker}>
-            {COLOR_PALETTE.map(c => (
+            {COLOR_PALETTE.map((color) => {
+              const isCurrent = user?.color === color.name;
+              const isPreview = previewColorName === color.name;
+              return (
               <button
-                key={c.name}
-                className={styles.colorDot}
-                style={{
-                  background: c.hex,
-                  boxShadow: user?.color === c.name
-                    ? `0 0 0 2px #fff, 0 0 0 4px ${c.hex}`
-                    : undefined,
-                }}
-                onClick={() => selectColor(c.name)}
+                key={color.name}
+                className={`${styles.colorDot} ${isCurrent ? styles.colorDotCurrent : ''} ${isPreview ? styles.colorDotPreview : ''}`}
+                style={{ '--dot-color': color.hex }}
+                onClick={() => selectColor(color.name)}
+                onMouseEnter={() => setHoveredColor(color.name)}
+                onMouseLeave={() => setHoveredColor(null)}
+                onFocus={() => setHoveredColor(color.name)}
+                onBlur={() => setHoveredColor(null)}
                 disabled={colorSaving}
-                title={c.name}
-                aria-label={`Select ${c.name}`}
+                title={color.name}
+                aria-label={`Select ${color.name}`}
               />
-            ))}
+              );
+            })}
           </div>
         </div>
-
       </section>
 
-      <section className={styles.section}>
-        <button className={styles.signoutBtn} onClick={handleLogout}>
-          Sign out
-        </button>
-      </section>
+      <button className={styles.signoutBtn} onClick={handleLogout}>
+        Sign out
+      </button>
     </div>
   );
 }

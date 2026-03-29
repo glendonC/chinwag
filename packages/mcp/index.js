@@ -12,10 +12,10 @@ import { loadConfig, configExists } from './lib/config.js';
 import { api } from './lib/api.js';
 import { scanEnvironment } from './lib/profile.js';
 import { findTeamFile, teamHandlers } from './lib/team.js';
-import { detectToolName, generateSessionAgentId } from './lib/identity.js';
+import { detectToolName, generateSessionAgentId, getConfiguredAgentId } from './lib/identity.js';
 import { cleanupProcessSession, registerProcessSession } from './lib/lifecycle.js';
 import { registerTools, registerResources } from './lib/register-tools.js';
-import { setTerminalTitle } from '../shared/session-registry.js';
+import { isProcessAlive, setTerminalTitle } from '../shared/session-registry.js';
 
 let PKG = { version: '0.0.0' };
 try {
@@ -35,7 +35,7 @@ async function main() {
   }
 
   const toolName = detectToolName();
-  const agentId = generateSessionAgentId(config.token, toolName);
+  const agentId = getConfiguredAgentId(toolName) || generateSessionAgentId(config.token, toolName);
   const client = api(config, { agentId });
   console.error(`[chinwag] Tool: ${toolName}, Agent ID: ${agentId}`);
 
@@ -99,9 +99,15 @@ async function main() {
   // Clean up on exit — end session then exit.
   // Second signal or 3s timeout = force exit (don't hang on network issues).
   let cleaning = false;
+  const parentPid = process.ppid;
+  let parentWatch = null;
   const cleanup = () => {
     if (cleaning) { process.exit(0); return; }
     cleaning = true;
+    if (parentWatch) {
+      clearInterval(parentWatch);
+      parentWatch = null;
+    }
     const forceExit = setTimeout(() => process.exit(0), 3000);
     forceExit.unref();
     const done = () => { clearTimeout(forceExit); process.exit(0); };
@@ -110,6 +116,15 @@ async function main() {
   process.on('SIGINT', cleanup);
   process.on('SIGTERM', cleanup);
   process.stdin.on('end', cleanup);
+  process.stdin.on('close', cleanup);
+  process.on('disconnect', cleanup);
+
+  parentWatch = setInterval(() => {
+    if (parentPid > 1 && !isProcessAlive(parentPid)) {
+      cleanup();
+    }
+  }, 5000);
+  parentWatch.unref?.();
 
   // Create MCP server
   const server = new McpServer({

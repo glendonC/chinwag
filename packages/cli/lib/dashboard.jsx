@@ -116,7 +116,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
   // Navigation state
   const [selectedIdx, setSelectedIdx] = useState(-1);
   const [mainFocus, setMainFocus] = useState('launcher');
-  const [activeSection, setActiveSection] = useState('overview');
+  const [view, setView] = useState('home');
   const [notice, setNotice] = useState(null);
   const noticeTimer = useRef(null);
 
@@ -127,18 +127,15 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
 
   // Memory search
   const [memorySearch, setMemorySearch] = useState('');
-  const [searchActive, setSearchActive] = useState(false);
 
   // Memory add
-  const [addingMemory, setAddingMemory] = useState(false);
   const [memoryInput, setMemoryInput] = useState('');
 
-  // Mode: 'overview' | 'agent-focus'
-  const [mode, setMode] = useState('overview');
+  // View: 'home' | 'sessions' | 'memory' | 'agent-focus'
   const [focusedAgent, setFocusedAgent] = useState(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
 
-  // Compose: null | 'command' | 'targeted' | 'launch'
+  // Composer: null | 'command' | 'targeted' | 'launch' | 'memory-search' | 'memory-add'
   const [composeMode, setComposeMode] = useState(null);
   const [composeText, setComposeText] = useState('');
   const [composeTarget, setComposeTarget] = useState(null);
@@ -326,14 +323,17 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
   }
 
   function clearCompose() {
+    const previousMode = composeMode;
     setComposeMode(null);
     setComposeText('');
     setComposeTarget(null);
     setComposeTargetLabel(null);
-    setSearchActive(false);
-    setMemorySearch('');
-    setAddingMemory(false);
-    setMemoryInput('');
+    if (previousMode === 'memory-search') {
+      setMemorySearch('');
+    }
+    if (previousMode === 'memory-add') {
+      setMemoryInput('');
+    }
   }
 
   function refreshManagedToolStates({ clearRuntimeFailures = false } = {}) {
@@ -398,8 +398,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
     if (!tool) return;
     setLaunchToolId(tool.id);
     if (startCompose) {
-      setMode('overview');
-      setActiveSection('overview');
+      setView('home');
       setMainFocus('launcher');
       setComposeMode('launch');
       setComposeText(draftText);
@@ -413,8 +412,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
     }
 
     clearCompose();
-    setMode('overview');
-    setActiveSection('overview');
+    setView('home');
     setMainFocus('launcher');
 
     const initialTool = preselectedTool
@@ -496,14 +494,14 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
     }
 
     if (verb === 'knowledge' || verb === 'memory') {
-      setActiveSection('memory');
+      setView('memory');
       setMemorySelectedIdx(-1);
       clearCompose();
       return;
     }
 
     if (verb === 'sessions' || verb === 'agents') {
-      setActiveSection('agents');
+      setView('sessions');
       setSelectedIdx(liveAgents.length > 0 ? 0 : -1);
       clearCompose();
       return;
@@ -605,6 +603,10 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
     || null;
   const selectedLaunchToolState = selectedLaunchTool ? getManagedToolState(selectedLaunchTool.id) : null;
   const canLaunchSelectedTool = selectedLaunchToolState?.state === 'ready';
+  const isHomeView = view === 'home';
+  const isSessionsView = view === 'sessions';
+  const isMemoryView = view === 'memory';
+  const isAgentFocusView = view === 'agent-focus';
 
   // ── API actions ──────────────────────────────────────
 
@@ -696,8 +698,8 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
     }
 
     flash(`Stopping ${getAgentDisplayLabel(agent)}`, { tone: 'info', autoClearMs: 4000 });
-    if (mode === 'agent-focus') {
-      setMode('overview');
+    if (view === 'agent-focus') {
+      setView('home');
       setFocusedAgent(null);
     }
   }
@@ -707,8 +709,8 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
     const removed = removeAgent(agent.id);
     if (removed) {
       flash(`Removed ${getAgentDisplayLabel(agent)}`, { tone: 'success', autoClearMs: 4000 });
-      if (mode === 'agent-focus') {
-        setMode('overview');
+      if (view === 'agent-focus') {
+        setView('home');
         setFocusedAgent(null);
       }
     } else {
@@ -725,8 +727,8 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
       return;
     }
 
-    if (mode === 'agent-focus') {
-      setMode('overview');
+    if (view === 'agent-focus') {
+      setView('home');
       setFocusedAgent(null);
     }
 
@@ -772,7 +774,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
     context,
     detectedTools,
     memoryFilter: null,
-    memorySearch: searchActive ? memorySearch : '',
+    memorySearch: composeMode === 'memory-search' ? memorySearch : '',
     cols,
     projectDir: teamName || basename(process.cwd()),
   });
@@ -788,7 +790,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
     .sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
   const selectedAgent = selectedIdx >= 0 ? liveAgents[selectedIdx] : null;
   const mainSelectedAgent = mainFocus === 'agents' ? selectedAgent : null;
-  const knowledgeVisible = activeSection === 'memory' || searchActive || addingMemory
+  const knowledgeVisible = view === 'memory' || composeMode === 'memory-search' || composeMode === 'memory-add'
     ? visibleMemories
     : visibleMemories.slice(0, Math.min(1, visibleMemories.length));
   const duplicateIssueToolIds = new Set(unavailableCliAgents.map(tool => tool.id));
@@ -864,7 +866,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
 
   // ── Composing state ──────────────────────────────────
 
-  const isComposing = Boolean((composeMode && composeMode !== 'launch') || searchActive || addingMemory);
+  const isComposing = Boolean(composeMode && composeMode !== 'launch');
 
   // ── Input handling ───────────────────────────────────
 
@@ -875,9 +877,9 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
     }
 
     // ── Agent focus mode input ─────────────────────────
-    if (mode === 'agent-focus') {
+    if (isAgentFocusView) {
       if (key.escape) {
-        setMode('overview');
+        setView('home');
         setFocusedAgent(null);
         setShowDiagnostics(false);
         return;
@@ -899,7 +901,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
         return;
       }
       if (input === 'm' && isAgentAddressable(focusedAgent)) {
-        setMode('overview');
+        setView('home');
         setFocusedAgent(null);
         setShowDiagnostics(false);
         beginTargetedMessage(focusedAgent);
@@ -933,7 +935,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
       return;
     }
 
-    if (activeSection === 'overview') {
+    if (isHomeView) {
       if (key.downArrow) {
         if (mainFocus === 'launcher' && liveAgents.length > 0) {
           setMainFocus('agents');
@@ -961,7 +963,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
       }
       if (key.return && mainSelectedAgent) {
         setFocusedAgent(mainSelectedAgent);
-        setMode('agent-focus');
+        setView('agent-focus');
         setShowDiagnostics(false);
         return;
       }
@@ -975,12 +977,18 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
       }
     }
 
-    if (activeSection === 'overview' && mainFocus === 'launcher') {
+    if (isHomeView && mainFocus === 'launcher') {
       const num = parseInt(input, 10);
       if (num >= 1 && num <= launcherChoices.length) {
         selectLaunchTool(launcherChoices[num - 1], { startCompose: true, draftText: '' });
         return;
       }
+    }
+
+    if (input === 's' && hasLiveAgents) {
+      setView('sessions');
+      setSelectedIdx(prev => prev >= 0 ? prev : 0);
+      return;
     }
 
     if (input === 'o') {
@@ -994,7 +1002,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
 
     // Knowledge focus toggle
     if (input === 'k' && hasMemories) {
-      setActiveSection(prev => prev === 'memory' ? 'overview' : 'memory');
+      setView(prev => prev === 'memory' ? 'home' : 'memory');
       setSelectedIdx(-1);
       setMemorySelectedIdx(-1);
       setDeleteConfirm(false);
@@ -1002,7 +1010,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
     }
 
     // Agent section navigation
-    if (activeSection === 'agents') {
+    if (isSessionsView) {
       if (key.downArrow && liveAgents.length > 0) {
         setSelectedIdx(prev => Math.min(prev + 1, liveAgents.length - 1));
         return;
@@ -1011,14 +1019,17 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
         setSelectedIdx(prev => prev <= 0 ? -1 : prev - 1);
         return;
       }
-      if (key.escape) { setSelectedIdx(-1); return; }
+      if (key.escape) {
+        setView('home');
+        return;
+      }
 
       // Enter on selected agent → focus mode
       if (key.return) {
         if (selectedIdx >= 0 && selectedIdx < liveAgents.length) {
           const agent = liveAgents[selectedIdx];
           setFocusedAgent(agent);
-          setMode('agent-focus');
+          setView('agent-focus');
           setShowDiagnostics(false);
           return;
         }
@@ -1049,7 +1060,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
     }
 
     // Memory section navigation
-    if (activeSection === 'memory') {
+    if (isMemoryView) {
       if (key.downArrow && visibleMemories.length > 0) {
         setMemorySelectedIdx(prev => Math.min(prev + 1, visibleMemories.length - 1));
         setDeleteConfirm(false);
@@ -1062,7 +1073,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
       }
       if (key.escape) {
         if (deleteConfirm) { setDeleteConfirm(false); return; }
-        setMemorySelectedIdx(-1);
+        setView('home');
         return;
       }
     }
@@ -1090,25 +1101,25 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
 
     // [/] — command palette or memory search
     if (input === '/') {
-      if (activeSection === 'overview' || activeSection === 'agents') {
+      if (isHomeView || isSessionsView) {
         beginCommandInput('/');
         return;
       }
-      if (activeSection === 'memory') {
-        setSearchActive(true);
+      if (isMemoryView) {
+        setComposeMode('memory-search');
         return;
       }
     }
 
     // [a] — add memory
-    if (input === 'a' && activeSection === 'memory') {
-      setAddingMemory(true);
+    if (input === 'a' && isMemoryView) {
+      setComposeMode('memory-add');
       setMemoryInput('');
       return;
     }
 
     // [d] — delete memory
-    if (input === 'd' && activeSection === 'memory' && memorySelectedIdx >= 0) {
+    if (input === 'd' && isMemoryView && memorySelectedIdx >= 0) {
       if (!deleteConfirm) { setDeleteConfirm(true); return; }
       deleteMemoryItem(visibleMemories[memorySelectedIdx]);
       return;
@@ -1140,14 +1151,14 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
 
   function onMemorySubmit() {
     saveMemory(memoryInput);
-    setAddingMemory(false);
+    setComposeMode(null);
     setMemoryInput('');
   }
 
   // ── Nav bar builder ──────────────────────────────────
 
   function buildNavItems() {
-    if (mode === 'agent-focus') {
+    if (isAgentFocusView) {
       const items = [{ key: 'esc', label: 'back', color: 'cyan' }];
       if (focusedAgent?._managed && !focusedAgent._dead) {
         items.push({ key: 'x', label: 'stop', color: 'red' });
@@ -1169,7 +1180,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
       return [
         {
           key: 'enter',
-          label: addingMemory ? 'save' : searchActive ? 'search' : 'send',
+          label: composeMode === 'memory-add' ? 'save' : composeMode === 'memory-search' ? 'search' : 'send',
           color: 'green',
         },
         { key: 'esc', label: 'cancel', color: 'cyan' },
@@ -1199,7 +1210,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
           { key: 'agents', label: 'sessions', meta: liveAgents.length > 0 ? String(liveAgents.length) : null, accent: 'green' },
           { key: 'memory', label: 'memory', meta: memories.length > 0 ? String(memories.length) : null, accent: 'magenta' },
         ]}
-        activeKey={mode === 'agent-focus' ? 'agents' : activeSection}
+        activeKey={isAgentFocusView ? 'agents' : isSessionsView ? 'agents' : isMemoryView ? 'memory' : 'overview'}
       />
     </Box>
   );
@@ -1246,7 +1257,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
 
   // ── Agent focus view ─────────────────────────────────
 
-  if (mode === 'agent-focus' && focusedAgent) {
+  if (isAgentFocusView && focusedAgent) {
     const freshAgent = focusedAgent._managed
       ? (combinedAgents.find(agent => agent._managed && agent.id === focusedAgent.id) || focusedAgent)
       : (combinedAgents.find(agent => !agent._managed && agent.agent_id === focusedAgent.agent_id) || focusedAgent);
@@ -1394,14 +1405,14 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
         </Box>
       )}
 
-      {searchActive && (
+      {composeMode === 'memory-search' && (
         <Box paddingX={1} paddingTop={1}>
           <Text color="yellow">  memory{'> '}</Text>
           <TextInput value={memorySearch} onChange={setMemorySearch} placeholder="Search shared memory..." />
         </Box>
       )}
 
-      {addingMemory && (
+      {composeMode === 'memory-add' && (
         <Box paddingX={1} paddingTop={1}>
           <Text color="green">  save{'> '}</Text>
           <TextInput value={memoryInput} onChange={setMemoryInput} onSubmit={onMemorySubmit} placeholder="Save shared memory..." />
@@ -1421,9 +1432,9 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
       <NoticeLine notice={notice} />
       <Box paddingTop={1}>
         <HintRow hints={
-          mode === 'agent-focus'
+          isAgentFocusView
             ? []
-            : activeSection === 'memory'
+            : isMemoryView
               ? [
                   { commandKey: '/', label: 'search', color: 'cyan' },
                   { commandKey: 'a', label: 'add', color: 'green' },
@@ -1432,7 +1443,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
                   { commandKey: 'q', label: 'quit', color: 'gray' },
                 ]
               : [
-                  ...(activeSection === 'agents' ? [{ commandKey: '↑↓', label: 'select', color: 'cyan' }] : []),
+                  ...(isSessionsView ? [{ commandKey: '↑↓', label: 'select', color: 'cyan' }] : []),
                   { commandKey: 'q', label: 'quit', color: 'gray' },
                 ]
         } />
@@ -1440,7 +1451,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
     </Box>
   );
 
-  const overlayBar = ((composeMode && composeMode !== 'launch') || searchActive || addingMemory || notice) ? (
+  const overlayBar = (isComposing || notice) ? (
     <Box paddingTop={1} flexDirection="column">
       {isComposing ? (
         <Box borderStyle="round" borderColor="cyan" paddingX={1} flexDirection="column">
@@ -1480,6 +1491,8 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
     ...(mainSelectedAgent ? [{ commandKey: 'enter', label: 'inspect', color: 'cyan' }] : []),
     ...(mainSelectedAgent && isAgentAddressable(mainSelectedAgent) ? [{ commandKey: 'm', label: 'message', color: 'cyan' }] : []),
     ...(mainSelectedAgent?._managed && !mainSelectedAgent._dead ? [{ commandKey: 'x', label: 'stop', color: 'red' }] : []),
+    ...(hasLiveAgents ? [{ commandKey: 's', label: 'sessions', color: 'cyan' }] : []),
+    ...(hasMemories ? [{ commandKey: 'k', label: 'memory', color: 'magenta' }] : []),
     { commandKey: '/', label: 'commands', color: 'cyan' },
     ...(installedCliAgents.length > 0 ? [{ commandKey: 'u', label: 'recheck', color: 'yellow' }] : []),
     ...(unavailableCliAgents.some(tool => getManagedToolState(tool.id).recoveryCommand)
@@ -1491,6 +1504,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
 
   const mainPane = (
     <Box flexDirection="column" paddingTop={1}>
+      {dashboardRail}
       <Box borderStyle="round" borderColor={mainFocus === 'launcher' ? 'cyan' : 'gray'} paddingX={1} flexDirection="column">
         <Text>
           <Text color="magenta" bold>chinwag</Text>
@@ -1615,7 +1629,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
     return mainPane;
   }
 
-  if (activeSection === 'memory') {
+  if (isMemoryView) {
     return (
       <Box flexDirection="column">
         {dashboardRail}
@@ -1637,7 +1651,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
     );
   }
 
-  if (activeSection === 'agents') {
+  if (isSessionsView) {
     return (
       <Box flexDirection="column">
         {dashboardRail}

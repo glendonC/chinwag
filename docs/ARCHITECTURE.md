@@ -16,7 +16,7 @@ This document is the high-level map of chinwag: what we are building, how the pi
 
 **Design philosophy.** chinwag provides the network, shared state, and coordination primitives. Agents bring the intelligence. Primitives are freeform and unopinionated — memory uses arbitrary tags, search returns by recency, conflict detection surfaces data without prescribing action. This scales with every model generation: as agents get smarter, the infrastructure amplifies that capability instead of constraining it.
 
-**Non-goals.** chinwag is not an agent orchestrator, not a standalone APM or observability product, not a community or social product, not a replacement for static project instructions like CLAUDE.md or AGENTS.md, and not a marketplace for arbitrary MCP servers. Discover is about AI dev tools for your workflow.
+**Non-goals.** chinwag is not a standalone APM or observability product, not a community or social product, not a replacement for static project instructions like CLAUDE.md or AGENTS.md, and not a marketplace for arbitrary MCP servers. Discover is about AI dev tools for your workflow.
 
 ## The five pillars
 
@@ -50,16 +50,19 @@ The backend runs entirely on Cloudflare's edge. The primary interface is the MCP
 
 ## System context
 
-At a glance: AI tools on your machine talk to a local MCP server; that server talks to the worker over HTTPS; state lives in Durable Objects and KV is only for auth lookups. Humans can use the CLI or web dashboard, but agents are the main story.
+At a glance: AI tools on your machine talk to a local MCP server; that server talks to the worker over HTTPS; state lives in Durable Objects and KV is only for auth lookups. Humans can use the CLI or web dashboard, but agents are the main story. Managed CLI agents can be spawned and controlled by the TUI; connected IDE agents join via MCP and coordinate but manage their own lifecycle.
 
 ```mermaid
 flowchart TB
   subgraph machine["Developer's machine"]
     direction TB
+    TUI[chinwag TUI dashboard]
     T1[Claude Code + hooks + channel]
     T2[Cursor]
     T3[Windsurf, Codex, Aider, VS Code, ...]
     MCP[chinwag MCP server]
+    TUI -->|spawn/control| T1
+    TUI -->|spawn/control| T3
     T1 --> MCP
     T2 --> MCP
     T3 --> MCP
@@ -78,7 +81,7 @@ flowchart TB
     W --> KV
   end
 
-  H[CLI / web dashboard]
+  H[Web dashboard]
   H -.->|optional| W
 ```
 
@@ -92,8 +95,9 @@ flowchart TB
 │  Developer's machine                                             │
 │  ┌────────────┐  ┌────────────┐  ┌────────────┐                    │
 │  │ Claude Code │  │   Cursor   │  │  Windsurf  │  ...             │
-│  │   + hooks   │  │            │  │            │  Codex, Aider    │
-│  │   + channel │  │            │  │            │  VS Code, etc.   │
+│  │   + hooks   │  │ (connected)│  │ (connected)│  Codex, Aider    │
+│  │   + channel │  │            │  │            │  (managed)       │
+│  │  (managed)  │  │            │  │            │                  │
 │  └──────┬─────┘  └──────┬─────┘  └──────┬─────┘                    │
 │         │               │               │                        │
 │         └───────┬───────┴───────┬───────┘                        │
@@ -105,11 +109,11 @@ flowchart TB
 │         │   reads/writes memory  │                              │
 │         └───────────┬─────────────┘                              │
 │                     │ HTTPS                                      │
-│                     ▼                                             │
-│         ┌──────────────────────┐                                 │
-│         │  Cloudflare Workers  │                                 │
-│         │  (API + coordination)│                                 │
-│         └──────────┬───────────┘                                 │
+│  ┌────────────┐     ▼                                            │
+│  │ TUI dash   │──→ ┌──────────────────────┐                     │
+│  │ [n] new    │    │  Cloudflare Workers  │                     │
+│  │ [x] stop   │    │  (API + coordination)│                     │
+│  └────────────┘    └──────────┬───────────┘                     │
 │                    │                                              │
 │          ┌─────────┴─────────┐                                   │
 │          │  Durable Objects   │                                 │
@@ -118,11 +122,8 @@ flowchart TB
 │          └─────────┬─────────┘                                   │
 │          ┌─────────┴─────────┐                                   │
 │          │  Cloudflare KV    │                                   │
-│  ┌────┐  │  (token lookups)  │                                   │
-│  │CLI │  └───────────────────┘                                   │
-│  │dash│  (optional, for humans who want the overview)           │
-│  │board│                                                         │
-│  └────┘                                                          │
+│          │  (token lookups)  │                                   │
+│          └───────────────────┘                                   │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -130,9 +131,39 @@ flowchart TB
 
 **AI agents** are the primary users. They interact with chinwag through the MCP server that runs alongside each agent session. Developers interact with chinwag indirectly: their agents are smarter because chinwag is connected.
 
-**The CLI dashboard** is optional. It gives developers a view of agent activity and shared memory. The core value is delivered invisibly through the MCP connection.
+**The TUI dashboard** is the primary human control surface for managing agentic workflows. It shows all agents (managed and connected) in one place, supports messaging, memory management, and agent lifecycle control for managed agents.
 
 **External dependencies** are limited to Cloudflare's platform: Workers (compute), Durable Objects (state), KV (auth lookups), and Pages (static hosting). No external databases, no Redis, no third-party APIs.
+
+## Two-tier agent model
+
+chinwag supports two tiers of agent integration based on how much lifecycle control chinwag has.
+
+### Managed agents (CLI tools)
+
+Claude Code, Codex, Aider, and other CLI-based AI agents. chinwag can spawn these as child processes, track their lifecycle, and provide full control (start, stop, restart, message). When launched via `chinwag run` or `[n]` in the TUI, chinwag owns the process. Agents started independently still auto-connect via MCP and appear in the dashboard, but without process control.
+
+### Connected agents (IDE tools)
+
+Cursor, Windsurf, and other IDE-embedded agents. These join via MCP and get full coordination (shared memory, conflict detection, messaging, file locks). chinwag cannot control their lifecycle — that's the IDE's domain. Control signals are advisory (messages the agent reads and follows).
+
+### Docker Desktop analogy
+
+chinwag follows the Docker Desktop model: agents appear in the dashboard regardless of how they were started. You can run `claude "refactor auth"` from any terminal tab and it shows up in chinwag. Or you can press `[n]` in the TUI to spawn one. Both work. chinwag does not gate your workflow — it enhances it.
+
+### Control mechanisms by tier
+
+| Mechanism | Managed (CLI) | Connected (IDE) |
+|-----------|--------------|-----------------|
+| Start/stop | Process control | N/A (IDE owns lifecycle) |
+| Pause/resume | Hook-based (Claude Code) | Advisory message |
+| Messaging | Enforced delivery | Via MCP context |
+| File locks | Full | Full |
+| Memory | Full | Full |
+| Conflict detection | Full | Full |
+| Dashboard visibility | Full | Full |
+
+The dashboard shows both tiers in one unified list. Managed agents get stop/restart controls. Connected agents show activity and coordination data. The user does not need to understand the distinction for coordination to work.
 
 ## How agents connect
 
@@ -146,7 +177,7 @@ This single command:
 
 1. Creates an account (if first run): generates token, saves to `~/.chinwag/config.json`
 2. Creates a team for the project (or joins existing if `.chinwag` file exists)
-3. Writes MCP config files for all detected tools (driven by the CLI registry in `packages/cli/lib/tools.js`; the broader discover catalog lives in `packages/worker/src/catalog.js` and is served by `GET /tools/catalog`):
+3. Writes MCP config files for all detected tools (driven by the shared registry in `packages/shared/tool-registry.js`, re-exported through `packages/cli/lib/tools.js`; the broader discover catalog lives in `packages/worker/src/catalog.js` and is served by `GET /tools/catalog`):
    - `.mcp.json`: Claude Code, Codex, Aider, Amazon Q
    - `.cursor/mcp.json`: Cursor
    - `.windsurf/mcp.json`: Windsurf
@@ -158,22 +189,34 @@ The `.chinwag` file is committed to the repo. When a teammate clones and runs `n
 
 ### Per-tool integration depth
 
-| Tool | Integration | How |
-|------|------------|-----|
-| **Claude Code** | Full: push alerts + enforced conflict prevention | Channels push real-time team state. PreToolUse hooks block conflicting edits. SessionStart hook injects team context. |
-| **Cursor** | Good: pull-based awareness | MCP `instructions` field + tool descriptions guide the agent to check chinwag. |
-| **Windsurf** | Good: pull-based awareness | MCP tools + instructions. Same integration model as Cursor. |
-| **VS Code Copilot** | Good: pull-based awareness | MCP tools + instructions. Also covers Cline and Continue extensions. |
-| **Codex CLI** | Basic: tool-based | MCP tools available. Agent must opt in to check. |
-| **Aider** | Basic: tool-based | MCP tools available. Shares `.mcp.json` with Claude Code/Codex. |
-| **JetBrains** | Basic: tool-based | MCP tools via `.idea/mcp.json`. IntelliJ, PyCharm, WebStorm, etc. |
-| **Amazon Q** | Basic: tool-based | MCP tools available. Shares `.mcp.json`. |
+| Tool | Tier | Integration | How |
+|------|------|------------|-----|
+| **Claude Code** | Managed | Full: push alerts + enforced conflict prevention | Channels push real-time team state. PreToolUse hooks block conflicting edits. SessionStart hook injects team context. Process control when spawned via TUI. |
+| **Codex CLI** | Managed | Basic: tool-based + process control | MCP tools available. Process control when spawned via TUI. |
+| **Aider** | Managed | Basic: tool-based + process control | MCP tools available. Shares `.mcp.json`. Process control when spawned via TUI. |
+| **Cursor** | Connected | Good: pull-based awareness | MCP `instructions` field + tool descriptions guide the agent to check chinwag. Lifecycle owned by IDE. |
+| **Windsurf** | Connected | Good: pull-based awareness | MCP tools + instructions. Same integration model as Cursor. Lifecycle owned by IDE. |
+| **VS Code Copilot** | Connected | Good: pull-based awareness | MCP tools + instructions. Also covers Cline and Continue extensions. Lifecycle owned by IDE. |
+| **JetBrains** | Connected | Basic: tool-based | MCP tools via `.idea/mcp.json`. Lifecycle owned by IDE. |
+| **Amazon Q** | Connected | Basic: tool-based | MCP tools available. Shares `.mcp.json`. |
 
-Claude Code gets the deepest integration because it supports hooks (enforceable system-level interception) and channels (server-initiated push). Other tools improve as their MCP implementations mature. Tool detection and MCP config writing are driven by a declarative CLI registry (`packages/cli/lib/tools.js`); the broader discover catalog is maintained in the worker (`packages/worker/src/catalog.js`).
+Claude Code gets the deepest integration because it supports hooks (enforceable interception before file edits), channels (server-initiated push), and is a CLI tool (process control). Other tools improve as their MCP implementations mature. Tool detection and MCP config writing are driven by a declarative shared registry (`packages/shared/tool-registry.js`), surfaced through the CLI (`packages/cli/lib/tools.js`); the broader discover catalog is maintained in the worker (`packages/worker/src/catalog.js`).
+
+## TUI as control surface
+
+The TUI dashboard is the primary interface for managing agentic workflows:
+
+- View all agents (managed + connected) in one unified list
+- Send messages to individual agents or broadcast to the team
+- Search and manage project memory
+- Start new managed agents (`[n]` key or `chinwag run`)
+- Stop/restart managed agents (`[x]` key on managed agent rows)
+
+The TUI does not replace each tool's native interface. Agents still run in their own terminals or IDEs. The TUI provides the unified view and control layer across all of them.
 
 ## Containers
 
-The monorepo has four packages:
+The monorepo has five packages:
 
 ### `packages/mcp/`: MCP Server (the core product)
 
@@ -189,12 +232,18 @@ The monorepo has four packages:
 - **Responsibility:** Authentication, team coordination, shared memory storage, conflict detection, agent activity tracking. All business logic lives here.
 - **Key constraint:** Stateless at the Worker level. All persistent state lives in Durable Objects. The Worker is a router that authenticates requests and forwards them to the appropriate DO.
 
-### `packages/cli/`: TUI Dashboard + Setup (optional)
+### `packages/cli/`: TUI Dashboard + Setup + Process Management
 
-- **Technology:** Node.js 22+, Ink (React for terminals), esbuild
+- **Technology:** Node.js 22+, Ink (React for terminals), node-pty, esbuild
 - **Entry point:** `cli.jsx` (screen router)
-- **Responsibility:** Optional human interface. Handles `chinwag init` and `chinwag add` setup. Agent operations dashboard (active agents, conflicts, shared memory, session history). Tool discovery screen. Chat is available but secondary.
+- **Responsibility:** Primary human control surface. Handles `chinwag init`, `chinwag add`, and `chinwag run`. Agent operations dashboard (active agents, conflicts, shared memory, session history). Process management for managed CLI agents (spawn, track, stop, restart). Tool discovery screen. Chat is available but secondary.
 - **Key constraint:** The CLI has no knowledge of Durable Objects, room IDs, or server internals. It speaks only the public HTTP/WebSocket API.
+
+### `packages/shared/`: Shared Primitives
+
+- **Technology:** Plain ESM modules shared across packages
+- **Responsibility:** Canonical machine-facing definitions and helpers reused by CLI, MCP, web, and worker. Includes the shared tool registry, agent identity helpers, API client factory, and session-registry primitives.
+- **Key constraint:** Shared code should stay infrastructural and dependency-light. It exists to eliminate duplicated sources of truth, not to become a grab bag.
 
 ### `packages/web/`: Web Dashboard + Landing Page
 
@@ -233,18 +282,27 @@ The monorepo has four packages:
 
 | File | Responsibility |
 |---|---|
-| `cli.jsx` | App shell with error boundary. Screen state machine: loading → welcome → home → {chat, customize, dashboard, discover}. Loads/validates config on startup. Also handles pre-TUI commands (`init`, `add`). |
-| `lib/home.jsx` | Home screen. Menu with single-key navigation. Displays online count. 30s heartbeat to presence endpoint. |
-| `lib/dashboard.jsx` | Agent activity dashboard. Shows configured tools, active/offline agents, file conflicts, recent sessions, and team knowledge. 5s polling. |
+| `cli.jsx` | App shell with error boundary. Screen state machine: loading → welcome → {dashboard, chat, customize, discover}. Loads/validates config on startup. Also handles pre-TUI commands (`init`, `add`, `run`). |
+| `lib/dashboard.jsx` | Agent activity dashboard. Shows configured tools, active/offline agents (managed + connected), file conflicts, recent sessions, and team knowledge. 5s polling. Managed agent controls (stop/restart). |
+| `lib/process-manager.js` | Spawns CLI agents via node-pty, tracks PIDs, handles kill/restart. Provides lifecycle events for dashboard integration. |
 | `lib/discover.jsx` | Tool discovery screen. Shows your configured tools, recommends new tools from the catalog, browse by category, one-key add. |
 | `lib/init-command.js` | `chinwag init`: account setup, team creation/join, tool detection via registry, MCP config + hooks writing. |
 | `lib/add-command.js` | `chinwag add <tool>`: adds a specific tool's MCP config. Fetches discovery catalog from API. |
-| `lib/tools.js` | MCP tool registry. `MCP_TOOLS` (8 tools chinwag writes config for). Discovery catalog lives in the worker API (`GET /tools/catalog`). |
+| `lib/tools.js` | CLI re-export of the shared MCP tool registry. Discovery catalog lives in the worker API (`GET /tools/catalog`). |
 | `lib/chat.jsx` | Live chat. WebSocket connection with exponential backoff reconnect (1s→15s cap). |
 | `lib/customize.jsx` | Profile editor. Change handle, cycle through 12-color palette, set status. |
 | `lib/api.js` | HTTP client. Wraps fetch with Bearer token auth, 10s timeout, retry with exponential backoff on 5xx/network errors. |
 | `lib/colors.js` | Maps chinwag's 12 colors to ANSI terminal colors for Ink rendering. |
 | `lib/config.js` | Reads/writes `~/.chinwag/config.json`. Token, handle, color. |
+
+### Shared (`packages/shared/`)
+
+| File | Responsibility |
+|---|---|
+| `tool-registry.js` | Canonical source of truth for MCP-configurable tools: ids, names, detection, managed-launch metadata, availability checks, and discovery metadata. |
+| `agent-identity.js` | Tool detection, deterministic agent IDs, and per-session agent ID generation. |
+| `api-client.js` | Shared JSON API client factory used across surfaces. |
+| `session-registry.js` | Terminal/session record helpers used for exact session identity and terminal attention. |
 
 ## Data Flow
 
@@ -261,7 +319,7 @@ The monorepo has four packages:
 
 ### Agent Session Lifecycle
 
-1. Developer opens any MCP-compatible tool (Claude Code, Cursor, Windsurf, etc.) in the project
+1. Developer opens any MCP-compatible tool (Claude Code, Cursor, Windsurf, etc.) in the project, or spawns a managed agent via TUI/`chinwag run`
 2. Tool discovers MCP config, starts chinwag MCP server subprocess
 3. MCP server reads `~/.chinwag/config.json` for auth token, `.chinwag` for team ID
 4. MCP server joins team via backend API, reports agent type and session start
@@ -269,7 +327,8 @@ The monorepo has four packages:
 6. **Claude Code (channel path):** Channel pushes real-time updates as team state changes
 7. **All tools (MCP path):** Agent can call `chinwag_check_conflicts` before edits, `chinwag_update_activity` to report what it's working on, `chinwag_get_team_context` for shared memory
 8. **Claude Code (hooks enforcement):** PreToolUse hook on Edit/Write calls chinwag API and blocks the edit if another agent is in that file
-9. On session end: MCP server reports disconnect, backend cleans up agent state
+9. **Managed agents:** TUI tracks the child process. Stop/restart controls available in the dashboard. Process exit triggers cleanup.
+10. On session end: MCP server reports disconnect, backend cleans up agent state
 
 ### Shared Project Memory
 
@@ -295,11 +354,15 @@ Chat is available but secondary to the agent coordination focus. It exists becau
 
 **MCP server is the product, not the CLI.** The primary value is delivered invisibly through agent MCP connections. This is like git: you run `git init` once, then git works in the background. chinwag works the same way: init once, then your agents are smarter.
 
+**Two-tier agent model.** CLI agents (Claude Code, Codex, Aider) are managed: chinwag can spawn, stop, and restart them. IDE agents (Cursor, Windsurf) are connected: they join via MCP and get full coordination, but lifecycle control stays with the IDE. Both tiers appear in the same dashboard. This matches reality — you cannot kill a Cursor agent from outside Cursor, but you can kill a Claude Code process.
+
+**Docker Desktop, not Docker Engine.** Agents show up in the dashboard regardless of how they were started. `chinwag run` and `[n]` in the TUI are convenient launchers, not gatekeepers. An agent started from a random terminal tab auto-connects via MCP the same way.
+
 **Three surfaces, one backend.** MCP server (for agents), TUI (for terminal users), web dashboard (for visual workflow management). All hit the same API. No surface gets special backend endpoints. This means features built for one surface are automatically available to the others.
 
 **One team per project, one account across projects.** The `.chinwag` file (committed to git) scopes a team to a repo. `~/.chinwag/config.json` gives the user a cross-project identity. This enables both team coordination within a repo and solo multi-project visibility across repos. Multi-project is a Coordinate concern (unified identity, user-level API) and an Observe concern (cross-project dashboard to see all agents across all projects).
 
-**Claude Code gets the deepest integration.** Claude Code supports hooks (enforceable interception before file edits) and channels (server-initiated push). This enables conflict prevention that the agent cannot bypass. Other tools get softer integration via MCP instructions and tool descriptions. As tools add hook-like capabilities, their integration deepens.
+**Claude Code gets the deepest integration.** Claude Code supports hooks (enforceable interception before file edits), channels (server-initiated push), and is a CLI tool (full process control). This enables conflict prevention that the agent cannot bypass plus managed lifecycle. Other tools get softer integration via MCP instructions and tool descriptions. As tools add hook-like capabilities, their integration deepens.
 
 **Durable Objects over external databases.** Each DO provides single-threaded coordination with embedded SQLite, eliminating the need for external database connections, connection pooling, or cache invalidation. State and compute are colocated at the edge. Trade-off: single-instance bottleneck for DatabaseDO, but adequate for our scale.
 
@@ -319,6 +382,7 @@ These are constraints that should be preserved as the codebase evolves:
 - **Worker is stateless.** No request-scoped state in module-level variables. Workers reuse V8 isolates across requests. Global state causes cross-request data leaks.
 - **KV is append-only for auth.** Token mappings are written once at account creation and never updated.
 - **MCP server: never `console.log`.** Stdio transport uses stdout for JSON-RPC. Any `console.log` corrupts the protocol. Use `console.error` for all logging.
+- **Managed agents are optional.** Process management is a convenience layer. All coordination features work identically for agents started outside chinwag. The system must never require agents to be spawned via `chinwag run` or the TUI.
 
 ## Crosscutting Concerns
 
@@ -356,6 +420,7 @@ Workers return structured JSON errors: `{error: "message"}` with appropriate HTT
 | MCP (Model Context Protocol) | Agent integration | Industry standard (97M+ monthly SDK downloads), supported by Claude Code, Cursor, Windsurf, VS Code, Codex, Aider, JetBrains, Amazon Q, and growing |
 | Claude Code Hooks | Enforceable conflict prevention | System-level interception before file edits, cannot be bypassed by agent |
 | Claude Code Channels | Real-time push to agents | Server-initiated context injection into running sessions |
+| node-pty | Managed agent process control | Pseudo-terminal allocation for CLI agents, cross-platform, captures output |
 | Ink (React for terminals) | CLI dashboard rendering | Component model for terminal UIs, hooks, familiar React patterns |
 | esbuild | CLI bundling | Fast, zero-config ESM bundling |
 | React 19 + Zustand | Web dashboard | Same framework as CLI (Ink), monorepo coherence, best AI code generation, zustand for lightweight state |
@@ -368,7 +433,7 @@ The core experience is shipped: `npx chinwag init`, and your agents share a brai
 
 **Shipped:** Connect, Remember, Coordinate, Discover, Observe. `chinwag init` detects tools and writes configs. Agents share project memory across tools and sessions. Conflict prevention enforced on Claude Code (hooks), advisory on others (MCP). Session tracking, stuckness detection, real-time push via channels. Tool catalog API, TUI discover screen, `chinwag add`. Authenticated web dashboard at chinwag.dev (standalone and embeddable in IDEs), per-project and cross-project views, user-level APIs (`GET /me/teams`, `GET /me/dashboard`).
 
-**Next: polish and ship.** Broader automated testing, CI on every PR, npm publishing, cross-tool validation, and hardening (CORS when needed, optional telemetry for integration priorities).
+**Next: process management and agent control.** Two-tier agent model: managed CLI agents with full lifecycle control, connected IDE agents with coordination. `chinwag run`, TUI spawn/stop, process tracking via node-pty. Then advanced control: hook-based pause/resume, agent output streaming, headless spawning.
 
 **What this means for contributors:**
 
@@ -377,6 +442,7 @@ The core experience is shipped: `npx chinwag init`, and your agents share a brai
 - The web dashboard is designed to work both in a browser and embedded in IDE panels.
 - All DO communication uses RPC, not fetch. New features should follow this pattern.
 - Maintain the MCP server ↔ Worker API boundary (agents use the same API as the CLI and web).
+- Process management is a CLI concern. The backend does not need to know whether an agent was spawned by chinwag or started independently.
 
 ---
 

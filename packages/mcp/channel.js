@@ -13,10 +13,11 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { loadConfig, configExists } from './lib/config.js';
 import { api } from './lib/api.js';
-import { findTeamFile } from './lib/team.js';
+import { findTeamFile, teamHandlers } from './lib/team.js';
 import { detectToolName } from './lib/identity.js';
 import { resolveAgentIdentity } from './lib/lifecycle.js';
 import { diffState } from './lib/diff-state.js';
+import { isProcessAlive, pingAgentTerminal } from '../shared/session-registry.js';
 
 let PKG = { version: '0.0.0' };
 try {
@@ -43,9 +44,14 @@ async function main() {
     process.exit(0);
   }
 
-  const toolName = detectToolName('claude-code');
+  const toolName = detectToolName('unknown');
+  if (toolName !== 'claude-code') {
+    console.error(`[chinwag-channel] Parent tool is ${toolName}; channel disabled.`);
+    process.exit(0);
+  }
   const { agentId } = resolveAgentIdentity(config.token, toolName);
   const client = api(config, { agentId });
+  const team = teamHandlers(client);
   console.error(`[chinwag-channel] Tool: ${toolName}, Agent ID: ${agentId}`);
 
   const server = new Server(
@@ -69,11 +75,11 @@ async function main() {
 
   const poll = async () => {
     try {
-      const ctx = await client.get(`/teams/${teamId}/context`);
+      const ctx = await team.getTeamContext(teamId);
       if (prevState) {
         const events = diffState(prevState, ctx, stucknessAlerted);
         for (const event of events) {
-          await pushEvent(server, event);
+          await pushEvent(server, agentId, event);
         }
       }
       prevState = ctx;
@@ -84,7 +90,7 @@ async function main() {
 
   // Initial fetch (don't emit events on first poll)
   try {
-    prevState = await client.get(`/teams/${teamId}/context`);
+    prevState = await team.getTeamContext(teamId);
   } catch {
     // Will retry on next interval
   }
@@ -94,25 +100,45 @@ async function main() {
   // Heartbeat to keep membership alive
   const heartbeat = setInterval(async () => {
     try {
-      await client.post(`/teams/${teamId}/heartbeat`, {});
+      await team.heartbeat(teamId);
     } catch {}
   }, 30_000);
+
+  const parentPid = process.ppid;
+  const parentWatch = setInterval(() => {
+    if (parentPid > 1 && !isProcessAlive(parentPid)) {
+      cleanup();
+    }
+  }, 5000);
+  parentWatch.unref?.();
 
   const cleanup = () => {
     clearInterval(interval);
     clearInterval(heartbeat);
+    clearInterval(parentWatch);
     process.exit(0);
   };
   process.on('SIGINT', cleanup);
   process.on('SIGTERM', cleanup);
+  process.on('disconnect', cleanup);
+  process.stdin.on('close', cleanup);
 }
 
-async function pushEvent(server, content) {
+function shouldRequestAttention(content) {
+  return content.startsWith('CONFLICT:')
+    || content.startsWith('Message from ')
+    || content.includes('may be stuck');
+}
+
+async function pushEvent(server, agentId, content) {
   try {
     await server.notification({
       method: 'notifications/claude/channel',
       params: { content },
     });
+    if (shouldRequestAttention(content)) {
+      pingAgentTerminal(agentId);
+    }
     console.error(`[chinwag-channel] Pushed: ${content}`);
   } catch (err) {
     console.error(`[chinwag-channel] Push failed: ${err.message}`);

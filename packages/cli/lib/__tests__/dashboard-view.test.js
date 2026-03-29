@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildCombinedAgentRows,
   buildDashboardView,
+  countLiveAgents,
   createToolNameResolver,
   formatDuration,
   formatFiles,
@@ -88,5 +90,62 @@ describe('dashboard view helpers', () => {
     expect(view.filteredMemories).toEqual([{ id: 'm1', tags: ['decision'], text: 'Use TeamDO for coordination' }]);
     expect(view.showRecent).toBe(false);
     expect(view.projectDir).toBe('chinwag');
+  });
+
+  it('merges managed agents with matching backend sessions', () => {
+    const getToolName = createToolNameResolver([
+      { id: 'claude-code', name: 'Claude Code' },
+    ]);
+
+    const managed = [
+      {
+        id: 1,
+        toolId: 'claude-code',
+        toolName: 'Claude Code',
+        cmd: 'claude',
+        args: ['--print'],
+        taskArg: 'positional',
+        task: 'Refactor auth flow',
+        cwd: '/repo',
+        agentId: 'claude-code:abc123:def45678',
+        status: 'running',
+        startedAt: Date.now() - 5 * 60_000,
+        exitCode: null,
+      },
+    ];
+
+    const combined = buildCombinedAgentRows({
+      managedAgents: managed,
+      connectedAgents: [
+        {
+          agent_id: 'claude-code:abc123:def45678',
+          handle: 'alice',
+          tool: 'claude-code',
+          status: 'active',
+          session_minutes: 5,
+          activity: { files: ['src/auth.js'], summary: 'Tighten login flow' },
+        },
+        {
+          agent_id: 'cursor:bbb:2222',
+          handle: 'bob',
+          tool: 'cursor',
+          status: 'active',
+          session_minutes: 4,
+          activity: { files: ['src/app.js'], summary: 'Review app shell' },
+        },
+      ],
+      getToolName,
+      now: Date.now(),
+    });
+
+    expect(combined).toHaveLength(2);
+    expect(combined[0]).toMatchObject({
+      _managed: true,
+      _connected: true,
+      agent_id: 'claude-code:abc123:def45678',
+      handle: 'alice',
+      _summary: 'Tighten login flow',
+    });
+    expect(countLiveAgents(combined)).toBe(2);
   });
 });

@@ -1,16 +1,6 @@
 import { basename } from 'path';
 
-export const MAX_AGENTS = 5;
 export const MAX_MEMORIES = 8;
-
-// Collect unique tags from a set of memories for dynamic filtering
-export function collectTags(memories) {
-  const tags = new Set();
-  for (const m of memories) {
-    if (m.tags?.length) for (const t of m.tags) tags.add(t);
-  }
-  return [...tags].sort();
-}
 
 export function createToolNameResolver(detectedTools) {
   const toolNameMap = new Map((detectedTools || []).map(t => [t.id, t.name]));
@@ -51,6 +41,81 @@ export function smartSummary(activity) {
   return summary;
 }
 
+function buildManagedAgentRows(managedAgents, getToolName, now = Date.now()) {
+  return (managedAgents || []).map((agent) => {
+    const toolId = agent.toolId || agent.tool || 'unknown';
+    const isDead = agent.status !== 'running';
+    const hasError = agent.status === 'failed' || (agent.exitCode != null && agent.exitCode !== 0);
+
+    return {
+      ...agent,
+      agent_id: agent.agentId || agent.agent_id || null,
+      tool: toolId,
+      _managed: true,
+      _connected: false,
+      _display: agent.toolName || getToolName(toolId) || agent.cmd || toolId,
+      _summary: agent.task,
+      _duration: agent.startedAt ? formatDuration((now - agent.startedAt) / 60000) : null,
+      _dead: isDead,
+      _exited: isDead,
+      _failed: hasError,
+      _exitCode: agent.exitCode,
+    };
+  });
+}
+
+export function buildCombinedAgentRows({
+  managedAgents,
+  connectedAgents,
+  getToolName,
+  now = Date.now(),
+} = {}) {
+  const managedRows = buildManagedAgentRows(managedAgents, getToolName, now);
+  const connectedById = new Map((connectedAgents || []).map(agent => [agent.agent_id, agent]));
+  const usedConnected = new Set();
+
+  const mergedManaged = managedRows.map((managed) => {
+    const connected = managed.agent_id ? connectedById.get(managed.agent_id) : null;
+    if (!connected) return managed;
+
+    usedConnected.add(connected.agent_id);
+    return {
+      ...connected,
+      ...managed,
+      handle: connected.handle || managed.handle || null,
+      tool: managed.tool || connected.tool,
+      activity: connected.activity || managed.activity || null,
+      session_minutes: connected.session_minutes ?? managed.session_minutes ?? null,
+      minutes_since_update: connected.minutes_since_update ?? null,
+      _connected: true,
+      _summary: smartSummary(connected.activity) || managed._summary,
+      _duration: managed.status === 'running'
+        ? (connected.session_minutes != null ? formatDuration(connected.session_minutes) : managed._duration)
+        : managed._duration,
+    };
+  });
+
+  const remainingConnected = (connectedAgents || [])
+    .filter(agent => !usedConnected.has(agent.agent_id))
+    .map((agent) => ({
+      ...agent,
+      _managed: false,
+      _connected: true,
+      _display: getToolName(agent.tool) || 'Unknown',
+      _summary: smartSummary(agent.activity),
+      _duration: formatDuration(agent.session_minutes),
+    }));
+
+  return [...mergedManaged, ...remainingConnected];
+}
+
+export function countLiveAgents(agentRows) {
+  return (agentRows || []).filter((agent) => {
+    if (agent._managed) return agent.status === 'running';
+    return agent.status === 'active';
+  }).length;
+}
+
 export function shortAgentId(agentId) {
   if (!agentId) return '';
   const parts = agentId.split(':');
@@ -67,6 +132,7 @@ export function buildDashboardView({
   context,
   detectedTools,
   memoryFilter,
+  memorySearch,
   cols,
   projectDir,
 } = {}) {
@@ -90,9 +156,15 @@ export function buildDashboardView({
   const conflicts = [...fileOwners.entries()].filter(([, owners]) => owners.length > 1);
 
   const memories = context?.memories || [];
-  const filteredMemories = memoryFilter
-    ? memories.filter(memory => memory.tags?.includes(memoryFilter))
-    : memories;
+  const q = (memorySearch || '').toLowerCase();
+  const filteredMemories = q
+    ? memories.filter(m =>
+        m.text.toLowerCase().includes(q) ||
+        m.tags?.some(t => t.toLowerCase().includes(q))
+      )
+    : memoryFilter
+      ? memories.filter(memory => memory.tags?.includes(memoryFilter))
+      : memories;
   const visibleMemories = filteredMemories.slice(0, MAX_MEMORIES);
   const memoryOverflow = filteredMemories.length - MAX_MEMORIES;
 
@@ -103,8 +175,8 @@ export function buildDashboardView({
   const recentSessions = (context?.recentSessions || []).filter(hasVisibleSessionActivity);
   const showRecent = recentSessions.length > 0 && activeAgents.length === 0;
 
-  const visibleAgents = activeAgents.slice(0, MAX_AGENTS);
-  const agentOverflow = activeAgents.length - MAX_AGENTS;
+  const visibleAgents = activeAgents;
+  const agentOverflow = 0;
 
   const toolCounts = new Map();
   for (const agent of activeAgents) {
@@ -132,56 +204,4 @@ export function buildDashboardView({
     toolCounts,
     isTeam,
   };
-}
-
-export function generateDashboardMd(context, user, projectDir, getToolName) {
-  const lines = [`# chinwag — @${user?.handle || 'unknown'} · ${projectDir}`, ''];
-  const members = context?.members || [];
-  const active = members.filter(m => m.status === 'active' && m.tool && m.tool !== 'unknown');
-
-  lines.push(`## Agents — ${active.length} running`, '');
-  if (active.length === 0) {
-    lines.push('_No agents running._', '');
-  } else {
-    for (const member of active) {
-      const tool = getToolName?.(member.tool) || member.tool || 'Unknown';
-      const duration = member.session_minutes != null ? ` — ${Math.round(member.session_minutes)}m` : '';
-      lines.push(`### ${tool}${duration}`, '');
-      if (member.activity?.files?.length > 0) {
-        for (const file of member.activity.files) lines.push(`- \`${file}\``);
-      } else {
-        lines.push('- _No files reported_');
-      }
-      if (member.activity?.summary) lines.push('', `> ${member.activity.summary}`);
-      lines.push('');
-    }
-  }
-
-  const memories = context?.memories || [];
-  lines.push(`## Memory — ${memories.length} saved`, '');
-  if (memories.length === 0) {
-    lines.push('_No memories yet._', '');
-  } else {
-    for (const memory of memories) {
-      const tagStr = memory.tags?.length ? `**[${memory.tags.join(', ')}]** ` : '';
-      lines.push(`- ${tagStr}${memory.text}`);
-    }
-    lines.push('');
-  }
-
-  const sessions = (context?.recentSessions || []).filter(hasVisibleSessionActivity);
-  if (sessions.length > 0) {
-    lines.push('## Recent Sessions', '');
-    for (const session of sessions.slice(0, 10)) {
-      const tool = getToolName?.(session.tool) || session.tool || 'Agent';
-      const duration = session.duration_minutes != null ? `${Math.round(session.duration_minutes)}m` : '';
-      lines.push(
-        `- **${tool}** ${session.owner_handle} — ${duration}, ${session.edit_count} edits, ${session.files_touched?.length || 0} files`
-      );
-    }
-    lines.push('');
-  }
-
-  lines.push('---', `_Generated ${new Date().toLocaleTimeString()} — press [e] again in chinwag to refresh_`);
-  return lines.join('\n');
 }

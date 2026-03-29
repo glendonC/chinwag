@@ -26,6 +26,7 @@ export function commandExists(cmd) {
 
 export function writeMcpConfig(cwd, relativePath, { channel = false, toolId = null } = {}) {
   const filePath = join(cwd, relativePath);
+  const isSharedRootConfig = relativePath === '.mcp.json' || relativePath === 'mcp.json';
 
   let existing = {};
   if (existsSync(filePath)) {
@@ -37,14 +38,32 @@ export function writeMcpConfig(cwd, relativePath, { channel = false, toolId = nu
   }
 
   if (!existing.mcpServers) existing.mcpServers = {};
-  existing.mcpServers.chinwag = toolId
-    ? { command: 'npx', args: ['chinwag-mcp', '--tool', toolId] }
-    : { command: 'npx', args: ['chinwag-mcp'] };
+
+  if (isSharedRootConfig) {
+    // Shared root configs are read by multiple CLI tools. Keep a single MCP
+    // entry and let the server infer the real tool from its parent process.
+    for (const key of Object.keys(existing.mcpServers)) {
+      if (key.startsWith('chinwag-') && key !== 'chinwag-channel') {
+        delete existing.mcpServers[key];
+      }
+    }
+    existing.mcpServers.chinwag = { command: 'npx', args: ['chinwag-mcp'] };
+    if (existing.mcpServers['chinwag-channel']) {
+      existing.mcpServers['chinwag-channel'] = { command: 'npx', args: ['chinwag-channel'] };
+    }
+  } else {
+    const entryName = toolId && toolId !== 'claude-code' ? `chinwag-${toolId}` : 'chinwag';
+    existing.mcpServers[entryName] = toolId
+      ? { command: 'npx', args: ['chinwag-mcp', '--tool', toolId] }
+      : { command: 'npx', args: ['chinwag-mcp'] };
+  }
 
   if (channel) {
-    existing.mcpServers['chinwag-channel'] = toolId
-      ? { command: 'npx', args: ['chinwag-channel', '--tool', toolId] }
-      : { command: 'npx', args: ['chinwag-channel'] };
+    existing.mcpServers['chinwag-channel'] = isSharedRootConfig
+      ? { command: 'npx', args: ['chinwag-channel'] }
+      : toolId
+        ? { command: 'npx', args: ['chinwag-channel', '--tool', toolId] }
+        : { command: 'npx', args: ['chinwag-channel'] };
   }
 
   try {
