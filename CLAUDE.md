@@ -2,6 +2,7 @@
 
 **Primary docs:**
 
+- [`docs/VISION.md`](docs/VISION.md): product vision, positioning, ICP, differentiation
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): system design, code map, data flow, design decisions
 - [`docs/ROADMAP.md`](docs/ROADMAP.md): what to build next, concrete tasks
 - [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md): dev setup, code style, PR process
@@ -9,12 +10,13 @@
 
 ## Architecture
 
-Monorepo with four packages:
+Monorepo with five packages:
 
 - **`packages/mcp/`:** MCP server (the core product). Runs locally alongside each AI agent. Reports activity, checks conflicts, reads/writes shared memory. Stdio transport. Never `console.log`.
 - **`packages/worker/`:** Cloudflare Workers backend. Durable Objects for team coordination (TeamDO), data (DatabaseDO), chat rooms (RoomDO), presence (LobbyDO). KV for auth token lookups only.
 - **`packages/cli/`:** TUI dashboard and setup. Handles `chinwag init`, `chinwag add`, agent dashboard, tool discovery. Node.js CLI built with Ink (React for terminals). Entry: `cli.jsx`, screens in `lib/`. Built with esbuild to `dist/cli.js`. Requires Node 22+ (native WebSocket).
-- **`packages/web/`:** Web presence at chinwag.dev. Landing page plus authenticated dashboard (static HTML/CSS/JS on Cloudflare Pages). Cross-project workflow visibility, tool discovery, and team management.
+- **`packages/shared/`:** Shared primitives reused across packages. Tool registry, agent identity, API client factory, session registry. Dependency-light, no grab bags.
+- **`packages/web/`:** Web presence at chinwag.dev. React 19 + Vite SPA on Cloudflare Pages. Landing page (`index.html`) plus authenticated dashboard (`dashboard.html`) with Zustand state management and CSS Modules. Cross-project workflow visibility, tool discovery, and team management.
 
 **Live API:** `https://chinwag-api.glendonchin.workers.dev`
 
@@ -35,39 +37,9 @@ This same principle applies everywhere: prefer intelligent systems over growing 
 
 ### Model-agnostic coordination infrastructure
 
-chinwag is the coordination layer that agents operate on. It provides the network, the shared state, and the primitives — agents bring the intelligence. Every design decision follows from this: primitives are freeform and unopinionated so they scale as models get smarter, not against them. Memory uses freeform tags, not fixed categories. Search returns results by recency — agents are the semantic ranker. Conflict detection surfaces data — agents decide what to do with it.
+chinwag provides the network, shared state, and coordination primitives — agents bring the intelligence. Primitives are freeform and unopinionated so they scale as models get smarter, not against them. Memory uses freeform tags, not fixed categories. Search returns results by recency — agents are the semantic ranker. Conflict detection surfaces data — agents decide what to do with it.
 
-This is a structural bet. Agents will be dramatically more capable with every model generation. The infrastructure they coordinate through should amplify that capability, not constrain it. chinwag's primitives (save, search, lock, message, report) will still be the right primitives when agents are 10x more autonomous than they are today.
-
-### Vision: The control layer for agentic development
-
-chinwag is the control layer for agentic development. One command connects all your AI coding tools into a unified system: shared memory, live coordination, conflict prevention, workflow visibility. It works across every MCP-compatible tool, across team members, and across projects.
-
-#### The five pillars
-
-1. **Connect:** `npx chinwag init` detects tools, writes configs, hooks everything up. `chinwag add <tool>` expands. One command, all tools unified.
-2. **Remember:** Agents share a brain. Knowledge compounds across tools, sessions, and teammates. What one agent learns, every agent knows next session.
-3. **Coordinate:** Live awareness of every agent across every tool. Conflict prevention enforced on Claude Code, advisory everywhere else. No platform does cross-tool coordination the way chinwag does.
-4. **Discover:** See your full AI workflow. Browse AI dev tools. See what fits your stack. Add with one action from TUI or web.
-5. **Observe:** See what agents are doing, how long they've been at it, where they're stuck, what they've accomplished. Across all tools and projects.
-
-#### Who it's for (ICP)
-
-**Solo developers with multiple AI tools.** You run Claude Code and Cursor on the same project, maybe Aider for quick fixes, across 2-3 active projects. You want your tools to share context instead of duplicating work, and one place to see your entire AI workflow across all projects.
-
-**Small teams (2-5 devs) where everyone has agents.** Your team works on the same repo. Each person uses their preferred tools. Agents collide on files, duplicate discoveries, and waste time. You need cross-tool, cross-teammate coordination without changing how anyone works. The `.chinwag` file gets committed. When a teammate runs `chinwag init`, they auto-join the same team.
-
-**Team leads who need workflow visibility.** You want to see which AI tools your team is using, where agents are getting stuck, whether coordination is working. chinwag gives you the dashboard.
-
-#### How it works
-
-`npx chinwag init` detects installed tools via a declarative registry (`packages/cli/lib/tools.js`) and writes MCP config files for each. `npx chinwag add <tool>` adds new tools. The TUI discover screen fetches the full tool catalog from the API (`GET /tools/catalog`). The catalog is maintained in the worker, not hardcoded in the CLI. The web dashboard gives you cross-project visibility. The MCP server runs invisibly alongside each agent. After init, it just works.
-
-**Teams, same repo:** Each project has a `.chinwag` file (committed to git) that identifies the team. When any teammate runs `chinwag init`, they auto-join. From that point, every agent across every teammate shares memory, sees who is editing what, and gets conflict prevention. The team lead sees the full picture in the dashboard.
-
-**Solo dev, multiple projects:** One chinwag account (`~/.chinwag/config.json`) spans all projects. Each project has its own team and memory. The web dashboard shows your full AI workflow across all projects: which agents are running where, what they are working on, where things are stuck.
-
-**Why no platform will build this:** GitHub Agent HQ coordinates agents inside GitHub. Claude Code Agent Teams coordinates inside Claude Code. Cursor's multi-agent coordinates inside Cursor. No platform is incentivized to build cross-tool coordination; it would help their competitors. chinwag is the neutral layer.
+For product vision, positioning, ICP, and differentiation, see [`docs/VISION.md`](docs/VISION.md).
 
 ## Commands
 
@@ -123,11 +95,8 @@ Every change must pass these checks. These are not aspirational; they are blocke
 - 12-color palette: red, cyan, yellow, green, magenta, blue, orange, lime, pink, sky, lavender, white
 
 ### Non-goals
-- chinwag is not an agent orchestrator (it does not spawn, assign, or manage agent processes; it coordinates agents already running in their native tools)
-- chinwag is not a standalone APM/observability platform (observation supports the workflow, not a separate product)
-- chinwag is not a community platform (chat exists but is secondary)
-- chinwag is not a replacement for CLAUDE.md or AGENTS.md (those are per-tool static instructions; chinwag is dynamic shared memory and real-time coordination)
-- chinwag is not an MCP server registry (Smithery/Glama do that; chinwag's discover pillar is about AI dev tools for your workflow)
+
+See [`docs/VISION.md`](docs/VISION.md) for the full list. Key ones for development: chinwag is not an agent orchestrator, not a standalone APM, and not an MCP server registry.
 
 ### Chat (secondary)
 - No "room" jargon exposed to users; chat just says "N devs here"
