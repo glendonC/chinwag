@@ -238,6 +238,28 @@ describe('App boot and view switching', () => {
     stopPolling();
   });
 
+  it('switches to the tools view through the sidebar controls', async () => {
+    const { App, stopPolling } = await loadAppModule({
+      storedToken: 'tok_tools',
+      teams: [{ team_id: 't_one' }, { team_id: 't_two' }],
+    });
+    const { container, unmount } = renderApp(App);
+
+    await flushEffects();
+    expect(container.querySelector('[data-testid="overview-view"]')).not.toBeNull();
+
+    await act(async () => {
+      container.querySelector('[data-testid="show-tools"]')?.dispatchEvent(
+        new MouseEvent('click', { bubbles: true })
+      );
+    });
+
+    expect(container.querySelector('[data-testid="tools-view"]')).not.toBeNull();
+
+    unmount();
+    stopPolling();
+  });
+
   it('returns to the connect view when auth state is cleared after boot', async () => {
     const { App, authActions, stopPolling } = await loadAppModule({
       storedToken: 'tok_logout',

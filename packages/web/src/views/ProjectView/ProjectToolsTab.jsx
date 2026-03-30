@@ -7,6 +7,8 @@ import styles from './ProjectView.module.css';
 
 export default function ProjectToolsTab({
   toolSummaries,
+  hostSummaries,
+  surfaceSummaries,
   conflicts,
   filesInPlay,
   locks,
@@ -22,8 +24,8 @@ export default function ProjectToolsTab({
     <div className={styles.panelGrid}>
       <section className={styles.block}>
         <div className={styles.blockHeader}>
-          <h2 className={styles.blockTitle}>Tool usage</h2>
-          <span className={styles.blockMeta}>Recorded joins</span>
+          <h2 className={styles.blockTitle}>Tools in this project</h2>
+          <span className={styles.blockMeta}>Project-local joins</span>
         </div>
         <div className={styles.distributionList}>
           {toolSummaries.map((tool) => (
@@ -46,6 +48,66 @@ export default function ProjectToolsTab({
       </section>
 
       <div className={styles.asideStack}>
+        <section className={styles.block}>
+          <div className={styles.blockHeader}>
+            <h2 className={styles.blockTitle}>Hosts in this project</h2>
+            <span className={styles.blockMeta}>Where local agents run</span>
+          </div>
+
+          {hostSummaries.length > 0 ? (
+            <div className={styles.distributionList}>
+              {hostSummaries.map((host) => (
+                <div key={host.host_tool} className={styles.distributionRow}>
+                  <div className={styles.distributionCopy}>
+                    <span className={styles.distributionLabel}>
+                      <ToolIcon tool={host.host_tool} size={16} />
+                      <span>{getToolMeta(host.host_tool).label}</span>
+                    </span>
+                    <span className={styles.distributionMeta}>
+                      {host.live} live · {host.joins} joins
+                    </span>
+                  </div>
+                  <span className={styles.distributionValue}>
+                    {host.joins > 0 ? formatShare(host.share) : '\u2014'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className={styles.emptyHint}>No host telemetry yet.</p>
+          )}
+        </section>
+
+        <section className={styles.block}>
+          <div className={styles.blockHeader}>
+            <h2 className={styles.blockTitle}>Surfaces in this project</h2>
+            <span className={styles.blockMeta}>Observed in local activity</span>
+          </div>
+
+          {surfaceSummaries.length > 0 ? (
+            <div className={styles.distributionList}>
+              {surfaceSummaries.map((surface) => (
+                <div key={surface.agent_surface} className={styles.distributionRow}>
+                  <div className={styles.distributionCopy}>
+                    <span className={styles.distributionLabel}>
+                      <ToolIcon tool={surface.agent_surface} size={16} />
+                      <span>{getToolMeta(surface.agent_surface).label}</span>
+                    </span>
+                    <span className={styles.distributionMeta}>
+                      {surface.live} live · {surface.joins} joins
+                    </span>
+                  </div>
+                  <span className={styles.distributionValue}>
+                    {surface.joins > 0 ? formatShare(surface.share) : '\u2014'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className={styles.emptyHint}>No extension-level surfaces observed yet.</p>
+          )}
+        </section>
+
         <section className={styles.block}>
           <div className={styles.blockHeader}>
             <h2 className={styles.blockTitle}>Coordination</h2>

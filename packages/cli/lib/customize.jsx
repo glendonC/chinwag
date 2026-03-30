@@ -9,7 +9,7 @@ import { api } from './api.js';
 import { saveConfig, loadConfig } from './config.js';
 import { getInkColor, getColorList } from './colors.js';
 import { MCP_TOOLS } from './tools.js';
-import { detectTools, configureTool } from './mcp-config.js';
+import { configureTool, scanIntegrationHealth, summarizeIntegrationScan } from './mcp-config.js';
 
 let PKG_VERSION = '0.1.0';
 try {
@@ -47,7 +47,7 @@ export function Customize({ config, user, navigate, refreshUser }) {
   const messageTimer = useRef(null);
 
   // Tools state
-  const [detected, setDetected] = useState([]);
+  const [integrationStatuses, setIntegrationStatuses] = useState([]);
   const [catalog, setCatalog] = useState([]);
   const [toolsLoading, setToolsLoading] = useState(false);
 
@@ -87,7 +87,7 @@ export function Customize({ config, user, navigate, refreshUser }) {
 
   function loadTools() {
     setToolsLoading(true);
-    setDetected(detectTools(process.cwd()));
+    setIntegrationStatuses(scanIntegrationHealth(process.cwd()));
 
     async function fetchCatalog() {
       try {
@@ -130,7 +130,7 @@ export function Customize({ config, user, navigate, refreshUser }) {
       const result = configureTool(process.cwd(), tool.id);
       if (result.ok) {
         showFlash(`Added ${result.name}: ${result.detail}`);
-        setDetected(detectTools(process.cwd()));
+        setIntegrationStatuses(scanIntegrationHealth(process.cwd()));
       } else {
         showFlash(`Could not add ${result.name || tool.name}: ${result.error}`, 'error');
       }
@@ -142,7 +142,9 @@ export function Customize({ config, user, navigate, refreshUser }) {
   }
 
   // Compute recommendations for tools mode
+  const detected = integrationStatuses.filter((item) => item.detected);
   const detectedIds = new Set(detected.map(t => t.id));
+  const integrationSummary = summarizeIntegrationScan(integrationStatuses, { onlyDetected: true });
   const detectedCategories = new Set(
     catalog.filter(t => detectedIds.has(t.id)).map(t => t.category)
   );
@@ -316,7 +318,7 @@ export function Customize({ config, user, navigate, refreshUser }) {
       <Box flexDirection="column" padding={1}>
         <Box marginBottom={1}>
           <Text bold>Connected tools</Text>
-          <Text dimColor> ({detected.length} configured)</Text>
+          <Text dimColor> ({detected.length} detected)</Text>
         </Box>
 
         {detected.length === 0 ? (
@@ -331,17 +333,37 @@ export function Customize({ config, user, navigate, refreshUser }) {
                 let detail = tool.mcpConfig;
                 if (tool.hooks) detail += ' + hooks';
                 if (tool.channel) detail += ' + channel';
+                const statusColor = tool.status === 'ready' ? 'green'
+                  : tool.status === 'needs_repair' ? 'yellow'
+                  : tool.status === 'needs_setup' ? 'yellow'
+                  : 'gray';
+                const statusText = tool.status.replace(/_/g, ' ');
                 return (
-                  <Text key={tool.id}>
-                    <Text color="green">{'● '}</Text>
-                    <Text>{tool.name.padEnd(maxName + 1)}</Text>
-                    <Text dimColor>{detail}</Text>
-                  </Text>
+                  <Box key={tool.id} flexDirection="column">
+                    <Text>
+                      <Text color={tool.status === 'ready' ? 'green' : 'yellow'}>{'● '}</Text>
+                      <Text>{tool.name.padEnd(maxName + 1)}</Text>
+                      <Text dimColor>{detail}</Text>
+                      <Text dimColor>  </Text>
+                      <Text color={statusColor}>{statusText}</Text>
+                    </Text>
+                    {tool.issues?.[0] && (
+                      <Text dimColor>   {tool.issues[0]}</Text>
+                    )}
+                  </Box>
                 );
               })}
             </Box>
           );
         })()}
+
+        {detected.length > 0 && (
+          <Box marginBottom={1}>
+            <Text color={integrationSummary.tone === 'success' ? 'green' : integrationSummary.tone === 'warning' ? 'yellow' : 'cyan'}>
+              {integrationSummary.text}
+            </Text>
+          </Box>
+        )}
 
         {recommendations.length > 0 && (() => {
           const maxName = Math.max(...recommendations.map(t => t.name.length));

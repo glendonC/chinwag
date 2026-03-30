@@ -288,6 +288,76 @@
   max-width: 520px;
 }
 
+.signalGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+  width: 100%;
+  max-width: 780px;
+}
+
+.signalBlock {
+  min-width: 0;
+}
+
+.signalHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.signalTitle {
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: var(--ink);
+  letter-spacing: -0.03em;
+}
+
+.signalMeta {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--soft);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.signalList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.signalRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 14px;
+  align-items: baseline;
+}
+
+.signalIdentity {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.86rem;
+  color: var(--ink);
+  min-width: 0;
+}
+
+.signalValue {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.signalProjects {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: var(--soft);
+}
+
 .legendRow {
   display: grid;
   grid-template-columns: 10px auto 1fr auto auto;
@@ -346,6 +416,10 @@
 @media (max-width: 640px) {
   .statsRow {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .signalGrid {
+    grid-template-columns: 1fr;
   }
 
   .tableHead,

@@ -23,32 +23,33 @@ export function formatShare(share) {
   return `${Math.round((share || 0) * 100)}%`;
 }
 
-export function buildToolJoinShare(teams = []) {
-  const byTool = new Map();
+function buildJoinShare(teams = [], { entryKey, valueKey, outputKey }) {
+  const byEntity = new Map();
 
   teams.forEach((team) => {
     const projectName = team.team_name || team.team_id || 'Project';
-    (team.tools_configured || []).forEach((entry) => {
-      const toolId = normalizeToolId(entry.tool);
-      if (!toolId) return;
-      if (!byTool.has(toolId)) {
-        byTool.set(toolId, {
-          tool: toolId,
-          label: entry.tool || toolId,
+    (team[entryKey] || []).forEach((entry) => {
+      const rawValue = entry[valueKey];
+      const normalizedValue = normalizeToolId(rawValue);
+      if (!normalizedValue) return;
+      if (!byEntity.has(normalizedValue)) {
+        byEntity.set(normalizedValue, {
+          [outputKey]: normalizedValue,
+          label: rawValue || normalizedValue,
           value: 0,
           projects: new Set(),
         });
       }
-      const item = byTool.get(toolId);
+      const item = byEntity.get(normalizedValue);
       item.value += entry.joins || 0;
       item.projects.add(projectName);
     });
   });
 
   return withShare(
-    [...byTool.values()]
+    [...byEntity.values()]
       .map((item) => ({
-        tool: item.tool,
+        [outputKey]: item[outputKey],
         label: item.label,
         value: item.value,
         projectCount: item.projects.size,
@@ -56,6 +57,30 @@ export function buildToolJoinShare(teams = []) {
       }))
       .sort(sortByValueDesc)
   );
+}
+
+export function buildToolJoinShare(teams = []) {
+  return buildJoinShare(teams, {
+    entryKey: 'tools_configured',
+    valueKey: 'tool',
+    outputKey: 'tool',
+  });
+}
+
+export function buildHostJoinShare(teams = []) {
+  return buildJoinShare(teams, {
+    entryKey: 'hosts_configured',
+    valueKey: 'host_tool',
+    outputKey: 'host_tool',
+  });
+}
+
+export function buildSurfaceJoinShare(teams = []) {
+  return buildJoinShare(teams, {
+    entryKey: 'surfaces_seen',
+    valueKey: 'agent_surface',
+    outputKey: 'agent_surface',
+  });
 }
 
 export function buildCategoryJoinShare(toolEntries = [], catalog = [], categories = {}) {

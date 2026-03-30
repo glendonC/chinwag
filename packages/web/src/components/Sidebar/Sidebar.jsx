@@ -8,6 +8,7 @@ export default function Sidebar({ activeNav, onNavigate }) {
   const activeTeamId = useTeamStore((s) => s.activeTeamId);
   const selectTeam = useTeamStore((s) => s.selectTeam);
   const overviewActive = activeNav === null && activeTeamId === null;
+  const toolsActive = activeNav === 'tools';
   const settingsActive = activeNav === 'settings';
 
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -26,6 +27,12 @@ export default function Sidebar({ activeNav, onNavigate }) {
 
   function goSettings() {
     onNavigate('settings');
+    setMobileOpen(false);
+  }
+
+  function goTools() {
+    selectTeam(null);
+    onNavigate('tools');
     setMobileOpen(false);
   }
 
@@ -68,6 +75,19 @@ export default function Sidebar({ activeNav, onNavigate }) {
               <rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
             </svg>
             <span className={styles.navLabel}>Overview</span>
+          </button>
+          <button
+            type="button"
+            className={`${styles.navItem} ${toolsActive ? styles.navItemActive : ''}`}
+            onClick={goTools}
+            aria-current={toolsActive ? 'page' : undefined}
+          >
+            <svg className={styles.navIcon} width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M3 3.5h10M3 8h7.5M3 12.5h5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+              <circle cx="11.5" cy="8" r="1.5" stroke="currentColor" strokeWidth="1.2" />
+              <circle cx="8" cy="12.5" r="1.5" stroke="currentColor" strokeWidth="1.2" />
+            </svg>
+            <span className={styles.navLabel}>Tools</span>
           </button>
           <button
             type="button"

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
 import { MCP_TOOLS } from './tools.js';
-import { detectTools, configureTool } from './mcp-config.js';
+import { configureTool, scanIntegrationHealth, summarizeIntegrationScan } from './mcp-config.js';
 import { api } from './api.js';
 
 const MAX_RECOMMENDATIONS = 9;
@@ -9,7 +9,7 @@ const MAX_RECOMMENDATIONS = 9;
 export function Discover({ config, navigate }) {
   const { stdout } = useStdout();
   const cols = stdout?.columns || 80;
-  const [detected, setDetected] = useState([]);
+  const [integrationStatuses, setIntegrationStatuses] = useState([]);
   const [catalog, setCatalog] = useState([]);
   const [categories, setCategories] = useState({});
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -18,7 +18,7 @@ export function Discover({ config, navigate }) {
   const messageTimer = useRef(null);
 
   useEffect(() => {
-    setDetected(detectTools(process.cwd()));
+    refreshIntegrations();
 
     // Fetch catalog from API (single source of truth)
     async function fetchCatalog() {
@@ -35,11 +35,17 @@ export function Discover({ config, navigate }) {
     fetchCatalog();
   }, []);
 
+  function refreshIntegrations() {
+    setIntegrationStatuses(scanIntegrationHealth(process.cwd()));
+  }
+
   useEffect(() => {
     return () => { if (messageTimer.current) clearTimeout(messageTimer.current); };
   }, []);
 
+  const detected = integrationStatuses.filter((item) => item.detected);
   const detectedIds = new Set(detected.map(t => t.id));
+  const integrationSummary = summarizeIntegrationScan(integrationStatuses, { onlyDetected: true });
 
   // Smart recommendations: suggest tools from categories the user DOESN'T already cover.
   // If you have 4 coding agents, recommend code review/terminal/docs tools instead.
@@ -109,7 +115,7 @@ export function Discover({ config, navigate }) {
       const result = configureTool(process.cwd(), tool.id);
       if (result.ok) {
         showMessage(`Added ${result.name}: ${result.detail}`);
-        setDetected(detectTools(process.cwd()));
+        refreshIntegrations();
       } else {
         showMessage(`Could not add ${tool.name}: ${result.error}`);
       }
@@ -133,7 +139,7 @@ export function Discover({ config, navigate }) {
       {/* Your tools */}
       <Box marginBottom={1}>
         <Text bold color="cyan">Your tools</Text>
-        <Text dimColor> ({detected.length} configured)</Text>
+        <Text dimColor> ({detected.length} detected)</Text>
       </Box>
 
       {detected.length === 0 ? (
@@ -148,17 +154,37 @@ export function Discover({ config, navigate }) {
               let detail = tool.mcpConfig;
               if (tool.hooks) detail += ' + hooks';
               if (tool.channel) detail += ' + channel';
+              const statusColor = tool.status === 'ready' ? 'green'
+                : tool.status === 'needs_repair' ? 'yellow'
+                : tool.status === 'needs_setup' ? 'yellow'
+                : 'gray';
+              const statusText = tool.status.replace(/_/g, ' ');
               return (
-                <Text key={tool.id}>
-                  <Text color="green">●</Text>
-                  <Text> {tool.name.padEnd(maxName + 1)}</Text>
-                  <Text dimColor>{detail}</Text>
-                </Text>
+                <Box key={tool.id} flexDirection="column">
+                  <Text>
+                    <Text color={tool.status === 'ready' ? 'green' : 'yellow'}>●</Text>
+                    <Text> {tool.name.padEnd(maxName + 1)}</Text>
+                    <Text dimColor>{detail}</Text>
+                    <Text dimColor>  </Text>
+                    <Text color={statusColor}>{statusText}</Text>
+                  </Text>
+                  {tool.issues?.[0] && (
+                    <Text dimColor>    {tool.issues[0]}</Text>
+                  )}
+                </Box>
               );
             })}
           </Box>
         );
       })()}
+
+      {detected.length > 0 && (
+        <Box marginBottom={1} paddingLeft={1}>
+          <Text color={integrationSummary.tone === 'success' ? 'green' : integrationSummary.tone === 'warning' ? 'yellow' : 'cyan'}>
+            {integrationSummary.text}
+          </Text>
+        </Box>
+      )}
 
       {/* Recommendations */}
       {recommendations.length > 0 && (() => {

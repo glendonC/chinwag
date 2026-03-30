@@ -10,6 +10,7 @@ import { useDashboardConnection } from './dashboard-connection.jsx';
 import { useMemoryManager } from './dashboard-memory.js';
 import { useAgentLifecycle } from './dashboard-agents.js';
 import { useComposer } from './dashboard-composer.js';
+import { useIntegrationDoctor } from './dashboard-integrations.js';
 import { createInputHandler, createCommandHandler } from './dashboard-input.js';
 import { MainPane, MemoryView, SessionsView } from './dashboard-main-pane.jsx';
 import { AgentFocusView } from './dashboard-agent-focus.jsx';
@@ -66,6 +67,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
   // ── Custom hooks ───────────────────────────────────
   const memory = useMemoryManager({ config, teamId, bumpRefreshKey, flash });
   const agents = useAgentLifecycle({ config, teamId, projectRoot, stdout, flash });
+  const integrations = useIntegrationDoctor({ projectRoot, flash });
   const composer = useComposer({
     config, teamId, bumpRefreshKey, flash,
     clearMemorySearch: memory.clearMemorySearch,
@@ -131,10 +133,13 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
   // ── Command palette ────────────────────────────────
   const commandEntries = [
     { name: '/new', description: 'Open a tool in a new terminal tab' },
-    ...(agents.unavailableCliAgents.some(tool => agents.getManagedToolState(tool.id).recoveryCommand)
+    ...((agents.unavailableCliAgents.some(tool => agents.getManagedToolState(tool.id).recoveryCommand)
+      || integrations.integrationIssues.length > 0)
       ? [{ name: '/fix', description: 'Open the main setup fix flow' }] : []),
-    ...(agents.installedCliAgents.length > 0
-      ? [{ name: '/recheck', description: 'Refresh available tools and setup state' }] : []),
+    { name: '/recheck', description: 'Refresh available tools and integration health' },
+    { name: '/doctor', description: 'Scan local Chinwag integration health' },
+    ...(integrations.integrationIssues.length > 0
+      ? [{ name: '/repair', description: 'Repair detected integration issues' }] : []),
     ...(hasMemories ? [{ name: '/knowledge', description: 'View shared knowledge' }] : []),
     ...(hasLiveAgents ? [{ name: '/history', description: 'View past agent activity' }] : []),
     { name: '/web', description: 'Open chinwag in browser' },
@@ -180,7 +185,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
   }
 
   const handleCommandSubmit = createCommandHandler({
-    agents, composer, memory, flash,
+    agents, integrations, composer, memory, flash,
     setView, setSelectedIdx, setHeroInput, setHeroInputActive, setMainFocus,
     handleOpenWebDashboard, liveAgents, selectedAgent,
     isAgentAddressable,
@@ -206,7 +211,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
     allVisibleAgents, liveAgents, visibleMemories,
     hasLiveAgents, hasMemories, mainSelectedAgent,
     liveAgentNameCounts,
-    agents, composer, memory,
+    agents, integrations, composer, memory,
     commandSuggestions, handleCommandSubmit, handleOpenWebDashboard,
     navigate,
   });
@@ -362,6 +367,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
       mainFocus={mainFocus}
       liveAgentNameCounts={liveAgentNameCounts}
       agents={agents}
+      integrationIssues={integrations.integrationIssues}
       composer={composer}
       memory={memory}
       notice={notice}

@@ -5,6 +5,7 @@ import { useTeamStore } from '../../lib/stores/teams.js';
 import { getColorHex } from '../../lib/utils.js';
 import { formatRelativeTime } from '../../lib/relativeTime.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
+import { buildHostJoinShare, buildSurfaceJoinShare } from '../../lib/toolAnalytics.js';
 import { projectGradient } from '../../lib/projectGradient.js';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
 import EmptyState from '../../components/EmptyState/EmptyState.jsx';
@@ -18,6 +19,12 @@ function summarizeNames(items) {
     .filter(Boolean);
   if (names.length <= 2) return names.join(', ');
   return `${names.slice(0, 2).join(', ')} +${names.length - 2}`;
+}
+
+function summarizeProjects(projects) {
+  if (!projects?.length) return '';
+  if (projects.length <= 2) return projects.join(', ');
+  return `${projects.slice(0, 2).join(', ')} +${projects.length - 2}`;
 }
 
 export default function OverviewView() {
@@ -42,6 +49,8 @@ export default function OverviewView() {
 
   const totalActive = useMemo(() => summaries.reduce((s, t) => s + (t.active_agents || 0), 0), [summaries]);
   const totalMemories = useMemo(() => summaries.reduce((s, t) => s + (t.memory_count || 0), 0), [summaries]);
+  const hostShare = useMemo(() => buildHostJoinShare(summaries), [summaries]);
+  const surfaceShare = useMemo(() => buildSurfaceJoinShare(summaries), [summaries]);
 
   const toolUsage = useMemo(() => {
     const totals = new Map();
@@ -140,7 +149,7 @@ export default function OverviewView() {
   const stats = [
     { id: 'projects', label: 'Projects', value: knownTeamCount || summaries.length, tone: '' },
     { id: 'agents', label: 'Agents live', value: totalActive, tone: totalActive > 0 ? 'accent' : '' },
-    { id: 'tools', label: 'Tools', value: uniqueTools, tone: '' },
+    { id: 'tools', label: 'Stack', value: uniqueTools, tone: '' },
     { id: 'memories', label: 'Memories', value: totalMemories, tone: '' },
   ];
 
@@ -262,7 +271,7 @@ export default function OverviewView() {
                       );
                     })}
                     <text x={CX} y={CY - 2} textAnchor="middle" dominantBaseline="central" fill="var(--ink)" fontSize="28" fontWeight="200" fontFamily="var(--display)" letterSpacing="-0.06em">{uniqueTools}</text>
-                    <text x={CX} y={CY + 16} textAnchor="middle" fill="var(--muted)" fontSize="8.5" fontFamily="var(--mono)" letterSpacing="0.1em">TOOLS</text>
+                    <text x={CX} y={CY + 16} textAnchor="middle" fill="var(--muted)" fontSize="8.5" fontFamily="var(--mono)" letterSpacing="0.1em">STACK</text>
                   </svg>
                 </div>
 
@@ -283,6 +292,62 @@ export default function OverviewView() {
                     );
                   })}
                 </div>
+
+                {(hostShare.length > 0 || surfaceShare.length > 0) && (
+                  <div className={styles.signalGrid}>
+                    <section className={styles.signalBlock}>
+                      <div className={styles.signalHeader}>
+                        <span className={styles.signalTitle}>Hosts</span>
+                        <span className={styles.signalMeta}>Overview signal</span>
+                      </div>
+                      {hostShare.length > 0 ? (
+                        <div className={styles.signalList}>
+                          {hostShare.map((entry) => {
+                            const meta = getToolMeta(entry.host_tool);
+                            return (
+                              <div key={`host:${entry.host_tool}`} className={styles.signalRow}>
+                                <span className={styles.signalIdentity}>
+                                  <ToolIcon tool={entry.host_tool} size={16} />
+                                  {meta.label}
+                                </span>
+                                <span className={styles.signalValue}>{Math.round(entry.share * 100)}%</span>
+                                <span className={styles.signalProjects}>{summarizeProjects(entry.projects)}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className={styles.emptyHint}>No host telemetry yet.</p>
+                      )}
+                    </section>
+
+                    <section className={styles.signalBlock}>
+                      <div className={styles.signalHeader}>
+                        <span className={styles.signalTitle}>Agent surfaces</span>
+                        <span className={styles.signalMeta}>Overview signal</span>
+                      </div>
+                      {surfaceShare.length > 0 ? (
+                        <div className={styles.signalList}>
+                          {surfaceShare.map((entry) => {
+                            const meta = getToolMeta(entry.agent_surface);
+                            return (
+                              <div key={`surface:${entry.agent_surface}`} className={styles.signalRow}>
+                                <span className={styles.signalIdentity}>
+                                  <ToolIcon tool={entry.agent_surface} size={16} />
+                                  {meta.label}
+                                </span>
+                                <span className={styles.signalValue}>{Math.round(entry.share * 100)}%</span>
+                                <span className={styles.signalProjects}>{summarizeProjects(entry.projects)}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className={styles.emptyHint}>No extension-level surfaces observed yet.</p>
+                      )}
+                    </section>
+                  </div>
+                )}
               </div>
             ) : (
               <p className={styles.emptyHint}>No tools connected yet.</p>

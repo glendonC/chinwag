@@ -58,38 +58,69 @@ export function buildMemoryBreakdown(memories = []) {
   return [...counts.entries()].sort((a, b) => b[1] - a[1]);
 }
 
-export function buildProjectToolSummaries(members = [], toolsConfigured = []) {
-  const byTool = new Map();
+function buildProjectUsageSummaries(members = [], configuredEntries = [], {
+  configuredKey,
+  memberKey,
+  outputKey,
+} = {}) {
+  const byEntity = new Map();
 
-  toolsConfigured.forEach((tool) => {
-    byTool.set(tool.tool, {
-      tool: tool.tool,
-      joins: tool.joins || 0,
+  configuredEntries.forEach((entry) => {
+    const id = entry[configuredKey];
+    if (!id) return;
+    byEntity.set(id, {
+      [outputKey]: id,
+      joins: entry.joins || 0,
       live: 0,
     });
   });
 
   members.forEach((member) => {
-    const toolId = member.tool || 'unknown';
-    if (!byTool.has(toolId)) {
-      byTool.set(toolId, { tool: toolId, joins: 0, live: 0 });
+    const id = member[memberKey] || 'unknown';
+    if (!id) return;
+    if (!byEntity.has(id)) {
+      byEntity.set(id, { [outputKey]: id, joins: 0, live: 0 });
     }
     if (member.status === 'active') {
-      byTool.get(toolId).live += 1;
+      byEntity.get(id).live += 1;
     }
   });
 
-  const totalJoins = [...byTool.values()].reduce((sum, tool) => sum + (tool.joins || 0), 0);
-  return [...byTool.values()]
-    .map((tool) => ({
-      ...tool,
-      share: totalJoins > 0 ? tool.joins / totalJoins : 0,
+  const totalJoins = [...byEntity.values()].reduce((sum, item) => sum + (item.joins || 0), 0);
+  return [...byEntity.values()]
+    .map((item) => ({
+      ...item,
+      share: totalJoins > 0 ? item.joins / totalJoins : 0,
     }))
     .sort((a, b) => {
       const aScore = (a.live * 100) + a.joins;
       const bScore = (b.live * 100) + b.joins;
       return bScore - aScore;
     });
+}
+
+export function buildProjectToolSummaries(members = [], toolsConfigured = []) {
+  return buildProjectUsageSummaries(members, toolsConfigured, {
+    configuredKey: 'tool',
+    memberKey: 'tool',
+    outputKey: 'tool',
+  });
+}
+
+export function buildProjectHostSummaries(members = [], hostsConfigured = []) {
+  return buildProjectUsageSummaries(members, hostsConfigured, {
+    configuredKey: 'host_tool',
+    memberKey: 'host_tool',
+    outputKey: 'host_tool',
+  });
+}
+
+export function buildProjectSurfaceSummaries(members = [], surfacesSeen = []) {
+  return buildProjectUsageSummaries(members, surfacesSeen, {
+    configuredKey: 'agent_surface',
+    memberKey: 'agent_surface',
+    outputKey: 'agent_surface',
+  });
 }
 
 export function sumSessionEdits(sessions = []) {

@@ -13,8 +13,10 @@ import ViewHeader from '../../components/ViewHeader/ViewHeader.jsx';
 import {
   buildFilesInPlay,
   buildFilesTouched,
+  buildProjectHostSummaries,
   buildMemoryBreakdown,
   buildProjectConflicts,
+  buildProjectSurfaceSummaries,
   buildProjectToolSummaries,
   countLiveSessions,
   selectRecentSessions,
@@ -48,6 +50,8 @@ export default function ProjectView() {
   const sessions = allSessions.slice(0, 8);
   const locks = contextData?.locks || [];
   const toolsConfigured = contextData?.tools_configured || [];
+  const hostsConfigured = contextData?.hosts_configured || [];
+  const surfacesSeen = contextData?.surfaces_seen || [];
   const usage = contextData?.usage || {};
 
   const activeAgents = useMemo(
@@ -74,6 +78,14 @@ export default function ProjectView() {
   const toolSummaries = useMemo(
     () => buildProjectToolSummaries(members, toolsConfigured),
     [members, toolsConfigured]
+  );
+  const hostSummaries = useMemo(
+    () => buildProjectHostSummaries(members, hostsConfigured),
+    [members, hostsConfigured]
+  );
+  const surfaceSummaries = useMemo(
+    () => buildProjectSurfaceSummaries(members, surfacesSeen),
+    [members, surfacesSeen]
   );
 
   const handleUpdateMemory = useCallback(async (id, text, tags) => {
@@ -206,6 +218,8 @@ export default function ProjectView() {
           <div className={styles.vizPanel}>
             <ProjectToolsTab
               toolSummaries={toolSummaries}
+              hostSummaries={hostSummaries}
+              surfaceSummaries={surfaceSummaries}
               conflicts={conflicts}
               filesInPlay={filesInPlay}
               locks={locks}

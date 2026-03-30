@@ -2,9 +2,17 @@
   animation: dashboardViewFadeIn 0.25s var(--motion) both;
 }
 
+.intro {
+  max-width: 44rem;
+  margin: 0 0 36px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  line-height: 1.6;
+}
+
 .hero {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 22px;
   margin-bottom: 44px;
 }
@@ -24,6 +32,43 @@
   display: flex;
   flex-direction: column;
   gap: 34px;
+}
+
+.signalList {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.signalRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: end;
+}
+
+.signalValueBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.signalValue {
+  font-family: var(--display);
+  font-size: clamp(2.1rem, 4vw, 3.3rem);
+  font-weight: 300;
+  line-height: 0.9;
+  letter-spacing: -0.08em;
+  color: var(--ink);
+}
+
+.signalMeta {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--soft);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 
 .section {
@@ -150,6 +195,13 @@
   color: var(--success);
 }
 
+.toolObserved {
+  font-size: 11px;
+  font-family: var(--mono);
+  font-weight: 500;
+  color: var(--accent);
+}
+
 .toolDesc {
   font-size: var(--text-sm);
   color: var(--muted);
@@ -198,6 +250,15 @@
 
   .sectionHeader {
     flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .signalRow {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+
+  .signalValueBlock {
     align-items: flex-start;
   }
 }

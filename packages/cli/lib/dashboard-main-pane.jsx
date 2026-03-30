@@ -139,6 +139,7 @@ export function MainPane({
   mainFocus,
   liveAgentNameCounts,
   agents,
+  integrationIssues,
   composer,
   memory,
   notice,
@@ -223,6 +224,21 @@ export function MainPane({
               <Text dimColor>  </Text>
               <Text color="cyan" bold>[f]</Text>
               <Text dimColor> fix</Text>
+            </Text>
+          </Box>
+        );
+      })}
+
+      {!agents.toolPickerOpen && !composer.isComposing && integrationIssues.map((integration) => {
+        const issueText = integration.issues?.[0] || 'needs attention';
+        return (
+          <Box key={integration.id} marginTop={1}>
+            <Text>
+              <Text color="yellow" bold>{integration.name}</Text>
+              <Text color="yellow"> {issueText}</Text>
+              <Text dimColor>  </Text>
+              <Text color="cyan" bold>[f]</Text>
+              <Text dimColor> repair</Text>
             </Text>
           </Box>
         );

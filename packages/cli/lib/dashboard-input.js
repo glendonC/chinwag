@@ -22,6 +22,7 @@ export function createInputHandler({
   liveAgentNameCounts,
   // Hooks
   agents,
+  integrations,
   composer,
   memory,
   // Commands
@@ -234,8 +235,16 @@ export function createInputHandler({
       }
     }
 
-    if (input === 'f' && agents.unavailableCliAgents.some(tool => agents.getManagedToolState(tool.id).recoveryCommand)) {
-      agents.handleFixLauncher(agents.unavailableCliAgents.find(tool => agents.getManagedToolState(tool.id).recoveryCommand));
+    if (input === 'f') {
+      const fixableTool = agents.unavailableCliAgents.find(tool => agents.getManagedToolState(tool.id).recoveryCommand);
+      if (fixableTool) {
+        agents.handleFixLauncher(fixableTool);
+        return;
+      }
+      if (integrations.integrationIssues.length > 0) {
+        integrations.repairIntegrations();
+        return;
+      }
       return;
     }
 
@@ -271,6 +280,7 @@ export function createInputHandler({
  */
 export function createCommandHandler({
   agents,
+  integrations,
   composer,
   memory,
   flash,
@@ -305,13 +315,31 @@ export function createCommandHandler({
     }
 
     if (verb === 'fix') {
-      agents.handleFixLauncher();
+      const hasLauncherFix = agents.unavailableCliAgents.some(tool => agents.getManagedToolState(tool.id).recoveryCommand);
+      if (hasLauncherFix) {
+        agents.handleFixLauncher();
+      } else {
+        integrations.repairIntegrations();
+      }
+      composer.clearCompose();
+      return;
+    }
+
+    if (verb === 'repair') {
+      integrations.repairIntegrations();
       composer.clearCompose();
       return;
     }
 
     if (verb === 'recheck' || verb === 'refresh') {
       agents.refreshManagedToolStates({ clearRuntimeFailures: true });
+      integrations.refreshIntegrationStatuses({ showFlash: true });
+      composer.clearCompose();
+      return;
+    }
+
+    if (verb === 'doctor') {
+      integrations.refreshIntegrationStatuses({ showFlash: true });
       composer.clearCompose();
       return;
     }
@@ -347,7 +375,7 @@ export function createCommandHandler({
     }
 
     if (verb === 'help') {
-      flash('Try /new, /recheck, /memory, /web, or /sessions.', { tone: 'info' });
+      flash('Try /new, /doctor, /recheck, /memory, /web, or /sessions.', { tone: 'info' });
       composer.clearCompose();
       return;
     }
