@@ -1,25 +1,38 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import { basename } from 'path';
-import { stripAnsi } from './dashboard-utils.js';
-import {
-  getAgentDisplayLabel, getAgentIntent,
-  getAgentOriginLabel, getAgentMeta,
-} from './dashboard-agent-display.js';
-import { HintRow, NoticeLine } from './dashboard-ui.jsx';
 import { getOutput } from './process-manager.js';
+import { NoticeLine, HintRow } from './dashboard-ui.jsx';
 
+// Strip ANSI escape codes, OSC sequences, cursor controls, and carriage returns
+function stripAnsi(str) {
+  return str
+    .replace(/\x1b\][^\x07]*\x07/g, '')          // OSC sequences (title, etc.)
+    .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '')       // CSI sequences (colors, cursor)
+    .replace(/\x1b\([A-Z]/g, '')                    // Character set selection
+    .replace(/\x1b[=>MNOP78]/g, '')                 // Other escape sequences
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '') // Control characters (keep \n \r \t)
+    .replace(/\r/g, '');
+}
+
+/**
+ * Agent Focus View component — the detailed single-agent inspection screen.
+ */
 export function AgentFocusView({
   focusedAgent,
   combinedAgents,
   conflicts,
-  notice,
   showDiagnostics,
-  liveAgentNameCounts,
-  navHints,
+  notice,
+  navItems,
+  dashboardRail,
+  // Agent helpers
+  getAgentDisplayLabel,
+  getAgentOriginLabel,
+  getAgentIntent,
+  getAgentMeta,
+  isAgentAddressable,
 }) {
-  if (!focusedAgent) return null;
-
   const freshAgent = focusedAgent._managed
     ? (combinedAgents.find(agent => agent._managed && agent.id === focusedAgent.id) || focusedAgent)
     : (combinedAgents.find(agent => !agent._managed && agent.agent_id === focusedAgent.agent_id) || focusedAgent);
@@ -42,9 +55,10 @@ export function AgentFocusView({
 
   return (
     <Box flexDirection="column">
+      {dashboardRail}
       <Box flexDirection="column" paddingTop={1}>
         <Text color="green" bold>session details</Text>
-        <Text dimColor>{sourceLabel}</Text>
+        {sourceLabel ? <Text dimColor>{sourceLabel}</Text> : null}
       </Box>
 
       <Box flexDirection="column" paddingX={1} paddingTop={1}>
@@ -55,7 +69,7 @@ export function AgentFocusView({
               ? <Text color="red">{'\u25CF'} </Text>
               : <Text color="green">{'\u25CF'} </Text>
           }
-          <Text bold>{getAgentDisplayLabel(freshAgent, liveAgentNameCounts)}</Text>
+          <Text bold>{getAgentDisplayLabel(freshAgent)}</Text>
           {freshAgent.handle && <Text dimColor>  {freshAgent.handle}</Text>}
           {freshAgent._duration && <Text dimColor>  {freshAgent._duration}</Text>}
         </Text>
@@ -92,7 +106,7 @@ export function AgentFocusView({
         {agentConflicts.length > 0 ? (
           <Box flexDirection="column">
             {agentConflicts.map(([file, owners]) => (
-              <Text key={file} color="red">  Conflict on {basename(file)} {'· '}{owners.join(' & ')}</Text>
+              <Text key={file} color="red">  Conflict on {basename(file)} · {owners.join(' & ')}</Text>
             ))}
           </Box>
         ) : (
@@ -123,8 +137,12 @@ export function AgentFocusView({
         <NoticeLine notice={notice} />
       </Box>
 
-      <Box paddingTop={1}>
-        <HintRow hints={navHints} />
+      <Box paddingX={1} paddingTop={1} borderTop={true} borderColor="gray">
+        <HintRow hints={navItems.map(item => ({
+          commandKey: item.key,
+          label: item.label,
+          color: item.color || 'cyan',
+        }))} />
       </Box>
     </Box>
   );
