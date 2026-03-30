@@ -12,6 +12,7 @@ import { basename } from 'path';
 import { loadConfig, configExists } from './lib/config.js';
 import { api } from './lib/api.js';
 import { findTeamFile, teamHandlers } from './lib/team.js';
+import { detectRuntimeIdentity } from './lib/identity.js';
 import { resolveAgentIdentity } from './lib/lifecycle.js';
 import { formatWho } from './lib/utils/formatting.js';
 import { formatTeamContextDisplay } from './lib/utils/display.js';
@@ -30,8 +31,9 @@ async function main() {
   if (!teamId) process.exit(0);
 
   // Hooks are always Claude Code
+  const runtime = detectRuntimeIdentity('claude-code', { defaultTransport: 'hook' });
   const { agentId, hasExactSession } = resolveAgentIdentity(config.token, 'claude-code');
-  const client = api(config, { agentId });
+  const client = api(config, { agentId, runtimeIdentity: runtime });
   const team = teamHandlers(client);
 
   switch (subcommand) {

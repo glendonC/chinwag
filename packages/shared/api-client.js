@@ -10,6 +10,7 @@ export function createJsonApiClient({
   baseUrl = DEFAULT_API_URL,
   authToken = null,
   agentId = null,
+  runtimeIdentity = null,
   userAgent = null,
   timeoutMs = 10_000,
   maxRetryAttempts = 0,
@@ -28,6 +29,10 @@ export function createJsonApiClient({
   if (authToken) defaultHeaders.Authorization = `Bearer ${authToken}`;
   if (userAgent) defaultHeaders['User-Agent'] = userAgent;
   if (agentId) defaultHeaders['X-Agent-Id'] = agentId;
+  if (runtimeIdentity?.hostTool) defaultHeaders['X-Agent-Host-Tool'] = runtimeIdentity.hostTool;
+  if (runtimeIdentity?.agentSurface) defaultHeaders['X-Agent-Surface'] = runtimeIdentity.agentSurface;
+  if (runtimeIdentity?.transport) defaultHeaders['X-Agent-Transport'] = runtimeIdentity.transport;
+  if (runtimeIdentity?.tier) defaultHeaders['X-Agent-Tier'] = runtimeIdentity.tier;
 
   async function request(method, path, body = null, attempt = 0) {
     const controller = new AbortController();

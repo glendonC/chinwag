@@ -1,7 +1,7 @@
 import { checkContent } from '../moderation.js';
 import { getDB, getLobby, getTeam } from '../lib/env.js';
 import { json, parseBody } from '../lib/http.js';
-import { getAgentId, getToolFromAgentId, sanitizeTags } from '../lib/request-utils.js';
+import { getAgentRuntime, sanitizeTags } from '../lib/request-utils.js';
 import { requireJson, withRateLimit } from '../lib/validation.js';
 
 export async function authenticate(request, env) {
@@ -237,11 +237,11 @@ export async function handleCreateTeam(request, user, env) {
   const db = getDB(env);
 
   return withRateLimit(db, `team:${user.id}`, 5, 'Team creation limit reached. Try again tomorrow.', async () => {
-    const agentId = getAgentId(request, user);
-    const tool = getToolFromAgentId(agentId);
+    const runtime = getAgentRuntime(request, user);
+    const agentId = runtime.agentId;
     const teamId = 't_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
     const team = getTeam(env, teamId);
-    await team.join(agentId, user.id, user.handle, tool);
+    await team.join(agentId, user.id, user.handle, runtime);
 
     try {
       await db.addUserTeam(user.id, teamId, name);

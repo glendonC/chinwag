@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 // Mock cloudflare:workers so DO class imports resolve outside the Workers runtime
 vi.mock('cloudflare:workers', () => ({ DurableObject: class {} }));
 
-import { parseTeamPath, getToolFromAgentId, sanitizeTags, teamErrorStatus } from '../index.js';
+import { parseTeamPath, getAgentRuntime, getToolFromAgentId, sanitizeTags, teamErrorStatus } from '../index.js';
 import { normalizePath } from '../lib/text-utils.js';
 
 // --- parseTeamPath ---
@@ -103,6 +103,50 @@ describe('getToolFromAgentId', () => {
 
   it('handles empty string', () => {
     expect(getToolFromAgentId('')).toBe('unknown');
+  });
+});
+
+describe('getAgentRuntime', () => {
+  it('prefers explicit runtime headers over agent id parsing', () => {
+    const request = new Request('http://example.com', {
+      headers: {
+        'X-Agent-Id': 'cursor:abc123',
+        'X-Agent-Host-Tool': 'vscode',
+        'X-Agent-Surface': 'cline',
+        'X-Agent-Transport': 'mcp',
+        'X-Agent-Tier': 'connected',
+      },
+    });
+
+    expect(getAgentRuntime(request, { id: 'user-1' })).toEqual({
+      agentId: 'cursor:abc123',
+      tool: 'vscode',
+      host_tool: 'vscode',
+      hostTool: 'vscode',
+      agent_surface: 'cline',
+      agentSurface: 'cline',
+      transport: 'mcp',
+      tier: 'connected',
+    });
+  });
+
+  it('falls back to the agent id prefix when runtime headers are absent', () => {
+    const request = new Request('http://example.com', {
+      headers: {
+        'X-Agent-Id': 'windsurf:def456',
+      },
+    });
+
+    expect(getAgentRuntime(request, { id: 'user-1' })).toMatchObject({
+      agentId: 'windsurf:def456',
+      tool: 'windsurf',
+      host_tool: 'windsurf',
+      hostTool: 'windsurf',
+      agent_surface: null,
+      agentSurface: null,
+      transport: null,
+      tier: null,
+    });
   });
 });
 

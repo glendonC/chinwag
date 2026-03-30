@@ -1,25 +1,7 @@
 // chinwag_scan_integrations and chinwag_configure_integration tool handlers.
 
 import * as z from 'zod/v4';
-
-function formatIntegrationScan(scanResults, { onlyDetected = false } = {}) {
-  const rows = onlyDetected ? scanResults.filter((item) => item.detected) : scanResults;
-  if (rows.length === 0) return 'No supported integrations detected in this repo.';
-
-  const lines = ['Integrations:'];
-  for (const item of rows) {
-    const summary = `${item.name} [${item.tier}] — ${item.status}`;
-    const capabilityText = item.capabilities?.length ? ` (${item.capabilities.join(', ')})` : '';
-    lines.push(`- ${summary}${capabilityText}`);
-    if (item.detected) lines.push(`  config: ${item.configPath}`);
-    if (item.issues?.length) {
-      for (const issue of item.issues) {
-        lines.push(`  issue: ${issue}`);
-      }
-    }
-  }
-  return lines.join('\n');
-}
+import { formatIntegrationScanResults } from '../../../shared/integration-doctor.js';
 
 export function registerIntegrationTools(addTool, { integrationDoctor }) {
   if (!integrationDoctor) return;
@@ -35,7 +17,7 @@ export function registerIntegrationTools(addTool, { integrationDoctor }) {
     async ({ only_detected }) => {
       try {
         const results = integrationDoctor.scanHostIntegrations(process.cwd());
-        return { content: [{ type: 'text', text: formatIntegrationScan(results, { onlyDetected: Boolean(only_detected) }) }] };
+        return { content: [{ type: 'text', text: formatIntegrationScanResults(results, { onlyDetected: Boolean(only_detected) }) }] };
       } catch (err) {
         return { content: [{ type: 'text', text: `Failed to scan integrations: ${err.message}` }], isError: true };
       }

@@ -94,6 +94,42 @@ export function detectHostIntegrations(cwd) {
   return HOST_INTEGRATIONS.filter((host) => detectHost(cwd, host));
 }
 
+export function formatIntegrationScanResults(scanResults, { onlyDetected = false } = {}) {
+  const rows = onlyDetected ? scanResults.filter((item) => item.detected) : scanResults;
+  if (rows.length === 0) return 'No supported integrations detected in this repo.';
+
+  const lines = ['Integrations:'];
+  for (const item of rows) {
+    const summary = `${item.name} [${item.tier}] — ${item.status}`;
+    const capabilityText = item.capabilities?.length ? ` (${item.capabilities.join(', ')})` : '';
+    lines.push(`- ${summary}${capabilityText}`);
+    if (item.detected) lines.push(`  config: ${item.configPath}`);
+    if (item.issues?.length) {
+      for (const issue of item.issues) lines.push(`  issue: ${issue}`);
+    }
+  }
+  return lines.join('\n');
+}
+
+export function summarizeIntegrationScan(scanResults, { onlyDetected = true } = {}) {
+  const rows = onlyDetected ? scanResults.filter((item) => item.detected) : scanResults;
+  if (rows.length === 0) return { text: 'No supported integrations detected.', tone: 'info' };
+
+  const ready = rows.filter((item) => item.status === 'ready').length;
+  const problematic = rows.filter((item) => item.status !== 'ready').length;
+  if (problematic === 0) {
+    return {
+      text: `${ready} integration${ready === 1 ? '' : 's'} ready.`,
+      tone: 'success',
+    };
+  }
+
+  return {
+    text: `${ready} ready · ${problematic} need attention.`,
+    tone: 'warning',
+  };
+}
+
 export function writeMcpConfig(cwd, relativePath, { channel = false, hostId = null, surfaceId = null } = {}) {
   const filePath = join(cwd, relativePath);
   const isSharedRootConfig = relativePath === '.mcp.json' || relativePath === 'mcp.json';

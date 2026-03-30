@@ -24,7 +24,15 @@ describe('MCP API client', () => {
     vi.stubEnv('CHINWAG_API_URL', 'http://localhost:8787');
     fetch.mockResolvedValue(mockJsonResponse({ ok: true }));
 
-    await api({ token: 'mcp-token' }, { agentId: 'cursor:abc123' }).get('/teams/t_test/context');
+    await api({ token: 'mcp-token' }, {
+      agentId: 'cursor:abc123',
+      runtimeIdentity: {
+        hostTool: 'cursor',
+        agentSurface: 'cline',
+        transport: 'mcp',
+        tier: 'connected',
+      },
+    }).get('/teams/t_test/context');
 
     expect(getApiUrl()).toBe('http://localhost:8787');
     expect(fetch).toHaveBeenCalledWith(
@@ -36,6 +44,10 @@ describe('MCP API client', () => {
           'Content-Type': 'application/json',
           'User-Agent': 'chinwag-mcp/1.0',
           'X-Agent-Id': 'cursor:abc123',
+          'X-Agent-Host-Tool': 'cursor',
+          'X-Agent-Surface': 'cline',
+          'X-Agent-Transport': 'mcp',
+          'X-Agent-Tier': 'connected',
         }),
       })
     );

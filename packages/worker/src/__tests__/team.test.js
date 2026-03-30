@@ -34,6 +34,85 @@ describe('Membership', () => {
     const hb = await team().heartbeat(agentId);
     expect(hb.error).toBeTruthy();
   });
+
+  it('persists structured runtime metadata alongside the legacy tool field', async () => {
+    const runtimeTeam = () => getTeam('membership-runtime-tests');
+    const runtimeAgent = 'cursor:runtime-m1';
+    const runtimeOwner = 'user-runtime-m1';
+
+    const joinRes = await runtimeTeam().join(runtimeAgent, runtimeOwner, 'alice', {
+      hostTool: 'cursor',
+      agentSurface: 'cline',
+      transport: 'mcp',
+      tier: 'connected',
+    });
+    expect(joinRes.ok).toBe(true);
+
+    const sessionRes = await runtimeTeam().startSession(runtimeAgent, 'alice', 'react', {
+      hostTool: 'cursor',
+      agentSurface: 'cline',
+      transport: 'mcp',
+      tier: 'connected',
+    }, runtimeOwner);
+    expect(sessionRes.ok).toBe(true);
+
+    const memoryRes = await runtimeTeam().saveMemory(
+      runtimeAgent,
+      'Structured runtime memory',
+      ['runtime'],
+      'alice',
+      { hostTool: 'cursor', agentSurface: 'cline', transport: 'mcp', tier: 'connected' },
+      runtimeOwner
+    );
+    expect(memoryRes.ok).toBe(true);
+
+    const messageRes = await runtimeTeam().sendMessage(
+      runtimeAgent,
+      'alice',
+      { hostTool: 'cursor', agentSurface: 'cline', transport: 'mcp', tier: 'connected' },
+      'Runtime hello',
+      null,
+      runtimeOwner
+    );
+    expect(messageRes.ok).toBe(true);
+
+    const lockRes = await runtimeTeam().claimFiles(
+      runtimeAgent,
+      ['src/runtime.js'],
+      'alice',
+      { hostTool: 'cursor', agentSurface: 'cline', transport: 'mcp', tier: 'connected' },
+      runtimeOwner
+    );
+    expect(lockRes.ok).toBe(true);
+
+    const ctx = await runtimeTeam().getContext(runtimeAgent, runtimeOwner);
+    const me = ctx.members.find(m => m.agent_id === runtimeAgent);
+    expect(me.tool).toBe('cursor');
+    expect(me.host_tool).toBe('cursor');
+    expect(me.agent_surface).toBe('cline');
+    expect(me.transport).toBe('mcp');
+
+    expect(ctx.memories[0].source_tool).toBe('cursor');
+    expect(ctx.memories[0].source_host_tool).toBe('cursor');
+    expect(ctx.memories[0].source_agent_surface).toBe('cline');
+
+    expect(ctx.messages[0].from_tool).toBe('cursor');
+    expect(ctx.messages[0].from_host_tool).toBe('cursor');
+    expect(ctx.messages[0].from_agent_surface).toBe('cline');
+
+    expect(ctx.locks[0].tool).toBe('cursor');
+    expect(ctx.locks[0].host_tool).toBe('cursor');
+    expect(ctx.locks[0].agent_surface).toBe('cline');
+
+    const session = ctx.recentSessions.find(s => s.agent_id === runtimeAgent);
+    expect(session.host_tool).toBe('cursor');
+    expect(session.agent_surface).toBe('cline');
+    expect(session.transport).toBe('mcp');
+
+    const summary = await runtimeTeam().getSummary(runtimeAgent, runtimeOwner);
+    expect(summary.hosts_configured.some(item => item.host_tool === 'cursor')).toBe(true);
+    expect(summary.surfaces_seen.some(item => item.agent_surface === 'cline')).toBe(true);
+  });
 });
 
 // --- Ownership verification ---

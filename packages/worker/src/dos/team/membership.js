@@ -1,7 +1,10 @@
 // Team membership — join, leave, heartbeat.
 // Each function takes `sql` as the first parameter and operates on the members table.
 
-export function join(sql, agentId, ownerId, ownerHandle, tool, recordMetric) {
+import { normalizeRuntimeMetadata } from './runtime.js';
+
+export function join(sql, agentId, ownerId, ownerHandle, runtimeOrTool, recordMetric) {
+  const runtime = normalizeRuntimeMetadata(runtimeOrTool, agentId);
   // Prevent agent_id spoofing: reject if already claimed by a different user
   const existing = sql.exec('SELECT owner_id FROM members WHERE agent_id = ?', agentId).toArray();
   if (existing.length > 0 && existing[0].owner_id !== ownerId) {
@@ -9,17 +12,23 @@ export function join(sql, agentId, ownerId, ownerHandle, tool, recordMetric) {
   }
 
   sql.exec(
-    `INSERT INTO members (agent_id, owner_id, owner_handle, tool, joined_at, last_heartbeat)
-     VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
+    `INSERT INTO members (agent_id, owner_id, owner_handle, tool, host_tool, agent_surface, transport, joined_at, last_heartbeat)
+     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
      ON CONFLICT(agent_id) DO UPDATE SET
        owner_id = excluded.owner_id,
        owner_handle = excluded.owner_handle,
        tool = excluded.tool,
+       host_tool = excluded.host_tool,
+       agent_surface = excluded.agent_surface,
+       transport = excluded.transport,
        last_heartbeat = datetime('now')`,
-    agentId, ownerId, ownerHandle, tool
+    agentId, ownerId, ownerHandle, runtime.tool, runtime.hostTool, runtime.agentSurface, runtime.transport
   );
   recordMetric('joins');
-  recordMetric(`tool:${tool}`);
+  recordMetric(`tool:${runtime.tool}`);
+  recordMetric(`host:${runtime.hostTool}`);
+  if (runtime.agentSurface) recordMetric(`surface:${runtime.agentSurface}`);
+  if (runtime.transport) recordMetric(`transport:${runtime.transport}`);
   return { ok: true };
 }
 

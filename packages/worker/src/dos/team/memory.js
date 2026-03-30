@@ -1,17 +1,17 @@
 // Shared project memory — saveMemory, searchMemories, updateMemory, deleteMemory.
 // Each function takes `sql` as the first parameter.
 
+import { normalizeRuntimeMetadata } from './runtime.js';
+
 const MEMORY_MAX_COUNT = 500;
 
-export function saveMemory(sql, resolvedAgentId, text, tags, handle, recordMetric) {
-  // Extract tool name from agent_id (format: "tool:hash" or "tool:hash:session")
-  const sourceTool = resolvedAgentId.includes(':') ? resolvedAgentId.split(':')[0] : 'unknown';
-
+export function saveMemory(sql, resolvedAgentId, text, tags, handle, runtimeOrTool, recordMetric) {
+  const runtime = normalizeRuntimeMetadata(runtimeOrTool, resolvedAgentId);
   const id = crypto.randomUUID();
   sql.exec(
-    `INSERT INTO memories (id, text, tags, source_agent, source_handle, source_tool, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
-    id, text, JSON.stringify(tags || []), resolvedAgentId, handle || 'unknown', sourceTool
+    `INSERT INTO memories (id, text, tags, source_agent, source_handle, source_tool, source_host_tool, source_agent_surface, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+    id, text, JSON.stringify(tags || []), resolvedAgentId, handle || 'unknown', runtime.tool, runtime.hostTool, runtime.agentSurface
   );
 
   // Prune oldest beyond storage cap
@@ -50,7 +50,7 @@ export function searchMemories(sql, query, tags, limit = 20) {
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-  const sqlStr = `SELECT id, text, tags, source_handle, source_tool, created_at, updated_at
+  const sqlStr = `SELECT id, text, tags, source_handle, source_tool, source_host_tool, source_agent_surface, created_at, updated_at
                FROM memories ${where}
                ORDER BY updated_at DESC, created_at DESC LIMIT ?`;
   params.push(cappedLimit);

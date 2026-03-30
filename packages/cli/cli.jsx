@@ -88,6 +88,13 @@ if (process.argv[2] === 'add') {
   process.exit(0);
 }
 
+// Handle doctor command before launching TUI
+if (process.argv[2] === 'doctor') {
+  const { runDoctor } = await import('./lib/doctor-command.js');
+  await runDoctor(process.argv.slice(3));
+  process.exit(0);
+}
+
 // Handle team commands before launching TUI
 if (process.argv[2] === 'team') {
   const { handleTeamCommand } = await import('./lib/team.js');

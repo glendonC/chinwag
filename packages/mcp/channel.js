@@ -51,7 +51,7 @@ async function main() {
     process.exit(0);
   }
   const { agentId } = resolveAgentIdentity(config.token, toolName);
-  const client = api(config, { agentId });
+  const client = api(config, { agentId, runtimeIdentity: runtime });
   const team = teamHandlers(client);
   console.error(`[chinwag-channel] Runtime: ${toolName} via ${runtime.transport}, Agent ID: ${agentId}`);
 

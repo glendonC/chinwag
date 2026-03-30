@@ -45,7 +45,7 @@ export { DatabaseDO } from './db.js';
 export { LobbyDO } from './lobby.js';
 export { RoomDO } from './room.js';
 export { TeamDO } from './dos/team/index.js';
-export { parseTeamPath, getToolFromAgentId, sanitizeTags, teamErrorStatus };
+export { parseTeamPath, getAgentRuntime, getToolFromAgentId, sanitizeTags, teamErrorStatus } from './lib/request-utils.js';
 
 const PROD_ORIGINS = new Set(['https://chinwag.dev', 'https://www.chinwag.dev']);
 const DEV_ORIGINS = new Set(['http://localhost:8788', 'http://localhost:3000', 'http://127.0.0.1:8788']);
@@ -78,7 +78,7 @@ export default {
     const corsHeaders = {
       'Access-Control-Allow-Origin': getAllowedOrigin(origin, env.ENVIRONMENT),
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Agent-Id, X-Agent-Host-Tool, X-Agent-Surface, X-Agent-Transport, X-Agent-Tier',
       'Vary': 'Origin',
     };
 

@@ -5,6 +5,8 @@ import {
   commandExists,
   configureHostIntegration,
   detectHostIntegrations,
+  scanHostIntegrations,
+  summarizeIntegrationScan,
   writeHooksConfig as writeHostHooksConfig,
   writeMcpConfig as writeHostMcpConfig,
 } from '../../shared/integration-doctor.js';
@@ -14,6 +16,12 @@ export { commandExists };
 export function detectTools(cwd) {
   return detectHostIntegrations(cwd);
 }
+
+export function scanIntegrationHealth(cwd) {
+  return scanHostIntegrations(cwd);
+}
+
+export { summarizeIntegrationScan };
 
 export function writeMcpConfig(cwd, relativePath, { channel = false, toolId = null } = {}) {
   return writeHostMcpConfig(cwd, relativePath, { channel, hostId: toolId });

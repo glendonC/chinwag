@@ -10,7 +10,7 @@ import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { basename, join } from 'path';
 import { configExists, loadConfig, saveConfig } from './config.js';
 import { api, initAccount } from './api.js';
-import { detectTools, writeMcpConfig, writeHooksConfig } from './mcp-config.js';
+import { detectTools, configureTool } from './mcp-config.js';
 
 // Map chinwag color names to chalk methods
 const CHALK_COLORS = {
@@ -127,24 +127,16 @@ export async function runInit() {
   // Step 3: Detect tools — iterate the registry, not hardcoded checks
   const detected = detectTools(cwd);
 
-  // Step 4: Write MCP configs — deduplicate by config path (multiple tools may share one)
-  const configsWritten = new Set();
+  // Step 4: Configure detected integrations through the shared doctor path
   const configured = [];
 
   for (const tool of detected) {
-    if (!configsWritten.has(tool.mcpConfig)) {
-      writeMcpConfig(cwd, tool.mcpConfig, { channel: tool.channel, toolId: tool.id });
-      configsWritten.add(tool.mcpConfig);
+    const result = configureTool(cwd, tool.id);
+    if (result.error) {
+      console.log(`  ${chalk.red('✖')} Could not configure ${tool.name}: ${result.error}`);
+      continue;
     }
-
-    if (tool.hooks) {
-      writeHooksConfig(cwd);
-    }
-
-    let detail = dim(tool.mcpConfig);
-    if (tool.hooks) detail += dim(' + hooks');
-    if (tool.channel) detail += dim(' + channel');
-    configured.push({ name: tool.name, detail });
+    configured.push({ name: result.name, detail: dim(result.detail) });
   }
 
   if (configured.length > 0) {
@@ -169,6 +161,7 @@ export async function runInit() {
   }
   console.log(`  ${chalk.cyan('npx chinwag')}           ${dim('open the dashboard')}`);
   console.log(`  ${chalk.cyan('npx chinwag add')}       ${dim('add more tools')}`);
+  console.log(`  ${chalk.cyan('npx chinwag doctor')}    ${dim('scan integration health')}`);
   console.log('');
   console.log(`  ${dim('Commit')} ${chalk.cyan('.chinwag')} ${dim('so teammates auto-join.')}`);
   console.log('');

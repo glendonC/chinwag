@@ -1,3 +1,5 @@
+const RUNTIME_TOKEN_PATTERN = /^[a-zA-Z0-9_-]+$/;
+
 export function getAgentId(request, user) {
   const agentId = request.headers.get('X-Agent-Id');
   if (agentId && typeof agentId === 'string' && agentId.length > 0 && agentId.length <= 60) {
@@ -9,6 +11,33 @@ export function getAgentId(request, user) {
 export function getToolFromAgentId(agentId) {
   const idx = agentId.indexOf(':');
   return idx > 0 ? agentId.slice(0, idx) : 'unknown';
+}
+
+function getRuntimeHeader(request, name, maxLength = 50) {
+  const value = request.headers.get(name);
+  if (!value || typeof value !== 'string') return null;
+  if (value.length > maxLength) return null;
+  if (!RUNTIME_TOKEN_PATTERN.test(value)) return null;
+  return value;
+}
+
+export function getAgentRuntime(request, user) {
+  const agentId = getAgentId(request, user);
+  const hostTool = getRuntimeHeader(request, 'X-Agent-Host-Tool') || getToolFromAgentId(agentId);
+  const agentSurface = getRuntimeHeader(request, 'X-Agent-Surface');
+  const transport = getRuntimeHeader(request, 'X-Agent-Transport');
+  const tier = getRuntimeHeader(request, 'X-Agent-Tier');
+
+  return {
+    agentId,
+    tool: hostTool || 'unknown',
+    host_tool: hostTool || 'unknown',
+    hostTool: hostTool || 'unknown',
+    agent_surface: agentSurface || null,
+    agentSurface: agentSurface || null,
+    transport: transport || null,
+    tier: tier || null,
+  };
 }
 
 export function sanitizeTags(arr) {

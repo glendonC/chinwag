@@ -2,11 +2,13 @@
 // Each function takes `sql` as the first parameter.
 
 import { normalizePath } from '../../lib/text-utils.js';
+import { normalizeRuntimeMetadata } from './runtime.js';
 
 const HEARTBEAT_STALE_SECONDS = 300;
 const ACTIVITY_MAX_FILES = 50;
 
-export function startSession(sql, resolvedAgentId, handle, framework) {
+export function startSession(sql, resolvedAgentId, handle, framework, runtimeOrTool) {
+  const runtime = normalizeRuntimeMetadata(runtimeOrTool, resolvedAgentId);
   // End any existing open session for this agent
   sql.exec(
     `UPDATE sessions SET ended_at = datetime('now') WHERE agent_id = ? AND ended_at IS NULL`,
@@ -26,9 +28,9 @@ export function startSession(sql, resolvedAgentId, handle, framework) {
 
   const id = crypto.randomUUID();
   sql.exec(
-    `INSERT INTO sessions (id, agent_id, owner_handle, framework, started_at)
-     VALUES (?, ?, ?, ?, datetime('now'))`,
-    id, resolvedAgentId, handle, framework || 'unknown'
+    `INSERT INTO sessions (id, agent_id, owner_handle, framework, host_tool, agent_surface, transport, started_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+    id, resolvedAgentId, handle, framework || 'unknown', runtime.hostTool, runtime.agentSurface, runtime.transport
   );
   return { ok: true, session_id: id };
 }
@@ -70,7 +72,7 @@ export function recordEdit(sql, resolvedAgentId, filePath) {
 
 export function getSessionHistory(sql, days) {
   const sessions = sql.exec(
-    `SELECT owner_handle, framework, started_at, ended_at,
+    `SELECT owner_handle, framework, host_tool, agent_surface, transport, started_at, ended_at,
            edit_count, files_touched, conflicts_hit, memories_saved,
            ROUND((julianday(COALESCE(ended_at, datetime('now'))) - julianday(started_at)) * 24 * 60) as duration_minutes
      FROM sessions

@@ -37,7 +37,7 @@ async function main() {
   const runtime = detectRuntimeIdentity('unknown', { defaultTransport: 'mcp' });
   const toolName = runtime.hostTool;
   const agentId = getConfiguredAgentId(runtime) || generateSessionAgentId(config.token, runtime);
-  const client = api(config, { agentId });
+  const client = api(config, { agentId, runtimeIdentity: runtime });
   const runtimeLabel = runtime.agentSurface
     ? `${runtime.hostTool}/${runtime.agentSurface}`
     : runtime.hostTool;
