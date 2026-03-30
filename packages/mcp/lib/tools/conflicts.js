@@ -52,7 +52,6 @@ export function registerConflictsTool(addTool, { team, state }) {
           }
           return {
             content: [{ type: 'text', text: '[offline \u2014 cached data only] No overlapping files were found in cache. Do not treat this as live clearance to edit.' }],
-            isError: true,
           };
         }
         return {
