@@ -32,16 +32,7 @@ export function openWebDashboard(token) {
   }
 }
 
-// Strip ANSI escape codes, OSC sequences, cursor controls, and carriage returns
-export function stripAnsi(str) {
-  return str
-    .replace(/\x1b\][^\x07]*\x07/g, '')          // OSC sequences (title, etc.)
-    .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '')       // CSI sequences (colors, cursor)
-    .replace(/\x1b\([A-Z]/g, '')                    // Character set selection
-    .replace(/\x1b[=>MNOP78]/g, '')                 // Other escape sequences
-    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '') // Control characters (keep \n \r \t)
-    .replace(/\r/g, '');
-}
+// stripAnsi: use utils/ansi.js (canonical implementation)
 
 export function getVisibleWindow(items, selectedIdx, maxItems) {
   if (!items?.length || items.length <= maxItems) {

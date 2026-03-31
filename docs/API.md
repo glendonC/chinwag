@@ -40,10 +40,10 @@ Agent endpoints also accept `X-Agent-Id` header (format: `tool:hash`) for per-to
 | POST | `/teams/{id}/conflicts` | Check file conflicts. Body: `{files}`. | — |
 | POST | `/teams/{id}/heartbeat` | Agent heartbeat. | — |
 | POST | `/teams/{id}/file` | Report single file edit. Body: `{file}`. | 500/day |
-| POST | `/teams/{id}/memory` | Save memory. Body: `{text, category}`. | 20/day |
-| GET | `/teams/{id}/memory` | Search memories. Query: `?q=&category=&limit=`. | — |
-| PUT | `/teams/{id}/memory` | Update memory. Body: `{id, text?, category?}`. | — |
-| DELETE | `/teams/{id}/memory` | Delete memory. Body: `{id}`. | — |
+| POST | `/teams/{id}/memory` | Save memory. Body: `{text, tags?}`. | 20/day |
+| GET | `/teams/{id}/memory` | Search memories. Query: `?q=&tags=&limit=`. | — |
+| PUT | `/teams/{id}/memory` | Update memory. Body: `{id, text?, tags?}`. | 50/day |
+| DELETE | `/teams/{id}/memory` | Delete memory. Body: `{id}`. | 50/day |
 | POST | `/teams/{id}/locks` | Claim file locks. Body: `{files}`. | 100/day |
 | DELETE | `/teams/{id}/locks` | Release file locks. Body: `{files?}`. | — |
 | GET | `/teams/{id}/locks` | List active locks. | — |
@@ -64,9 +64,9 @@ Agent endpoints also accept `X-Agent-Id` header (format: `tool:hash`) for per-to
 
 All errors return JSON: `{"error": "message"}` with appropriate HTTP status code. Rate-limited endpoints return `429`.
 
-## Memory Categories
+## Memory Tags
 
-`gotcha`, `pattern`, `config`, `decision`, `reference`
+Memories use free-form tags (an array of strings), not a fixed category enum. Tags are normalized to lowercase strings, max 50 characters each, max 10 tags per memory. Stored as a JSON array in SQLite. Search filters by tags using OR matching (memories containing any of the listed tags are returned). Results are ordered by most recently updated.
 
 ## Team ID Format
 

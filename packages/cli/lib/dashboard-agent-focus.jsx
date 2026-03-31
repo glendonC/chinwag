@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import { basename, resolve } from 'path';
-import { stripAnsi } from './dashboard-utils.js';
+import { stripAnsi } from './utils/ansi.js';
 import {
   getAgentDisplayLabel, getAgentIntent,
   getAgentOriginLabel,
@@ -44,7 +44,7 @@ export function AgentFocusView({
   liveAgentNameCounts,
   navHints,
 }) {
-  if (!focusedAgent) return null;
+  if (!focusedAgent) return <Text dimColor>Agent no longer available. Press Esc to go back.</Text>;
 
   const freshAgent = focusedAgent._managed
     ? (combinedAgents.find(agent => agent._managed && agent.id === focusedAgent.id) || focusedAgent)

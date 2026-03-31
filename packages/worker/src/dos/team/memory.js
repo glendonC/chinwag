@@ -70,17 +70,13 @@ export function searchMemories(sql, query, tags, limit = 20) {
 }
 
 export function updateMemory(sql, resolvedAgentId, memoryId, text, tags) {
-  if (text !== undefined && (typeof text !== 'string' || !text.trim())) {
-    return { error: 'text must be a non-empty string' };
-  }
-
   const existing = sql.exec('SELECT id FROM memories WHERE id = ?', memoryId).toArray();
   if (existing.length === 0) return { error: 'Memory not found' };
 
   // Any team member can update — memories are team knowledge
   const sets = [];
   const params = [];
-  if (text !== undefined) { sets.push('text = ?'); params.push(text.trim()); }
+  if (text !== undefined) { sets.push('text = ?'); params.push(typeof text === 'string' ? text.trim() : String(text)); }
   if (tags !== undefined) { sets.push('tags = ?'); params.push(JSON.stringify(tags)); }
   sets.push("updated_at = datetime('now')");
   params.push(memoryId);

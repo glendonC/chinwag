@@ -19,10 +19,10 @@ export function registerContextTool(addTool, { team, state }) {
 
       // Deferred model enrichment — fire-and-forget on first report
       if (model && !state.modelReported && state.teamId) {
-        state.modelReported = true;
-        team.reportModel(state.teamId, model).catch((err) => {
+        team.reportModel(state.teamId, model).then(() => {
+          state.modelReported = true;
+        }).catch((err) => {
           console.error('[chinwag] Model report failed:', err.message);
-          state.modelReported = false;
         });
       }
       const ctx = await refreshContext(team, state.teamId);

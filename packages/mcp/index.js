@@ -16,6 +16,7 @@ import { detectRuntimeIdentity, generateSessionAgentId, getConfiguredAgentId } f
 import { cleanupProcessSession, registerProcessSession } from './lib/lifecycle.js';
 import { registerTools, registerResources } from './lib/tools/index.js';
 import { isProcessAlive, setTerminalTitle } from '../shared/session-registry.js';
+import { scanHostIntegrations, configureHostIntegration } from '../shared/integration-doctor.js';
 
 let PKG = { version: '0.0.0' };
 try {
@@ -157,7 +158,8 @@ CRITICAL WORKFLOW — follow these steps every session:
 This coordination prevents merge conflicts across tools and builds shared project intelligence.`,
   });
 
-  registerTools(server, { team, state, profile });
+  const integrationDoctor = { scanHostIntegrations, configureHostIntegration };
+  registerTools(server, { team, state, profile, integrationDoctor });
   registerResources(server, profile);
 
   const transport = new StdioServerTransport();

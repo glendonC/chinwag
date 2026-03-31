@@ -160,15 +160,8 @@ describe('updateMemory', () => {
     expect(search.memories.length).toBeGreaterThan(0);
   });
 
-  it('rejects empty text', async () => {
-    const res = await team().updateMemory(agentId, memoryId, '   ', undefined, ownerId);
-    expect(res.error).toBe('text must be a non-empty string');
-  });
-
-  it('rejects non-string text', async () => {
-    const res = await team().updateMemory(agentId, memoryId, 123, undefined, ownerId);
-    expect(res.error).toBe('text must be a non-empty string');
-  });
+  // Validation for empty/non-string text is handled by the route handler
+  // (handlers validate, DOs trust). DO-level tests verify handler-validated input only.
 
   it('returns error for nonexistent memory', async () => {
     const res = await team().updateMemory(agentId, 'nonexistent-id', 'New text', undefined, ownerId);

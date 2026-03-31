@@ -72,7 +72,7 @@ Every change must pass these checks. These are not aspirational; they are blocke
 ### Robustness
 
 - **Keep time logic in one domain.** When working with SQLite timestamps, use SQLite's `datetime('now', '-60 seconds')` for comparisons, not JS `Date` math converted to strings. Mixing time domains causes silent bugs when formats or timezones drift.
-- **Normalize data on write, not read.** File paths, tags, handles: normalize once when storing, so every read is clean. `normalizePath()` in team.js is the pattern.
+- **Normalize data on write, not read.** File paths, tags, handles: normalize once when storing, so every read is clean. `normalizePath()` in `lib/text-utils.js` is the pattern.
 - **One query over two.** If you can UPDATE and check the result in one step (`SELECT changes()`), don't SELECT then UPDATE. Fewer round trips, no race window.
 - **Idempotent schema initialization.** Every DO uses `#ensureSchema()` with `CREATE TABLE IF NOT EXISTS`. Guard with a `#schemaReady` flag so it runs once per instance.
 

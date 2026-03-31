@@ -11,20 +11,23 @@ export async function handleTeamJoin(request, user, env, teamId) {
     name = typeof body.name === 'string' ? body.name.slice(0, 100).trim() || null : null;
   } catch {}
 
+  const db = getDB(env);
   const runtime = getAgentRuntime(request, user);
   const agentId = runtime.agentId;
   const team = getTeam(env, teamId);
-  const result = await team.join(agentId, user.id, user.handle, runtime);
-  if (result.error) return json({ error: result.error }, 400);
 
-  const db = getDB(env);
-  try {
-    await db.addUserTeam(user.id, teamId, name);
-  } catch (err) {
-    console.error(`[chinwag] Failed to sync joined team ${teamId} for user ${user.id}:`, err);
-  }
+  return withRateLimit(db, `join:${user.id}`, 10, 'Team join limit reached (10/day). Try again tomorrow.', async () => {
+    const result = await team.join(agentId, user.id, user.handle, runtime);
+    if (result.error) return json({ error: result.error }, 400);
 
-  return json(result);
+    try {
+      await db.addUserTeam(user.id, teamId, name);
+    } catch (err) {
+      console.error(`[chinwag] Failed to sync joined team ${teamId} for user ${user.id}:`, err);
+    }
+
+    return json(result);
+  });
 }
 
 export async function handleTeamLeave(request, user, env, teamId) {
@@ -203,18 +206,14 @@ export async function handleTeamUpdateMemory(request, user, env, teamId) {
   }
 
   const db = getDB(env);
-  const updateLimit = await db.checkRateLimit(`memory_update:${user.id}`, 50);
-  if (!updateLimit.allowed) {
-    return json({ error: 'Memory update limit reached (50/day). Try again tomorrow.' }, 429);
-  }
-
   const { agentId } = getAgentRuntime(request, user);
   const team = getTeam(env, teamId);
-  const result = await team.updateMemory(agentId, id, text, tags, user.id);
-  if (result.error) return json({ error: result.error }, teamErrorStatus(result.error));
 
-  await db.consumeRateLimit(`memory_update:${user.id}`);
-  return json(result);
+  return withRateLimit(db, `memory_update:${user.id}`, 50, 'Memory update limit reached (50/day). Try again tomorrow.', async () => {
+    const result = await team.updateMemory(agentId, id, text, tags, user.id);
+    if (result.error) return json({ error: result.error }, teamErrorStatus(result.error));
+    return json(result);
+  });
 }
 
 export async function handleTeamDeleteMemory(request, user, env, teamId) {
@@ -228,18 +227,14 @@ export async function handleTeamDeleteMemory(request, user, env, teamId) {
   }
 
   const db = getDB(env);
-  const deleteLimit = await db.checkRateLimit(`memory_delete:${user.id}`, 50);
-  if (!deleteLimit.allowed) {
-    return json({ error: 'Memory delete limit reached (50/day). Try again tomorrow.' }, 429);
-  }
-
   const { agentId } = getAgentRuntime(request, user);
   const team = getTeam(env, teamId);
-  const result = await team.deleteMemory(agentId, id, user.id);
-  if (result.error) return json({ error: result.error }, teamErrorStatus(result.error));
 
-  await db.consumeRateLimit(`memory_delete:${user.id}`);
-  return json(result);
+  return withRateLimit(db, `memory_delete:${user.id}`, 50, 'Memory delete limit reached (50/day). Try again tomorrow.', async () => {
+    const result = await team.deleteMemory(agentId, id, user.id);
+    if (result.error) return json({ error: result.error }, teamErrorStatus(result.error));
+    return json(result);
+  });
 }
 
 export async function handleTeamClaimFiles(request, user, env, teamId) {

@@ -5,6 +5,7 @@ import { configureTool, scanIntegrationHealth, summarizeIntegrationScan } from '
 import { api } from './api.js';
 
 const MAX_RECOMMENDATIONS = 9;
+const LOADING_TIMEOUT_MS = 15000;
 
 export function Discover({ config, navigate }) {
   const { stdout } = useStdout();
@@ -15,7 +16,9 @@ export function Discover({ config, navigate }) {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [message, setMessage] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
   const messageTimer = useRef(null);
+  const loadingTimer = useRef(null);
 
   useEffect(() => {
     refreshIntegrations();
@@ -31,8 +34,19 @@ export function Discover({ config, navigate }) {
         setMessage(`Could not fetch tool catalog: ${err.message}`);
       }
       setLoading(false);
+      if (loadingTimer.current) { clearTimeout(loadingTimer.current); loadingTimer.current = null; }
     }
+
+    loadingTimer.current = setTimeout(() => {
+      setLoadingTimedOut(true);
+      setLoading(false);
+    }, LOADING_TIMEOUT_MS);
+
     fetchCatalog();
+
+    return () => {
+      if (loadingTimer.current) clearTimeout(loadingTimer.current);
+    };
   }, []);
 
   function refreshIntegrations() {
@@ -136,6 +150,12 @@ export function Discover({ config, navigate }) {
 
   return (
     <Box flexDirection="column" padding={1}>
+      {loadingTimedOut && (
+        <Box marginBottom={1}>
+          <Text color="yellow">Could not load catalog. Showing detected tools only.</Text>
+        </Box>
+      )}
+
       {/* Your tools */}
       <Box marginBottom={1}>
         <Text bold color="cyan">Your tools</Text>

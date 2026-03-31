@@ -56,6 +56,7 @@ export function useComposer({ config, teamId, bumpRefreshKey, flash, clearMemory
   }
 
   function sendMessage(text, target, targetLabel = null) {
+    if (!config?.token) { flash('Not authenticated'); return; }
     if (!teamId || !text.trim()) return;
     api(config).post(`/teams/${teamId}/messages`, { text: text.trim(), target: target || undefined })
       .then(() => {

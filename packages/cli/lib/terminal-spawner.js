@@ -2,7 +2,8 @@ import { execFileSync } from 'child_process';
 import { existsSync, readFileSync, unlinkSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
-import { safeAgentId } from '../../shared/session-registry.js';
+import { safeAgentId, isProcessAlive } from '../../shared/session-registry.js';
+import { escapeAppleScriptString } from './utils/shell.js';
 
 const PIDS_DIR = join(homedir(), '.chinwag', 'pids');
 
@@ -58,9 +59,8 @@ function shellQuote(value) {
   return "'" + String(value).replace(/'/g, "'\\''") + "'";
 }
 
-function escapeAppleScript(value) {
-  return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-}
+// Use escapeAppleScriptString from utils/shell.js (imported above)
+const escapeAppleScript = escapeAppleScriptString;
 
 export function buildTerminalCommand(launch) {
   const { agentId, toolId, cwd, cmd, args = [], task } = launch;
@@ -238,11 +238,5 @@ export function killByPid(pid) {
   }
 }
 
-export function isProcessAlive(pid) {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
+// Re-export isProcessAlive from shared (imported above)
+export { isProcessAlive };

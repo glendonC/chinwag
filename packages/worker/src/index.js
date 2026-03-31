@@ -65,7 +65,7 @@ function getAllowedOrigin(origin, environment) {
   if (!origin) return 'https://chinwag.dev';
   if (PROD_ORIGINS.has(origin)) return origin;
   if (environment !== 'production' && DEV_ORIGINS.has(origin)) return origin;
-  if (isLoopbackOrigin(origin)) return origin;
+  if (environment !== 'production' && isLoopbackOrigin(origin)) return origin;
   return '';
 }
 

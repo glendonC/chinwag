@@ -26,7 +26,16 @@ export function registerTeamTool(addTool, { team, state, profile }) {
         if (state.heartbeatInterval) clearInterval(state.heartbeatInterval);
         state.heartbeatInterval = setInterval(async () => {
           try { await team.heartbeat(state.teamId); } catch (err) {
-            console.error('[chinwag] Heartbeat failed:', err.message);
+            if (err.message?.includes('Not a member')) {
+              try {
+                await team.joinTeam(state.teamId, basename(process.cwd()));
+                console.error('[chinwag] Rejoined team after eviction');
+              } catch (joinErr) {
+                console.error('[chinwag] Rejoin failed:', joinErr.message);
+              }
+            } else {
+              console.error('[chinwag] Heartbeat failed:', err.message);
+            }
           }
         }, 30_000);
 

@@ -222,7 +222,14 @@ The monorepo has five packages:
 |---|---|
 | `index.js` | HTTP router. Matches request paths to handlers. Runs Bearer token auth on protected routes via KV lookup. Bridges HTTP/WebSocket to Durable Objects. Hosts the tool catalog (`GET /tools/catalog`). |
 | `db.js` | `DatabaseDO`: single instance holding all persistent data. Users, agent profiles, rate limits (`checkRateLimit`). SQLite storage. |
-| `team.js` | `TeamDO`: one instance per team. The core coordination DO. Manages team membership, agent activity tracking, file conflict detection, shared project memory, and session observability (start, end, edit recording, history). Exports `VALID_CATEGORIES`. |
+| `dos/team/index.js` | `TeamDO`: one instance per team. Class shell, schema, cleanup, identity resolution, and composite queries (`getContext`, `getSummary`). |
+| `dos/team/membership.js` | Team join, leave, and heartbeat logic. |
+| `dos/team/activity.js` | Agent activity tracking, file conflict detection, single-file edit reporting. |
+| `dos/team/memory.js` | Shared project memory: save, search, update, delete. Free-form tags, 500-memory cap with LRU pruning. |
+| `dos/team/locks.js` | File lock claim, release, and query. |
+| `dos/team/sessions.js` | Session start, end, edit recording, and history queries. |
+| `dos/team/messages.js` | Inter-agent messaging: send and retrieve. |
+| `dos/team/runtime.js` | Runtime metadata normalization for agent identity tracking. |
 | `lobby.js` | `LobbyDO`: single instance managing chat room assignment and global presence. Tracks active rooms and their sizes. Heartbeat-based presence with 60s TTL. |
 | `room.js` | `RoomDO`: one instance per chat room. Holds WebSocket connections, broadcasts messages, maintains last 50 messages as history. |
 | `moderation.js` | Two-layer content filter. Layer 1: synchronous regex blocklist (under 1 ms). Layer 2: async AI moderation via Llama Guard 3. Used for chat and status text. |
@@ -232,13 +239,26 @@ The monorepo has five packages:
 | File | Responsibility |
 |---|---|
 | `index.js` | MCP server entry point. Loads config and profile, creates the stdio server, and delegates tool/resource registration. Pull-on-any-call preamble. |
-| `lib/register-tools.js` | Registers the chinwag MCP tools plus the profile resource. Handles team context, memories, locks, messaging, and related agent coordination flows. |
 | `hook.js` | Claude Code hook handler. Three modes: `check-conflict` (PreToolUse: blocks conflicting edits), `report-edit` (PostToolUse: reports file edits + session tracking), `session-start` (SessionStart: injects team context with stuckness insights). |
 | `channel.js` | Claude Code channel server. Polls team context every 10s, diffs against previous state, pushes notifications for joins, leaves, file activity, conflicts, stuckness (15min threshold), and new memories. |
+| `lib/tools/index.js` | Tool registration orchestrator. Wires together all tool modules and registers them on the MCP server. |
+| `lib/tools/team.js` | `chinwag_join_team` tool implementation. |
+| `lib/tools/activity.js` | `chinwag_update_activity` tool implementation. |
+| `lib/tools/conflicts.js` | `chinwag_check_conflicts` tool implementation. |
+| `lib/tools/context.js` | `chinwag_get_team_context` tool implementation. |
+| `lib/tools/memory.js` | Memory tools: `chinwag_save_memory`, `chinwag_search_memory`, `chinwag_update_memory`, `chinwag_delete_memory`. |
+| `lib/tools/locks.js` | Lock tools: `chinwag_claim_files`, `chinwag_release_files`. |
+| `lib/tools/messaging.js` | `chinwag_send_message` tool implementation. |
+| `lib/tools/integrations.js` | Integration-related tool registration. |
 | `lib/api.js` | HTTP client with Bearer token auth, 10s fetch timeout, retry with exponential backoff on 5xx/network errors. |
 | `lib/team.js` | Team operation wrappers: delegates to backend API for join/leave, context, activity, memory, locks, messaging, and session/history endpoints. |
 | `lib/config.js` | Reads `~/.chinwag/config.json` and `.chinwag` team file. |
 | `lib/profile.js` | Auto-detects languages, frameworks, tools, and platforms from project files and environment variables. |
+| `lib/context.js` | Shared context cache with TTL. Serves as preamble source and offline fallback when the API is unreachable. |
+| `lib/diff-state.js` | State diffing for the channel server. Compares team context snapshots and returns human-readable event strings for meaningful changes. |
+| `lib/identity.js` | Re-exports agent identity helpers from shared package. |
+| `lib/lifecycle.js` | Session identity resolution and lifecycle management (start/end, terminal session tracking). |
+| `lib/utils/` | Shared formatting, display, and response helpers used across tools and hooks. |
 
 ### CLI (`packages/cli/`)
 

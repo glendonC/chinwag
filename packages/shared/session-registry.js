@@ -27,7 +27,7 @@ export function getCurrentTtyPath(pid = process.ppid) {
   return null;
 }
 
-export function getProcessCommand(pid) {
+function getProcessCommand(pid) {
   try {
     return execFileSync('ps', ['-o', 'command=', '-p', String(pid)], { encoding: 'utf-8' }).trim();
   } catch {

@@ -115,10 +115,6 @@ export function getHostIntegrationById(hostId) {
   return HOST_INTEGRATIONS.find((host) => host.id === hostId) || null;
 }
 
-export function getAgentSurfaceById(surfaceId) {
-  return AGENT_SURFACES.find((surface) => surface.id === surfaceId) || null;
-}
-
 export function buildHostIntegrationCatalogEntries() {
   return HOST_INTEGRATIONS.map((host) => ({
     id: host.id,

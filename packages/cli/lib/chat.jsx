@@ -16,6 +16,8 @@ export function Chat({ config, user, navigate }) {
   const retryTimerRef = useRef(null);
   const intentionalCloseRef = useRef(false);
 
+  if (!config?.token) return <Text color="red">Not authenticated. Run chinwag init first.</Text>;
+
   useEffect(() => {
     connect();
     return () => {

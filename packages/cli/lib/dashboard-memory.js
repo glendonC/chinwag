@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { api } from './api.js';
 
 /**
@@ -41,13 +41,13 @@ export function useMemoryManager({ config, teamId, bumpRefreshKey, flash }) {
     setDeleteConfirm(false);
   }
 
-  function clearMemorySearch() {
+  const clearMemorySearch = useCallback(() => {
     setMemorySearch('');
-  }
+  }, []);
 
-  function clearMemoryInput() {
+  const clearMemoryInput = useCallback(() => {
     setMemoryInput('');
-  }
+  }, []);
 
   function onMemorySubmit() {
     saveMemory(memoryInput);
