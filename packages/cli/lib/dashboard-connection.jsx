@@ -84,7 +84,17 @@ export function useDashboardConnection({ config, stdout }) {
     async function fetchContext() {
       try {
         if (!joined) {
-          await client.post(`/teams/${teamId}/join`, { name: teamName }).catch(() => {});
+          try {
+            await client.post(`/teams/${teamId}/join`, { name: teamName });
+          } catch (joinErr) {
+            // Rate limit or transient failure — still try getContext in case
+            // the agent is already a member from a previous join
+            if (joinErr.status === 429) {
+              // Don't block context fetch; agent may still be active
+            } else {
+              throw joinErr;
+            }
+          }
           joined = true;
         }
         const ctx = await client.get(`/teams/${teamId}/context`);

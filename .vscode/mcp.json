@@ -3,7 +3,9 @@
     "chinwag": {
       "command": "npx",
       "args": [
-        "chinwag-mcp",
+        "-y",
+        "chinwag",
+        "mcp",
         "--tool",
         "vscode"
       ]

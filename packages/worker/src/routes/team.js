@@ -16,7 +16,7 @@ export async function handleTeamJoin(request, user, env, teamId) {
   const agentId = runtime.agentId;
   const team = getTeam(env, teamId);
 
-  return withRateLimit(db, `join:${user.id}`, 10, 'Team join limit reached (10/day). Try again tomorrow.', async () => {
+  return withRateLimit(db, `join:${user.id}`, 100, 'Team join limit reached (100/day). Try again tomorrow.', async () => {
     const result = await team.join(agentId, user.id, user.handle, runtime);
     if (result.error) return json({ error: result.error }, 400);
 

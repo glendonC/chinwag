@@ -304,6 +304,9 @@ export class TeamDO extends DurableObject {
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
     if (!resolved) return { error: 'Not a member of this team' };
 
+    // Keep the calling agent alive — getContext polling is proof of presence
+    this.sql.exec("UPDATE members SET last_heartbeat = datetime('now') WHERE agent_id = ?", resolved);
+
     this.#maybeCleanup();
 
     const members = this.sql.exec(
