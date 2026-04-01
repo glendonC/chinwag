@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { usePollingStore, forceRefresh } from '../../lib/stores/polling.js';
 import { useAuthStore } from '../../lib/stores/auth.js';
 import { useTeamStore } from '../../lib/stores/teams.js';
@@ -8,8 +8,10 @@ import { getToolMeta } from '../../lib/toolMeta.js';
 import { buildHostJoinShare, buildSurfaceJoinShare } from '../../lib/toolAnalytics.js';
 import { projectGradient } from '../../lib/projectGradient.js';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
+import KeyboardHint, { useKeyboardHint } from '../../components/KeyboardHint/KeyboardHint.jsx';
 import EmptyState from '../../components/EmptyState/EmptyState.jsx';
 import StatusState from '../../components/StatusState/StatusState.jsx';
+import { ShimmerText, SkeletonStatGrid, SkeletonRows } from '../../components/Skeleton/Skeleton.jsx';
 import { arcPath, CX, CY, R, SW, GAP, DEG } from '../../lib/svgArcs.js';
 import styles from './OverviewView.module.css';
 
@@ -40,6 +42,7 @@ export default function OverviewView() {
   const summaries = dashboardData?.teams ?? [];
   const failedTeams = dashboardData?.failed_teams ?? pollErrorData?.failed_teams ?? [];
   const [activeViz, setActiveViz] = useState('projects');
+  const hint = useKeyboardHint();
   const [search, setSearch] = useState('');
   const userColor = getColorHex(user?.color) || '#121317';
   const knownTeamCount = teams.length;
@@ -97,6 +100,27 @@ export default function OverviewView() {
     const q = search.trim().toLowerCase();
     return summaries.filter((t) => (t.team_name || t.team_id).toLowerCase().includes(q));
   }, [summaries, search]);
+  const statsRef = useRef(null);
+  const statIds = useMemo(() => ['projects', 'agents', 'tools', 'memories'], []);
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const tag = e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
+      e.preventDefault();
+      setActiveViz((prev) => {
+        const cur = statIds.indexOf(prev);
+        const next = e.key === 'ArrowRight'
+          ? statIds[(cur + 1) % statIds.length]
+          : statIds[(cur - 1 + statIds.length) % statIds.length];
+        statsRef.current?.querySelector(`[data-tab="${next}"]`)?.focus();
+        return next;
+      });
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [statIds]);
+
   const isLoading = !dashboardData && (dashboardStatus === 'idle' || dashboardStatus === 'loading');
   const isUnavailable = dashboardStatus === 'error' || (!pollError && hasKnownProjects && summaries.length === 0);
   const unavailableHint = knownTeamCount === 0
@@ -110,12 +134,16 @@ export default function OverviewView() {
   if (isLoading) {
     return (
       <div className={styles.overview}>
-        <StatusState
-          tone="loading"
-          eyebrow="Overview"
-          title="Loading your projects"
-          hint="Pulling the latest team activity, memory counts, and tool presence."
-        />
+        <section className={styles.header}>
+          <div className={styles.welcomeBlock}>
+            <span className={styles.eyebrow}>Overview</span>
+            <ShimmerText as="h1" className={styles.title}>
+              Loading your projects
+            </ShimmerText>
+          </div>
+          <SkeletonStatGrid count={4} />
+        </section>
+        <SkeletonRows count={3} columns={4} />
       </div>
     );
   }
@@ -170,12 +198,26 @@ export default function OverviewView() {
             <span className={styles.summaryNoticeText}>{failedLabel}</span>
           </div>
         )}
-        <div className={styles.statsRow}>
-          {stats.map((s) => (
+        <div
+          className={styles.statsRow}
+          ref={statsRef}
+          role="tablist"
+          aria-label="Overview sections"
+        >
+          {stats.map((s, i) => (
             <button key={s.id} type="button"
+              role="tab"
+              aria-selected={activeViz === s.id}
+              aria-controls={`panel-${s.id}`}
+              data-tab={s.id}
+              tabIndex={activeViz === s.id ? 0 : -1}
               className={`${styles.statButton} ${activeViz === s.id ? styles.statActive : ''}`}
-              onClick={() => setActiveViz(s.id)}>
-              <span className={styles.statLabel}>{s.label}</span>
+              style={{ '--stat-index': i }}
+              onClick={(e) => { e.currentTarget.focus(); setActiveViz(s.id); }}>
+              <span className={styles.statLabel}>
+                {s.label}
+                {activeViz === s.id && <KeyboardHint {...hint} />}
+              </span>
               <span className={`${styles.statValue} ${s.tone === 'accent' ? styles.statAccent : ''}`}>{s.value}</span>
             </button>
           ))}
@@ -186,7 +228,7 @@ export default function OverviewView() {
 
         {/* ── PROJECTS ── */}
         {activeViz === 'projects' && (
-          <div className={styles.vizPanel}>
+          <div className={styles.vizPanel} role="tabpanel" id="panel-projects">
             {summaries.length > 3 && (
               <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search projects" className={styles.searchInput} />
@@ -199,11 +241,11 @@ export default function OverviewView() {
                 <span className={styles.th}>Tools</span>
               </div>
               <div className={styles.tableBody}>
-                {filteredProjects.map((team) => {
+                {filteredProjects.map((team, i) => {
                   const agents = team.active_agents || 0;
                   const toolCount = (team.tools_configured || []).filter((t) => getToolMeta(t.tool).icon).length;
                   return (
-                    <button key={team.team_id} type="button" className={styles.tableRow} onClick={() => selectTeam(team.team_id)}>
+                    <button key={team.team_id} type="button" className={styles.tableRow} style={{ '--row-index': i }} onClick={() => selectTeam(team.team_id)}>
                       <span className={styles.tdLeft}>
                         <span className={styles.squircle} style={{ background: projectGradient(team.team_id) }} />
                         {team.team_name || team.team_id}
@@ -221,7 +263,7 @@ export default function OverviewView() {
 
         {/* ── AGENTS LIVE ── */}
         {activeViz === 'agents' && (
-          <div className={styles.vizPanel}>
+          <div className={styles.vizPanel} role="tabpanel" id="panel-agents">
             {agentRows.length > 0 ? (
               <div className={styles.tableWrap}>
                 <div className={styles.tableHead}>
@@ -233,7 +275,7 @@ export default function OverviewView() {
                   {agentRows.map((agent, i) => {
                     const meta = getToolMeta(agent.tool);
                     return (
-                      <div key={`${agent.teamId}-${agent.tool}-${i}`} className={styles.tableRow}>
+                      <div key={`${agent.teamId}-${agent.tool}-${i}`} className={styles.tableRow} style={{ '--row-index': i }}>
                         <span className={styles.tdLeft}>
                           <span className={styles.toolDot} style={{ background: meta.color }} />
                           <ToolIcon tool={agent.tool} size={16} />
@@ -254,7 +296,7 @@ export default function OverviewView() {
 
         {/* ── TOOLS ── */}
         {activeViz === 'tools' && (
-          <div className={styles.vizPanel}>
+          <div className={styles.vizPanel} role="tabpanel" id="panel-tools">
             {arcs.length > 0 ? (
               <div className={styles.toolsViz}>
                 <div className={styles.ringWrap}>
@@ -357,7 +399,7 @@ export default function OverviewView() {
 
         {/* ── MEMORIES ── */}
         {activeViz === 'memories' && (
-          <div className={styles.vizPanel}>
+          <div className={styles.vizPanel} role="tabpanel" id="panel-memories">
             {totalMemories > 0 ? (
               <div className={styles.tableWrap}>
                 <div className={styles.tableHead}>
@@ -369,11 +411,11 @@ export default function OverviewView() {
                   {summaries
                     .filter((t) => (t.memory_count || 0) > 0)
                     .sort((a, b) => (b.memory_count || 0) - (a.memory_count || 0))
-                    .map((team) => {
+                    .map((team, i) => {
                       const count = team.memory_count || 0;
                       const share = totalMemories > 0 ? Math.round((count / totalMemories) * 100) : 0;
                       return (
-                        <button key={team.team_id} type="button" className={styles.tableRow} onClick={() => selectTeam(team.team_id)}>
+                        <button key={team.team_id} type="button" className={styles.tableRow} style={{ '--row-index': i }} onClick={() => selectTeam(team.team_id)}>
                           <span className={styles.tdLeft}>
                             <span className={styles.squircle} style={{ background: projectGradient(team.team_id) }} />
                             {team.team_name || team.team_id}

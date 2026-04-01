@@ -74,9 +74,13 @@
   cursor: pointer;
   font: inherit;
   text-align: left;
+  animation: fadeSlideIn 0.35s var(--motion) both;
+  animation-delay: calc(var(--stat-index, 0) * 60ms);
+  outline: none;
 }
 
 .statLabel {
+  position: relative;
   display: inline-flex;
   align-self: flex-start;
   padding: 4px 8px;
@@ -106,10 +110,19 @@
   font-weight: 200;
   letter-spacing: -0.07em;
   line-height: 0.92;
+  color: var(--soft);
+  transition: color var(--motion-base) var(--motion);
+}
+
+.statActive .statValue {
   color: var(--ink);
 }
 
 .statAccent {
+  color: color-mix(in srgb, var(--accent) 40%, var(--soft));
+}
+
+.statActive .statAccent {
   color: var(--accent);
 }
 
@@ -188,6 +201,13 @@
   text-align: left;
   color: var(--ink);
   transition: background 0.15s ease;
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 45ms);
+}
+
+@keyframes rowReveal {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .tableRow:hover {

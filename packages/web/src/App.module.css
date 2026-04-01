@@ -10,23 +10,49 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  animation: fadeSlideIn 0.3s var(--motion) both;
+  gap: 14px;
 }
 
 .spinnerMark {
-  animation: pulse 2s ease-in-out infinite;
+  overflow: visible;
 }
 
-@keyframes pulse {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
+.chevron1 {
+  animation: chevronIn 0.5s var(--motion) 0.05s both;
 }
 
-.bootText {
-  font-size: var(--text-sm);
-  color: var(--soft);
+.chevron2 {
+  animation: chevronIn 0.5s var(--motion) 0.15s both;
+}
+
+.chevron3 {
+  animation: chevronIn 0.5s var(--motion) 0.25s both;
+}
+
+@keyframes chevronIn {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.bootBrand {
+  font-family: var(--display);
+  font-size: clamp(1.3rem, 2.5vw, 1.6rem);
   font-weight: 300;
+  letter-spacing: -0.04em;
+  background: linear-gradient(
+    90deg,
+    var(--soft) 0%,
+    var(--ink) 40%,
+    var(--soft) 60%,
+    var(--soft) 100%
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation:
+    fadeSlideIn 0.4s var(--motion) 0.3s both,
+    shimmer 2.4s ease-in-out 0.7s infinite;
 }
 
 /* ── Layout ── */

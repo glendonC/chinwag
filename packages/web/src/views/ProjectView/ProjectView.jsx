@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState } from 'react';
+import { useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import { usePollingStore, forceRefresh } from '../../lib/stores/polling.js';
 import { useTeamStore } from '../../lib/stores/teams.js';
 import { teamActions } from '../../lib/stores/teams.js';
@@ -10,6 +10,7 @@ import {
 import ActivityTimeline from '../../components/ActivityTimeline/ActivityTimeline.jsx';
 import StatusState from '../../components/StatusState/StatusState.jsx';
 import ViewHeader from '../../components/ViewHeader/ViewHeader.jsx';
+import { ShimmerText, SkeletonStatGrid, SkeletonRows, SkeletonLine } from '../../components/Skeleton/Skeleton.jsx';
 import {
   buildFilesInPlay,
   buildFilesTouched,
@@ -22,6 +23,7 @@ import {
   selectRecentSessions,
   sumSessionEdits,
 } from './projectViewState.js';
+import KeyboardHint, { useKeyboardHint } from '../../components/KeyboardHint/KeyboardHint.jsx';
 import ProjectLiveTab from './ProjectLiveTab.jsx';
 import ProjectMemoryTab from './ProjectMemoryTab.jsx';
 import ProjectSessionsTab from './ProjectSessionsTab.jsx';
@@ -37,6 +39,7 @@ export default function ProjectView() {
   const activeTeamId = useTeamStore((s) => s.activeTeamId);
   const teams = useTeamStore((s) => s.teams);
   const [activeViz, setActiveViz] = useState('live');
+  const hint = useKeyboardHint();
   const activeTeam = teams.find((team) => team.team_id === activeTeamId) || null;
   const hasCurrentContext = contextTeamId === activeTeamId && !!contextData;
   const projectLabel = activeTeam?.team_name || activeTeam?.team_id || 'this project';
@@ -105,6 +108,26 @@ export default function ProjectView() {
     { id: 'sessions', label: 'Edits / 24h', value: sessionEditCount, tone: '' },
     { id: 'tools', label: 'Tools', value: toolSummaries.length, tone: '' },
   ];
+  const statIds = useMemo(() => stats.map((s) => s.id), [stats]);
+  const statsRef = useRef(null);
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const tag = e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
+      e.preventDefault();
+      setActiveViz((prev) => {
+        const cur = statIds.indexOf(prev);
+        const next = e.key === 'ArrowRight'
+          ? statIds[(cur + 1) % statIds.length]
+          : statIds[(cur - 1 + statIds.length) % statIds.length];
+        statsRef.current?.querySelector(`[data-tab="${next}"]`)?.focus();
+        return next;
+      });
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [statIds]);
   const lastSynced = formatRelativeTime(lastUpdate);
   const isLoading = !hasCurrentContext && (contextStatus === 'idle' || contextStatus === 'loading');
   const isUnavailable = !hasCurrentContext && contextStatus === 'error';
@@ -112,12 +135,19 @@ export default function ProjectView() {
   if (isLoading) {
     return (
       <div className={styles.page}>
-        <StatusState
-          tone="loading"
-          eyebrow="Project"
-          title={`Loading ${projectLabel}`}
-          hint="Loading agents, files in play, recent sessions, and shared memory."
-        />
+        <header style={{ marginBottom: 28 }}>
+          <span className={styles.loadingEyebrow}>Project</span>
+          <ShimmerText as="h1" className={styles.loadingTitle}>
+            {`Loading ${projectLabel}`}
+          </ShimmerText>
+        </header>
+        <SkeletonStatGrid count={4} />
+        <div style={{ marginTop: 40 }}>
+          <SkeletonLine width="100%" height={32} />
+        </div>
+        <div style={{ marginTop: 28 }}>
+          <SkeletonRows count={4} columns={3} />
+        </div>
       </div>
     );
   }
@@ -157,15 +187,29 @@ export default function ProjectView() {
       )}
 
       <section className={styles.header}>
-        <div className={styles.statsRow}>
-          {stats.map((s) => (
+        <div
+          className={styles.statsRow}
+          ref={statsRef}
+          role="tablist"
+          aria-label="Project sections"
+        >
+          {stats.map((s, i) => (
             <button
               key={s.id}
               type="button"
+              role="tab"
+              aria-selected={activeViz === s.id}
+              aria-controls={`panel-${s.id}`}
+              data-tab={s.id}
+              tabIndex={activeViz === s.id ? 0 : -1}
               className={`${styles.statButton} ${activeViz === s.id ? styles.statActive : ''}`}
-              onClick={() => setActiveViz(s.id)}
+              style={{ '--stat-index': i }}
+              onClick={(e) => { e.currentTarget.focus(); setActiveViz(s.id); }}
             >
-              <span className={styles.statLabel}>{s.label}</span>
+              <span className={styles.statLabel}>
+                {s.label}
+                {activeViz === s.id && <KeyboardHint {...hint} />}
+              </span>
               <span className={`${styles.statValue} ${s.tone === 'accent' ? styles.statAccent : ''}`}>
                 {s.value}
               </span>
@@ -180,7 +224,7 @@ export default function ProjectView() {
 
       <section className={styles.vizArea}>
         {activeViz === 'live' && (
-          <div className={styles.vizPanel}>
+          <div className={styles.vizPanel} role="tabpanel" id="panel-live">
             <ProjectLiveTab
               sortedAgents={sortedAgents}
               offlineAgents={offlineAgents}
@@ -193,7 +237,7 @@ export default function ProjectView() {
         )}
 
         {activeViz === 'memory' && (
-          <div className={styles.vizPanel}>
+          <div className={styles.vizPanel} role="tabpanel" id="panel-memory">
             <ProjectMemoryTab
               memories={memories}
               memoryBreakdown={memoryBreakdown}
@@ -204,7 +248,7 @@ export default function ProjectView() {
         )}
 
         {activeViz === 'sessions' && (
-          <div className={styles.vizPanel}>
+          <div className={styles.vizPanel} role="tabpanel" id="panel-sessions">
             <ProjectSessionsTab
               sessions={sessions}
               sessionEditCount={sessionEditCount}
@@ -216,7 +260,7 @@ export default function ProjectView() {
         )}
 
         {activeViz === 'tools' && (
-          <div className={styles.vizPanel}>
+          <div className={styles.vizPanel} role="tabpanel" id="panel-tools">
             <ProjectToolsTab
               toolSummaries={toolSummaries}
               hostSummaries={hostSummaries}

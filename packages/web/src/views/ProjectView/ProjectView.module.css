@@ -2,6 +2,26 @@
   animation: dashboardViewFadeIn 0.25s var(--motion) both;
 }
 
+/* ── Loading skeleton ── */
+
+.loadingEyebrow {
+  display: block;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  animation: fadeSlideIn 0.3s var(--motion) both;
+}
+
+.loadingTitle {
+  font-family: var(--display);
+  font-size: var(--display-page);
+  font-weight: 300;
+  letter-spacing: var(--display-spacing);
+}
+
 /* ── Conflict banner ── */
 
 .conflictBanner {
@@ -61,9 +81,13 @@
   cursor: pointer;
   font: inherit;
   text-align: left;
+  animation: fadeSlideIn 0.35s var(--motion) both;
+  animation-delay: calc(var(--stat-index, 0) * 60ms);
+  outline: none;
 }
 
 .statLabel {
+  position: relative;
   display: inline-flex;
   align-self: flex-start;
   padding: 4px 8px;
@@ -93,10 +117,19 @@
   font-weight: 200;
   letter-spacing: -0.07em;
   line-height: 0.92;
+  color: var(--soft);
+  transition: color var(--motion-base) var(--motion);
+}
+
+.statActive .statValue {
   color: var(--ink);
 }
 
 .statAccent {
+  color: color-mix(in srgb, var(--accent) 40%, var(--soft));
+}
+
+.statActive .statAccent {
   color: var(--accent);
 }
 
