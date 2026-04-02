@@ -1,8 +1,9 @@
 const RUNTIME_TOKEN_PATTERN = /^[a-zA-Z0-9_-]+$/;
+const AGENT_ID_PATTERN = /^[a-zA-Z0-9:._-]{1,60}$/;
 
 export function getAgentId(request, user) {
   const agentId = request.headers.get('X-Agent-Id');
-  if (agentId && typeof agentId === 'string' && agentId.length > 0 && agentId.length <= 60) {
+  if (agentId && typeof agentId === 'string' && AGENT_ID_PATTERN.test(agentId)) {
     return agentId;
   }
   return user.id;

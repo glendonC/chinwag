@@ -191,7 +191,7 @@ export class TeamDO extends DurableObject {
       try {
         this.sql.exec(alter);
         if (backfill) this.sql.exec(backfill);
-      } catch {}
+      } catch (err) { console.error('[TeamDO] Migration failed:', err.message); }
     }
 
     if (this.#schemaReady) return;
@@ -569,7 +569,11 @@ export class TeamDO extends DurableObject {
        FROM memories
        ORDER BY updated_at DESC, created_at DESC
        LIMIT 20`
-    ).toArray().map(m => ({ ...m, tags: JSON.parse(m.tags || '[]') }));
+    ).toArray().map(m => {
+      let tags = [];
+      try { tags = JSON.parse(m.tags || '[]'); } catch {}
+      return { ...m, tags };
+    });
 
     const recentSessions = this.sql.exec(`
       SELECT agent_id, owner_handle, framework, host_tool, agent_surface, transport, agent_model, started_at, ended_at,
@@ -602,7 +606,7 @@ export class TeamDO extends DurableObject {
         minutes_since_update: m.minutes_since_update ?? null,
         signal_tier: wsConnected ? 'websocket' : m.heartbeat_active ? 'http' : 'none',
         activity: m.files ? {
-          files: JSON.parse(m.files),
+          files: (() => { try { return JSON.parse(m.files); } catch { return []; } })(),
           summary: m.summary,
           updated_at: m.updated_at,
         } : null,
@@ -655,7 +659,7 @@ export class TeamDO extends DurableObject {
           agent_surface: s.agent_surface || null,
           transport: s.transport || null,
           agent_model: s.agent_model || null,
-          files_touched: JSON.parse(s.files_touched || '[]'),
+          files_touched: (() => { try { return JSON.parse(s.files_touched || '[]'); } catch { return []; } })(),
         };
       }),
     };
@@ -815,7 +819,9 @@ export class TeamDO extends DurableObject {
     const fileCounts = new Map();
     for (const row of activities) {
       if (!row.files) continue;
-      for (const f of JSON.parse(row.files)) {
+      let parsedFiles = [];
+      try { parsedFiles = JSON.parse(row.files); } catch {}
+      for (const f of parsedFiles) {
         fileCounts.set(f, (fileCounts.get(f) || 0) + 1);
       }
     }

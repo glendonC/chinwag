@@ -37,6 +37,10 @@ export async function authenticate(request, env) {
   if (!userId.includes('-')) {
     const user = await db.getUserByHandle(userId);
     if (!user) return null;
+    // Verify the looked-up user's handle still matches the KV entry.
+    // Prevents auth bypass when a handle is reassigned to a different user:
+    // stale KV entry "token:X -> oldHandle" would resolve to the new owner.
+    if (user.handle !== userId) return null;
     await env.AUTH_KV.put(`token:${token}`, user.id);
     return user;
   }

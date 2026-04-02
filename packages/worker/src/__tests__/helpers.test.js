@@ -261,8 +261,10 @@ describe('normalizePath', () => {
     expect(normalizePath('./a/b/c/d/e.js')).toBe('a/b/c/d/e.js');
   });
 
-  it('does not strip ../ (only strips ./)', () => {
-    expect(normalizePath('../src/a.js')).toBe('../src/a.js');
+  it('strips .. segments to prevent path traversal', () => {
+    expect(normalizePath('../src/a.js')).toBe('src/a.js');
+    expect(normalizePath('../../etc/passwd')).toBe('etc/passwd');
+    expect(normalizePath('src/../lib/a.js')).toBe('src/lib/a.js');
   });
 });
 

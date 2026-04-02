@@ -70,7 +70,11 @@ export function searchMemories(sql, query, tags, limit = 20) {
 
   const rows = sql.exec(sqlStr, ...params).toArray();
   return {
-    memories: rows.map(m => ({ ...m, tags: JSON.parse(m.tags || '[]') })),
+    memories: rows.map(m => {
+      let tags = [];
+      try { tags = JSON.parse(m.tags || '[]'); } catch {}
+      return { ...m, tags };
+    }),
   };
 }
 

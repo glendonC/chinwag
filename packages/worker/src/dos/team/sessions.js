@@ -70,7 +70,8 @@ export function recordEdit(sql, resolvedAgentId, filePath) {
   if (sessions.length === 0) return { ok: true, skipped: true }; // No active session — caller can log if needed
 
   const session = sessions[0];
-  let files = JSON.parse(session.files_touched || '[]');
+  let files = [];
+  try { files = JSON.parse(session.files_touched || '[]'); } catch {}
   if (!files.includes(normalized)) {
     files.push(normalized);
     if (files.length > ACTIVITY_MAX_FILES) files = files.slice(-ACTIVITY_MAX_FILES);
@@ -98,7 +99,7 @@ export function getSessionHistory(sql, days) {
   return {
     sessions: sessions.map(s => ({
       ...s,
-      files_touched: JSON.parse(s.files_touched || '[]'),
+      files_touched: (() => { try { return JSON.parse(s.files_touched || '[]'); } catch { return []; } })(),
     })),
   };
 }

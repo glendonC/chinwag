@@ -43,7 +43,8 @@ export function checkConflicts(sql, resolvedAgentId, files, recordMetric, connec
 
   for (const row of others) {
     if (!row.files) continue;
-    const theirFiles = JSON.parse(row.files);
+    let theirFiles = [];
+    try { theirFiles = JSON.parse(row.files); } catch { continue; }
     const overlap = theirFiles.filter(f => myFiles.has(f));
     if (overlap.length > 0) {
       conflicts.push({
@@ -101,7 +102,7 @@ export function reportFile(sql, resolvedAgentId, filePath) {
 
   let files = [];
   if (existing.length > 0 && existing[0].files) {
-    files = JSON.parse(existing[0].files);
+    try { files = JSON.parse(existing[0].files); } catch {}
   }
 
   if (!files.includes(normalized)) {
