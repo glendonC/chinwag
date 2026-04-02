@@ -3,6 +3,8 @@ import { dirname, join } from 'path';
 import { execFileSync } from 'child_process';
 import { HOST_INTEGRATIONS, getHostIntegrationById } from './integration-model.js';
 
+const EXEC_TIMEOUT_MS = 5000;
+
 function readJson(filePath) {
   if (!existsSync(filePath)) return {};
   try {
@@ -21,7 +23,7 @@ function writeJson(filePath, value) {
 export function commandExists(cmd) {
   try {
     const bin = process.platform === 'win32' ? 'where' : 'which';
-    execFileSync(bin, [cmd], { stdio: 'ignore' });
+    execFileSync(bin, [cmd], { stdio: 'ignore', timeout: EXEC_TIMEOUT_MS });
     return true;
   } catch {
     return false;

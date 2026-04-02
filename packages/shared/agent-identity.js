@@ -3,12 +3,15 @@ import { execFileSync } from 'child_process';
 import { basename } from 'path';
 import { HOST_INTEGRATIONS, getHostIntegrationById } from './integration-model.js';
 
+const EXEC_TIMEOUT_MS = 5000;
+
 function defaultReadProcessInfo(pid) {
   if (!pid || pid <= 0 || process.platform === 'win32') return null;
 
   try {
     const line = execFileSync('ps', ['-o', 'ppid=,command=', '-p', String(pid)], {
       encoding: 'utf-8',
+      timeout: EXEC_TIMEOUT_MS,
     }).trim();
 
     if (!line) return null;

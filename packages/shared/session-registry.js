@@ -3,6 +3,8 @@ import { execFile, execFileSync } from 'child_process';
 import { homedir } from 'os';
 import { join } from 'path';
 
+const EXEC_TIMEOUT_MS = 5000;
+
 export const SESSION_COMMAND_MARKER = 'chinwag-mcp';
 
 export function getSessionsDir(homeDir = homedir()) {
@@ -19,7 +21,7 @@ export function getSessionFilePath(agentId, homeDir = homedir()) {
 
 export function getCurrentTtyPath(pid = process.ppid) {
   try {
-    const ttyName = execFileSync('ps', ['-o', 'tty=', '-p', String(pid)], { encoding: 'utf-8' }).trim();
+    const ttyName = execFileSync('ps', ['-o', 'tty=', '-p', String(pid)], { encoding: 'utf-8', timeout: EXEC_TIMEOUT_MS }).trim();
     if (ttyName && ttyName !== '??' && ttyName !== '?') {
       return `/dev/${ttyName}`;
     }
@@ -29,7 +31,7 @@ export function getCurrentTtyPath(pid = process.ppid) {
 
 function getProcessCommand(pid) {
   try {
-    return execFileSync('ps', ['-o', 'command=', '-p', String(pid)], { encoding: 'utf-8' }).trim();
+    return execFileSync('ps', ['-o', 'command=', '-p', String(pid)], { encoding: 'utf-8', timeout: EXEC_TIMEOUT_MS }).trim();
   } catch {
     return null;
   }

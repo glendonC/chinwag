@@ -4,6 +4,7 @@
 import { execFileSync } from 'child_process';
 import { configExists, loadConfig } from './config.js';
 
+const EXEC_TIMEOUT_MS = 10000;
 const DASHBOARD_URL = process.env.CHINWAG_DASHBOARD_URL || 'https://chinwag.dev/dashboard';
 
 export async function openDashboard() {
@@ -23,15 +24,15 @@ export async function openDashboard() {
   try {
     // macOS
     if (process.platform === 'darwin') {
-      execFileSync('open', [url], { stdio: 'ignore' });
+      execFileSync('open', [url], { stdio: 'ignore', timeout: EXEC_TIMEOUT_MS });
     }
     // Linux
     else if (process.platform === 'linux') {
-      execFileSync('xdg-open', [url], { stdio: 'ignore' });
+      execFileSync('xdg-open', [url], { stdio: 'ignore', timeout: EXEC_TIMEOUT_MS });
     }
     // Windows
     else if (process.platform === 'win32') {
-      execFileSync('cmd', ['/c', 'start', '', url], { stdio: 'ignore' });
+      execFileSync('cmd', ['/c', 'start', '', url], { stdio: 'ignore', timeout: EXEC_TIMEOUT_MS });
     }
     else {
       console.log(`  Open this URL in your browser:`);

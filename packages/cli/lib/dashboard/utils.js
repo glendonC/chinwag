@@ -7,6 +7,7 @@ export function truncateText(text, max) {
 import { execFileSync } from 'child_process';
 import { homedir } from 'os';
 
+const EXEC_TIMEOUT_MS = 10000;
 export const DASHBOARD_URL = process.env.CHINWAG_DASHBOARD_URL || 'https://chinwag.dev/dashboard';
 export const MIN_WIDTH = 50;
 export const SPINNER = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -15,15 +16,15 @@ export function openWebDashboard(token) {
   const url = token ? `${DASHBOARD_URL}#token=${token}` : DASHBOARD_URL;
   try {
     if (process.platform === 'darwin') {
-      execFileSync('open', [url], { stdio: 'ignore' });
+      execFileSync('open', [url], { stdio: 'ignore', timeout: EXEC_TIMEOUT_MS });
       return { ok: true };
     }
     if (process.platform === 'linux') {
-      execFileSync('xdg-open', [url], { stdio: 'ignore' });
+      execFileSync('xdg-open', [url], { stdio: 'ignore', timeout: EXEC_TIMEOUT_MS });
       return { ok: true };
     }
     if (process.platform === 'win32') {
-      execFileSync('cmd', ['/c', 'start', '', url], { stdio: 'ignore' });
+      execFileSync('cmd', ['/c', 'start', '', url], { stdio: 'ignore', timeout: EXEC_TIMEOUT_MS });
       return { ok: true };
     }
     return { ok: false, error: 'Unsupported platform' };
