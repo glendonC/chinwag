@@ -91,8 +91,9 @@ function notifyUpdate() {
   for (const cb of updateCallbacks) {
     try {
       cb(agents);
-    } catch {
+    } catch (err) {
       // Swallow callback errors — never let a listener break the manager
+      console.error('[chinwag]', err?.message || err);
     }
   }
 }
@@ -175,7 +176,7 @@ export function spawnAgent(launch) {
         try {
           if (proc.pty) proc.pty.kill('SIGTERM');
           else if (proc.pid) process.kill(proc.pid, 'SIGTERM');
-        } catch { /* already dead */ }
+        } catch (err) { console.error('[chinwag]', err?.message || err); }
       }
     };
     process.on('exit', cleanup);
@@ -284,13 +285,14 @@ export function killAgent(id) {
   if (proc.pty) {
     try {
       proc.pty.kill('SIGTERM');
-    } catch {
+    } catch (err) {
+      console.error('[chinwag]', err?.message || err);
       return false;
     }
     if (!proc._killTimer) {
       proc._killTimer = setTimeout(() => {
         if (proc.status === 'running' && proc.pty) {
-          try { proc.pty.kill('SIGKILL'); } catch {}
+          try { proc.pty.kill('SIGKILL'); } catch (err) { console.error('[chinwag]', err?.message || err); }
         }
         proc._killTimer = null;
       }, KILL_GRACE_MS);
@@ -302,7 +304,8 @@ export function killAgent(id) {
   if (proc.pid) {
     try {
       process.kill(proc.pid, 'SIGTERM');
-    } catch {
+    } catch (err) {
+      console.error('[chinwag]', err?.message || err);
       // Process already gone — mark as exited
       proc.status = 'exited';
       proc.exitCode = null;
@@ -312,7 +315,7 @@ export function killAgent(id) {
     if (!proc._killTimer) {
       proc._killTimer = setTimeout(() => {
         if (proc.status === 'running') {
-          try { process.kill(proc.pid, 'SIGKILL'); } catch {}
+          try { process.kill(proc.pid, 'SIGKILL'); } catch (err) { console.error('[chinwag]', err?.message || err); }
         }
         proc._killTimer = null;
       }, KILL_GRACE_MS);
@@ -411,7 +414,7 @@ export function resizePty(id, cols, rows) {
   if (!proc || !proc.pty) return;
   try {
     proc.pty.resize(cols, rows);
-  } catch {}
+  } catch (err) { console.error('[chinwag]', err?.message || err); }
 }
 
 /**
@@ -524,7 +527,8 @@ export function checkExternalAgentLiveness() {
     if (!proc.pid) continue;
     try {
       process.kill(proc.pid, 0);
-    } catch {
+    } catch (err) {
+      console.error('[chinwag]', err?.message || err);
       proc.status = 'exited';
       proc.exitCode = null;
       changed = true;
