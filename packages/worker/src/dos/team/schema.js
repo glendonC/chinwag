@@ -2,7 +2,8 @@
 // Called once per DO instance to ensure tables exist and run any pending migrations.
 // Migrations are idempotent ALTERs that always run; CREATE TABLE is gated by caller.
 
-// Migrations: [ALTER statement, optional backfill]. Failures silently ignored (column already exists).
+import { runMigrations } from '../../lib/migrate.js';
+
 const MIGRATIONS = [
   ["ALTER TABLE members ADD COLUMN host_tool TEXT DEFAULT 'unknown'", "UPDATE members SET host_tool = tool WHERE host_tool IS NULL"],
   ["ALTER TABLE members ADD COLUMN agent_surface TEXT", null],
@@ -29,12 +30,7 @@ const MIGRATIONS = [
  * @param {boolean} tablesCreated - true if CREATE TABLE has already run this instance
  */
 export function ensureSchema(sql, tablesCreated) {
-  for (const [alter, backfill] of MIGRATIONS) {
-    try {
-      sql.exec(alter);
-      if (backfill) sql.exec(backfill);
-    } catch {}
-  }
+  runMigrations(sql, MIGRATIONS, 'TeamDO');
 
   if (tablesCreated) return;
 
