@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-function createSessionStorage() {
+function createStorage() {
   const data = new Map();
   return {
     getItem: (key) => data.get(key) ?? null,
@@ -21,7 +21,7 @@ async function loadAuthModule({ apiMock, hash = '' } = {}) {
   globalThis.history = {
     replaceState: vi.fn(),
   };
-  globalThis.sessionStorage = createSessionStorage();
+  globalThis.localStorage = createStorage();
   vi.doMock('../api.js', () => ({
     api: apiMock || vi.fn(),
   }));
@@ -33,7 +33,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
   delete globalThis.window;
   delete globalThis.history;
-  delete globalThis.sessionStorage;
+  delete globalThis.localStorage;
 });
 
 describe('auth store', () => {
@@ -61,7 +61,7 @@ describe('auth store', () => {
       token: 'tok_123',
       user: { handle: 'alice', color: 'cyan' },
     });
-    expect(sessionStorage.getItem('chinwag_token')).toBe('tok_123');
+    expect(localStorage.getItem('chinwag_token')).toBe('tok_123');
   });
 
   it('clears auth state and storage when authentication fails', async () => {
@@ -70,7 +70,7 @@ describe('auth store', () => {
 
     await expect(authActions.authenticate('bad_token')).rejects.toThrow('Unauthorized');
     expect(authActions.getState()).toMatchObject({ token: null, user: null });
-    expect(sessionStorage.getItem('chinwag_token')).toBeNull();
+    expect(localStorage.getItem('chinwag_token')).toBeNull();
   });
 
   it('logs out by clearing user state and session storage', async () => {
@@ -81,6 +81,6 @@ describe('auth store', () => {
     authActions.logout();
 
     expect(authActions.getState()).toMatchObject({ token: null, user: null });
-    expect(sessionStorage.getItem('chinwag_token')).toBeNull();
+    expect(localStorage.getItem('chinwag_token')).toBeNull();
   });
 });

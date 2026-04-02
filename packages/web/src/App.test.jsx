@@ -31,6 +31,9 @@ function createApiMock({
     if (method === 'GET' && /^\/teams\/[^/]+\/context$/.test(path)) {
       return context;
     }
+    if (method === 'POST' && path === '/auth/ws-ticket') {
+      return { ticket: 'tk_test' };
+    }
     throw new Error(`Unexpected API call: ${method} ${path}`);
   });
 }
@@ -45,17 +48,18 @@ async function flushEffects(rounds = 4) {
 
 async function loadAppModule(options = {}) {
   vi.resetModules();
-  sessionStorage.clear();
+  localStorage.clear();
   window.location.hash = options.hashToken ? `#token=${options.hashToken}` : '';
 
   if (options.storedToken) {
-    sessionStorage.setItem('chinwag_token', options.storedToken);
+    localStorage.setItem('chinwag_token', options.storedToken);
   }
 
   const apiMock = options.apiMock || createApiMock(options);
 
   vi.doMock('./lib/api.js', () => ({
     api: apiMock,
+    getApiUrl: () => 'https://test.chinwag.dev',
   }));
 
   vi.doMock('./views/ConnectView/ConnectView.jsx', () => ({
@@ -139,7 +143,7 @@ function renderApp(App) {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  sessionStorage.clear();
+  localStorage.clear();
   window.location.hash = '';
   document.body.innerHTML = '';
 });
