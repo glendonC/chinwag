@@ -5,7 +5,7 @@ export function json(data, status = 200, extraHeaders = {}) {
   });
 }
 
-const MAX_BODY_SIZE = 50_000;
+import { MAX_BODY_SIZE } from './constants.js';
 
 export async function parseBody(request) {
   const contentType = request.headers.get('content-type') || '';

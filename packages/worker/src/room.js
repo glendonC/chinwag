@@ -4,16 +4,17 @@
 
 import { DurableObject } from 'cloudflare:workers';
 import { isBlocked } from './moderation.js';
-
-const MAX_HISTORY = 50;
-const MAX_MESSAGE_LENGTH = 280;
-const MAX_CHAT_PER_MINUTE = 10;
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_PRUNE_AFTER_MS = 120_000;
+import {
+  CHAT_MAX_HISTORY,
+  CHAT_MAX_MESSAGE_LENGTH,
+  CHAT_MAX_PER_MINUTE,
+  CHAT_RATE_LIMIT_WINDOW_MS,
+  CHAT_RATE_LIMIT_PRUNE_AFTER_MS,
+} from './lib/constants.js';
 
 export function checkWindowedRateLimit(rateLimits, key, maxPerMinute = 10, now = Date.now()) {
   let entry = rateLimits.get(key);
-  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+  if (!entry || now - entry.windowStart > CHAT_RATE_LIMIT_WINDOW_MS) {
     entry = { windowStart: now, count: 0 };
     rateLimits.set(key, entry);
   }
@@ -22,7 +23,7 @@ export function checkWindowedRateLimit(rateLimits, key, maxPerMinute = 10, now =
 
   if (rateLimits.size > 500) {
     for (const [storedKey, storedEntry] of rateLimits) {
-      if (now - storedEntry.windowStart > RATE_LIMIT_PRUNE_AFTER_MS) {
+      if (now - storedEntry.windowStart > CHAT_RATE_LIMIT_PRUNE_AFTER_MS) {
         rateLimits.delete(storedKey);
       }
     }
@@ -100,9 +101,9 @@ export class RoomDO extends DurableObject {
 
     if (data.type === 'message') {
       const content = (data.content || '').trim();
-      if (!content || content.length > MAX_MESSAGE_LENGTH) return;
+      if (!content || content.length > CHAT_MAX_MESSAGE_LENGTH) return;
 
-      if (!checkWindowedRateLimit(this.chatRateLimits, `chat:${session.handle}`, MAX_CHAT_PER_MINUTE)) {
+      if (!checkWindowedRateLimit(this.chatRateLimits, `chat:${session.handle}`, CHAT_MAX_PER_MINUTE)) {
         ws.send(JSON.stringify({
           type: 'system',
           content: 'Slow down — max 10 messages per minute.',
@@ -127,7 +128,7 @@ export class RoomDO extends DurableObject {
       };
 
       this.history.push(message);
-      if (this.history.length > MAX_HISTORY) {
+      if (this.history.length > CHAT_MAX_HISTORY) {
         this.history.shift();
       }
 

@@ -4,6 +4,8 @@
 
 import { DurableObject } from 'cloudflare:workers';
 import { seedEvaluations } from './lib/seed-evaluations.js';
+import { toSQLDateTime } from './lib/text-utils.js';
+import { WEB_SESSION_DURATION_MS } from './lib/constants.js';
 
 const COLORS = [
   'red', 'cyan', 'yellow', 'green', 'magenta', 'blue',
@@ -140,7 +142,7 @@ export class DatabaseDO extends DurableObject {
     const id = crypto.randomUUID();
     const token = crypto.randomUUID();
     const color = COLORS[Math.floor(Math.random() * COLORS.length)];
-    const now = new Date().toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '');
+    const now = toSQLDateTime();
 
     let handle = this.#generateHandle();
     let attempts = 0;
@@ -238,7 +240,7 @@ export class DatabaseDO extends DurableObject {
     const id = crypto.randomUUID();
     const token = crypto.randomUUID();
     const color = COLORS[Math.floor(Math.random() * COLORS.length)];
-    const now = new Date().toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '');
+    const now = toSQLDateTime();
 
     let handle = githubLogin.replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 20);
     if (handle.length < 3) handle = this.#generateHandle();
@@ -292,8 +294,7 @@ export class DatabaseDO extends DurableObject {
   async createWebSession(userId, userAgent) {
     this.#ensureSchema();
     const token = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-      .toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '');
+    const expiresAt = toSQLDateTime(new Date(Date.now() + WEB_SESSION_DURATION_MS));
 
     this.sql.exec(
       `INSERT INTO web_sessions (token, user_id, expires_at, user_agent) VALUES (?, ?, ?, ?)`,

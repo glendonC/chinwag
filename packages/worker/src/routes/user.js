@@ -3,6 +3,15 @@ import { getDB, getLobby, getTeam } from '../lib/env.js';
 import { json, parseBody } from '../lib/http.js';
 import { getAgentRuntime, sanitizeTags } from '../lib/request-utils.js';
 import { requireJson, withRateLimit } from '../lib/validation.js';
+import {
+  MAX_STATUS_LENGTH,
+  MAX_FRAMEWORK_LENGTH,
+  RATE_LIMIT_TEAMS,
+  RATE_LIMIT_WS_TICKETS,
+  CHAT_COOLDOWN_MS,
+  MAX_DASHBOARD_TEAMS,
+  MAX_NAME_LENGTH,
+} from '../lib/constants.js';
 
 export async function authenticate(request, env) {
   const auth = request.headers.get('Authorization');
@@ -37,6 +46,10 @@ export async function authenticate(request, env) {
   if (!userId.includes('-')) {
     const user = await db.getUserByHandle(userId);
     if (!user) return null;
+    // Verify the looked-up user's handle still matches the KV entry.
+    // Prevents auth bypass when a handle is reassigned to a different user:
+    // stale KV entry "token:X -> oldHandle" would resolve to the new owner.
+    if (user.handle !== userId) return null;
     await env.AUTH_KV.put(`token:${token}`, user.id);
     return user;
   }
@@ -46,7 +59,7 @@ export async function authenticate(request, env) {
 
 export async function handleGetWsTicket(user, env) {
   const db = getDB(env);
-  return withRateLimit(db, `ws-ticket:${user.id}`, 100, 'Ticket request limit reached. Try again later.', async () => {
+  return withRateLimit(db, `ws-ticket:${user.id}`, RATE_LIMIT_WS_TICKETS, 'Ticket request limit reached. Try again later.', async () => {
     const ticket = `tk_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`;
     await env.AUTH_KV.put(`ticket:${ticket}`, user.id, { expirationTtl: 30 });
     return json({ ticket });
@@ -103,8 +116,8 @@ export async function handleSetStatus(request, user, env) {
   if (!status || typeof status !== 'string') {
     return json({ error: 'Status is required' }, 400);
   }
-  if (status.length > 280) {
-    return json({ error: 'Status must be 280 characters or less' }, 400);
+  if (status.length > MAX_STATUS_LENGTH) {
+    return json({ error: `Status must be ${MAX_STATUS_LENGTH} characters or less` }, 400);
   }
 
   const modResult = await checkContent(status, env);
@@ -132,7 +145,7 @@ export async function handleUpdateAgentProfile(request, user, env) {
   if (parseErr) return parseErr;
 
   const profile = {
-    framework: typeof body.framework === 'string' ? body.framework.slice(0, 50) : null,
+    framework: typeof body.framework === 'string' ? body.framework.slice(0, MAX_FRAMEWORK_LENGTH) : null,
     languages: sanitizeTags(body.languages),
     frameworks: sanitizeTags(body.frameworks),
     tools: sanitizeTags(body.tools),
@@ -162,7 +175,7 @@ export async function handleDashboardSummary(user, env) {
     });
   }
 
-  const capped = teams.slice(0, 25);
+  const capped = teams.slice(0, MAX_DASHBOARD_TEAMS);
   const results = await Promise.allSettled(
     capped.map(async (teamEntry) => {
       const team = getTeam(env, teamEntry.team_id);
@@ -229,7 +242,6 @@ export async function handleDashboardSummary(user, env) {
 }
 
 export async function handleChatUpgrade(request, user, env) {
-  const CHAT_COOLDOWN_MS = 5 * 60 * 1000;
   const accountAge = Date.now() - new Date(user.created_at).getTime();
   if (accountAge < CHAT_COOLDOWN_MS) {
     const secsLeft = Math.ceil((CHAT_COOLDOWN_MS - accountAge) / 1000);
@@ -266,12 +278,12 @@ export async function handleCreateTeam(request, user, env) {
   let name = null;
   try {
     const body = await request.json();
-    name = typeof body.name === 'string' ? body.name.slice(0, 100).trim() || null : null;
+    name = typeof body.name === 'string' ? body.name.slice(0, MAX_NAME_LENGTH).trim() || null : null;
   } catch {}
 
   const db = getDB(env);
 
-  return withRateLimit(db, `team:${user.id}`, 5, 'Team creation limit reached. Try again tomorrow.', async () => {
+  return withRateLimit(db, `team:${user.id}`, RATE_LIMIT_TEAMS, 'Team creation limit reached. Try again tomorrow.', async () => {
     const runtime = getAgentRuntime(request, user);
     const agentId = runtime.agentId;
     const teamId = 't_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);

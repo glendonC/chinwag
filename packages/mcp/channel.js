@@ -19,12 +19,15 @@ import { resolveAgentIdentity } from './lib/lifecycle.js';
 import { diffState } from './lib/diff-state.js';
 import { isProcessAlive, pingAgentTerminal } from '../shared/session-registry.js';
 
+// --- Constants ---
+const POLL_INTERVAL_MS = 10_000;
+const HEARTBEAT_INTERVAL_MS = 30_000;
+const PARENT_WATCH_INTERVAL_MS = 5000;
+
 let PKG = { version: '0.0.0' };
 try {
   PKG = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
-} catch { /* fallback if bundled or path changes */ }
-
-const POLL_INTERVAL_MS = 10_000;
+} catch (err) { console.error('[chinwag-channel]', err?.message || 'failed to read package.json'); }
 
 async function main() {
   if (!configExists()) {
@@ -92,8 +95,8 @@ async function main() {
   // Initial fetch (don't emit events on first poll)
   try {
     prevState = await team.getTeamContext(teamId);
-  } catch {
-    // Will retry on next interval
+  } catch (err) {
+    console.error('[chinwag-channel]', err?.message || 'initial fetch failed, will retry');
   }
 
   const interval = setInterval(poll, POLL_INTERVAL_MS);
@@ -104,17 +107,17 @@ async function main() {
       await team.heartbeat(teamId);
     } catch (err) {
       if (err.message?.includes('Not a member')) {
-        try { await team.joinTeam(teamId); } catch {}
+        try { await team.joinTeam(teamId); } catch (rejoinErr) { console.error('[chinwag-channel]', rejoinErr?.message || 'rejoin failed'); }
       }
     }
-  }, 30_000);
+  }, HEARTBEAT_INTERVAL_MS);
 
   const parentPid = process.ppid;
   const parentWatch = setInterval(() => {
     if (parentPid > 1 && !isProcessAlive(parentPid)) {
       cleanup();
     }
-  }, 5000);
+  }, PARENT_WATCH_INTERVAL_MS);
   parentWatch.unref?.();
 
   const cleanup = () => {

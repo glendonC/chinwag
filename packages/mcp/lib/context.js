@@ -26,10 +26,10 @@ export async function refreshContext(team, teamId) {
       console.error('[chinwag] Back online');
     }
     return cachedContext;
-  } catch {
+  } catch (err) {
     if (!isOffline) {
       isOffline = true;
-      console.error('[chinwag] API unreachable — using cached context');
+      console.error('[chinwag] API unreachable — using cached context:', err?.message || 'unknown error');
     }
     return cachedContext; // may be null if never fetched
   }

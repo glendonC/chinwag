@@ -6,6 +6,7 @@ import { safeAgentId, isProcessAlive } from '../../shared/session-registry.js';
 import { escapeAppleScriptString } from './utils/shell.js';
 
 const PIDS_DIR = join(homedir(), '.chinwag', 'pids');
+const KILL_GRACE_MS = 5000;
 
 // ── Terminal environment detection ────────────────────
 // Detects terminal CAPABILITY, not brand. Grouped by how we spawn into them.
@@ -109,7 +110,8 @@ function spawnInIdeTerminal(shellCommand, cwd, toolName) {
       cwd: cwd || process.cwd(),
     }));
     return { ok: true };
-  } catch {
+  } catch (err) {
+    console.error('[chinwag]', err?.message || err);
     // Fallback to platform terminal if file write fails
     if (process.platform === 'darwin') return spawnInMacosTerminal(shellCommand);
     if (process.platform === 'linux') return spawnOnLinux(shellCommand);
@@ -160,7 +162,7 @@ function spawnOnLinux(shellCommand) {
     try {
       execFileSync(cmd, args, { stdio: 'ignore' });
       return { ok: true };
-    } catch {}
+    } catch (err) { console.error('[chinwag]', err?.message || err); }
   }
   return { ok: false, error: 'No terminal emulator found' };
 }
@@ -170,7 +172,7 @@ function spawnOnWindows(shellCommand) {
     try {
       execFileSync('wt', ['new-tab', 'cmd', '/k', shellCommand], { stdio: 'ignore' });
       return { ok: true };
-    } catch {}
+    } catch (err) { console.error('[chinwag]', err?.message || err); }
     execFileSync('cmd', ['/c', 'start', '', 'cmd', '/k', shellCommand], { stdio: 'ignore' });
     return { ok: true };
   } catch (err) {
@@ -213,7 +215,8 @@ export function readPidFile(agentId) {
     const content = readFileSync(pidPath, 'utf-8').trim();
     const pid = parseInt(content, 10);
     return Number.isFinite(pid) && pid > 0 ? pid : null;
-  } catch {
+  } catch (err) {
+    console.error('[chinwag]', err?.message || err);
     return null;
   }
 }
@@ -223,17 +226,18 @@ export function cleanPidFile(agentId) {
     const safe = safeAgentId(agentId);
     const pidPath = join(PIDS_DIR, `${safe}.pid`);
     if (existsSync(pidPath)) unlinkSync(pidPath);
-  } catch {}
+  } catch (err) { console.error('[chinwag]', err?.message || err); }
 }
 
 export function killByPid(pid) {
   try {
     process.kill(pid, 'SIGTERM');
     setTimeout(() => {
-      try { process.kill(pid, 'SIGKILL'); } catch {}
-    }, 5000);
+      try { process.kill(pid, 'SIGKILL'); } catch (err) { console.error('[chinwag]', err?.message || err); }
+    }, KILL_GRACE_MS);
     return true;
-  } catch {
+  } catch (err) {
+    console.error('[chinwag]', err?.message || err);
     return false;
   }
 }

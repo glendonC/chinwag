@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
 import { basename } from 'path';
 import {
@@ -20,6 +20,66 @@ import {
 } from './utils.js';
 import { isAgentAddressable } from './agent-display.js';
 
+// ── Constants ───────────────────────────────────────
+const RECENTLY_FINISHED_LIMIT = 3;
+const MIN_VIEWPORT_ROWS = 4;
+const VIEWPORT_CHROME_ROWS = 11;
+const COMMAND_SUGGESTION_LIMIT = 5;
+
+// ── View management hook ────────────────────────────
+
+function useViewManager() {
+  const [selectedIdx, setSelectedIdx] = useState(-1);
+  const [mainFocus, setMainFocus] = useState('input');
+  const [view, setView] = useState('home');
+  const [heroInput, setHeroInput] = useState('');
+  const [heroInputActive, setHeroInputActive] = useState(false);
+  const [focusedAgent, setFocusedAgent] = useState(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+
+  const isHomeView = view === 'home';
+  const isSessionsView = view === 'sessions';
+  const isMemoryView = view === 'memory';
+  const isAgentFocusView = view === 'agent-focus';
+
+  return {
+    selectedIdx, setSelectedIdx,
+    mainFocus, setMainFocus,
+    view, setView,
+    heroInput, setHeroInput,
+    heroInputActive, setHeroInputActive,
+    focusedAgent, setFocusedAgent,
+    showDiagnostics, setShowDiagnostics,
+    isHomeView, isSessionsView, isMemoryView, isAgentFocusView,
+  };
+}
+
+// ── Flash notification hook ─────────────────────────
+
+function useFlashNotification() {
+  const [notice, setNotice] = useState(null);
+  const noticeTimer = useRef(null);
+
+  const flash = useCallback(function flash(msg, opts = {}) {
+    const tone = typeof opts === 'object' ? opts.tone || 'info' : 'info';
+    const autoClearMs = typeof opts === 'object' ? opts.autoClearMs : null;
+    if (noticeTimer.current) { clearTimeout(noticeTimer.current); noticeTimer.current = null; }
+    setNotice({ text: msg, tone });
+    if (autoClearMs && autoClearMs > 0) {
+      noticeTimer.current = setTimeout(() => {
+        setNotice(current => (current?.text === msg ? null : current));
+        noticeTimer.current = null;
+      }, autoClearMs);
+    }
+  }, []);
+
+  useEffect(() => () => { if (noticeTimer.current) clearTimeout(noticeTimer.current); }, []);
+
+  return { notice, flash };
+}
+
+// ── Main Dashboard component ────────────────────────
+
 export function Dashboard({ config, navigate, layout, projectLabel = null, appVersion = '0.1.0', setFooterHints }) {
   const { stdout } = useStdout();
   const viewportRows = layout?.viewportRows || 18;
@@ -33,36 +93,20 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
   } = connection;
 
   // ── View state ─────────────────────────────────────
-  const [selectedIdx, setSelectedIdx] = useState(-1);
-  const [mainFocus, setMainFocus] = useState('input');
-  const [view, setView] = useState('home');
-  const [notice, setNotice] = useState(null);
-  const noticeTimer = useRef(null);
-  const [heroInput, setHeroInput] = useState('');
-  const [heroInputActive, setHeroInputActive] = useState(false);
-  const [focusedAgent, setFocusedAgent] = useState(null);
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const vm = useViewManager();
+  const {
+    selectedIdx, setSelectedIdx,
+    mainFocus, setMainFocus,
+    view, setView,
+    heroInput, setHeroInput,
+    heroInputActive, setHeroInputActive,
+    focusedAgent, setFocusedAgent,
+    showDiagnostics, setShowDiagnostics,
+    isHomeView, isSessionsView, isMemoryView, isAgentFocusView,
+  } = vm;
 
-  const isHomeView = view === 'home';
-  const isSessionsView = view === 'sessions';
-  const isMemoryView = view === 'memory';
-  const isAgentFocusView = view === 'agent-focus';
-
-  // ── Flash helper ───────────────────────────────────
-  function flash(msg, opts = {}) {
-    const tone = typeof opts === 'object' ? opts.tone || 'info' : 'info';
-    const autoClearMs = typeof opts === 'object' ? opts.autoClearMs : null;
-    if (noticeTimer.current) { clearTimeout(noticeTimer.current); noticeTimer.current = null; }
-    setNotice({ text: msg, tone });
-    if (autoClearMs && autoClearMs > 0) {
-      noticeTimer.current = setTimeout(() => {
-        setNotice(current => (current?.text === msg ? null : current));
-        noticeTimer.current = null;
-      }, autoClearMs);
-    }
-  }
-
-  useEffect(() => () => { if (noticeTimer.current) clearTimeout(noticeTimer.current); }, []);
+  // ── Flash notification ─────────────────────────────
+  const { notice, flash } = useFlashNotification();
 
   // ── Custom hooks ───────────────────────────────────
   const memory = useMemoryManager({ config, teamId, bumpRefreshKey, flash });
@@ -112,7 +156,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
   const recentlyFinished = combinedAgents
     .filter(agent => agent._managed && agent._dead)
     .sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0))
-    .slice(0, 3);
+    .slice(0, RECENTLY_FINISHED_LIMIT);
   const allVisibleAgents = [...liveAgents, ...recentlyFinished];
   const selectedAgent = selectedIdx >= 0 ? allVisibleAgents[selectedIdx] : null;
   const mainSelectedAgent = mainFocus === 'agents' ? selectedAgent : null;
@@ -128,11 +172,11 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
     counts.set(label, (counts.get(label) || 0) + 1);
     return counts;
   }, new Map());
-  const visibleSessionRows = getVisibleWindow(allVisibleAgents, selectedIdx, Math.max(4, viewportRows - 11));
-  const visibleKnowledgeRows = getVisibleWindow(knowledgeVisible, memory.memorySelectedIdx, Math.max(4, viewportRows - 11));
+  const visibleSessionRows = getVisibleWindow(allVisibleAgents, selectedIdx, Math.max(MIN_VIEWPORT_ROWS, viewportRows - VIEWPORT_CHROME_ROWS));
+  const visibleKnowledgeRows = getVisibleWindow(knowledgeVisible, memory.memorySelectedIdx, Math.max(MIN_VIEWPORT_ROWS, viewportRows - VIEWPORT_CHROME_ROWS));
 
   // ── Command palette ────────────────────────────────
-  const commandEntries = [
+  const commandEntries = useMemo(() => [
     { name: '/new', description: 'Open a tool in a new terminal tab' },
     ...((agents.unavailableCliAgents.some(tool => agents.getManagedToolState(tool.id).recoveryCommand)
       || integrations.integrationIssues.length > 0)
@@ -147,7 +191,9 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
     ...(selectedAgent && isAgentAddressable(selectedAgent)
       ? [{ name: '/message', description: `Message ${selectedAgent._display}` }] : []),
     { name: '/help', description: 'Show command help' },
-  ];
+  ], [agents.unavailableCliAgents, agents.managedToolStates, integrations.integrationIssues,
+      hasMemories, hasLiveAgents, selectedAgent]);
+
   const commandQuery = composer.composeMode === 'command'
     ? composer.composeText.trim().replace(/^\//, '').toLowerCase() : '';
   const commandSuggestions = composer.composeMode === 'command'
@@ -155,7 +201,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
         if (!commandQuery) return true;
         const normalized = entry.name.slice(1).toLowerCase();
         return normalized.startsWith(commandQuery) || entry.description.toLowerCase().includes(commandQuery);
-      })
+      }).slice(0, COMMAND_SUGGESTION_LIMIT + 1)
     : [];
 
   // ── Clamp selection indices ────────────────────────
@@ -177,50 +223,63 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
   }, [memory.memorySelectedIdx, visibleMemories.length]);
 
   // ── Handlers ───────────────────────────────────────
-  function handleOpenWebDashboard() {
+  const handleOpenWebDashboard = useCallback(() => {
     const result = openWebDashboard(config?.token);
     flash(
       result.ok ? 'Opened web dashboard' : `Could not open browser${result.error ? `: ${result.error}` : ''}`,
       result.ok ? { tone: 'success' } : { tone: 'error' }
     );
-  }
+  }, [config?.token, flash]);
 
-  const handleCommandSubmit = createCommandHandler({
-    agents, integrations, composer, memory, flash,
-    setView, setSelectedIdx, setHeroInput, setHeroInputActive, setMainFocus,
-    handleOpenWebDashboard, liveAgents, selectedAgent,
-    isAgentAddressable,
-  });
+  const handleCommandSubmit = useCallback(
+    createCommandHandler({
+      agents, integrations, composer, memory, flash,
+      setView, setSelectedIdx, setHeroInput, setHeroInputActive, setMainFocus,
+      handleOpenWebDashboard, liveAgents, selectedAgent,
+      isAgentAddressable,
+    }),
+    [agents, integrations, composer, memory, flash,
+     handleOpenWebDashboard, liveAgents, selectedAgent]
+  );
 
-  function onComposeSubmit() {
+  const onComposeSubmit = useCallback(() => {
     composer.onComposeSubmit(commandSuggestions, handleCommandSubmit);
-  }
+  }, [composer, commandSuggestions, handleCommandSubmit]);
 
-  function onMemorySubmit() {
+  const onMemorySubmit = useCallback(() => {
     memory.onMemorySubmit();
     composer.setComposeMode(null);
-  }
+  }, [memory, composer]);
 
-  // ── Input handling ─────────────────────────────────
-  const inputHandler = createInputHandler({
-    view, setView, mainFocus, setMainFocus,
-    selectedIdx, setSelectedIdx,
-    focusedAgent, setFocusedAgent,
-    showDiagnostics, setShowDiagnostics,
-    setHeroInput, setHeroInputActive,
-    cols, error, context, connectionRetry,
-    allVisibleAgents, liveAgents, visibleMemories,
-    hasLiveAgents, hasMemories, mainSelectedAgent,
-    liveAgentNameCounts,
-    agents, integrations, composer, memory,
-    commandSuggestions, handleCommandSubmit, handleOpenWebDashboard,
-    navigate,
-  });
+  // ── Input handling (wrapped in useCallback) ────────
+  const inputHandler = useCallback(
+    createInputHandler({
+      view, setView, mainFocus, setMainFocus,
+      selectedIdx, setSelectedIdx,
+      focusedAgent, setFocusedAgent,
+      showDiagnostics, setShowDiagnostics,
+      setHeroInput, setHeroInputActive,
+      cols, error, context, connectionRetry,
+      allVisibleAgents, liveAgents, visibleMemories,
+      hasLiveAgents, hasMemories, mainSelectedAgent,
+      liveAgentNameCounts,
+      agents, integrations, composer, memory,
+      commandSuggestions, handleCommandSubmit, handleOpenWebDashboard,
+      navigate,
+    }),
+    [view, mainFocus, selectedIdx, focusedAgent, showDiagnostics,
+     cols, error, context, connectionRetry,
+     allVisibleAgents, liveAgents, visibleMemories,
+     hasLiveAgents, hasMemories, mainSelectedAgent,
+     agents, integrations, composer, memory,
+     commandSuggestions, handleCommandSubmit, handleOpenWebDashboard,
+     navigate]
+  );
 
   useInput(inputHandler);
 
   // ── Nav hints ──────────────────────────────────────
-  function buildNavItems() {
+  const navItems = useMemo(() => {
     if (isAgentFocusView) {
       const items = [{ key: 'esc', label: 'back', color: 'cyan' }];
       if (focusedAgent?._managed && !focusedAgent._dead) items.push({ key: 'x', label: 'stop', color: 'red' });
@@ -239,17 +298,18 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
       ];
     }
     return [{ key: 'q', label: 'quit', color: 'gray' }];
-  }
-
-  const navItems = buildNavItems();
+  }, [isAgentFocusView, focusedAgent, showDiagnostics, composer.isComposing, composer.composeMode]);
 
   // ── Contextual hints ───────────────────────────────
-  const contextHints = [];
-  if (mainSelectedAgent) {
-    contextHints.push({ commandKey: 'enter', label: 'inspect', color: 'cyan' });
-    if (isAgentAddressable(mainSelectedAgent)) contextHints.push({ commandKey: 'm', label: 'message', color: 'cyan' });
-    if (mainSelectedAgent._managed && !mainSelectedAgent._dead) contextHints.push({ commandKey: 'x', label: 'stop', color: 'red' });
-  }
+  const contextHints = useMemo(() => {
+    const hints = [];
+    if (mainSelectedAgent) {
+      hints.push({ commandKey: 'enter', label: 'inspect', color: 'cyan' });
+      if (isAgentAddressable(mainSelectedAgent)) hints.push({ commandKey: 'm', label: 'message', color: 'cyan' });
+      if (mainSelectedAgent._managed && !mainSelectedAgent._dead) hints.push({ commandKey: 'x', label: 'stop', color: 'red' });
+    }
+    return hints;
+  }, [mainSelectedAgent]);
 
   // ── Guards ─────────────────────────────────────────
   if (cols < MIN_WIDTH) {

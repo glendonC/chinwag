@@ -3,8 +3,7 @@
 
 import { normalizePath } from '../../lib/text-utils.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
-
-const HEARTBEAT_ACTIVE_SECONDS = 60;
+import { HEARTBEAT_ACTIVE_WINDOW_S } from '../../lib/constants.js';
 
 export function claimFiles(sql, resolvedAgentId, files, handle, runtimeOrTool) {
   const runtime = normalizeRuntimeMetadata(runtimeOrTool, resolvedAgentId);
@@ -77,7 +76,7 @@ export function getLockedFiles(sql, connectedAgentIds = new Set()) {
      WHERE m.last_heartbeat > datetime('now', '-' || ? || ' seconds')
         OR m.agent_id IN (${wsPlaceholders})
      ORDER BY l.claimed_at DESC`,
-    HEARTBEAT_ACTIVE_SECONDS, ...wsParams
+    HEARTBEAT_ACTIVE_WINDOW_S, ...wsParams
   ).toArray();
 
   return { locks };

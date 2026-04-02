@@ -22,7 +22,7 @@ let PKG_VERSION = '0.1.0';
 try {
   const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
   PKG_VERSION = pkg.version || PKG_VERSION;
-} catch {}
+} catch (err) { console.error('[chinwag]', err?.message || err); }
 
 async function handOffToRuntime(modulePath, { stripSubcommand = false, transport = null } = {}) {
   if (transport) {
@@ -123,6 +123,7 @@ if (process.argv[2] === 'dashboard') {
 }
 
 const SPINNER = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+const SPINNER_INTERVAL_MS = 80;
 const PRIMARY_MODES = [
   { key: 'dashboard', label: 'dashboard', shortLabel: 'dashboard', accent: 'cyan' },
   { key: 'discover', label: 'tools', shortLabel: 'tools', accent: 'yellow' },
@@ -149,7 +150,7 @@ function App() {
 
   useEffect(() => {
     if (screen !== 'loading') return;
-    const id = setInterval(() => setSpin(s => (s + 1) % SPINNER.length), 80);
+    const id = setInterval(() => setSpin(s => (s + 1) % SPINNER.length), SPINNER_INTERVAL_MS);
     return () => clearInterval(id);
   }, [screen]);
 
@@ -163,7 +164,8 @@ function App() {
           const me = await api(cfg).get('/me');
           setUser(me);
           setScreen('dashboard');
-        } catch {
+        } catch (err) {
+          console.error('[chinwag]', err?.message || err);
           setScreen('welcome');
         }
       } else {
@@ -192,7 +194,7 @@ function App() {
     try {
       const me = await api(config).get('/me');
       setUser(me);
-    } catch {}
+    } catch (err) { console.error('[chinwag]', err?.message || err); }
   };
 
   useInput((input, key) => {

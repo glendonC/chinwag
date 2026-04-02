@@ -18,10 +18,17 @@ import { registerTools, registerResources } from './lib/tools/index.js';
 import { isProcessAlive, setTerminalTitle } from '../shared/session-registry.js';
 import { scanHostIntegrations, configureHostIntegration } from '../shared/integration-doctor.js';
 
+// --- Constants ---
+const WS_PING_MS = 60_000;
+const INITIAL_RECONNECT_DELAY_MS = 1000;
+const MAX_RECONNECT_DELAY_MS = 60_000;
+const FORCE_EXIT_TIMEOUT_MS = 3000;
+const PARENT_WATCH_INTERVAL_MS = 5000;
+
 let PKG = { version: '0.0.0' };
 try {
   PKG = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
-} catch { /* fallback if bundled or path changes */ }
+} catch (err) { console.error('[chinwag]', err?.message || 'failed to read package.json'); }
 
 async function main() {
   if (!configExists()) {
@@ -52,7 +59,7 @@ async function main() {
       console.error(`[chinwag] Terminal: ${parentTty}`);
       setTerminalTitle(parentTty, `chinwag · ${basename(process.cwd())}`);
     }
-  } catch {}
+  } catch (err) { console.error('[chinwag]', err?.message || 'session registration failed'); }
 
   // Scan environment and register profile
   const profile = scanEnvironment();
@@ -77,6 +84,9 @@ async function main() {
   const team = teamHandlers(client);
   const projectName = basename(process.cwd());
 
+  // WebSocket reconnect timer — declared in outer scope so cleanup can clear it
+  let reconnectTimer = null;
+
   if (state.teamId) {
     try {
       await team.joinTeam(state.teamId, projectName);
@@ -93,15 +103,24 @@ async function main() {
       // WebSocket presence — connection IS the heartbeat.
       // Pings every 60s keep the DB timestamp fresh for SQL queries.
       // Reconnects with exponential backoff on disconnect.
-      const WS_PING_MS = 60_000;
-      let reconnectDelay = 1000;
+      let reconnectDelay = INITIAL_RECONNECT_DELAY_MS;
       let pingTimer = null;
       let lastWsSend = 0;
       let connecting = false;
 
+      function scheduleReconnect() {
+        if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+        if (state._shuttingDown) return;
+        console.error(`[chinwag] WebSocket disconnected, reconnecting in ${reconnectDelay / 1000}s`);
+        reconnectTimer = setTimeout(connectTeamWs, reconnectDelay);
+        if (reconnectTimer.unref) reconnectTimer.unref();
+        reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY_MS);
+      }
+
       function connectTeamWs() {
         if (connecting || state._shuttingDown) return;
         connecting = true;
+        reconnectTimer = null;
 
         // Fetch short-lived ticket, then open WS
         client.post('/auth/ws-ticket').then(({ ticket }) => {
@@ -115,7 +134,7 @@ async function main() {
           ws.onopen = () => {
             connecting = false;
             state.ws = ws;
-            reconnectDelay = 1000;
+            reconnectDelay = INITIAL_RECONNECT_DELAY_MS;
             console.error('[chinwag] WebSocket connected (presence active)');
 
             // Ping to keep DB heartbeat fresh — only when no activity was sent recently
@@ -124,7 +143,7 @@ async function main() {
                 try {
                   ws.send(JSON.stringify({ type: 'ping', lastToolUseAt: state.lastActivity }));
                   lastWsSend = Date.now();
-                } catch { /* close will fire */ }
+                } catch (err) { console.error('[chinwag]', err?.message || 'ws ping failed'); }
               }
             }, WS_PING_MS);
             if (pingTimer.unref) pingTimer.unref();
@@ -136,24 +155,16 @@ async function main() {
             connecting = false;
             state.ws = null;
             if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
-            if (!state._shuttingDown) {
-              console.error(`[chinwag] WebSocket disconnected, reconnecting in ${reconnectDelay / 1000}s`);
-              const timer = setTimeout(connectTeamWs, reconnectDelay);
-              if (timer.unref) timer.unref();
-              reconnectDelay = Math.min(reconnectDelay * 2, 60_000);
-            }
+            scheduleReconnect();
           };
 
           ws.onerror = (err) => {
             console.error('[chinwag] WebSocket error:', err?.message || 'unknown');
           };
-        }).catch(() => {
+        }).catch((err) => {
           connecting = false;
-          if (!state._shuttingDown) {
-            const timer = setTimeout(connectTeamWs, reconnectDelay);
-            if (timer.unref) timer.unref();
-            reconnectDelay = Math.min(reconnectDelay * 2, 60_000);
-          }
+          console.error('[chinwag]', err?.message || 'ws ticket fetch failed');
+          scheduleReconnect();
         });
       }
 
@@ -165,18 +176,19 @@ async function main() {
   }
 
   // Clean up on exit — end session then exit.
-  // Second signal or 3s timeout = force exit (don't hang on network issues).
+  // Second signal or force-exit timeout = immediate exit (don't hang on network issues).
   let cleaning = false;
   const parentPid = process.ppid;
   let parentWatch = null;
   const cleanup = () => {
-    if (cleaning) { process.exit(0); return; }
+    if (cleaning) return;
     cleaning = true;
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
     if (parentWatch) {
       clearInterval(parentWatch);
       parentWatch = null;
     }
-    const forceExit = setTimeout(() => process.exit(0), 3000);
+    const forceExit = setTimeout(() => process.exit(0), FORCE_EXIT_TIMEOUT_MS);
     forceExit.unref();
     const done = () => { clearTimeout(forceExit); process.exit(0); };
     cleanupProcessSession(agentId, state, team).finally(done);
@@ -191,7 +203,7 @@ async function main() {
     if (parentPid > 1 && !isProcessAlive(parentPid)) {
       cleanup();
     }
-  }, 5000);
+  }, PARENT_WATCH_INTERVAL_MS);
   parentWatch.unref?.();
 
   // Create MCP server

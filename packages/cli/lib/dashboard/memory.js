@@ -1,6 +1,9 @@
 import { useState, useCallback } from 'react';
 import { api } from '../api.js';
 
+// ── Constants ───────────────────────────────────────
+const DELETE_FEEDBACK_MS = 2000;
+
 /**
  * Custom hook for memory management in the dashboard.
  * Handles memory selection, search, add, and delete operations.
@@ -27,12 +30,12 @@ export function useMemoryManager({ config, teamId, bumpRefreshKey, flash }) {
         setDeleteConfirm(false);
         setMemorySelectedIdx(-1);
         bumpRefreshKey();
-        setTimeout(() => setDeleteMsg(null), 2000);
+        setTimeout(() => setDeleteMsg(null), DELETE_FEEDBACK_MS);
       })
       .catch(() => {
         setDeleteMsg('Delete failed');
         setDeleteConfirm(false);
-        setTimeout(() => setDeleteMsg(null), 2000);
+        setTimeout(() => setDeleteMsg(null), DELETE_FEEDBACK_MS);
       });
   }
 

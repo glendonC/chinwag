@@ -3,9 +3,7 @@
 
 import { normalizePath } from '../../lib/text-utils.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
-
-const HEARTBEAT_STALE_SECONDS = 300;
-const ACTIVITY_MAX_FILES = 50;
+import { HEARTBEAT_STALE_WINDOW_S, ACTIVITY_MAX_FILES } from '../../lib/constants.js';
 
 export function startSession(sql, resolvedAgentId, handle, framework, runtimeOrTool) {
   const runtime = normalizeRuntimeMetadata(runtimeOrTool, resolvedAgentId);
@@ -23,7 +21,7 @@ export function startSession(sql, resolvedAgentId, handle, framework, runtimeOrT
        SELECT agent_id FROM members
        WHERE last_heartbeat > datetime('now', '-' || ? || ' seconds')
      )`,
-    handle, HEARTBEAT_STALE_SECONDS
+    handle, HEARTBEAT_STALE_WINDOW_S
   );
 
   const id = crypto.randomUUID();
@@ -70,7 +68,8 @@ export function recordEdit(sql, resolvedAgentId, filePath) {
   if (sessions.length === 0) return { ok: true, skipped: true }; // No active session — caller can log if needed
 
   const session = sessions[0];
-  let files = JSON.parse(session.files_touched || '[]');
+  let files = [];
+  try { files = JSON.parse(session.files_touched || '[]'); } catch {}
   if (!files.includes(normalized)) {
     files.push(normalized);
     if (files.length > ACTIVITY_MAX_FILES) files = files.slice(-ACTIVITY_MAX_FILES);
@@ -98,7 +97,7 @@ export function getSessionHistory(sql, days) {
   return {
     sessions: sessions.map(s => ({
       ...s,
-      files_touched: JSON.parse(s.files_touched || '[]'),
+      files_touched: (() => { try { return JSON.parse(s.files_touched || '[]'); } catch { return []; } })(),
     })),
   };
 }

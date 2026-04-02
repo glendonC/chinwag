@@ -2,8 +2,7 @@
 // Each function takes `sql` as the first parameter.
 
 import { normalizeRuntimeMetadata } from './runtime.js';
-
-const MEMORY_MAX_COUNT = 500;
+import { MEMORY_MAX_COUNT } from '../../lib/constants.js';
 
 // Escape LIKE wildcards so user-supplied text is matched literally
 function escapeLike(s) {
@@ -70,7 +69,11 @@ export function searchMemories(sql, query, tags, limit = 20) {
 
   const rows = sql.exec(sqlStr, ...params).toArray();
   return {
-    memories: rows.map(m => ({ ...m, tags: JSON.parse(m.tags || '[]') })),
+    memories: rows.map(m => {
+      let tags = [];
+      try { tags = JSON.parse(m.tags || '[]'); } catch {}
+      return { ...m, tags };
+    }),
   };
 }
 

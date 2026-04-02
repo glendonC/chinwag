@@ -1,6 +1,7 @@
 import { TOOL_CATALOG, CATEGORY_NAMES } from '../catalog.js';
 import { getDB, getLobby } from '../lib/env.js';
 import { json } from '../lib/http.js';
+import { RATE_LIMIT_ACCOUNTS_PER_IP } from '../lib/constants.js';
 
 const GITHUB_AUTHORIZE_URL = 'https://github.com/login/oauth/authorize';
 const GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token';
@@ -28,7 +29,7 @@ export async function handleInit(request, env) {
   const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
   const db = getDB(env);
 
-  const limit = await db.checkRateLimit(ip, 3);
+  const limit = await db.checkRateLimit(ip, RATE_LIMIT_ACCOUNTS_PER_IP);
   if (!limit.allowed) {
     return json({ error: 'Too many accounts created today. Try again tomorrow.' }, 429);
   }
@@ -152,7 +153,7 @@ export async function handleGithubCallback(request, env) {
   let user = await db.getUserByGithubId(githubId);
   if (!user) {
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-    const limit = await db.checkRateLimit(ip, 3);
+    const limit = await db.checkRateLimit(ip, RATE_LIMIT_ACCOUNTS_PER_IP);
     if (!limit.allowed) {
       return Response.redirect(`${getDashboardUrl(env)}#error=rate_limited`, 302);
     }

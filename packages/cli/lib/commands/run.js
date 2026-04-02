@@ -73,7 +73,7 @@ function bridgeStdin(terminal) {
     for (const cleanup of cleanupFns.reverse()) {
       try {
         cleanup();
-      } catch {}
+      } catch (err) { console.error('[chinwag]', err?.message || err); }
     }
   };
 }

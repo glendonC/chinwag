@@ -55,7 +55,7 @@ export function scanEnvironment(cwd = process.cwd()) {
       for (const [dep, tag] of Object.entries(toolMap)) {
         if (allDeps[dep]) profile.tools.push(tag);
       }
-    } catch { /* malformed package.json — skip */ }
+    } catch (err) { console.error('[chinwag]', err?.message || 'malformed package.json'); }
   }
 
   // TypeScript

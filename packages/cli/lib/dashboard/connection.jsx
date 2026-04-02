@@ -5,6 +5,18 @@ import { getProjectContext } from '../project.js';
 import { SPINNER } from './utils.js';
 import { applyDelta } from '../../../shared/dashboard-ws.js';
 
+// ── Constants ───────────────────────────────────────
+const SPINNER_INTERVAL_MS = 80;
+const OFFLINE_THRESHOLD = 6;           // consecutive failures before going offline
+const POLL_FAST_MS = 5_000;
+const POLL_MEDIUM_MS = 15_000;
+const POLL_SLOW_MS = 30_000;
+const POLL_IDLE_MS = 60_000;
+const IDLE_TIER_1 = 6;                 // 30s idle -> medium poll
+const IDLE_TIER_2 = 12;                // 1min idle -> slow poll
+const IDLE_TIER_3 = 60;                // 5min idle -> idle poll
+const RECONCILE_INTERVAL_MS = 60_000;
+
 function classifyError(err) {
   const msg = err.message || '';
   const status = err.status;
@@ -56,7 +68,7 @@ export function useDashboardConnection({ config, stdout }) {
   // ── Spinner ──────────────────────────────────────────
   useEffect(() => {
     if (connState === 'connected' || connState === 'offline') return;
-    const t = setInterval(() => setSpinnerFrame(f => (f + 1) % SPINNER.length), 80);
+    const t = setInterval(() => setSpinnerFrame(f => (f + 1) % SPINNER.length), SPINNER_INTERVAL_MS);
     return () => clearInterval(t);
   }, [connState]);
 
@@ -86,7 +98,7 @@ export function useDashboardConnection({ config, stdout }) {
 
     try {
       setDetectedTools(detectTools(project.root));
-    } catch {}
+    } catch (err) { console.error('[chinwag]', err?.message || err); }
   }, []);
 
   // ── WebSocket connection with polling fallback ───
@@ -130,7 +142,7 @@ export function useDashboardConnection({ config, stdout }) {
       if (err.message?.includes('Not a member')) joined.current = false;
       consecutiveFailures.current++;
       const classified = classifyError(err);
-      if (consecutiveFailures.current >= 6 && classified.state === 'reconnecting') {
+      if (consecutiveFailures.current >= OFFLINE_THRESHOLD && classified.state === 'reconnecting') {
         setConnState('offline');
         setConnDetail(classified.detail.replace('Retrying...', 'Press [r] to retry.').replace('Retrying shortly.', 'Press [r] to retry.'));
       } else {
@@ -141,14 +153,14 @@ export function useDashboardConnection({ config, stdout }) {
 
     // ── Polling fallback ──────────────────────────
     function getPollInterval() {
-      if (consecutiveFailures.current >= 6) return 30_000;
-      if (consecutiveFailures.current >= 3) return 15_000;
+      if (consecutiveFailures.current >= OFFLINE_THRESHOLD) return POLL_SLOW_MS;
+      if (consecutiveFailures.current >= 3) return POLL_MEDIUM_MS;
       // Progressive backoff when context is unchanged (idle team)
       const idle = unchangedPolls.current;
-      if (idle >= 60) return 60_000;   // 5+ min idle → poll every 60s
-      if (idle >= 12) return 30_000;   // 1+ min idle → poll every 30s
-      if (idle >= 6) return 15_000;    // 30s idle → poll every 15s
-      return 5_000;
+      if (idle >= IDLE_TIER_3) return POLL_IDLE_MS;
+      if (idle >= IDLE_TIER_2) return POLL_SLOW_MS;
+      if (idle >= IDLE_TIER_1) return POLL_MEDIUM_MS;
+      return POLL_FAST_MS;
     }
 
     function startPolling() {
@@ -179,7 +191,8 @@ export function useDashboardConnection({ config, stdout }) {
       try {
         const ticketData = await client.post('/auth/ws-ticket');
         wsTicket = ticketData.ticket;
-      } catch {
+      } catch (err) {
+        console.error('[chinwag]', err?.message || err);
         startPolling();
         return;
       }
@@ -198,8 +211,8 @@ export function useDashboardConnection({ config, stdout }) {
           // Full reconciliation every 60s to correct drift
           if (reconcileInterval) clearInterval(reconcileInterval);
           reconcileInterval = setInterval(async () => {
-            try { await fetchContextOnce(); } catch { /* non-critical */ }
-          }, 60_000);
+            try { await fetchContextOnce(); } catch (err) { console.error('[chinwag]', err?.message || err); }
+          }, RECONCILE_INTERVAL_MS);
         };
 
         ws.onmessage = (evt) => {
@@ -211,7 +224,7 @@ export function useDashboardConnection({ config, stdout }) {
             } else {
               setContext(prev => prev ? applyDelta(prev, event) : prev);
             }
-          } catch { /* malformed event */ }
+          } catch (err) { console.error('[chinwag]', err?.message || err); }
         };
 
         ws.onclose = () => {
@@ -224,7 +237,8 @@ export function useDashboardConnection({ config, stdout }) {
         ws.onerror = () => { /* onclose fires after onerror */ };
 
         wsRef.current = ws;
-      } catch {
+      } catch (err) {
+        console.error('[chinwag]', err?.message || err);
         startPolling();
       }
     }
@@ -236,7 +250,7 @@ export function useDashboardConnection({ config, stdout }) {
       stopPolling();
       if (reconcileInterval) clearInterval(reconcileInterval);
       if (wsRef.current) {
-        try { wsRef.current.close(); } catch {}
+        try { wsRef.current.close(); } catch (err) { console.error('[chinwag]', err?.message || err); }
         wsRef.current = null;
       }
     };

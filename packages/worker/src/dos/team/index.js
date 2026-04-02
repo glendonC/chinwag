@@ -7,6 +7,7 @@
 // (getContext / getSummary) that touch every table.
 
 import { DurableObject } from 'cloudflare:workers';
+import { toSQLDateTime } from '../../lib/text-utils.js';
 import { join, leave, heartbeat as heartbeatFn } from './membership.js';
 import { updateActivity as updateActivityFn, checkConflicts as checkConflictsFn, reportFile as reportFileFn } from './activity.js';
 import { saveMemory as saveMemoryFn, searchMemories as searchMemoriesFn, updateMemory as updateMemoryFn, deleteMemory as deleteMemoryFn } from './memory.js';
@@ -14,12 +15,14 @@ import { claimFiles as claimFilesFn, releaseFiles as releaseFilesFn, getLockedFi
 import { startSession as startSessionFn, endSession as endSessionFn, recordEdit as recordEditFn, getSessionHistory, enrichSessionModel as enrichSessionModelFn } from './sessions.js';
 import { sendMessage as sendMessageFn, getMessages as getMessagesFn } from './messages.js';
 import { inferHostToolFromAgentId } from './runtime.js';
-
-// --- Tuning constants ---
-const HEARTBEAT_ACTIVE_SECONDS = 60;    // Heartbeat within this window = "active"
-const HEARTBEAT_STALE_SECONDS = 300;    // No heartbeat for this long = evicted
-const SESSION_RETENTION_DAYS = 30;      // How long session history is kept
-const CONTEXT_CACHE_TTL_MS = 2000;      // getContext() cache lifetime
+import {
+  HEARTBEAT_ACTIVE_WINDOW_S,
+  HEARTBEAT_STALE_WINDOW_S,
+  SESSION_RETENTION_DAYS,
+  CONTEXT_CACHE_TTL_MS,
+  CLEANUP_INTERVAL_MS,
+  HEARTBEAT_BROADCAST_DEBOUNCE_MS,
+} from '../../lib/constants.js';
 
 export class TeamDO extends DurableObject {
   #schemaReady = false;
@@ -96,7 +99,7 @@ export class TeamDO extends DurableObject {
           if (data.lastToolUseAt) {
             const parsed = new Date(data.lastToolUseAt);
             if (!isNaN(parsed.getTime())) {
-              const ts = parsed.toISOString().replace('T', ' ').slice(0, -1);
+              const ts = toSQLDateTime(parsed);
               this.sql.exec(
                 "UPDATE members SET last_heartbeat = datetime('now'), last_tool_use = ? WHERE agent_id = ?",
                 ts, agentId
@@ -191,7 +194,7 @@ export class TeamDO extends DurableObject {
       try {
         this.sql.exec(alter);
         if (backfill) this.sql.exec(backfill);
-      } catch {}
+      } catch (err) { console.error('[TeamDO] Migration failed:', err.message); }
     }
 
     if (this.#schemaReady) return;
@@ -297,7 +300,7 @@ export class TeamDO extends DurableObject {
   // Preserves agents with active WebSocket connections regardless of heartbeat age.
   #maybeCleanup() {
     const now = Date.now();
-    if (now - this.#lastCleanup < 60_000) return;
+    if (now - this.#lastCleanup < CLEANUP_INTERVAL_MS) return;
     this.#lastCleanup = now;
 
     // Agents with live WebSocket connections must not be evicted
@@ -311,13 +314,13 @@ export class TeamDO extends DurableObject {
         WHERE last_heartbeat < datetime('now', '-' || ? || ' seconds')
           AND agent_id NOT IN (${wsPlaceholders})
       )`,
-      HEARTBEAT_STALE_SECONDS, ...wsParams
+      HEARTBEAT_STALE_WINDOW_S, ...wsParams
     );
     this.sql.exec(
       `DELETE FROM members
        WHERE last_heartbeat < datetime('now', '-' || ? || ' seconds')
          AND agent_id NOT IN (${wsPlaceholders})`,
-      HEARTBEAT_STALE_SECONDS, ...wsParams
+      HEARTBEAT_STALE_WINDOW_S, ...wsParams
     );
     this.sql.exec(
       `DELETE FROM sessions WHERE started_at < datetime('now', '-' || ? || ' days')`,
@@ -332,7 +335,7 @@ export class TeamDO extends DurableObject {
         WHERE last_heartbeat > datetime('now', '-' || ? || ' seconds')
           OR agent_id IN (${wsPlaceholders})
       )`,
-      HEARTBEAT_STALE_SECONDS, ...wsParams
+      HEARTBEAT_STALE_WINDOW_S, ...wsParams
     );
     // Auto-close orphaned sessions
     this.sql.exec(
@@ -343,7 +346,7 @@ export class TeamDO extends DurableObject {
          WHERE last_heartbeat > datetime('now', '-' || ? || ' seconds')
            OR agent_id IN (${wsPlaceholders})
        )`,
-      HEARTBEAT_STALE_SECONDS, ...wsParams
+      HEARTBEAT_STALE_WINDOW_S, ...wsParams
     );
     // Prune stale telemetry
     this.sql.exec("DELETE FROM telemetry WHERE last_at < datetime('now', '-30 days')");
@@ -479,7 +482,7 @@ export class TeamDO extends DurableObject {
     if (!result.error) {
       const now = Date.now();
       const last = this.#lastHeartbeatBroadcast.get(resolved) || 0;
-      if (now - last >= 3000) {
+      if (now - last >= HEARTBEAT_BROADCAST_DEBOUNCE_MS) {
         this.#lastHeartbeatBroadcast.set(resolved, now);
         this.#broadcastToWatchers({ type: 'heartbeat', agent_id: resolved, ts: now });
       }
@@ -561,7 +564,7 @@ export class TeamDO extends DurableObject {
        FROM members m
        LEFT JOIN activities a ON a.agent_id = m.agent_id
        LEFT JOIN sessions s ON s.agent_id = m.agent_id AND s.ended_at IS NULL`,
-      HEARTBEAT_ACTIVE_SECONDS
+      HEARTBEAT_ACTIVE_WINDOW_S
     ).toArray();
 
     const memories = this.sql.exec(
@@ -569,7 +572,11 @@ export class TeamDO extends DurableObject {
        FROM memories
        ORDER BY updated_at DESC, created_at DESC
        LIMIT 20`
-    ).toArray().map(m => ({ ...m, tags: JSON.parse(m.tags || '[]') }));
+    ).toArray().map(m => {
+      let tags = [];
+      try { tags = JSON.parse(m.tags || '[]'); } catch {}
+      return { ...m, tags };
+    });
 
     const recentSessions = this.sql.exec(`
       SELECT agent_id, owner_handle, framework, host_tool, agent_surface, transport, agent_model, started_at, ended_at,
@@ -602,7 +609,7 @@ export class TeamDO extends DurableObject {
         minutes_since_update: m.minutes_since_update ?? null,
         signal_tier: wsConnected ? 'websocket' : m.heartbeat_active ? 'http' : 'none',
         activity: m.files ? {
-          files: JSON.parse(m.files),
+          files: (() => { try { return JSON.parse(m.files); } catch { return []; } })(),
           summary: m.summary,
           updated_at: m.updated_at,
         } : null,
@@ -635,7 +642,7 @@ export class TeamDO extends DurableObject {
        FROM locks l
        JOIN members m ON m.agent_id = l.agent_id
        WHERE m.last_heartbeat > datetime('now', '-' || ? || ' seconds')`,
-      HEARTBEAT_ACTIVE_SECONDS
+      HEARTBEAT_ACTIVE_WINDOW_S
     ).toArray();
 
     const telemetry = this.#getTelemetryBreakdown();
@@ -655,7 +662,7 @@ export class TeamDO extends DurableObject {
           agent_surface: s.agent_surface || null,
           transport: s.transport || null,
           agent_model: s.agent_model || null,
-          files_touched: JSON.parse(s.files_touched || '[]'),
+          files_touched: (() => { try { return JSON.parse(s.files_touched || '[]'); } catch { return []; } })(),
         };
       }),
     };
@@ -799,7 +806,7 @@ export class TeamDO extends DurableObject {
     const active = this.sql.exec(
       `SELECT COUNT(*) as c FROM members
        WHERE last_heartbeat > datetime('now', '-' || ? || ' seconds')`,
-      HEARTBEAT_ACTIVE_SECONDS
+      HEARTBEAT_ACTIVE_WINDOW_S
     ).toArray();
 
     const total = this.sql.exec('SELECT COUNT(*) as c FROM members').toArray();
@@ -809,13 +816,15 @@ export class TeamDO extends DurableObject {
       `SELECT a.files FROM activities a
        JOIN members m ON m.agent_id = a.agent_id
        WHERE m.last_heartbeat > datetime('now', '-' || ? || ' seconds')`,
-      HEARTBEAT_ACTIVE_SECONDS
+      HEARTBEAT_ACTIVE_WINDOW_S
     ).toArray();
 
     const fileCounts = new Map();
     for (const row of activities) {
       if (!row.files) continue;
-      for (const f of JSON.parse(row.files)) {
+      let parsedFiles = [];
+      try { parsedFiles = JSON.parse(row.files); } catch {}
+      for (const f of parsedFiles) {
         fileCounts.set(f, (fileCounts.get(f) || 0) + 1);
       }
     }

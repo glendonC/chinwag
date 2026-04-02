@@ -17,13 +17,18 @@ export function registerContextTool(addTool, { team, state }) {
     async ({ model } = {}) => {
       if (!state.teamId) return noTeam();
 
-      // Deferred model enrichment — fire-and-forget on first report
+      // Deferred model enrichment — fire-and-forget on first report.
+      // Set flag optimistically to prevent duplicate reports from concurrent calls.
       if (model && !state.modelReported && state.teamId) {
-        team.reportModel(state.teamId, model).then(() => {
-          state.modelReported = true;
-        }).catch((err) => {
-          console.error('[chinwag] Model report failed:', err.message);
-        });
+        state.modelReported = true;
+        (async () => {
+          try {
+            await team.reportModel(state.teamId, model);
+          } catch (err) {
+            state.modelReported = false;
+            console.error('[chinwag] Model report failed:', err.message);
+          }
+        })();
       }
       const ctx = await refreshContext(team, state.teamId);
       if (!ctx) {

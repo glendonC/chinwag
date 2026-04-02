@@ -17,6 +17,10 @@ import { resolveAgentIdentity } from './lib/lifecycle.js';
 import { formatWho } from './lib/utils/formatting.js';
 import { formatTeamContextDisplay } from './lib/utils/display.js';
 
+// --- Constants ---
+const STDIN_TIMEOUT_MS = 3000;
+const STDIN_MAX_BYTES = 1_000_000;
+
 const subcommand = process.argv[2];
 
 async function main() {
@@ -145,12 +149,12 @@ function readStdin() {
       process.stdin.removeAllListeners('data');
       process.stdin.removeAllListeners('end');
       done({});
-    }, 3000);
+    }, STDIN_TIMEOUT_MS);
 
     process.stdin.setEncoding('utf-8');
     process.stdin.on('data', chunk => {
       data += chunk;
-      if (data.length > 1_000_000) {
+      if (data.length > STDIN_MAX_BYTES) {
         clearTimeout(timeout);
         process.stdin.removeAllListeners('data');
         process.stdin.removeAllListeners('end');
@@ -159,7 +163,7 @@ function readStdin() {
     });
     process.stdin.on('end', () => {
       clearTimeout(timeout);
-      try { done(JSON.parse(data)); } catch { done({}); }
+      try { done(JSON.parse(data)); } catch (err) { console.error('[chinwag]', err?.message || 'stdin parse failed'); done({}); }
     });
   });
 }

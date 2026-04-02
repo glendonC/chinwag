@@ -20,6 +20,12 @@ import {
 } from '../launcher-preferences.js';
 import { getAgentDisplayLabel } from './agent-display.js';
 
+// ── Constants ───────────────────────────────────────
+const DURATION_TICK_MS = 10_000;
+const EXTERNAL_AGENT_POLL_MS = 3_000;
+const EARLY_EXIT_THRESHOLD_MS = 15_000;
+const FAILURE_OUTPUT_LINES = 200;
+
 /**
  * Custom hook for agent lifecycle management.
  * Handles spawning, killing, restarting agents, tool availability checking,
@@ -54,7 +60,7 @@ export function useAgentLifecycle({
     setManagedAgents(getAgents());
     const unsub = onUpdate(() => setManagedAgents(getAgents()));
     // Tick every 10s to update duration display
-    const ticker = setInterval(() => setManagedAgents(getAgents()), 10000);
+    const ticker = setInterval(() => setManagedAgents(getAgents()), DURATION_TICK_MS);
     return () => { unsub(); clearInterval(ticker); };
   }, []);
 
@@ -105,7 +111,7 @@ export function useAgentLifecycle({
       const lastStatus = previous.get(agent.id);
       if (lastStatus === 'running' && agent.status !== 'running') {
         const failureStatus = agent.status === 'failed'
-          ? classifyManagedAgentFailure(agent.toolId, getOutput(agent.id, 200).join('\n'))
+          ? classifyManagedAgentFailure(agent.toolId, getOutput(agent.id, FAILURE_OUTPUT_LINES).join('\n'))
           : null;
         if (failureStatus) {
           setManagedToolStates(prev => ({
@@ -159,7 +165,7 @@ export function useAgentLifecycle({
           const was = prev.get(agent.id);
           if (was === 'running' && agent.status !== 'running') {
             const age = now - (agent.startedAt || 0);
-            if (age < 15000 && agent.toolId) {
+            if (age < EARLY_EXIT_THRESHOLD_MS && agent.toolId) {
               flash(`${agent.toolName || agent.toolId} exited immediately. Press [f] to fix.`, { tone: 'warning' });
               setManagedToolStatusTick(t => t + 1);
             }
@@ -169,7 +175,7 @@ export function useAgentLifecycle({
       for (const agent of getAgents()) {
         if (agent.spawnType === 'external') prev.set(agent.id, agent.status);
       }
-    }, 3000);
+    }, EXTERNAL_AGENT_POLL_MS);
     return () => clearInterval(interval);
   }, []);
 

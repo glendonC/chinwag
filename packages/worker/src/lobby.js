@@ -3,11 +3,12 @@
 // Uses DO RPC for direct method calls.
 
 import { DurableObject } from 'cloudflare:workers';
-
-const MIN_ROOM_SIZE = 5;
-const MAX_ROOM_SIZE = 30;
-const TARGET_ROOM_SIZE = 20;
-const PRESENCE_TTL_MS = 60_000;
+import {
+  CHAT_CHAT_MIN_ROOM_SIZE,
+  CHAT_CHAT_MAX_ROOM_SIZE,
+  CHAT_CHAT_TARGET_ROOM_SIZE,
+  PRESENCE_TTL_MS,
+} from './lib/constants.js';
 
 export class LobbyDO extends DurableObject {
   #schemaReady = false;
@@ -70,10 +71,10 @@ export class LobbyDO extends DurableObject {
     let bestScore = Infinity;
 
     for (const [roomId, info] of this.rooms) {
-      if (info.count >= MAX_ROOM_SIZE) continue;
-      if (shuffle && info.count < MIN_ROOM_SIZE) continue;
+      if (info.count >= CHAT_MAX_ROOM_SIZE) continue;
+      if (shuffle && info.count < CHAT_MIN_ROOM_SIZE) continue;
 
-      const score = Math.abs(info.count - TARGET_ROOM_SIZE);
+      const score = Math.abs(info.count - CHAT_TARGET_ROOM_SIZE);
       if (score < bestScore) {
         bestScore = score;
         bestRoom = roomId;

@@ -3,6 +3,21 @@ import { json, parseBody } from '../lib/http.js';
 import { requireJson, withRateLimit } from '../lib/validation.js';
 import { evaluateTool } from '../lib/evaluate.js';
 import { CATEGORY_NAMES } from '../catalog.js';
+import { RATE_LIMIT_EVALUATIONS } from '../lib/constants.js';
+
+// Constant-time string comparison to prevent timing attacks on admin key checks.
+function timingSafeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  if (a.length !== b.length) return false;
+  const encoder = new TextEncoder();
+  const bufA = encoder.encode(a);
+  const bufB = encoder.encode(b);
+  let result = 0;
+  for (let i = 0; i < bufA.length; i++) {
+    result |= bufA[i] ^ bufB[i];
+  }
+  return result === 0;
+}
 
 const CACHE_HEADERS = {
   'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600',
@@ -50,7 +65,7 @@ export async function handleAdminDelete(request, env) {
   if (parseErr) return parseErr;
 
   const { ids, admin_key } = body;
-  if (!env.EXA_API_KEY || admin_key !== env.EXA_API_KEY) return json({ error: 'Forbidden' }, 403);
+  if (!env.EXA_API_KEY || !timingSafeEqual(admin_key, env.EXA_API_KEY)) return json({ error: 'Forbidden' }, 403);
   if (!Array.isArray(ids) || ids.length === 0) return json({ error: 'ids array required' }, 400);
 
   const db = getDB(env);
@@ -70,7 +85,7 @@ export async function handleBatchEvaluate(request, env) {
   if (parseErr) return parseErr;
 
   const { tools, admin_key } = body;
-  if (!env.EXA_API_KEY || admin_key !== env.EXA_API_KEY) return json({ error: 'Forbidden' }, 403);
+  if (!env.EXA_API_KEY || !timingSafeEqual(admin_key, env.EXA_API_KEY)) return json({ error: 'Forbidden' }, 403);
   if (!Array.isArray(tools) || tools.length === 0) return json({ error: 'tools array required' }, 400);
   if (tools.length > 50) return json({ error: 'max 50 tools per batch' }, 400);
 
@@ -115,7 +130,7 @@ export async function handleTriggerEvaluation(request, user, env) {
   const nameOrUrl = hasName ? name.trim() : url.trim();
   const slugified = nameOrUrl.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-  return withRateLimit(db, `eval:${user.id}`, 5, 'Evaluation limit reached (5/day). Try again tomorrow.', async () => {
+  return withRateLimit(db, `eval:${user.id}`, RATE_LIMIT_EVALUATIONS, 'Evaluation limit reached (5/day). Try again tomorrow.', async () => {
     // Check if evaluation already exists and is recent
     const existing = await db.getEvaluation(slugified);
     if (existing.evaluation) {

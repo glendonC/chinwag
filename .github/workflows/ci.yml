@@ -7,6 +7,22 @@ on:
     branches: [main]
 
 jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            packages/web/package-lock.json
+      - run: npm ci
+      - run: npx eslint .
+      - run: npx prettier --check .
+
   test-worker:
     name: Test Worker
     runs-on: ubuntu-latest

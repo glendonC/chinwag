@@ -1,6 +1,7 @@
 {
   "name": "chinwag-monorepo",
   "private": true,
+  "type": "module",
   "workspaces": [
     "packages/cli",
     "packages/worker",
@@ -20,9 +21,29 @@
     "dev:web": "npm run dev --prefix packages/web",
     "dev:web:static": "npm run dev:static --prefix packages/web",
     "dev:web:py": "python3 packages/web/serve.py",
-    "og-image": "npm exec --yes --package=@resvg/resvg-js@2.4.0 -- node packages/web/scripts/render-og-image.mjs"
+    "og-image": "npm exec --yes --package=@resvg/resvg-js@2.4.0 -- node packages/web/scripts/render-og-image.mjs",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,jsx}": [
+      "eslint --fix"
+    ],
+    "*.{js,jsx,json,css,md}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.8.1",
     "vitest": "^3.2.4"
   }
 }
