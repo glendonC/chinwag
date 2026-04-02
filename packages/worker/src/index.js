@@ -46,7 +46,7 @@ import {
   handleTeamWebSocket,
 } from './routes/team.js';
 
-export { DatabaseDO } from './db.js';
+export { DatabaseDO } from './dos/database/index.js';
 export { LobbyDO } from './lobby.js';
 export { RoomDO } from './room.js';
 export { TeamDO } from './dos/team/index.js';
@@ -219,7 +219,7 @@ export default {
       return new Response(response.body, { status: response.status, headers });
     } catch (err) {
       const ref = crypto.randomUUID().slice(0, 8);
-      console.error(`Request error (ref: ${ref}):`, err);
+      console.error(`Request error (ref: ${ref}):`, { method, path, error: err.message, stack: err.stack });
       return json({ error: `Internal server error (ref: ${ref})` }, 500, corsHeaders);
     }
   },

@@ -4,9 +4,9 @@
 
 import { DurableObject } from 'cloudflare:workers';
 import {
-  CHAT_CHAT_MIN_ROOM_SIZE,
-  CHAT_CHAT_MAX_ROOM_SIZE,
-  CHAT_CHAT_TARGET_ROOM_SIZE,
+  CHAT_MIN_ROOM_SIZE,
+  CHAT_MAX_ROOM_SIZE,
+  CHAT_TARGET_ROOM_SIZE,
   PRESENCE_TTL_MS,
 } from './lib/constants.js';
 

@@ -2,6 +2,14 @@ name = "chinwag-api"
 main = "src/index.js"
 compatibility_date = "2024-12-01"
 
+# Workers Observability — logs + traces persisted to CF dashboard
+# View at: dash.cloudflare.com → Workers & Pages → chinwag-api → Observability
+[observability]
+enabled = true
+
+[observability.traces]
+enabled = true
+
 [vars]
 ENVIRONMENT = "production"
 DASHBOARD_URL = "https://chinwag.dev"

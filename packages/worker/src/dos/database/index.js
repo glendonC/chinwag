@@ -1,11 +1,22 @@
 // Database Durable Object — single instance holding all persistent data in SQLite.
 // Uses DO RPC for direct method calls from the Worker.
 // Users have UUID primary keys; handles are display names with a unique index.
+//
+// Submodules:
+//   evaluations.js — tool directory CRUD (largest separate domain)
 
 import { DurableObject } from 'cloudflare:workers';
-import { seedEvaluations } from './lib/seed-evaluations.js';
-import { toSQLDateTime } from './lib/text-utils.js';
-import { WEB_SESSION_DURATION_MS } from './lib/constants.js';
+import { seedEvaluations } from '../../lib/seed-evaluations.js';
+import { toSQLDateTime } from '../../lib/text-utils.js';
+import { WEB_SESSION_DURATION_MS } from '../../lib/constants.js';
+import {
+  saveEvaluation as saveEvalFn,
+  getEvaluation as getEvalFn,
+  listEvaluations as listEvalsFn,
+  searchEvaluations as searchEvalsFn,
+  deleteEvaluation as deleteEvalFn,
+  hasEvaluations as hasEvalsFn,
+} from './evaluations.js';
 
 const COLORS = [
   'red', 'cyan', 'yellow', 'green', 'magenta', 'blue',
@@ -134,7 +145,7 @@ export class DatabaseDO extends DurableObject {
     this.#schemaReady = true;
   }
 
-  // --- User operations ---
+  // ── Users ──
 
   async createUser() {
     this.#ensureSchema();
@@ -194,7 +205,6 @@ export class DatabaseDO extends DurableObject {
       return { error: 'Handle must be 3-20 characters, alphanumeric + underscores only' };
     }
 
-    // Check if taken by another user (exclude self)
     const taken = this.sql.exec(
       'SELECT 1 FROM users WHERE handle = ? AND id != ?', newHandle, userId
     ).toArray().length > 0;
@@ -223,7 +233,7 @@ export class DatabaseDO extends DurableObject {
     return { ok: true };
   }
 
-  // --- GitHub OAuth ---
+  // ── GitHub OAuth ──
 
   async getUserByGithubId(githubId) {
     this.#ensureSchema();
@@ -265,7 +275,6 @@ export class DatabaseDO extends DurableObject {
   async linkGithub(userId, githubId, githubLogin, avatarUrl) {
     this.#ensureSchema();
 
-    // Check if this GitHub account is already linked to another user
     const existing = this.sql.exec(
       'SELECT id FROM users WHERE github_id = ? AND id != ?', String(githubId), userId
     ).toArray();
@@ -289,7 +298,7 @@ export class DatabaseDO extends DurableObject {
     return { ok: true };
   }
 
-  // --- Web sessions ---
+  // ── Web sessions ──
 
   async createWebSession(userId, userAgent) {
     this.#ensureSchema();
@@ -338,9 +347,7 @@ export class DatabaseDO extends DurableObject {
     ).toArray();
   }
 
-  // --- Rate limiting ---
-  // Uses account_limits table for all per-day rate limits.
-  // The `ip` column is the rate limit key — may be an IP, user ID prefix, or other key.
+  // ── Rate limiting ──
 
   async checkRateLimit(key, maxPerDay = 3) {
     this.#ensureSchema();
@@ -365,25 +372,21 @@ export class DatabaseDO extends DurableObject {
     );
   }
 
-  // --- Stats ---
+  // ── Stats ──
 
   async getStats() {
     this.#ensureSchema();
-
     const users = this.sql.exec('SELECT COUNT(*) as count FROM users').toArray();
-
-    return {
-      totalUsers: users[0]?.count || 0,
-    };
+    return { totalUsers: users[0]?.count || 0 };
   }
 
-  // --- Tool evaluations ---
+  // ── Tool evaluations (logic in evaluations.js) ──
 
   async #ensureEvaluationsSeeded() {
     if (this.#evaluationsSeeded) return;
     this.#ensureSchema();
-    const rows = this.sql.exec('SELECT COUNT(*) as count FROM tool_evaluations').toArray();
-    if (rows[0].count === 0) {
+    const { count } = hasEvalsFn(this.sql);
+    if (count === 0) {
       await seedEvaluations(this);
     }
     this.#evaluationsSeeded = true;
@@ -391,143 +394,35 @@ export class DatabaseDO extends DurableObject {
 
   async saveEvaluation(evaluation) {
     this.#ensureSchema();
-    const metadata = typeof evaluation.metadata === 'string' ? evaluation.metadata : JSON.stringify(evaluation.metadata ?? {});
-    const sources = typeof evaluation.sources === 'string' ? evaluation.sources : JSON.stringify(evaluation.sources ?? []);
-    const blockingIssues = typeof evaluation.blocking_issues === 'string' ? evaluation.blocking_issues : JSON.stringify(evaluation.blocking_issues ?? []);
-
-    this.sql.exec(
-      `INSERT INTO tool_evaluations (id, name, tagline, category, mcp_support, has_cli, hooks_support, channel_support, process_detectable, open_source, verdict, integration_tier, blocking_issues, metadata, sources, in_registry, evaluated_at, confidence, evaluated_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET
-         name = excluded.name,
-         tagline = excluded.tagline,
-         category = excluded.category,
-         mcp_support = excluded.mcp_support,
-         has_cli = excluded.has_cli,
-         hooks_support = excluded.hooks_support,
-         channel_support = excluded.channel_support,
-         process_detectable = excluded.process_detectable,
-         open_source = excluded.open_source,
-         verdict = excluded.verdict,
-         integration_tier = excluded.integration_tier,
-         blocking_issues = excluded.blocking_issues,
-         metadata = excluded.metadata,
-         sources = excluded.sources,
-         in_registry = excluded.in_registry,
-         evaluated_at = excluded.evaluated_at,
-         confidence = excluded.confidence,
-         evaluated_by = excluded.evaluated_by`,
-      evaluation.id,
-      evaluation.name,
-      evaluation.tagline ?? null,
-      evaluation.category ?? null,
-      evaluation.mcp_support ?? null,
-      evaluation.has_cli ?? null,
-      evaluation.hooks_support ?? null,
-      evaluation.channel_support ?? null,
-      evaluation.process_detectable ?? null,
-      evaluation.open_source ?? null,
-      evaluation.verdict,
-      evaluation.integration_tier ?? null,
-      blockingIssues,
-      metadata,
-      sources,
-      evaluation.in_registry ?? 0,
-      evaluation.evaluated_at,
-      evaluation.confidence ?? 'medium',
-      evaluation.evaluated_by ?? null
-    );
-
-    return { ok: true };
+    return saveEvalFn(this.sql, evaluation);
   }
 
   async getEvaluation(toolId) {
     await this.#ensureEvaluationsSeeded();
-    const rows = this.sql.exec('SELECT * FROM tool_evaluations WHERE id = ?', toolId).toArray();
-    if (rows.length === 0) return { evaluation: null };
-    return { evaluation: this.#parseEvaluation(rows[0]) };
+    return getEvalFn(this.sql, toolId);
   }
 
   async listEvaluations(filters = {}) {
     await this.#ensureEvaluationsSeeded();
-    const conditions = [];
-    const params = [];
-
-    if (filters.verdict != null) {
-      conditions.push('verdict = ?');
-      params.push(filters.verdict);
-    }
-    if (filters.category != null) {
-      conditions.push('category = ?');
-      params.push(filters.category);
-    }
-    if (filters.mcp_support != null) {
-      conditions.push('mcp_support = ?');
-      params.push(filters.mcp_support);
-    }
-    if (filters.in_registry != null) {
-      conditions.push('in_registry = ?');
-      params.push(filters.in_registry);
-    }
-
-    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    const limit = Math.min(filters.limit || 100, 200);
-    const offset = filters.offset || 0;
-
-    const rows = this.sql.exec(
-      `SELECT * FROM tool_evaluations ${where} ORDER BY name ASC LIMIT ? OFFSET ?`,
-      ...params, limit, offset
-    ).toArray();
-
-    return { evaluations: rows.map(r => this.#parseEvaluation(r)) };
+    return listEvalsFn(this.sql, filters);
   }
 
   async searchEvaluations(query, limit = 20) {
     await this.#ensureEvaluationsSeeded();
-    const pattern = `%${query}%`;
-    const rows = this.sql.exec(
-      'SELECT * FROM tool_evaluations WHERE name LIKE ? OR tagline LIKE ? ORDER BY name ASC LIMIT ?',
-      pattern, pattern, limit
-    ).toArray();
-
-    return { evaluations: rows.map(r => this.#parseEvaluation(r)) };
+    return searchEvalsFn(this.sql, query, limit);
   }
 
   async deleteEvaluation(toolId) {
     this.#ensureSchema();
-    this.sql.exec('DELETE FROM tool_evaluations WHERE id = ?', toolId);
-    const changed = this.sql.exec('SELECT changes() as c').toArray();
-    return { ok: true, deleted: changed[0].c > 0 };
+    return deleteEvalFn(this.sql, toolId);
   }
 
   async hasEvaluations() {
     this.#ensureSchema();
-    const rows = this.sql.exec('SELECT COUNT(*) as count FROM tool_evaluations').toArray();
-    return { count: rows[0].count };
+    return hasEvalsFn(this.sql);
   }
 
-  #parseEvaluation(row) {
-    return {
-      ...row,
-      metadata: JSON.parse(row.metadata || '{}'),
-      sources: JSON.parse(row.sources || '[]'),
-      blocking_issues: JSON.parse(row.blocking_issues || '[]'),
-    };
-  }
-
-  // --- Private helpers ---
-
-  #generateHandle() {
-    const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
-    const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
-    return adj + noun;
-  }
-
-  #handleExists(handle) {
-    return this.sql.exec('SELECT 1 FROM users WHERE handle = ?', handle).toArray().length > 0;
-  }
-
-  // --- User teams ---
+  // ── User teams ──
 
   async addUserTeam(userId, teamId, name = null) {
     this.#ensureSchema();
@@ -554,7 +449,7 @@ export class DatabaseDO extends DurableObject {
     return { ok: true };
   }
 
-  // --- Agent profiles ---
+  // ── Agent profiles ──
 
   async updateAgentProfile(userId, profile) {
     this.#ensureSchema();
@@ -582,6 +477,17 @@ export class DatabaseDO extends DurableObject {
     return { ok: true };
   }
 
+  // ── Private helpers ──
+
+  #generateHandle() {
+    const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
+    const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
+    return adj + noun;
+  }
+
+  #handleExists(handle) {
+    return this.sql.exec('SELECT 1 FROM users WHERE handle = ?', handle).toArray().length > 0;
+  }
 }
 
 function utcDate() {
