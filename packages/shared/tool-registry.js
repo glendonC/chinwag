@@ -62,6 +62,7 @@
  * @property {ToolSpawnConfig} [spawn] - Spawn configuration (managed tools only)
  * @property {ToolAvailabilityCheck} [availabilityCheck] - Authentication check
  * @property {ToolFailurePattern[]} [failurePatterns] - Error diagnosis patterns
+ * @property {'managed'|'connected'} [tier] - Override inferred tier (inferred from spawn)
  * @property {ToolCatalog} catalog - Catalog metadata
  */
 
@@ -262,6 +263,7 @@ export const MCP_TOOLS = [
     },
     mcpConfig: '.mcp.json',
     spawn: { cmd: 'q', taskArg: 'positional' },
+    tier: 'connected',
     catalog: {
       description: 'AWS AI assistant for coding, debugging, and deployment',
       category: 'coding-agent',

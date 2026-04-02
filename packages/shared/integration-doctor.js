@@ -2,6 +2,10 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { execFileSync } from 'child_process';
 import { HOST_INTEGRATIONS, getHostIntegrationById } from './integration-model.js';
+import { MCP_TOOLS } from './tool-registry.js';
+
+/** Derived from the registry — the first tool that declares hooks support. */
+const DEFAULT_HOOK_HOST = MCP_TOOLS.find((t) => t.hooks)?.id || 'claude-code';
 
 /**
  * @typedef {Object} IntegrationScanResult
@@ -90,11 +94,9 @@ export function buildChinwagCliArgs(subcommand, { hostId = null, surfaceId = nul
  * @param {string|null} [options.surfaceId]
  * @returns {string}
  */
-export function buildChinwagHookCommand(subcommand, { hostId = 'claude-code', surfaceId = null } = {}) {
+export function buildChinwagHookCommand(subcommand, { hostId = DEFAULT_HOOK_HOST, surfaceId = null } = {}) {
   const args = ['npx', '-y', 'chinwag', 'hook', subcommand];
-  // Hooks are currently Claude Code-specific, so keep the subcommand positional
-  // and avoid forcing argv reshaping in the runtime handoff path.
-  if (hostId && hostId !== 'claude-code') args.push('--tool', hostId);
+  if (hostId && hostId !== DEFAULT_HOOK_HOST) args.push('--tool', hostId);
   if (surfaceId) args.push('--surface', surfaceId);
   return args.join(' ');
 }
@@ -269,7 +271,7 @@ export function writeMcpConfig(cwd, relativePath, { channel = false, hostId = nu
  * @param {string|null} [options.surfaceId]
  * @returns {WriteResult}
  */
-export function writeHooksConfig(cwd, { hostId = 'claude-code', surfaceId = null } = {}) {
+export function writeHooksConfig(cwd, { hostId = DEFAULT_HOOK_HOST, surfaceId = null } = {}) {
   const filePath = join(cwd, '.claude', 'settings.json');
   const config = readJson(filePath);
 

@@ -54,69 +54,21 @@ import { MCP_TOOLS } from './tool-registry.js';
  * @property {boolean} [featured]
  */
 
-const HOST_OVERRIDES = {
-  'claude-code': {
-    tier: 'managed',
-    capabilities: ['mcp', 'hooks', 'channel', 'managed-process'],
-    displayGroup: 'host',
-  },
-  'cursor': {
-    tier: 'connected',
-    capabilities: ['mcp'],
-    displayGroup: 'host',
-  },
-  'windsurf': {
-    tier: 'connected',
-    capabilities: ['mcp'],
-    displayGroup: 'host',
-  },
-  'vscode': {
-    tier: 'connected',
-    capabilities: ['mcp'],
-    displayGroup: 'host',
-  },
-  'jetbrains': {
-    tier: 'connected',
-    capabilities: ['mcp'],
-    displayGroup: 'host',
-  },
-  'codex': {
-    tier: 'managed',
-    capabilities: ['mcp', 'managed-process'],
-    displayGroup: 'host',
-  },
-  'aider': {
-    tier: 'managed',
-    capabilities: ['mcp', 'managed-process'],
-    displayGroup: 'host',
-  },
-  'amazon-q': {
-    tier: 'connected',
-    capabilities: ['mcp'],
-    displayGroup: 'host',
-  },
-};
-
-function unique(list = []) {
-  return [...new Set(list.filter(Boolean))];
-}
-
 /** @type {HostIntegration[]} */
 export const HOST_INTEGRATIONS = MCP_TOOLS.map((tool) => {
-  const override = HOST_OVERRIDES[tool.id] || {};
-  const inferredCapabilities = unique([
+  const capabilities = [
     'mcp',
-    tool.hooks ? 'hooks' : null,
-    tool.channel ? 'channel' : null,
-    tool.spawn ? 'managed-process' : null,
-  ]);
+    ...(tool.hooks ? ['hooks'] : []),
+    ...(tool.channel ? ['channel'] : []),
+    ...(tool.spawn ? ['managed-process'] : []),
+  ];
 
   return {
     ...tool,
     kind: 'host',
-    tier: override.tier || (tool.spawn ? 'managed' : 'connected'),
-    capabilities: override.capabilities || inferredCapabilities,
-    displayGroup: override.displayGroup || 'host',
+    tier: tool.tier || (tool.spawn ? 'managed' : 'connected'),
+    capabilities,
+    displayGroup: 'host',
     runtime: {
       hostId: tool.id,
       defaultTransport: 'mcp',
