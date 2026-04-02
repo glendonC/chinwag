@@ -5,8 +5,7 @@
   "workspaces": [
     "packages/cli",
     "packages/worker",
-    "packages/mcp",
-    "packages/shared"
+    "packages/mcp"
   ],
   "scripts": {
     "build:vscode": "esbuild packages/vscode/extension.js --bundle --platform=node --format=cjs --outfile=packages/vscode/dist/extension.js --external:vscode",
@@ -17,6 +16,7 @@
     "test:worker": "npm run test --workspace=packages/worker",
     "test:mcp": "npm run test --workspace=packages/mcp",
     "test:cli": "npm run test --workspace=packages/cli",
+    "test:shared": "npm run test --prefix packages/shared",
     "test:coverage": "npm run test:coverage:mcp && npm run test:coverage:cli && npm run test:coverage:worker && npm run test:coverage:web",
     "test:coverage:worker": "npm run test:coverage --workspace=packages/worker",
     "test:coverage:mcp": "npm run test:coverage --workspace=packages/mcp",
