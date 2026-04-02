@@ -15,6 +15,8 @@ export function claimFiles(sql, resolvedAgentId, files, handle, runtimeOrTool) {
   for (const file of normalized) {
     // Atomic claim: insert if free, no-op if already held by another agent.
     // ON CONFLICT DO UPDATE only if we already own it (refresh our lock).
+    // The WHERE clause makes ownership enforcement part of the SQL constraint,
+    // so there's no TOCTOU window between checking and writing.
     sql.exec(
       `INSERT INTO locks (file_path, agent_id, owner_handle, tool, host_tool, agent_surface, claimed_at)
        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
@@ -28,13 +30,14 @@ export function claimFiles(sql, resolvedAgentId, files, handle, runtimeOrTool) {
       file, resolvedAgentId, handle || 'unknown', runtime.tool, runtime.hostTool, runtime.agentSurface
     );
 
-    // Check who actually owns the lock
-    const owner = sql.exec(
-      'SELECT agent_id, owner_handle, tool, host_tool, agent_surface, claimed_at FROM locks WHERE file_path = ?', file
-    ).toArray();
-
-    if (owner.length > 0 && owner[0].agent_id !== resolvedAgentId) {
-      const lock = owner[0];
+    // Use changes() to determine outcome: if 0 rows changed, the lock is held
+    // by another agent (the WHERE clause prevented the update).
+    const changed = sql.exec('SELECT changes() as c').toArray()[0].c;
+    if (changed === 0) {
+      // Lock held by another agent — fetch their details for the blocked response.
+      const lock = sql.exec(
+        'SELECT owner_handle, tool, host_tool, agent_surface, claimed_at FROM locks WHERE file_path = ?', file
+      ).toArray()[0];
       blocked.push({
         file,
         held_by: lock.owner_handle,
