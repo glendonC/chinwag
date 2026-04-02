@@ -94,11 +94,16 @@ export class TeamDO extends DurableObject {
         if (agentId) {
           this.#ensureSchema();
           if (data.lastToolUseAt) {
-            const ts = new Date(data.lastToolUseAt).toISOString().replace('T', ' ').slice(0, -1);
-            this.sql.exec(
-              "UPDATE members SET last_heartbeat = datetime('now'), last_tool_use = ? WHERE agent_id = ?",
-              ts, agentId
-            );
+            const parsed = new Date(data.lastToolUseAt);
+            if (!isNaN(parsed.getTime())) {
+              const ts = parsed.toISOString().replace('T', ' ').slice(0, -1);
+              this.sql.exec(
+                "UPDATE members SET last_heartbeat = datetime('now'), last_tool_use = ? WHERE agent_id = ?",
+                ts, agentId
+              );
+            } else {
+              this.sql.exec("UPDATE members SET last_heartbeat = datetime('now') WHERE agent_id = ?", agentId);
+            }
           } else {
             this.sql.exec("UPDATE members SET last_heartbeat = datetime('now') WHERE agent_id = ?", agentId);
           }

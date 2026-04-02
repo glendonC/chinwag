@@ -19,7 +19,7 @@ export async function refreshContext(team, teamId) {
   }
   try {
     cachedContext = await team.getTeamContext(teamId);
-    cachedContextAt = now;
+    cachedContextAt = Date.now();
     cachedContextTeam = teamId;
     if (isOffline) {
       isOffline = false;

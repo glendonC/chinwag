@@ -15,6 +15,7 @@ export default function SettingsView() {
   const [handleError, setHandleError] = useState(null);
   const [handleSaving, setHandleSaving] = useState(false);
   const [colorSaving, setColorSaving] = useState(false);
+  const [colorError, setColorError] = useState(null);
   const [hoveredColor, setHoveredColor] = useState(null);
   const [unlinking, setUnlinking] = useState(false);
   const [linkError, setLinkError] = useState(null);
@@ -52,10 +53,13 @@ export default function SettingsView() {
   async function selectColor(colorName) {
     if (colorName === user?.color || colorSaving) return;
     setColorSaving(true);
+    setColorError(null);
     try {
       await api('PUT', '/me/color', { color: colorName }, token);
       authActions.updateUser({ color: colorName });
-    } catch {} finally {
+    } catch (err) {
+      setColorError(err.message || 'Could not update color');
+    } finally {
       setColorSaving(false);
     }
   }
@@ -154,6 +158,7 @@ export default function SettingsView() {
               );
             })}
           </div>
+          {colorError && <span className={styles.handleError}>{colorError}</span>}
         </div>
       </section>
 

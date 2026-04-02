@@ -31,29 +31,35 @@ export function Discover({ config, navigate }) {
   const loadingTimer = useRef(null);
 
   useEffect(() => {
+    let cancelled = false;
     refreshIntegrations();
 
     // Fetch catalog from API (single source of truth)
     async function fetchCatalog() {
       try {
         const result = await api(config).get('/tools/directory?limit=200');
+        if (cancelled) return;
         setCatalog((result.evaluations || []).map(evalToTool));
         setCategories(result.categories || {});
       } catch {
         // Fallback to old catalog endpoint if directory isn't deployed yet
         try {
           const fallback = await api(config).get('/tools/catalog');
+          if (cancelled) return;
           setCatalog(fallback.tools || []);
           setCategories(fallback.categories || {});
         } catch (err) {
+          if (cancelled) return;
           setMessage(`Could not fetch tool catalog: ${err.message}`);
         }
       }
+      if (cancelled) return;
       setLoading(false);
       if (loadingTimer.current) { clearTimeout(loadingTimer.current); loadingTimer.current = null; }
     }
 
     loadingTimer.current = setTimeout(() => {
+      if (cancelled) return;
       setLoadingTimedOut(true);
       setLoading(false);
     }, LOADING_TIMEOUT_MS);
@@ -61,6 +67,7 @@ export function Discover({ config, navigate }) {
     fetchCatalog();
 
     return () => {
+      cancelled = true;
       if (loadingTimer.current) clearTimeout(loadingTimer.current);
     };
   }, []);
