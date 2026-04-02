@@ -5,6 +5,14 @@ import { getInkColor } from './colors.js';
 
 const WS_URL = process.env.CHINWAG_WS_URL || 'wss://chinwag-api.glendonchin.workers.dev/ws/chat';
 
+// ── Constants ───────────────────────────────────────
+const CHAT_HISTORY_LIMIT = 50;
+const VISIBLE_MESSAGE_COUNT = 15;
+const MAX_MESSAGE_LENGTH = 280;
+const ERROR_DISPLAY_MS = 3000;
+const MAX_RECONNECT_DELAY_MS = 15000;
+const RECONNECT_BASE_MS = 1000;
+
 export function Chat({ config, user, navigate }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -47,7 +55,7 @@ export function Chat({ config, user, navigate }) {
 
     ws.addEventListener('message', (event) => {
       let data;
-      try { data = JSON.parse(event.data); } catch { return; }
+      try { data = JSON.parse(event.data); } catch (err) { console.error('[chinwag]', err?.message || err); return; }
 
       if (data.type === 'history') {
         setMessages(data.messages || []);
@@ -56,7 +64,7 @@ export function Chat({ config, user, navigate }) {
       }
 
       if (data.type === 'system') {
-        setMessages(prev => [...prev.slice(-49), {
+        setMessages(prev => [...prev.slice(-(CHAT_HISTORY_LIMIT - 1)), {
           type: 'system',
           content: data.content,
           timestamp: new Date().toISOString(),
@@ -66,7 +74,7 @@ export function Chat({ config, user, navigate }) {
 
       if (data.type === 'join' || data.type === 'leave') {
         setRoomCount(data.roomCount || 0);
-        setMessages(prev => [...prev.slice(-49), {
+        setMessages(prev => [...prev.slice(-(CHAT_HISTORY_LIMIT - 1)), {
           type: 'system',
           content: `${data.handle} ${data.type === 'join' ? 'joined' : 'left'}`,
           timestamp: new Date().toISOString(),
@@ -75,7 +83,7 @@ export function Chat({ config, user, navigate }) {
       }
 
       if (data.type === 'message') {
-        setMessages(prev => [...prev.slice(-49), data]);
+        setMessages(prev => [...prev.slice(-(CHAT_HISTORY_LIMIT - 1)), data]);
       }
     });
 
@@ -95,7 +103,7 @@ export function Chat({ config, user, navigate }) {
 
   function scheduleReconnect() {
     // Exponential backoff: 1s, 2s, 4s, 8s, max 15s
-    const delay = Math.min(1000 * Math.pow(2, retryRef.current), 15000);
+    const delay = Math.min(RECONNECT_BASE_MS * Math.pow(2, retryRef.current), MAX_RECONNECT_DELAY_MS);
     retryRef.current++;
     retryTimerRef.current = setTimeout(() => {
       if (!intentionalCloseRef.current) {
@@ -107,7 +115,7 @@ export function Chat({ config, user, navigate }) {
   function showError(message) {
     setError(message);
     clearTimeout(errorTimerRef.current);
-    errorTimerRef.current = setTimeout(() => setError(''), 3000);
+    errorTimerRef.current = setTimeout(() => setError(''), ERROR_DISPLAY_MS);
   }
 
   function send() {
@@ -117,8 +125,8 @@ export function Chat({ config, user, navigate }) {
       showError('Disconnected — reconnecting...');
       return;
     }
-    if (msg.length > 280) {
-      showError('Message too long (max 280 chars)');
+    if (msg.length > MAX_MESSAGE_LENGTH) {
+      showError(`Message too long (max ${MAX_MESSAGE_LENGTH} chars)`);
       return;
     }
 
@@ -148,7 +156,7 @@ export function Chat({ config, user, navigate }) {
     }
   });
 
-  const visibleMessages = messages.slice(-15);
+  const visibleMessages = messages.slice(-VISIBLE_MESSAGE_COUNT);
 
   return (
     <Box flexDirection="column" padding={1} borderStyle="round" borderColor="gray">

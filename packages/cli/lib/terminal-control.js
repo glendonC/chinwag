@@ -16,7 +16,7 @@ export function getTerminalUiCapabilities() {
   let colorDepth = 1;
   try {
     colorDepth = process.stdout?.getColorDepth?.() || 1;
-  } catch {}
+  } catch (err) { console.error('[chinwag]', err?.message || err); }
 
   const hasNamedTerminal = Boolean(term && term !== 'dumb' && term !== 'unknown');
   const hasBasicColor = forceColor || (!noColor && hasNamedTerminal && colorDepth >= 4);

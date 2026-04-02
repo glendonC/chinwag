@@ -19,7 +19,8 @@ export function openCommandInTerminal(command, cwd = process.cwd()) {
         cwd,
       }));
       return { ok: true };
-    } catch {
+    } catch (err) {
+      console.error('[chinwag]', err?.message || err);
       // fall through to platform spawners
     }
   }
@@ -49,7 +50,7 @@ export function openCommandInTerminal(command, cwd = process.cwd()) {
         try {
           execFileSync(cmd, args, { stdio: 'ignore' });
           return { ok: true };
-        } catch {}
+        } catch (err) { console.error('[chinwag]', err?.message || err); }
       }
 
       return { ok: false, error: 'Could not open a terminal automatically' };

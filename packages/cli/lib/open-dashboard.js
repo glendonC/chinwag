@@ -38,7 +38,8 @@ export async function openDashboard() {
       console.log(`  ${url}`);
       return;
     }
-  } catch {
+  } catch (err) {
+    console.error('[chinwag]', err?.message || err);
     console.log(`  Could not open browser. Open this URL manually:`);
     console.log(`  ${url}`);
   }

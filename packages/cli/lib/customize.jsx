@@ -25,7 +25,7 @@ let PKG_VERSION = '0.1.0';
 try {
   const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf-8'));
   PKG_VERSION = pkg.version;
-} catch { /* fallback */ }
+} catch (err) { console.error('[chinwag]', err?.message || err); }
 
 let VSCODE_EXTENSION = { publisher: 'chinwag', name: 'chinwag', version: PKG_VERSION };
 try {
@@ -35,11 +35,13 @@ try {
     name: pkg.name || 'chinwag',
     version: pkg.version || PKG_VERSION,
   };
-} catch { /* fallback */ }
+} catch (err) { console.error('[chinwag]', err?.message || err); }
 
 const IDE_COMMAND_SHORTCUT = process.platform === 'darwin' ? 'Cmd+Shift+P' : 'Ctrl+Shift+P';
 const IDE_EXTENSION_DIR = fileURLToPath(new URL('../../vscode/', import.meta.url));
 const MAX_RECOMMENDATIONS = 9;
+const FLASH_MIN_DURATION_MS = 3000;
+const FLASH_MS_PER_CHAR = 40;
 
 export function Customize({ config, user, navigate, refreshUser }) {
   const { stdout } = useStdout();
@@ -75,7 +77,7 @@ export function Customize({ config, user, navigate, refreshUser }) {
   function showFlash(text, type = 'success') {
     if (messageTimer.current) clearTimeout(messageTimer.current);
     setMessage({ type, text });
-    const duration = Math.max(3000, text.length * 40);
+    const duration = Math.max(FLASH_MIN_DURATION_MS, text.length * FLASH_MS_PER_CHAR);
     messageTimer.current = setTimeout(() => setMessage(null), duration);
   }
 
@@ -103,7 +105,8 @@ export function Customize({ config, user, navigate, refreshUser }) {
       try {
         const result = await api(config).get('/tools/directory?limit=200');
         setCatalog((result.evaluations || []).map(evalToTool));
-      } catch {
+      } catch (err) {
+        console.error('[chinwag]', err?.message || err);
         try {
           const fallback = await api(config).get('/tools/catalog');
           setCatalog(fallback.tools || []);
@@ -126,11 +129,12 @@ export function Customize({ config, user, navigate, refreshUser }) {
       mkdirSync(target, { recursive: true });
       cpSync(join(IDE_EXTENSION_DIR, 'package.json'), join(target, 'package.json'));
       cpSync(join(IDE_EXTENSION_DIR, 'dist', 'extension.js'), join(target, 'extension.js'));
-      try { cpSync(join(IDE_EXTENSION_DIR, 'logo-mark.svg'), join(target, 'logo-mark.svg')); } catch {}
+      try { cpSync(join(IDE_EXTENSION_DIR, 'logo-mark.svg'), join(target, 'logo-mark.svg')); } catch (err) { console.error('[chinwag]', err?.message || err); }
       showFlash(wasInstalled
         ? `Updated — ${IDE_COMMAND_SHORTCUT} → "chinwag: Open Dashboard"`
         : `Installed — restart IDE, then ${IDE_COMMAND_SHORTCUT} → "chinwag: Open Dashboard"`);
-    } catch {
+    } catch (err) {
+      console.error('[chinwag]', err?.message || err);
       if (wasInstalled) {
         showFlash(`${IDE_COMMAND_SHORTCUT} → "chinwag: Open Dashboard"`);
       } else {

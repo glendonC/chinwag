@@ -41,7 +41,8 @@ export function Discover({ config, navigate }) {
         if (cancelled) return;
         setCatalog((result.evaluations || []).map(evalToTool));
         setCategories(result.categories || {});
-      } catch {
+      } catch (err) {
+        console.error('[chinwag]', err?.message || err);
         // Fallback to old catalog endpoint if directory isn't deployed yet
         try {
           const fallback = await api(config).get('/tools/catalog');

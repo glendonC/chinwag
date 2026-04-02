@@ -64,6 +64,47 @@ export function smartSummary(activity) {
   return summary;
 }
 
+/**
+ * Agent row shape (combined from managed + connected sources):
+ *
+ * --- Identity ---
+ * @property {string|null}  agent_id        - Composite ID (e.g. "claude-code:abc123:def45678"), null for pty-only agents
+ * @property {string}       tool            - Tool ID (e.g. "claude-code", "cursor")
+ * @property {string}       toolId          - Alias for tool (from managed agent source)
+ * @property {string|null}  handle          - User's display handle (from backend), null for local-only agents
+ *
+ * --- Lifecycle ---
+ * @property {string}       status          - Raw status: "running" | "exited" | "failed" (managed) or "active" (connected)
+ * @property {number}       startedAt       - Unix timestamp (ms) when the agent was spawned
+ * @property {number|null}  exitCode        - Process exit code, null while running
+ *
+ * --- Display (prefixed _ = computed at row-build time, not from raw data) ---
+ * @property {boolean}      _managed        - true if spawned by this dashboard (pty or external terminal)
+ * @property {boolean}      _connected      - true if the backend reports this agent as active
+ * @property {string}       _display        - Human-readable tool label (e.g. "Claude Code")
+ * @property {string|null}  _summary        - One-line description of current work (from activity or task)
+ * @property {string|null}  _duration       - Formatted session duration (e.g. "5 min", "1h 30m")
+ * @property {boolean}      _dead           - true if agent is no longer running (exited or failed)
+ * @property {boolean}      _exited         - true if agent process has exited (same as _dead for managed)
+ * @property {boolean}      _failed         - true if agent exited with non-zero code or "failed" status
+ * @property {number|null}  _exitCode       - Same as exitCode, surfaced for display convenience
+ *
+ * --- Activity (from backend context, may be null for managed-only agents) ---
+ * @property {Object|null}  activity            - { summary?: string, files?: string[] }
+ * @property {number|null}  session_minutes     - Total session duration from backend
+ * @property {number|null}  minutes_since_update - Time since last backend activity update
+ *
+ * --- Managed agent extras (only when _managed=true) ---
+ * @property {number}       id              - Local process manager ID
+ * @property {string}       cmd             - CLI command used to spawn (e.g. "claude")
+ * @property {string[]}     args            - Additional CLI arguments
+ * @property {string}       taskArg         - How the task is passed: "positional" | "--message"
+ * @property {string}       task            - The task/prompt given to the agent
+ * @property {string}       cwd             - Working directory
+ * @property {string}       toolName        - Friendly name from tool registry
+ * @property {string|null}  outputPreview   - Last meaningful line of captured output
+ * @property {string}       spawnType       - "pty" | "external" (terminal tab)
+ */
 function buildManagedAgentRows(managedAgents, getToolName, now = Date.now()) {
   return (managedAgents || []).map((agent) => {
     const toolId = agent.toolId || agent.tool || 'unknown';

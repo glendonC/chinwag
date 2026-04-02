@@ -83,7 +83,8 @@ async function fetchCatalog() {
       tools: (result.evaluations || []).map(evalToTool),
       categories: result.categories || {},
     };
-  } catch {
+  } catch (err) {
+    console.error('[chinwag]', err?.message || err);
     // Fallback to old catalog endpoint if directory isn't deployed yet
     try {
       const fallback = await api(config).get('/tools/catalog');

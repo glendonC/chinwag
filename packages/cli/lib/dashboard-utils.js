@@ -27,7 +27,8 @@ export function openWebDashboard(token) {
       return { ok: true };
     }
     return { ok: false, error: 'Unsupported platform' };
-  } catch {
+  } catch (err) {
+    console.error('[chinwag]', err?.message || err);
     return { ok: false, error: 'Could not open browser' };
   }
 }
