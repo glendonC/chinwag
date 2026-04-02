@@ -3,22 +3,22 @@ import {
   spawnAgent, killAgent, getAgents, getOutput, onUpdate,
   removeAgent, registerExternalAgent, setExternalAgentPid,
   checkExternalAgentLiveness,
-} from './process-manager.js';
-import { spawnInTerminal, detectTerminalEnvironment, readPidFile } from './terminal-spawner.js';
-import { openCommandInTerminal } from './open-command-in-terminal.js';
+} from '../process-manager.js';
+import { spawnInTerminal, detectTerminalEnvironment, readPidFile } from '../terminal-spawner.js';
+import { openCommandInTerminal } from '../open-command-in-terminal.js';
 import {
   checkManagedAgentToolAvailability,
   classifyManagedAgentFailure,
   createManagedAgentLaunch,
   createTerminalAgentLaunch,
   listManagedAgentTools,
-} from './managed-agents.js';
+} from '../managed-agents.js';
 import {
   getSavedLauncherPreference,
   resolvePreferredManagedTool,
   saveLauncherPreference,
-} from './launcher-preferences.js';
-import { getAgentDisplayLabel } from './dashboard-agent-display.js';
+} from '../launcher-preferences.js';
+import { getAgentDisplayLabel } from './agent-display.js';
 
 /**
  * Custom hook for agent lifecycle management.

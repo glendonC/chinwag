@@ -8,9 +8,9 @@
 import chalk from 'chalk';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { basename, join } from 'path';
-import { configExists, loadConfig, saveConfig } from './config.js';
-import { api, initAccount } from './api.js';
-import { detectTools, configureTool } from './mcp-config.js';
+import { configExists, loadConfig, saveConfig } from '../config.js';
+import { api, initAccount } from '../api.js';
+import { detectTools, configureTool } from '../mcp-config.js';
 
 // Map chinwag color names to chalk methods
 const CHALK_COLORS = {

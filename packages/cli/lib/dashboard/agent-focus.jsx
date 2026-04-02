@@ -1,13 +1,13 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import { basename, resolve } from 'path';
-import { stripAnsi } from './utils/ansi.js';
+import { stripAnsi } from '../utils/ansi.js';
 import {
   getAgentDisplayLabel, getAgentIntent,
   getAgentOriginLabel,
-} from './dashboard-agent-display.js';
-import { HintRow, NoticeLine } from './dashboard-ui.jsx';
-import { getOutput } from './process-manager.js';
+} from './agent-display.js';
+import { HintRow, NoticeLine } from './ui.jsx';
+import { getOutput } from '../process-manager.js';
 
 const MEDIA_EXTS = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.ico', '.bmp', '.tiff',

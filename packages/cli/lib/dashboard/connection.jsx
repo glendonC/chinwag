@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { api, getApiUrl } from './api.js';
-import { detectTools } from './mcp-config.js';
-import { getProjectContext } from './project.js';
-import { SPINNER } from './dashboard-utils.js';
-import { applyDelta } from '../../shared/dashboard-ws.js';
+import { api, getApiUrl } from '../api.js';
+import { detectTools } from '../mcp-config.js';
+import { getProjectContext } from '../project.js';
+import { SPINNER } from './utils.js';
+import { applyDelta } from '../../../shared/dashboard-ws.js';
 
 function classifyError(err) {
   const msg = err.message || '';

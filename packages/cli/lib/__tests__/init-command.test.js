@@ -25,7 +25,7 @@ vi.mock('../mcp-config.js', () => ({
 import { api, initAccount } from '../api.js';
 import { configExists, loadConfig, saveConfig } from '../config.js';
 import { detectTools, configureTool } from '../mcp-config.js';
-import { runInit } from '../init-command.js';
+import { runInit } from '../commands/init.js';
 
 let tmpDir;
 

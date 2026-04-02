@@ -3,7 +3,7 @@ import {
   configureHostIntegration,
   scanHostIntegrations,
   summarizeIntegrationScan,
-} from '../../shared/integration-doctor.js';
+} from '../../../shared/integration-doctor.js';
 
 export function useIntegrationDoctor({ projectRoot, flash }) {
   const [integrationStatuses, setIntegrationStatuses] = useState([]);

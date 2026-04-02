@@ -9,7 +9,7 @@ import {
   hasVisibleSessionActivity,
   smartSummary,
   shortAgentId,
-} from '../dashboard-view.js';
+} from '../dashboard/view.js';
 
 describe('dashboard view helpers', () => {
   it('resolves friendly tool names from detected tools', () => {

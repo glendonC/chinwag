@@ -4,7 +4,7 @@ import {
   formatIntegrationScanResults,
   scanHostIntegrations,
   summarizeIntegrationScan,
-} from '../../shared/integration-doctor.js';
+} from '../../../shared/integration-doctor.js';
 
 const ok = chalk.green('✔');
 const warn = chalk.yellow('!');

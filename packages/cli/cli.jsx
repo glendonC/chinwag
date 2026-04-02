@@ -7,7 +7,7 @@ import { api } from './lib/api.js';
 import { Welcome } from './lib/init.jsx';
 import { Chat } from './lib/chat.jsx';
 import { Customize } from './lib/customize.jsx';
-import { Dashboard } from './lib/dashboard.jsx';
+import { Dashboard } from './lib/dashboard/index.jsx';
 import { Discover } from './lib/discover.jsx';
 import { ControlShell } from './lib/shell.jsx';
 import { useTerminalControl } from './lib/terminal-control.js';
@@ -82,21 +82,21 @@ if (process.argv[2] === 'hook') {
 
 // Handle init command before launching TUI
 if (process.argv[2] === 'init') {
-  const { runInit } = await import('./lib/init-command.js');
+  const { runInit } = await import('./lib/commands/init.js');
   await runInit();
   process.exit(0);
 }
 
 // Handle add command before launching TUI
 if (process.argv[2] === 'add') {
-  const { runAdd } = await import('./lib/add-command.js');
+  const { runAdd } = await import('./lib/commands/add.js');
   await runAdd(process.argv[3]);
   process.exit(0);
 }
 
 // Handle doctor command before launching TUI
 if (process.argv[2] === 'doctor') {
-  const { runDoctor } = await import('./lib/doctor-command.js');
+  const { runDoctor } = await import('./lib/commands/doctor.js');
   await runDoctor(process.argv.slice(3));
   process.exit(0);
 }
@@ -110,7 +110,7 @@ if (process.argv[2] === 'team') {
 
 // Handle run command before launching TUI
 if (process.argv[2] === 'run') {
-  const { runManagedAgentCommand } = await import('./lib/run-command.js');
+  const { runManagedAgentCommand } = await import('./lib/commands/run.js');
   const exitCode = await runManagedAgentCommand(process.argv.slice(3));
   process.exit(exitCode);
 }

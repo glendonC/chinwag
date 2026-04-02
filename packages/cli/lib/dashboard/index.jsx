@@ -4,21 +4,21 @@ import { basename } from 'path';
 import {
   buildCombinedAgentRows,
   buildDashboardView,
-} from './dashboard-view.js';
-import { HintRow } from './dashboard-ui.jsx';
-import { useDashboardConnection } from './dashboard-connection.jsx';
-import { useMemoryManager } from './dashboard-memory.js';
-import { useAgentLifecycle } from './dashboard-agents.js';
-import { useComposer } from './dashboard-composer.js';
-import { useIntegrationDoctor } from './dashboard-integrations.js';
-import { createInputHandler, createCommandHandler } from './dashboard-input.js';
-import { MainPane, MemoryView, SessionsView } from './dashboard-main-pane.jsx';
-import { AgentFocusView } from './dashboard-agent-focus.jsx';
+} from './view.js';
+import { HintRow } from './ui.jsx';
+import { useDashboardConnection } from './connection.jsx';
+import { useMemoryManager } from './memory.js';
+import { useAgentLifecycle } from './agents.js';
+import { useComposer } from './composer.js';
+import { useIntegrationDoctor } from './integrations.js';
+import { createInputHandler, createCommandHandler } from './input.js';
+import { MainPane, MemoryView, SessionsView } from './main-pane.jsx';
+import { AgentFocusView } from './agent-focus.jsx';
 import {
   MIN_WIDTH, SPINNER,
   openWebDashboard, getVisibleWindow, formatProjectPath,
-} from './dashboard-utils.js';
-import { isAgentAddressable } from './dashboard-agent-display.js';
+} from './utils.js';
+import { isAgentAddressable } from './agent-display.js';
 
 export function Dashboard({ config, navigate, layout, projectLabel = null, appVersion = '0.1.0', setFooterHints }) {
   const { stdout } = useStdout();

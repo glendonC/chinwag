@@ -1,17 +1,17 @@
-import { attachTerminal, getOutput, resizePty, spawnAgent, waitForExit } from './process-manager.js';
-import { configExists, loadConfig } from './config.js';
+import { attachTerminal, getOutput, resizePty, spawnAgent, waitForExit } from '../process-manager.js';
+import { configExists, loadConfig } from '../config.js';
 import {
   checkManagedAgentToolAvailability,
   createManagedAgentLaunch,
   getManagedAgentTool,
   listManagedAgentTools,
-} from './managed-agents.js';
+} from '../managed-agents.js';
 import {
   getSavedLauncherPreference,
   resolvePreferredManagedTool,
   saveLauncherPreference,
-} from './launcher-preferences.js';
-import { getProjectContext } from './project.js';
+} from '../launcher-preferences.js';
+import { getProjectContext } from '../project.js';
 
 function printUsage() {
   process.stderr.write('Usage: chinwag run [--tool <tool-id>] "task description"\n');

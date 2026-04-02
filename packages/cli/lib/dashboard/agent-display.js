@@ -1,4 +1,4 @@
-import { formatFiles } from './dashboard-view.js';
+import { formatFiles } from './view.js';
 
 export function isAgentAddressable(agent) {
   if (!agent?.agent_id) return false;

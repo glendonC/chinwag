@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseDoctorArgs, selectRepairTargets } from '../doctor-command.js';
+import { parseDoctorArgs, selectRepairTargets } from '../commands/doctor.js';
 
 describe('doctor command parsing', () => {
   it('defaults to scan mode', () => {

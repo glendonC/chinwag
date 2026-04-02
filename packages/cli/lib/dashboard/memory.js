@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { api } from './api.js';
+import { api } from '../api.js';
 
 /**
  * Custom hook for memory management in the dashboard.

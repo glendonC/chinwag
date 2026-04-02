@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Text } from 'ink';
-import { getAnimatedGlyph } from './dashboard-ui.jsx';
-import { truncateText } from './dashboard-utils.js';
+import { getAnimatedGlyph } from './ui.jsx';
+import { truncateText } from './utils.js';
 
 function shortSessionId(agentId) {
   if (!agentId) return '';

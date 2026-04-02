@@ -1,5 +1,5 @@
-import { isAgentAddressable } from './dashboard-agent-display.js';
-import { MIN_WIDTH } from './dashboard-utils.js';
+import { isAgentAddressable } from './agent-display.js';
+import { MIN_WIDTH } from './utils.js';
 
 /**
  * Creates the input handler for the dashboard.

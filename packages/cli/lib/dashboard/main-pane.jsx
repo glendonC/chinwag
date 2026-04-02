@@ -4,17 +4,17 @@ import TextInput from 'ink-text-input';
 import {
   HintRow,
   NoticeLine,
-} from './dashboard-ui.jsx';
+} from './ui.jsx';
 import {
   KnowledgePanel,
   SessionsPanel,
-} from './dashboard-sections.jsx';
-import { SPINNER, truncateText } from './dashboard-utils.js';
+} from './sections.jsx';
+import { SPINNER, truncateText } from './utils.js';
 import {
   isAgentAddressable, getAgentIntent,
   getAgentDisplayLabel, getIntentColor,
-} from './dashboard-agent-display.js';
-import { detectTerminalEnvironment } from './terminal-spawner.js';
+} from './agent-display.js';
+import { detectTerminalEnvironment } from '../terminal-spawner.js';
 
 /**
  * Renders the input bars for compose modes (command, targeted, memory-search, memory-add).

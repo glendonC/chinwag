@@ -2,10 +2,10 @@
 // Pure stdout output, no TUI. Same pattern as init-command.js.
 // Fetches the full tool catalog from the API for discovery.
 
-import { MCP_TOOLS } from './tools.js';
-import { configureTool } from './mcp-config.js';
-import { configExists, loadConfig } from './config.js';
-import { api } from './api.js';
+import { MCP_TOOLS } from '../tools.js';
+import { configureTool } from '../mcp-config.js';
+import { configExists, loadConfig } from '../config.js';
+import { api } from '../api.js';
 
 function evalToTool(e) {
   const meta = e.metadata || {};

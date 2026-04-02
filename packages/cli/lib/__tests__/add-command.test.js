@@ -27,7 +27,7 @@ vi.mock('../api.js', () => ({
 import { configureTool } from '../mcp-config.js';
 import { configExists, loadConfig } from '../config.js';
 import { api } from '../api.js';
-import { runAdd } from '../add-command.js';
+import { runAdd } from '../commands/add.js';
 
 let consoleLogSpy;
 let processExitSpy;

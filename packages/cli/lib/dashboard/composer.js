@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { api } from './api.js';
-import { isAgentAddressable, getAgentTargetLabel } from './dashboard-agent-display.js';
+import { api } from '../api.js';
+import { isAgentAddressable, getAgentTargetLabel } from './agent-display.js';
 
 /**
  * Custom hook for message composition and command palette.
