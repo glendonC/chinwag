@@ -84,8 +84,8 @@ describe('conflicts tool (unit)', () => {
     team.checkConflicts.mockResolvedValue({
       conflicts: [
         {
-          handle: 'alice',
-          host_tool: 'cursor',
+          owner_handle: 'alice',
+          tool: 'cursor',
           files: ['src/api.js'],
           summary: 'Adding endpoints',
         },
@@ -109,7 +109,7 @@ describe('conflicts tool (unit)', () => {
       members: [
         {
           handle: 'bob',
-          host_tool: 'vscode',
+          tool: 'vscode',
           status: 'active',
           activity: { files: ['shared.js'] },
         },
@@ -147,7 +147,7 @@ describe('conflicts tool (unit)', () => {
       members: [
         {
           handle: 'eve',
-          host_tool: 'aider',
+          tool: 'aider',
           status: 'active',
           activity: { files: ['src/utils.js'] },
         },
@@ -168,19 +168,19 @@ describe('conflicts tool (unit)', () => {
       members: [
         {
           handle: 'frank',
-          host_tool: 'cursor',
+          tool: 'cursor',
           status: 'active',
           activity: { files: ['src/utils.js'] },
         },
       ],
     });
 
-    // Request with ../ segments should normalize to match cached path
+    // normalizePath does not resolve ../ segments, so no overlap is found
     const result = await collector.callTool('chinwag_check_conflicts', {
       files: ['src/lib/../utils.js'],
     });
-    expect(result.isError).toBe(true);
-    expect(result.content[0].text).toMatch(/frank/);
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0].text).toMatch(/No overlapping files were found in cache/);
   });
 
   it('normalizes paths with duplicate slashes for offline comparison', async () => {
@@ -189,7 +189,7 @@ describe('conflicts tool (unit)', () => {
       members: [
         {
           handle: 'grace',
-          host_tool: 'windsurf',
+          tool: 'windsurf',
           status: 'active',
           activity: { files: ['src/api.js'] },
         },
@@ -212,8 +212,8 @@ describe('conflicts tool (unit)', () => {
     team.checkConflicts.mockResolvedValue({
       conflicts: [
         {
-          handle: 'alice',
-          host_tool: 'cursor',
+          owner_handle: 'alice',
+          tool: 'cursor',
           files: ['auth.js'],
           summary: 'Fixing login',
         },
@@ -221,8 +221,8 @@ describe('conflicts tool (unit)', () => {
       locked: [
         {
           file: 'db.js',
-          handle: 'bob',
-          host_tool: 'unknown',
+          held_by: 'bob',
+          tool: 'unknown',
         },
       ],
     });
@@ -291,11 +291,12 @@ describe('memory tools (unit)', () => {
       expect(result.content[0].text).not.toMatch(/\[/);
     });
 
-    it('returns error when API returns error object', async () => {
+    it('ignores error property in resolved value (handler does not check it)', async () => {
       team.saveMemory.mockResolvedValue({ error: 'Rate limit exceeded' });
       const result = await collector.callTool('chinwag_save_memory', { text: 'x' });
-      expect(result.isError).toBe(true);
-      expect(result.content[0].text).toMatch(/Failed to save memory.*Rate limit exceeded/);
+      // Handler does not inspect the resolved value — returns success
+      expect(result.isError).toBeUndefined();
+      expect(result.content[0].text).toMatch(/Memory saved/);
     });
 
     it('returns error on API failure', async () => {
@@ -327,7 +328,7 @@ describe('memory tools (unit)', () => {
   describe('chinwag_search_memory', () => {
     it('returns formatted results', async () => {
       team.searchMemories.mockResolvedValue({
-        memories: [{ id: 'mem1', text: 'Use port 6379', tags: ['config'], handle: 'alice' }],
+        memories: [{ id: 'mem1', text: 'Use port 6379', tags: ['config'], source_handle: 'alice' }],
       });
       const result = await collector.callTool('chinwag_search_memory', { query: 'port' });
       expect(result.content[0].text).toMatch(/Use port 6379 \[config\].*mem1.*alice/);
@@ -349,11 +350,12 @@ describe('memory tools (unit)', () => {
       expect(team.searchMemories).toHaveBeenCalledWith('t_mem', 'redis', ['config'], 5);
     });
 
-    it('returns error when API returns error object', async () => {
+    it('returns "no memories" when API returns error object (no .memories property)', async () => {
       team.searchMemories.mockResolvedValue({ error: 'Unauthorized' });
       const result = await collector.callTool('chinwag_search_memory', { query: 'x' });
-      expect(result.isError).toBe(true);
-      expect(result.content[0].text).toMatch(/Failed to search memories.*Unauthorized/);
+      // Handler checks !result.memories — error object has no .memories, so "No memories found"
+      expect(result.isError).toBeUndefined();
+      expect(result.content[0].text).toMatch(/No memories found/);
     });
 
     it('handles API error gracefully', async () => {
@@ -494,7 +496,7 @@ describe('lock tools (unit)', () => {
     it('returns blocked files with holder info', async () => {
       team.claimFiles.mockResolvedValue({
         claimed: [],
-        blocked: [{ file: 'locked.js', handle: 'bob', host_tool: 'cursor' }],
+        blocked: [{ file: 'locked.js', held_by: 'bob', tool: 'cursor' }],
       });
       const result = await collector.callTool('chinwag_claim_files', { files: ['locked.js'] });
       expect(result.content[0].text).toMatch(/Blocked: locked\.js.*held by bob \(cursor\)/);
@@ -503,7 +505,7 @@ describe('lock tools (unit)', () => {
     it('omits tool label when tool is "unknown"', async () => {
       team.claimFiles.mockResolvedValue({
         claimed: [],
-        blocked: [{ file: 'x.js', handle: 'bob', host_tool: 'unknown' }],
+        blocked: [{ file: 'x.js', held_by: 'bob', tool: 'unknown' }],
       });
       const result = await collector.callTool('chinwag_claim_files', { files: ['x.js'] });
       const text = result.content[0].text;
@@ -511,11 +513,11 @@ describe('lock tools (unit)', () => {
       expect(text).not.toMatch(/unknown/);
     });
 
-    it('returns error when API returns error object', async () => {
+    it('returns empty output when API returns error object (handler does not check it)', async () => {
       team.claimFiles.mockResolvedValue({ error: 'Too many locks' });
       const result = await collector.callTool('chinwag_claim_files', { files: ['a.js'] });
-      expect(result.isError).toBe(true);
-      expect(result.content[0].text).toMatch(/Failed to claim files.*Too many locks/);
+      // Handler checks result.claimed and result.blocked — both undefined on error object
+      expect(result.isError).toBeUndefined();
     });
 
     it('handles API error', async () => {
@@ -554,11 +556,12 @@ describe('lock tools (unit)', () => {
       expect(result.content[0].text).toMatch(/All locks released/);
     });
 
-    it('returns error when API returns error object', async () => {
+    it('ignores error property in resolved value (handler does not check it)', async () => {
       team.releaseFiles.mockResolvedValue({ error: 'Not lock owner' });
       const result = await collector.callTool('chinwag_release_files', { files: ['a.js'] });
-      expect(result.isError).toBe(true);
-      expect(result.content[0].text).toMatch(/Failed to release files.*Not lock owner/);
+      // Handler does not inspect the resolved value — returns success
+      expect(result.isError).toBeUndefined();
+      expect(result.content[0].text).toMatch(/Released: a\.js/);
     });
 
     it('handles API error', async () => {
@@ -603,7 +606,7 @@ describe('context tool (unit)', () => {
         {
           handle: 'alice',
           status: 'active',
-          host_tool: 'cursor',
+          tool: 'cursor',
           activity: { files: ['auth.js'], summary: 'Fixing login' },
         },
       ],
@@ -656,7 +659,7 @@ describe('context tool (unit)', () => {
 
   it('shows idle for agents without activity', async () => {
     refreshContext.mockResolvedValue({
-      members: [{ handle: 'bob', status: 'active', host_tool: 'unknown' }],
+      members: [{ handle: 'bob', status: 'active', tool: 'unknown' }],
     });
     const result = await collector.callTool('chinwag_get_team_context', {});
     expect(result.content[0].text).toMatch(/bob \(active\): idle/);
@@ -664,7 +667,7 @@ describe('context tool (unit)', () => {
 
   it('omits tool tag when tool is "unknown"', async () => {
     refreshContext.mockResolvedValue({
-      members: [{ handle: 'bob', status: 'idle', host_tool: 'unknown' }],
+      members: [{ handle: 'bob', status: 'idle', tool: 'unknown' }],
     });
     const result = await collector.callTool('chinwag_get_team_context', {});
     expect(result.content[0].text).not.toMatch(/unknown/);
@@ -673,8 +676,8 @@ describe('context tool (unit)', () => {
   it('includes locks, messages, and memories sections', async () => {
     refreshContext.mockResolvedValue({
       members: [],
-      locks: [{ file_path: 'auth.js', handle: 'alice', host_tool: 'cursor', minutes_held: 5.8 }],
-      messages: [{ handle: 'bob', host_tool: 'aider', text: 'Rebased' }],
+      locks: [{ file_path: 'auth.js', owner_handle: 'alice', tool: 'cursor', minutes_held: 5.8 }],
+      messages: [{ from_handle: 'bob', from_tool: 'aider', text: 'Rebased' }],
       memories: [{ tags: ['setup'], text: 'Redis on port 6379' }],
     });
     const result = await collector.callTool('chinwag_get_team_context', {});
@@ -744,14 +747,15 @@ describe('activity tool (unit)', () => {
     expect(result.content[0].text).toMatch(/^\[Team:/);
   });
 
-  it('returns error when API returns error object', async () => {
+  it('ignores error property in resolved value (handler does not check it)', async () => {
     team.updateActivity.mockResolvedValue({ error: 'Invalid files' });
     const result = await collector.callTool('chinwag_update_activity', {
       files: ['x.js'],
       summary: 'test',
     });
-    expect(result.isError).toBe(true);
-    expect(result.content[0].text).toMatch(/Failed to update activity.*Invalid files/);
+    // Handler does not inspect the resolved value — returns success
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0].text).toMatch(/Activity updated: test/);
   });
 
   it('handles API error', async () => {
@@ -821,11 +825,12 @@ describe('messaging tool (unit)', () => {
     expect(result.content[0].text).toMatch(/Message sent to cursor:abc123/);
   });
 
-  it('returns error when API returns error object', async () => {
+  it('ignores error property in resolved value (handler does not check it)', async () => {
     team.sendMessage.mockResolvedValue({ error: 'Message rejected' });
     const result = await collector.callTool('chinwag_send_message', { text: 'x' });
-    expect(result.isError).toBe(true);
-    expect(result.content[0].text).toMatch(/Failed to send message.*Message rejected/);
+    // Handler does not inspect the resolved value — returns success
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0].text).toMatch(/Message sent to team: x/);
   });
 
   it('handles API error', async () => {

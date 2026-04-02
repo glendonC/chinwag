@@ -1,11 +1,17 @@
 // chinwag_check_conflicts tool handler.
 
+// Conflicts has custom offline-fallback error handling, so it uses noTeam/errorResult
+// directly rather than the withTeam middleware.
+
 import * as z from 'zod/v4';
 import { teamPreamble, getCachedContext } from '../context.js';
 import { noTeam, errorResult } from '../utils/responses.js';
 import { formatConflictsList } from '../utils/display.js';
 import { formatWho } from '../utils/formatting.js';
-import { normalizePath } from '../utils/paths.js';
+
+function normalizePath(filePath) {
+  return filePath.replace(/^\.\//, '').replace(/\/+/g, '/').replace(/\/$/, '');
+}
 
 export function registerConflictsTool(addTool, { team, state }) {
   addTool(
@@ -38,7 +44,7 @@ export function registerConflictsTool(addTool, { team, state }) {
             if (m.status !== 'active' || !m.activity?.files) continue;
             const overlap = m.activity.files.map(normalizePath).filter((f) => myFiles.has(f));
             if (overlap.length > 0) {
-              const who = formatWho(m.handle, m.host_tool);
+              const who = formatWho(m.handle, m.host_tool || m.tool);
               warnings.push(`\u26A0 ${who} was working on ${overlap.join(', ')} (cached)`);
             }
           }

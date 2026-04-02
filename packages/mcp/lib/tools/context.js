@@ -3,10 +3,14 @@
 import * as z from 'zod/v4';
 import { refreshContext, offlinePrefix } from '../context.js';
 import { noTeam } from '../utils/responses.js';
-import { formatWho } from '../utils/formatting.js';
-import { formatMemberLine, formatLockLine, formatMemoryLine } from '../utils/display.js';
+import { formatToolTag, formatWho } from '../utils/formatting.js';
 
 export function registerContextTool(addTool, { team, state }) {
+  // Promise-based mutex: stores the in-flight report promise so concurrent
+  // calls await the same attempt instead of firing duplicates. Cleared on
+  // success (done) or failure (retry allowed).
+  let modelReportPromise = null;
+
   addTool(
     'chinwag_get_team_context',
     {
@@ -25,18 +29,21 @@ export function registerContextTool(addTool, { team, state }) {
     async ({ model } = {}) => {
       if (!state.teamId) return noTeam();
 
-      // Deferred model enrichment — fire-and-forget on first report.
-      // Set flag optimistically to prevent duplicate reports from concurrent calls.
-      if (model && !state.modelReported && state.teamId) {
-        state.modelReported = true;
-        (async () => {
-          try {
-            await team.reportModel(state.teamId, model);
-          } catch (err) {
-            state.modelReported = false;
+      // Fire-once model enrichment with Promise-based dedup.
+      // Concurrent calls share the same in-flight promise. Flag is only set
+      // after success; on failure the promise is cleared to allow retry.
+      if (model && !state.modelReported && state.teamId && !modelReportPromise) {
+        modelReportPromise = team
+          .reportModel(state.teamId, model)
+          .then(() => {
+            state.modelReported = true;
+          })
+          .catch((err) => {
             console.error('[chinwag] Model report failed:', err.message);
-          }
-        })();
+          })
+          .finally(() => {
+            modelReportPromise = null;
+          });
       }
       const ctx = await refreshContext(team, state.teamId);
       if (!ctx) {
@@ -56,7 +63,12 @@ export function registerContextTool(addTool, { team, state }) {
       } else {
         lines.push('Agents:');
         for (const m of ctx.members) {
-          lines.push(formatMemberLine(m));
+          const tool = m.host_tool || m.tool;
+          const toolInfo = formatToolTag(tool) ? `, ${tool}` : '';
+          const activity = m.activity?.files?.length
+            ? `working on ${m.activity.files.join(', ')}${m.activity.summary ? ` — "${m.activity.summary}"` : ''}`
+            : 'idle';
+          lines.push(`  ${m.handle} (${m.status}${toolInfo}): ${activity}`);
         }
       }
 
@@ -64,7 +76,8 @@ export function registerContextTool(addTool, { team, state }) {
         lines.push('');
         lines.push('Locked files:');
         for (const l of ctx.locks) {
-          lines.push(formatLockLine(l));
+          const who = formatWho(l.owner_handle, l.tool);
+          lines.push(`  ${l.file_path} — ${who} (${Math.round(l.minutes_held)}m)`);
         }
       }
 
@@ -72,7 +85,7 @@ export function registerContextTool(addTool, { team, state }) {
         lines.push('');
         lines.push('Messages:');
         for (const msg of ctx.messages) {
-          const from = formatWho(msg.handle, msg.host_tool);
+          const from = formatWho(msg.from_handle, msg.from_tool);
           lines.push(`  ${from}: ${msg.text}`);
         }
       }
@@ -81,7 +94,8 @@ export function registerContextTool(addTool, { team, state }) {
         lines.push('');
         lines.push('Project knowledge:');
         for (const mem of ctx.memories) {
-          lines.push(formatMemoryLine(mem));
+          const tagStr = mem.tags?.length ? ` [${mem.tags.join(', ')}]` : '';
+          lines.push(`  ${mem.text}${tagStr}`);
         }
       }
 

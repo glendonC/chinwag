@@ -9,9 +9,14 @@ export function registerTeamTool(addTool, { team, state, profile }) {
   addTool(
     'chinwag_join_team',
     {
-      description: 'Join a chinwag team for multi-agent coordination. Agents on the same team can see what each other is working on and detect file conflicts before they happen.',
+      description:
+        'Join a chinwag team for multi-agent coordination. Agents on the same team can see what each other is working on and detect file conflicts before they happen.',
       inputSchema: z.object({
-        team_id: z.string().max(30).regex(/^[a-zA-Z0-9_-]+$/).describe('Team ID (e.g., t_a7x9k2m). Found in the .chinwag file at the repo root.'),
+        team_id: z
+          .string()
+          .max(30)
+          .regex(/^[a-zA-Z0-9_-]+$/)
+          .describe('Team ID (e.g., t_a7x9k2m). Found in the .chinwag file at the repo root.'),
       }),
     },
     async ({ team_id }) => {
@@ -24,15 +29,12 @@ export function registerTeamTool(addTool, { team, state, profile }) {
         state.modelReported = false;
         clearContextCache();
 
-        // Always clear any existing heartbeat before creating a new one —
-        // prevents interval accumulation when joinTeam is called multiple times.
-        if (state.heartbeatInterval != null) {
-          clearInterval(state.heartbeatInterval);
-          state.heartbeatInterval = null;
-        }
+        if (state.heartbeatInterval) clearInterval(state.heartbeatInterval);
         state.heartbeatInterval = setInterval(async () => {
-          try { await team.heartbeat(state.teamId); } catch (err) {
-            if (err.message?.includes('Not a member')) {
+          try {
+            await team.heartbeat(state.teamId);
+          } catch (err) {
+            if (err.status === 403) {
               try {
                 await team.joinTeam(state.teamId, basename(process.cwd()));
                 console.error('[chinwag] Rejoined team after eviction');
@@ -44,7 +46,6 @@ export function registerTeamTool(addTool, { team, state, profile }) {
             }
           }
         }, 30_000);
-        if (state.heartbeatInterval.unref) state.heartbeatInterval.unref();
 
         let sessionStarted = false;
         try {
@@ -75,6 +76,6 @@ export function registerTeamTool(addTool, { team, state, profile }) {
       } catch (err) {
         return errorResult(err);
       }
-    }
+    },
   );
 }

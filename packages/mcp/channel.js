@@ -22,7 +22,18 @@ import { isProcessAlive, pingAgentTerminal } from '@chinwag/shared/session-regis
 // --- Constants ---
 const POLL_INTERVAL_MS = 10_000;
 const HEARTBEAT_INTERVAL_MS = 30_000;
-const PARENT_WATCH_INTERVAL_MS = 5000;
+const PARENT_WATCH_INTERVAL_MS = 5_000;
+/** @type {number} Max consecutive poll failures before backoff caps */
+const MAX_POLL_BACKOFF_MULTIPLIER = 6;
+/** @type {number} Max consecutive heartbeat failures before backoff caps */
+const MAX_HEARTBEAT_BACKOFF_MULTIPLIER = 6;
+
+/**
+ * HTTP status code indicating the agent is not a team member.
+ * Used instead of string-matching error messages.
+ * @type {number}
+ */
+const NOT_A_MEMBER_STATUS = 403;
 
 let PKG = { version: '0.0.0' };
 try {
@@ -79,11 +90,18 @@ async function main() {
 
   // State diffing + stuckness tracking
   let prevState = null;
-  const stucknessAlerted = new Map(); // handle → updated_at when alert was sent
+  const stucknessAlerted = new Map(); // handle -> updated_at when alert was sent
+
+  // Poll backoff state — backs off on consecutive failures, resets on success
+  let pollFailures = 0;
 
   const poll = async () => {
     try {
       const ctx = await team.getTeamContext(teamId);
+      if (pollFailures > 0) {
+        console.error(`[chinwag-channel] Poll recovered after ${pollFailures} failure(s)`);
+        pollFailures = 0;
+      }
       if (prevState) {
         const events = diffState(prevState, ctx, stucknessAlerted);
         for (const event of events) {
@@ -92,7 +110,12 @@ async function main() {
       }
       prevState = ctx;
     } catch (err) {
-      console.error(`[chinwag-channel] Poll failed: ${err.message}`);
+      pollFailures++;
+      const backoffMultiplier = Math.min(pollFailures, MAX_POLL_BACKOFF_MULTIPLIER);
+      const nextRetryMs = POLL_INTERVAL_MS * backoffMultiplier;
+      console.error(
+        `[chinwag-channel] Poll failed (attempt ${pollFailures}, next retry in ${nextRetryMs / 1000}s): ${err.message}`,
+      );
     }
   };
 
@@ -103,22 +126,61 @@ async function main() {
     console.error('[chinwag-channel]', err?.message || 'initial fetch failed, will retry');
   }
 
-  const interval = setInterval(poll, POLL_INTERVAL_MS);
+  // Adaptive polling: interval self-adjusts based on consecutive failure count
+  let pollTimer = null;
+  function schedulePoll() {
+    const backoffMultiplier = Math.min(pollFailures + 1, MAX_POLL_BACKOFF_MULTIPLIER);
+    const delay = POLL_INTERVAL_MS * backoffMultiplier;
+    pollTimer = setTimeout(async () => {
+      await poll();
+      schedulePoll();
+    }, delay);
+    pollTimer.unref?.();
+  }
+  schedulePoll();
 
-  // Heartbeat to keep membership alive — rejoin if evicted
-  const heartbeat = setInterval(async () => {
-    try {
-      await team.heartbeat(teamId);
-    } catch (err) {
-      if (err.message?.includes('Not a member')) {
-        try {
-          await team.joinTeam(teamId);
-        } catch (rejoinErr) {
-          console.error('[chinwag-channel]', rejoinErr?.message || 'rejoin failed');
+  // Heartbeat with backoff — rejoin if evicted (detected by status code, not string matching)
+  let heartbeatFailures = 0;
+  let heartbeatTimer = null;
+
+  function scheduleHeartbeat() {
+    const backoffMultiplier = Math.min(heartbeatFailures + 1, MAX_HEARTBEAT_BACKOFF_MULTIPLIER);
+    const delay = HEARTBEAT_INTERVAL_MS * backoffMultiplier;
+    heartbeatTimer = setTimeout(async () => {
+      try {
+        await team.heartbeat(teamId);
+        if (heartbeatFailures > 0) {
+          console.error(
+            `[chinwag-channel] Heartbeat recovered after ${heartbeatFailures} failure(s)`,
+          );
+          heartbeatFailures = 0;
+        }
+      } catch (err) {
+        heartbeatFailures++;
+        if (err.status === NOT_A_MEMBER_STATUS) {
+          try {
+            await team.joinTeam(teamId);
+            heartbeatFailures = 0;
+            console.error('[chinwag-channel] Rejoined team after eviction');
+          } catch (rejoinErr) {
+            console.error(
+              `[chinwag-channel] Rejoin failed (attempt ${heartbeatFailures}): ${rejoinErr?.message || 'unknown'}`,
+            );
+          }
+        } else {
+          const nextRetryMs =
+            HEARTBEAT_INTERVAL_MS *
+            Math.min(heartbeatFailures + 1, MAX_HEARTBEAT_BACKOFF_MULTIPLIER);
+          console.error(
+            `[chinwag-channel] Heartbeat failed (attempt ${heartbeatFailures}, next in ${nextRetryMs / 1000}s): ${err?.message || 'unknown'}`,
+          );
         }
       }
-    }
-  }, HEARTBEAT_INTERVAL_MS);
+      scheduleHeartbeat();
+    }, delay);
+    heartbeatTimer.unref?.();
+  }
+  scheduleHeartbeat();
 
   const parentPid = process.ppid;
   const parentWatch = setInterval(() => {
@@ -129,8 +191,14 @@ async function main() {
   parentWatch.unref?.();
 
   const cleanup = () => {
-    clearInterval(interval);
-    clearInterval(heartbeat);
+    if (pollTimer) {
+      clearTimeout(pollTimer);
+      pollTimer = null;
+    }
+    if (heartbeatTimer) {
+      clearTimeout(heartbeatTimer);
+      heartbeatTimer = null;
+    }
     clearInterval(parentWatch);
     process.exit(0);
   };

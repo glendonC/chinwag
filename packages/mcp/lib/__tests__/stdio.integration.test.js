@@ -90,8 +90,8 @@ async function startFakeApiServer() {
         conflicts: hasOverlap
           ? [
               {
-                handle: 'sarah',
-                host_tool: 'cursor',
+                owner_handle: 'sarah',
+                tool: 'cursor',
                 files: ['src/auth.js'],
                 summary: 'Parallel auth refactor',
               },

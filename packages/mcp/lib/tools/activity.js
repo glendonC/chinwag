@@ -1,12 +1,12 @@
 // chinwag_update_activity tool handler.
 
 import * as z from 'zod/v4';
-import { teamPreamble } from '../context.js';
 import { setTerminalTitle } from '@chinwag/shared/session-registry.js';
-import { noTeam, errorResult } from '../utils/responses.js';
-import { normalizeFiles } from '../utils/paths.js';
+import { withTeam } from './index.js';
 
-export function registerActivityTool(addTool, { team, state }) {
+export function registerActivityTool(addTool, deps) {
+  const { team, state } = deps;
+
   addTool(
     'chinwag_update_activity',
     {
@@ -20,26 +20,14 @@ export function registerActivityTool(addTool, { team, state }) {
           .describe('Brief description, e.g. "Refactoring auth middleware"'),
       }),
     },
-    async ({ files, summary }) => {
-      if (!state.teamId) return noTeam();
-      try {
-        const result = await team.updateActivity(state.teamId, normalizeFiles(files), summary);
-        if (result?.error) {
-          return {
-            content: [{ type: 'text', text: `Failed to update activity: ${result.error}` }],
-            isError: true,
-          };
-        }
-        // Set terminal tab title to the agent's task — stable identity
-        if (state.tty && summary) {
-          const label = summary.length > 40 ? summary.slice(0, 39) + '\u2026' : summary;
-          setTerminalTitle(state.tty, `chinwag \u00B7 ${label}`);
-        }
-        const preamble = await teamPreamble(team, state.teamId);
-        return { content: [{ type: 'text', text: `${preamble}Activity updated: ${summary}` }] };
-      } catch (err) {
-        return errorResult(err);
+    withTeam(deps, async ({ files, summary }, { preamble }) => {
+      await team.updateActivity(state.teamId, files, summary);
+      // Set terminal tab title to the agent's task — stable identity
+      if (state.tty && summary) {
+        const label = summary.length > 40 ? summary.slice(0, 39) + '\u2026' : summary;
+        setTerminalTitle(state.tty, `chinwag \u00B7 ${label}`);
       }
-    },
+      return { content: [{ type: 'text', text: `${preamble}Activity updated: ${summary}` }] };
+    }),
   );
 }

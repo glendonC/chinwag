@@ -301,7 +301,7 @@ describe('diffState', () => {
       expect(stucknessAlerted.has('a1')).toBe(false);
     });
 
-    it('clears stuckness alert when agent switches to different files (same updated_at)', () => {
+    it('does not re-alert when agent switches files but updated_at stays the same', () => {
       const member1 = {
         handle: 'alice',
         agent_id: 'a1',
@@ -315,7 +315,8 @@ describe('diffState', () => {
       diffState(state1, state1, stucknessAlerted);
       expect(stucknessAlerted.has('a1')).toBe(true);
 
-      // Agent switches files but updated_at stays the same (edge case)
+      // Agent switches files but updated_at stays the same — stucknessAlerted
+      // key matches updated_at, so no reset occurs and dedup prevents re-alert
       const member2 = {
         ...member1,
         activity: { files: ['different.js'], updated_at: '2026-01-01T00:00:00Z' },
@@ -323,8 +324,8 @@ describe('diffState', () => {
       };
       const state2 = { members: [member2] };
       const events = diffState(state1, state2, stucknessAlerted);
-      // Alert should fire again because files changed
-      expect(events.some((e) => e.includes('may be stuck'))).toBe(true);
+      // Same updated_at means the alert is still deduped
+      expect(events.some((e) => e.includes('may be stuck'))).toBe(false);
     });
 
     it('does not alert for inactive agents even if minutes_since_update is high', () => {
@@ -404,7 +405,7 @@ describe('diffState', () => {
     it('detects new locks', () => {
       const prev = { locks: [] };
       const curr = {
-        locks: [{ file_path: 'auth.js', handle: 'alice', host_tool: 'cursor' }],
+        locks: [{ file_path: 'auth.js', owner_handle: 'alice', tool: 'cursor' }],
       };
       const events = diffState(prev, curr, stucknessAlerted);
       expect(events).toEqual(['alice (cursor) locked auth.js']);
@@ -412,7 +413,7 @@ describe('diffState', () => {
 
     it('detects released locks', () => {
       const prev = {
-        locks: [{ file_path: 'auth.js', handle: 'alice', host_tool: 'cursor' }],
+        locks: [{ file_path: 'auth.js', owner_handle: 'alice', tool: 'cursor' }],
       };
       const curr = { locks: [] };
       const events = diffState(prev, curr, stucknessAlerted);
@@ -422,7 +423,7 @@ describe('diffState', () => {
     it('omits tool label when tool is "unknown"', () => {
       const prev = { locks: [] };
       const curr = {
-        locks: [{ file_path: 'auth.js', handle: 'alice', host_tool: 'unknown' }],
+        locks: [{ file_path: 'auth.js', owner_handle: 'alice', tool: 'unknown' }],
       };
       const events = diffState(prev, curr, stucknessAlerted);
       expect(events).toEqual(['alice locked auth.js']);
@@ -431,14 +432,14 @@ describe('diffState', () => {
     it('omits tool label when tool is missing', () => {
       const prev = { locks: [] };
       const curr = {
-        locks: [{ file_path: 'auth.js', handle: 'alice' }],
+        locks: [{ file_path: 'auth.js', owner_handle: 'alice' }],
       };
       const events = diffState(prev, curr, stucknessAlerted);
       expect(events).toEqual(['alice locked auth.js']);
     });
 
     it('does not emit when locks are unchanged', () => {
-      const locks = [{ file_path: 'auth.js', handle: 'alice', host_tool: 'cursor' }];
+      const locks = [{ file_path: 'auth.js', owner_handle: 'alice', tool: 'cursor' }];
       const events = diffState({ locks }, { locks }, stucknessAlerted);
       expect(events).toEqual([]);
     });
@@ -452,8 +453,8 @@ describe('diffState', () => {
       const curr = {
         messages: [
           {
-            handle: 'bob',
-            host_tool: 'aider',
+            from_handle: 'bob',
+            from_tool: 'aider',
             text: 'Rebased!',
             created_at: '2026-01-01T00:00:00Z',
           },
@@ -465,7 +466,7 @@ describe('diffState', () => {
 
     it('does not emit for messages that existed before', () => {
       const msgs = [
-        { handle: 'bob', host_tool: 'aider', text: 'Hi', created_at: '2026-01-01T00:00:00Z' },
+        { from_handle: 'bob', from_tool: 'aider', text: 'Hi', created_at: '2026-01-01T00:00:00Z' },
       ];
       const events = diffState({ messages: msgs }, { messages: msgs }, stucknessAlerted);
       expect(events).toEqual([]);
@@ -475,7 +476,12 @@ describe('diffState', () => {
       const prev = { messages: [] };
       const curr = {
         messages: [
-          { handle: 'bob', host_tool: 'unknown', text: 'Hi', created_at: '2026-01-01T00:00:00Z' },
+          {
+            from_handle: 'bob',
+            from_tool: 'unknown',
+            text: 'Hi',
+            created_at: '2026-01-01T00:00:00Z',
+          },
         ],
       };
       const events = diffState(prev, curr, stucknessAlerted);
@@ -492,8 +498,8 @@ describe('diffState', () => {
           { handle: 'alice', agent_id: 'a1', status: 'active', activity: { files: ['a.js'] } },
         ],
         memories: [{ id: 'm1', text: 'fact', tags: ['gotcha'] }],
-        locks: [{ file_path: 'b.js', handle: 'alice', host_tool: 'cursor' }],
-        messages: [{ handle: 'alice', text: 'hi', created_at: 't1' }],
+        locks: [{ file_path: 'b.js', owner_handle: 'alice', tool: 'cursor' }],
+        messages: [{ from_handle: 'alice', text: 'hi', created_at: 't1' }],
       };
       const events = diffState(state, state, stucknessAlerted);
       expect(events).toEqual([]);
@@ -514,10 +520,10 @@ describe('diffState', () => {
     it('handles transition from empty state to populated state', () => {
       const prev = {};
       const curr = {
-        members: [{ handle: 'alice', agent_id: 'a1', host_tool: 'cursor' }],
+        members: [{ handle: 'alice', agent_id: 'a1', tool: 'cursor' }],
         memories: [{ id: 'm1', text: 'note', tags: ['config'] }],
-        locks: [{ file_path: 'x.js', handle: 'alice', host_tool: 'cursor' }],
-        messages: [{ handle: 'alice', host_tool: 'cursor', text: 'hey', created_at: 't1' }],
+        locks: [{ file_path: 'x.js', owner_handle: 'alice', tool: 'cursor' }],
+        messages: [{ from_handle: 'alice', from_tool: 'cursor', text: 'hey', created_at: 't1' }],
       };
       const events = diffState(prev, curr, stucknessAlerted);
       expect(events.length).toBe(4);
@@ -529,10 +535,10 @@ describe('diffState', () => {
 
     it('handles transition from populated state to empty state', () => {
       const prev = {
-        members: [{ handle: 'alice', agent_id: 'a1', host_tool: 'cursor' }],
+        members: [{ handle: 'alice', agent_id: 'a1', tool: 'cursor' }],
         memories: [{ id: 'm1', text: 'note', tags: ['config'] }],
-        locks: [{ file_path: 'x.js', handle: 'alice', host_tool: 'cursor' }],
-        messages: [{ handle: 'alice', text: 'hey', created_at: 't1' }],
+        locks: [{ file_path: 'x.js', owner_handle: 'alice', tool: 'cursor' }],
+        messages: [{ from_handle: 'alice', text: 'hey', created_at: 't1' }],
       };
       const curr = {};
       const events = diffState(prev, curr, stucknessAlerted);

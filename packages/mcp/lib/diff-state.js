@@ -22,7 +22,9 @@ export function diffState(prev, curr, stucknessAlerted) {
   for (const key of currKeys) {
     if (!prevKeys.has(key)) {
       const m = currByKey.get(key);
-      const activity = m.activity ? ` — working on ${m.activity.files.join(', ')}` : '';
+      const activity = m.activity?.files?.length
+        ? ` — working on ${m.activity.files.join(', ')}`
+        : '';
       events.push(`Agent ${formatAgentLabel(m)} joined the team${activity}`);
     }
   }
@@ -84,12 +86,8 @@ export function diffState(prev, curr, stucknessAlerted) {
     const m = currByKey.get(key);
     if (!m?.activity?.updated_at || m.status !== 'active') continue;
 
-    // Build a fingerprint of the agent's current activity — both the timestamp
-    // and the file list. Clear the alert if either changes, so agents that
-    // switch tasks don't accumulate stale stuckness alerts.
-    const activityFingerprint = `${m.activity.updated_at}|${(m.activity.files || []).sort().join(',')}`;
-    const alertedFingerprint = stucknessAlerted.get(key);
-    if (alertedFingerprint && alertedFingerprint !== activityFingerprint) {
+    const alertedAt = stucknessAlerted.get(key);
+    if (alertedAt && alertedAt !== m.activity.updated_at) {
       stucknessAlerted.delete(key);
     }
 
@@ -102,7 +100,7 @@ export function diffState(prev, curr, stucknessAlerted) {
         events.push(
           `Agent ${formatAgentLabel(m)} has been on the same task for ${Math.round(minutesOnSameActivity)} min — may be stuck`,
         );
-        stucknessAlerted.set(key, activityFingerprint);
+        stucknessAlerted.set(key, m.activity.updated_at);
       }
     }
   }
@@ -129,23 +127,27 @@ export function diffState(prev, curr, stucknessAlerted) {
   const currLocks = new Map((curr.locks || []).map((l) => [l.file_path, l]));
   for (const [file, lock] of currLocks) {
     if (!prevLocks.has(file)) {
-      events.push(`${formatWho(lock.handle, lock.host_tool)} locked ${file}`);
+      events.push(
+        `${formatWho(lock.handle || lock.owner_handle, lock.host_tool || lock.tool)} locked ${file}`,
+      );
     }
   }
   for (const [file, lock] of prevLocks) {
     if (!currLocks.has(file)) {
-      events.push(`${formatWho(lock.handle, lock.host_tool)} released lock on ${file}`);
+      events.push(
+        `${formatWho(lock.handle || lock.owner_handle, lock.host_tool || lock.tool)} released lock on ${file}`,
+      );
     }
   }
 
-  // New messages — use a delimited composite key to prevent collisions
-  // (e.g. timestamp "2024-01-01T10:30Z" + handle "alice" must not collide
-  // with a different timestamp/handle pair that concatenates identically).
-  const msgKey = (m) => `${m.created_at}\0${m.handle}`;
+  // New messages
+  const msgKey = (m) => `${m.created_at}\0${m.from_handle || m.handle}`;
   const prevMsgIds = new Set((prev.messages || []).map(msgKey));
   for (const msg of curr.messages || []) {
     if (!prevMsgIds.has(msgKey(msg))) {
-      events.push(`Message from ${formatWho(msg.handle, msg.host_tool)}: ${msg.text}`);
+      events.push(
+        `Message from ${formatWho(msg.from_handle || msg.handle, msg.from_tool || msg.host_tool)}: ${msg.text}`,
+      );
     }
   }
 

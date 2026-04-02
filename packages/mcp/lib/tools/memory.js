@@ -2,10 +2,11 @@
 // chinwag_save_memory, chinwag_update_memory, chinwag_search_memory, chinwag_delete_memory
 
 import * as z from 'zod/v4';
-import { teamPreamble } from '../context.js';
-import { noTeam, errorResult } from '../utils/responses.js';
+import { withTeam } from './index.js';
 
-export function registerMemoryTools(addTool, { team, state }) {
+export function registerMemoryTools(addTool, deps) {
+  const { team, state } = deps;
+
   addTool(
     'chinwag_save_memory',
     {
@@ -22,23 +23,11 @@ export function registerMemoryTools(addTool, { team, state }) {
           ),
       }),
     },
-    async ({ text, tags }) => {
-      if (!state.teamId) return noTeam();
-      try {
-        const result = await team.saveMemory(state.teamId, text, tags);
-        if (result?.error) {
-          return {
-            content: [{ type: 'text', text: `Failed to save memory: ${result.error}` }],
-            isError: true,
-          };
-        }
-        const preamble = await teamPreamble(team, state.teamId);
-        const tagStr = tags?.length ? ` [${tags.join(', ')}]` : '';
-        return { content: [{ type: 'text', text: `${preamble}Memory saved${tagStr}: ${text}` }] };
-      } catch (err) {
-        return errorResult(err);
-      }
-    },
+    withTeam(deps, async ({ text, tags }, { preamble }) => {
+      await team.saveMemory(state.teamId, text, tags);
+      const tagStr = tags?.length ? ` [${tags.join(', ')}]` : '';
+      return { content: [{ type: 'text', text: `${preamble}Memory saved${tagStr}: ${text}` }] };
+    }),
   );
 
   addTool(
@@ -49,41 +38,32 @@ export function registerMemoryTools(addTool, { team, state }) {
       inputSchema: z.object({
         id: z
           .string()
-          .uuid()
           .describe('Memory ID to update (UUID format, get from chinwag_search_memory)'),
         text: z.string().max(2000).optional().describe('Updated text content'),
         tags: z.array(z.string().max(50)).max(10).optional().describe('Updated tags'),
       }),
     },
-    async ({ id, text, tags }) => {
-      if (!state.teamId) return noTeam();
+    withTeam(deps, async ({ id, text, tags }, { preamble }) => {
       if (!text && !tags) {
         return {
           content: [{ type: 'text', text: 'Provide at least one of text or tags to update.' }],
           isError: true,
         };
       }
-      try {
-        const result = await team.updateMemory(state.teamId, id, text, tags);
-        if (result.error) {
-          return {
-            content: [{ type: 'text', text: `Failed to update memory ${id}: ${result.error}` }],
-            isError: true,
-          };
-        }
-        const preamble = await teamPreamble(team, state.teamId);
-        const parts = [];
-        if (text) parts.push('text updated');
-        if (tags) parts.push(`tags \u2192 ${tags.join(', ')}`);
+      const result = await team.updateMemory(state.teamId, id, text, tags);
+      if (result.error) {
         return {
-          content: [
-            { type: 'text', text: `${preamble}Memory ${id} updated (${parts.join(', ')}).` },
-          ],
+          content: [{ type: 'text', text: `Failed to update memory ${id}: ${result.error}` }],
+          isError: true,
         };
-      } catch (err) {
-        return errorResult(err);
       }
-    },
+      const parts = [];
+      if (text) parts.push('text updated');
+      if (tags) parts.push(`tags \u2192 ${tags.join(', ')}`);
+      return {
+        content: [{ type: 'text', text: `${preamble}Memory ${id} updated (${parts.join(', ')}).` }],
+      };
+    }),
   );
 
   addTool(
@@ -105,28 +85,21 @@ export function registerMemoryTools(addTool, { team, state }) {
         limit: z.number().min(1).max(50).optional().describe('Max results (default 20)'),
       }),
     },
-    async ({ query, tags, limit }) => {
-      if (!state.teamId) return noTeam();
-      try {
+    withTeam(
+      deps,
+      async ({ query, tags, limit }) => {
         const result = await team.searchMemories(state.teamId, query, tags, limit);
-        if (result?.error) {
-          return {
-            content: [{ type: 'text', text: `Failed to search memories: ${result.error}` }],
-            isError: true,
-          };
-        }
         if (!result.memories || result.memories.length === 0) {
           return { content: [{ type: 'text', text: 'No memories found.' }] };
         }
         const lines = result.memories.map((m) => {
           const tagStr = m.tags?.length ? ` [${m.tags.join(', ')}]` : '';
-          return `${m.text}${tagStr} (id: ${m.id}, by ${m.handle})`;
+          return `${m.text}${tagStr} (id: ${m.id}, by ${m.handle || m.source_handle})`;
         });
         return { content: [{ type: 'text', text: lines.join('\n') }] };
-      } catch (err) {
-        return errorResult(err);
-      }
-    },
+      },
+      { skipPreamble: true },
+    ),
   );
 
   addTool(
@@ -137,13 +110,12 @@ export function registerMemoryTools(addTool, { team, state }) {
       inputSchema: z.object({
         id: z
           .string()
-          .uuid()
           .describe('Memory ID to delete (UUID format, get from chinwag_search_memory)'),
       }),
     },
-    async ({ id }) => {
-      if (!state.teamId) return noTeam();
-      try {
+    withTeam(
+      deps,
+      async ({ id }) => {
         const result = await team.deleteMemory(state.teamId, id);
         if (result.error) {
           return {
@@ -152,9 +124,8 @@ export function registerMemoryTools(addTool, { team, state }) {
           };
         }
         return { content: [{ type: 'text', text: `Memory ${id} deleted.` }] };
-      } catch (err) {
-        return errorResult(err);
-      }
-    },
+      },
+      { skipPreamble: true },
+    ),
   );
 }

@@ -295,8 +295,8 @@ describe('registerTools', () => {
       team.checkConflicts.mockResolvedValue({
         conflicts: [
           {
-            handle: 'bob',
-            host_tool: 'cursor',
+            owner_handle: 'bob',
+            tool: 'cursor',
             files: ['auth.js'],
             summary: 'Fixing login bug',
           },
@@ -310,7 +310,7 @@ describe('registerTools', () => {
     it('returns locked file details', async () => {
       team.checkConflicts.mockResolvedValue({
         conflicts: [],
-        locked: [{ file: 'db.js', handle: 'alice', host_tool: 'unknown' }],
+        locked: [{ file: 'db.js', held_by: 'alice', tool: 'unknown' }],
       });
       const result = await server.callTool('chinwag_check_conflicts', { files: ['db.js'] });
       expect(result.content[0].text).toMatch(/db\.js is locked by alice/);
@@ -320,8 +320,8 @@ describe('registerTools', () => {
       team.checkConflicts.mockResolvedValue({
         conflicts: [
           {
-            handle: 'bob',
-            host_tool: 'unknown',
+            owner_handle: 'bob',
+            tool: 'unknown',
             files: ['x.js'],
             summary: 'stuff',
           },
@@ -340,7 +340,7 @@ describe('registerTools', () => {
         members: [
           {
             handle: 'bob',
-            host_tool: 'cursor',
+            tool: 'cursor',
             status: 'active',
             activity: { files: ['shared.js'] },
           },
@@ -412,7 +412,7 @@ describe('registerTools', () => {
           {
             handle: 'alice',
             status: 'active',
-            host_tool: 'cursor',
+            tool: 'cursor',
             activity: {
               files: ['auth.js', 'db.js'],
               summary: 'Fixing auth',
@@ -428,7 +428,7 @@ describe('registerTools', () => {
 
     it('shows idle for agents without activity', async () => {
       refreshContext.mockResolvedValue({
-        members: [{ handle: 'bob', status: 'active', host_tool: 'unknown' }],
+        members: [{ handle: 'bob', status: 'active', tool: 'unknown' }],
       });
       const result = await server.callTool('chinwag_get_team_context');
       expect(result.content[0].text).toMatch(/bob \(active\): idle/);
@@ -437,7 +437,7 @@ describe('registerTools', () => {
     it('includes locks section when present', async () => {
       refreshContext.mockResolvedValue({
         members: [],
-        locks: [{ file_path: 'auth.js', handle: 'alice', host_tool: 'cursor', minutes_held: 5.2 }],
+        locks: [{ file_path: 'auth.js', owner_handle: 'alice', tool: 'cursor', minutes_held: 5.2 }],
       });
       const result = await server.callTool('chinwag_get_team_context');
       const text = result.content[0].text;
@@ -448,7 +448,7 @@ describe('registerTools', () => {
     it('includes messages section when present', async () => {
       refreshContext.mockResolvedValue({
         members: [],
-        messages: [{ handle: 'bob', host_tool: 'aider', text: 'Rebased, please pull' }],
+        messages: [{ from_handle: 'bob', from_tool: 'aider', text: 'Rebased, please pull' }],
       });
       const result = await server.callTool('chinwag_get_team_context');
       const text = result.content[0].text;
@@ -469,7 +469,7 @@ describe('registerTools', () => {
 
     it('omits tool info when tool is "unknown"', async () => {
       refreshContext.mockResolvedValue({
-        members: [{ handle: 'bob', status: 'idle', host_tool: 'unknown' }],
+        members: [{ handle: 'bob', status: 'idle', tool: 'unknown' }],
       });
       const result = await server.callTool('chinwag_get_team_context');
       expect(result.content[0].text).toMatch(/bob \(idle\)/);
@@ -531,8 +531,8 @@ describe('registerTools', () => {
     it('returns formatted results when memories found', async () => {
       team.searchMemories.mockResolvedValue({
         memories: [
-          { id: 'mem1', text: 'Use port 6379', tags: ['config'], handle: 'alice' },
-          { id: 'mem2', text: 'No console.log in MCP', tags: ['gotcha'], handle: 'bob' },
+          { id: 'mem1', text: 'Use port 6379', tags: ['config'], source_handle: 'alice' },
+          { id: 'mem2', text: 'No console.log in MCP', tags: ['gotcha'], source_handle: 'bob' },
         ],
       });
       const result = await server.callTool('chinwag_search_memory', { query: 'port' });
@@ -605,7 +605,7 @@ describe('registerTools', () => {
     it('returns blocked files with holder info', async () => {
       team.claimFiles.mockResolvedValue({
         claimed: [],
-        blocked: [{ file: 'locked.js', handle: 'bob', host_tool: 'cursor' }],
+        blocked: [{ file: 'locked.js', held_by: 'bob', tool: 'cursor' }],
       });
       const result = await server.callTool('chinwag_claim_files', { files: ['locked.js'] });
       expect(result.content[0].text).toMatch(/Blocked: locked\.js.*held by bob \(cursor\)/);
@@ -614,7 +614,7 @@ describe('registerTools', () => {
     it('omits tool label when tool is "unknown" in blocked files', async () => {
       team.claimFiles.mockResolvedValue({
         claimed: [],
-        blocked: [{ file: 'locked.js', handle: 'bob', host_tool: 'unknown' }],
+        blocked: [{ file: 'locked.js', held_by: 'bob', tool: 'unknown' }],
       });
       const result = await server.callTool('chinwag_claim_files', { files: ['locked.js'] });
       const text = result.content[0].text;
@@ -625,7 +625,7 @@ describe('registerTools', () => {
     it('returns both claimed and blocked together', async () => {
       team.claimFiles.mockResolvedValue({
         claimed: ['free.js'],
-        blocked: [{ file: 'taken.js', handle: 'alice', host_tool: 'aider' }],
+        blocked: [{ file: 'taken.js', held_by: 'alice', tool: 'aider' }],
       });
       const result = await server.callTool('chinwag_claim_files', {
         files: ['free.js', 'taken.js'],

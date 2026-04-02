@@ -1,12 +1,13 @@
 // chinwag_claim_files and chinwag_release_files tool handlers.
 
 import * as z from 'zod/v4';
-import { teamPreamble } from '../context.js';
-import { noTeam, errorResult } from '../utils/responses.js';
 import { formatWho } from '../utils/formatting.js';
-import { normalizeFiles } from '../utils/paths.js';
+import { noTeam, errorResult } from '../utils/responses.js';
+import { withTeam } from './index.js';
 
-export function registerLockTools(addTool, { team, state }) {
+export function registerLockTools(addTool, deps) {
+  const { team, state } = deps;
+
   addTool(
     'chinwag_claim_files',
     {
@@ -16,30 +17,18 @@ export function registerLockTools(addTool, { team, state }) {
         files: z.array(z.string().max(500)).max(20).describe('File paths to claim'),
       }),
     },
-    async ({ files }) => {
-      if (!state.teamId) return noTeam();
-      try {
-        const result = await team.claimFiles(state.teamId, normalizeFiles(files));
-        if (result?.error) {
-          return {
-            content: [{ type: 'text', text: `Failed to claim files: ${result.error}` }],
-            isError: true,
-          };
+    withTeam(deps, async ({ files }, { preamble }) => {
+      const result = await team.claimFiles(state.teamId, files);
+      const lines = [];
+      if (result.claimed?.length > 0) lines.push(`Claimed: ${result.claimed.join(', ')}`);
+      if (result.blocked?.length > 0) {
+        for (const b of result.blocked) {
+          const who = formatWho(b.held_by, b.tool);
+          lines.push(`Blocked: ${b.file} — held by ${who}`);
         }
-        const preamble = await teamPreamble(team, state.teamId);
-        const lines = [];
-        if (result.claimed?.length > 0) lines.push(`Claimed: ${result.claimed.join(', ')}`);
-        if (result.blocked?.length > 0) {
-          for (const b of result.blocked) {
-            const who = formatWho(b.handle, b.host_tool);
-            lines.push(`Blocked: ${b.file} — held by ${who}`);
-          }
-        }
-        return { content: [{ type: 'text', text: `${preamble}${lines.join('\n')}` }] };
-      } catch (err) {
-        return errorResult(err);
       }
-    },
+      return { content: [{ type: 'text', text: `${preamble}${lines.join('\n')}` }] };
+    }),
   );
 
   addTool(
@@ -55,24 +44,14 @@ export function registerLockTools(addTool, { team, state }) {
           .describe('File paths to release (omit to release all your locks)'),
       }),
     },
-    async ({ files }) => {
-      if (!state.teamId) return noTeam();
-      try {
-        const result = await team.releaseFiles(
-          state.teamId,
-          files ? normalizeFiles(files) : undefined,
-        );
-        if (result?.error) {
-          return {
-            content: [{ type: 'text', text: `Failed to release files: ${result.error}` }],
-            isError: true,
-          };
-        }
+    withTeam(
+      deps,
+      async ({ files }) => {
+        await team.releaseFiles(state.teamId, files);
         const msg = files ? `Released: ${files.join(', ')}` : 'All locks released.';
         return { content: [{ type: 'text', text: msg }] };
-      } catch (err) {
-        return errorResult(err);
-      }
-    },
+      },
+      { skipPreamble: true },
+    ),
   );
 }
