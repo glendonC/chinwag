@@ -1,5 +1,15 @@
 import { isAgentAddressable } from './agent-display.js';
 import { MIN_WIDTH } from './utils.js';
+import {
+  navigateToView,
+  setSelectedIdx,
+  setMainFocus,
+  setHeroInput,
+  setHeroInputActive,
+  toggleDiagnostics,
+  enterAgentFocus,
+  exitAgentFocus,
+} from './reducer.js';
 
 // ── Constants ───────────────────────────────────────
 const COMMAND_SUGGESTION_LIMIT = 5;
@@ -11,34 +21,38 @@ const COMMAND_SUGGESTION_LIMIT = 5;
  * @returns {boolean} Whether the input was consumed.
  */
 function handleAgentFocusInput(input, key, ctx) {
-  const { state, dispatch, agents, liveAgentNameCounts, composer } = ctx;
-  const { focusedAgent } = state;
+  const { dispatch, agents, liveAgentNameCounts, composer } = ctx;
+  const { focusedAgent } = ctx.state;
 
   if (key.escape) {
-    dispatch({ type: 'NAVIGATE_BACK' });
+    dispatch(exitAgentFocus());
     return true;
   }
   if (input === 'x' && focusedAgent?._managed) {
     if (focusedAgent._dead) {
       const removed = agents.handleRemoveAgent(focusedAgent, liveAgentNameCounts);
-      if (removed) { dispatch({ type: 'NAVIGATE_BACK' }); }
+      if (removed) {
+        dispatch(exitAgentFocus());
+      }
     } else {
       agents.handleKillAgent(focusedAgent, liveAgentNameCounts);
-      dispatch({ type: 'NAVIGATE_BACK' });
+      dispatch(exitAgentFocus());
     }
     return true;
   }
   if (input === 'r' && focusedAgent?._managed && focusedAgent._dead) {
     const restarted = agents.handleRestartAgent(focusedAgent);
-    if (restarted) { dispatch({ type: 'NAVIGATE_BACK' }); }
+    if (restarted) {
+      dispatch(exitAgentFocus());
+    }
     return true;
   }
   if (input === 'l' && focusedAgent?._managed) {
-    dispatch({ type: 'TOGGLE_DIAGNOSTICS' });
+    dispatch(toggleDiagnostics());
     return true;
   }
   if (input === 'm' && isAgentAddressable(focusedAgent)) {
-    dispatch({ type: 'NAVIGATE_BACK' });
+    dispatch(exitAgentFocus());
     composer.beginTargetedMessage(focusedAgent);
     return true;
   }
@@ -50,16 +64,20 @@ function handleAgentFocusInput(input, key, ctx) {
  * @returns {boolean} Whether the input was consumed.
  */
 function handleComposeModeInput(input, key, ctx) {
-  const { state, dispatch, composer, commandSuggestions } = ctx;
+  const { composer, commandSuggestions } = ctx;
 
-  if (key.escape) { composer.clearCompose(); return true; }
-  if (state.composeMode === 'command') {
+  if (key.escape) {
+    composer.clearCompose();
+    return true;
+  }
+  if (composer.composeMode === 'command') {
+    const maxIdx = Math.min(commandSuggestions.length - 1, COMMAND_SUGGESTION_LIMIT);
     if (key.downArrow) {
-      dispatch({ type: 'COMMAND_SELECT_DOWN', maxIdx: Math.min(commandSuggestions.length - 1, COMMAND_SUGGESTION_LIMIT) });
+      composer.setCommandSelectedIdx((i) => Math.min(i + 1, maxIdx));
       return true;
     }
     if (key.upArrow) {
-      dispatch({ type: 'COMMAND_SELECT_UP' });
+      composer.setCommandSelectedIdx((i) => Math.max(i - 1, 0));
       return true;
     }
   }
@@ -72,11 +90,21 @@ function handleComposeModeInput(input, key, ctx) {
  */
 function handleToolPickerInput(input, key, ctx) {
   const { agents } = ctx;
-  const tools = agents.readyCliAgents.length > 0 ? agents.readyCliAgents : agents.installedCliAgents;
+  const tools =
+    agents.readyCliAgents.length > 0 ? agents.readyCliAgents : agents.installedCliAgents;
 
-  if (key.escape) { agents.setToolPickerOpen(false); return true; }
-  if (key.downArrow) { agents.setToolPickerIdx(i => Math.min(i + 1, tools.length - 1)); return true; }
-  if (key.upArrow) { agents.setToolPickerIdx(i => Math.max(i - 1, 0)); return true; }
+  if (key.escape) {
+    agents.setToolPickerOpen(false);
+    return true;
+  }
+  if (key.downArrow) {
+    agents.setToolPickerIdx((i) => Math.min(i + 1, tools.length - 1));
+    return true;
+  }
+  if (key.upArrow) {
+    agents.setToolPickerIdx((i) => Math.max(i - 1, 0));
+    return true;
+  }
   if (key.return) {
     agents.handleToolPickerSelect(agents.toolPickerIdx);
     return true;
@@ -90,9 +118,13 @@ function handleToolPickerInput(input, key, ctx) {
  */
 function handleHomeViewInput(input, key, ctx) {
   const {
-    state, dispatch,
-    allVisibleAgents, mainSelectedAgent, liveAgentNameCounts,
-    agents, composer,
+    state,
+    dispatch,
+    allVisibleAgents,
+    mainSelectedAgent,
+    liveAgentNameCounts,
+    agents,
+    composer,
   } = ctx;
   const { mainFocus, selectedIdx } = state;
 
@@ -102,27 +134,27 @@ function handleHomeViewInput(input, key, ctx) {
   }
   if (key.downArrow) {
     if (mainFocus === 'input' && allVisibleAgents.length > 0) {
-      dispatch({ type: 'SET_MAIN_FOCUS', focus: 'agents' });
-      if (selectedIdx < 0) dispatch({ type: 'SELECT_AGENT', idx: 0 });
+      dispatch(setMainFocus('agents'));
+      if (selectedIdx < 0) dispatch(setSelectedIdx(0));
       return true;
     }
     if (mainFocus === 'agents' && allVisibleAgents.length > 0) {
-      dispatch({ type: 'MOVE_SELECTION_DOWN', listLength: allVisibleAgents.length });
+      dispatch(setSelectedIdx((i) => Math.min(i + 1, allVisibleAgents.length - 1)));
       return true;
     }
   }
   if (key.upArrow) {
     if (mainFocus === 'agents' && selectedIdx > 0) {
-      dispatch({ type: 'MOVE_SELECTION_UP' });
+      dispatch(setSelectedIdx((i) => Math.max(i - 1, 0)));
       return true;
     }
     if (mainFocus === 'agents') {
-      dispatch({ type: 'SET_MAIN_FOCUS', focus: 'input' });
+      dispatch(setMainFocus('input'));
       return true;
     }
   }
   if (key.return && mainSelectedAgent) {
-    dispatch({ type: 'FOCUS_AGENT', agent: mainSelectedAgent });
+    dispatch(enterAgentFocus(mainSelectedAgent));
     return true;
   }
   if (input === 'm' && mainSelectedAgent && isAgentAddressable(mainSelectedAgent)) {
@@ -141,28 +173,28 @@ function handleHomeViewInput(input, key, ctx) {
  * @returns {boolean} Whether the input was consumed.
  */
 function handleSessionsViewInput(input, key, ctx) {
-  const {
-    state, dispatch,
-    liveAgents, allVisibleAgents, liveAgentNameCounts, agents,
-  } = ctx;
+  const { state, dispatch, liveAgents, allVisibleAgents, liveAgentNameCounts, agents } = ctx;
   const { selectedIdx } = state;
 
   if (key.downArrow && liveAgents.length > 0) {
-    dispatch({ type: 'MOVE_SELECTION_DOWN', listLength: liveAgents.length });
+    dispatch(setSelectedIdx((i) => Math.min(i + 1, liveAgents.length - 1)));
     return true;
   }
   if (key.upArrow) {
     if (selectedIdx <= 0) {
-      dispatch({ type: 'SELECT_AGENT', idx: -1 });
+      dispatch(setSelectedIdx(-1));
     } else {
-      dispatch({ type: 'MOVE_SELECTION_UP' });
+      dispatch(setSelectedIdx((i) => Math.max(i - 1, 0)));
     }
     return true;
   }
-  if (key.escape) { dispatch({ type: 'NAVIGATE_TO_VIEW', view: 'home' }); return true; }
+  if (key.escape) {
+    dispatch(navigateToView('home'));
+    return true;
+  }
   if (key.return) {
     if (selectedIdx >= 0 && selectedIdx < allVisibleAgents.length) {
-      dispatch({ type: 'FOCUS_AGENT', agent: liveAgents[selectedIdx] });
+      dispatch(enterAgentFocus(liveAgents[selectedIdx]));
     }
     return true;
   }
@@ -192,19 +224,22 @@ function handleSessionsViewInput(input, key, ctx) {
  * @returns {boolean} Whether the input was consumed.
  */
 function handleMemoryViewInput(input, key, ctx) {
-  const { state, dispatch, visibleMemories, memory } = ctx;
+  const { dispatch, visibleMemories, memory } = ctx;
 
   if (key.downArrow && visibleMemories.length > 0) {
-    dispatch({ type: 'MEMORY_SELECT_DOWN', listLength: visibleMemories.length });
+    memory.setMemorySelectedIdx((i) => Math.min(i + 1, visibleMemories.length - 1));
     return true;
   }
   if (key.upArrow) {
-    dispatch({ type: 'MEMORY_SELECT_UP' });
+    memory.setMemorySelectedIdx((i) => Math.max(i - 1, 0));
     return true;
   }
   if (key.escape) {
-    if (state.deleteConfirm) { dispatch({ type: 'SET_DELETE_CONFIRM', confirm: false }); return true; }
-    dispatch({ type: 'NAVIGATE_TO_VIEW', view: 'home' });
+    if (memory.deleteConfirm) {
+      memory.setDeleteConfirm(false);
+      return true;
+    }
+    dispatch(navigateToView('home'));
     return true;
   }
   return false; // Not consumed — fall through to global shortcuts
@@ -216,10 +251,17 @@ function handleMemoryViewInput(input, key, ctx) {
  */
 function handleGlobalShortcuts(input, key, ctx) {
   const {
-    state, dispatch,
-    hasLiveAgents, hasMemories, visibleMemories,
-    agents, integrations, composer, memory,
-    handleOpenWebDashboard, navigate,
+    state,
+    dispatch,
+    hasLiveAgents,
+    hasMemories,
+    visibleMemories,
+    agents,
+    integrations,
+    composer,
+    memory,
+    handleOpenWebDashboard,
+    navigate,
   } = ctx;
 
   const { view } = state;
@@ -228,7 +270,8 @@ function handleGlobalShortcuts(input, key, ctx) {
   const isMemoryView = view === 'memory';
 
   if (input === 's' && hasLiveAgents) {
-    dispatch({ type: 'NAVIGATE_TO_VIEW', view: 'sessions', selectedIdx: state.selectedIdx >= 0 ? state.selectedIdx : 0 });
+    dispatch(navigateToView('sessions'));
+    dispatch(setSelectedIdx(state.selectedIdx >= 0 ? state.selectedIdx : 0));
     return true;
   }
 
@@ -239,16 +282,18 @@ function handleGlobalShortcuts(input, key, ctx) {
 
   if (input === 'k' && hasMemories) {
     if (view === 'memory') {
-      dispatch({ type: 'NAVIGATE_TO_VIEW', view: 'home' });
+      dispatch(navigateToView('home'));
     } else {
-      dispatch({ type: 'NAVIGATE_TO_VIEW', view: 'memory', selectedIdx: -1 });
+      dispatch(navigateToView('memory'));
     }
     memory.resetMemorySelection();
     return true;
   }
 
   if (input === 'f') {
-    const fixableTool = agents.unavailableCliAgents.find(tool => agents.getManagedToolState(tool.id).recoveryCommand);
+    const fixableTool = agents.unavailableCliAgents.find(
+      (tool) => agents.getManagedToolState(tool.id).recoveryCommand,
+    );
     if (fixableTool) {
       agents.handleFixLauncher(fixableTool);
       return true;
@@ -277,13 +322,19 @@ function handleGlobalShortcuts(input, key, ctx) {
     return true;
   }
 
-  if (input === 'd' && isMemoryView && state.memorySelectedIdx >= 0) {
-    if (!state.deleteConfirm) { dispatch({ type: 'SET_DELETE_CONFIRM', confirm: true }); return true; }
-    memory.deleteMemoryItem(visibleMemories[state.memorySelectedIdx]);
+  if (input === 'd' && isMemoryView && memory.memorySelectedIdx >= 0) {
+    if (!memory.deleteConfirm) {
+      memory.setDeleteConfirm(true);
+      return true;
+    }
+    memory.deleteMemoryItem(visibleMemories[memory.memorySelectedIdx]);
     return true;
   }
 
-  if (input === 'q') { navigate('quit'); return true; }
+  if (input === 'q') {
+    navigate('quit');
+    return true;
+  }
 
   return false;
 }
@@ -297,12 +348,19 @@ function handleGlobalShortcuts(input, key, ctx) {
  */
 export function createInputHandler({
   // Reducer state + dispatch
-  state, dispatch,
+  state,
+  dispatch,
   // Connection
-  cols, error, context, connectionRetry,
+  cols,
+  error,
+  context,
+  connectionRetry,
   // Data
-  allVisibleAgents, liveAgents, visibleMemories,
-  hasLiveAgents, hasMemories,
+  allVisibleAgents,
+  liveAgents,
+  visibleMemories,
+  hasLiveAgents,
+  hasMemories,
   mainSelectedAgent,
   liveAgentNameCounts,
   // Hooks
@@ -319,12 +377,26 @@ export function createInputHandler({
 }) {
   // Shared context object passed to all handlers
   const ctx = {
-    state, dispatch,
-    cols, error, context, connectionRetry,
-    allVisibleAgents, liveAgents, visibleMemories,
-    hasLiveAgents, hasMemories, mainSelectedAgent, liveAgentNameCounts,
-    agents, integrations, composer, memory,
-    commandSuggestions, handleCommandSubmit, handleOpenWebDashboard,
+    state,
+    dispatch,
+    cols,
+    error,
+    context,
+    connectionRetry,
+    allVisibleAgents,
+    liveAgents,
+    visibleMemories,
+    hasLiveAgents,
+    hasMemories,
+    mainSelectedAgent,
+    liveAgentNameCounts,
+    agents,
+    integrations,
+    composer,
+    memory,
+    commandSuggestions,
+    handleCommandSubmit,
+    handleOpenWebDashboard,
     navigate,
   };
 
@@ -348,9 +420,18 @@ export function createInputHandler({
     const isAgentFocusView = view === 'agent-focus';
 
     // ── Modal views (consume all input) ────────
-    if (isAgentFocusView) { handleAgentFocusInput(input, key, ctx); return; }
-    if (state.composeMode !== null) { handleComposeModeInput(input, key, ctx); return; }
-    if (agents.toolPickerOpen) { handleToolPickerInput(input, key, ctx); return; }
+    if (isAgentFocusView) {
+      handleAgentFocusInput(input, key, ctx);
+      return;
+    }
+    if (composer.composeMode !== null) {
+      handleComposeModeInput(input, key, ctx);
+      return;
+    }
+    if (agents.toolPickerOpen) {
+      handleToolPickerInput(input, key, ctx);
+      return;
+    }
 
     // ── View-specific input (may fall through) ─
     if (isHomeView && handleHomeViewInput(input, key, ctx)) return;
@@ -379,7 +460,10 @@ export function createCommandHandler({
 }) {
   return function handleCommandSubmit(rawText) {
     const text = rawText.trim().replace(/^\//, '').trim();
-    if (!text) { composer.clearCompose(); return; }
+    if (!text) {
+      composer.clearCompose();
+      return;
+    }
 
     const [verbRaw, ...restParts] = text.split(/\s+/);
     const verb = verbRaw.toLowerCase();
@@ -398,7 +482,9 @@ export function createCommandHandler({
     }
 
     if (verb === 'fix') {
-      const hasLauncherFix = agents.unavailableCliAgents.some(tool => agents.getManagedToolState(tool.id).recoveryCommand);
+      const hasLauncherFix = agents.unavailableCliAgents.some(
+        (tool) => agents.getManagedToolState(tool.id).recoveryCommand,
+      );
       if (hasLauncherFix) {
         agents.handleFixLauncher();
       } else {
@@ -428,14 +514,15 @@ export function createCommandHandler({
     }
 
     if (verb === 'knowledge' || verb === 'memory') {
-      dispatch({ type: 'NAVIGATE_TO_VIEW', view: 'memory' });
-      dispatch({ type: 'RESET_MEMORY_SELECTION' });
+      dispatch(navigateToView('memory'));
+      memory.resetMemorySelection();
       composer.clearCompose();
       return;
     }
 
     if (verb === 'sessions' || verb === 'agents' || verb === 'history') {
-      dispatch({ type: 'NAVIGATE_TO_VIEW', view: 'sessions', selectedIdx: liveAgents.length > 0 ? 0 : -1 });
+      dispatch(navigateToView('sessions'));
+      dispatch(setSelectedIdx(liveAgents.length > 0 ? 0 : -1));
       composer.clearCompose();
       return;
     }
@@ -468,8 +555,9 @@ export function createCommandHandler({
       return;
     }
 
-    dispatch({ type: 'SET_HERO_INPUT', text, active: true });
-    dispatch({ type: 'SET_MAIN_FOCUS', focus: 'input' });
+    dispatch(setHeroInput(text));
+    dispatch(setHeroInputActive(true));
+    dispatch(setMainFocus('input'));
     composer.clearCompose();
   };
 }

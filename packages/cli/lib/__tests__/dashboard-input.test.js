@@ -21,6 +21,7 @@ function makeComposer(overrides = {}) {
     beginTargetedMessage: vi.fn(),
     beginMemorySearch: vi.fn(),
     beginMemoryAdd: vi.fn(),
+    commandSelectedIdx: 0,
     setCommandSelectedIdx: vi.fn(),
     setComposeText: vi.fn(),
     ...overrides,
@@ -54,8 +55,12 @@ function makeAgents(overrides = {}) {
 
 function makeMemory(overrides = {}) {
   return {
+    memorySelectedIdx: -1,
+    deleteConfirm: false,
     resetMemorySelection: vi.fn(),
     setMemoryInput: vi.fn(),
+    setMemorySelectedIdx: vi.fn(),
+    setDeleteConfirm: vi.fn(),
     deleteMemoryItem: vi.fn(),
     ...overrides,
   };
@@ -72,16 +77,17 @@ function makeIntegrations(overrides = {}) {
 
 /**
  * Build context matching the createInputHandler signature.
- * State properties (view, mainFocus, selectedIdx, etc.) go into the `state` object.
- * A `dispatch` spy is provided for asserting dispatched actions.
+ * Dashboard reducer state goes into `state`.
+ * Memory/composer state lives on their respective hook objects.
  */
 function makeCtx(overrides = {}) {
   const {
-    // Pull state-level fields out of overrides
+    // Pull state-level fields out of overrides (dashboard reducer state only)
     view = 'home',
     mainFocus = 'input',
     selectedIdx = -1,
     focusedAgent = null,
+    // Memory/composer hook state (routed to hooks, not reducer)
     composeMode = null,
     deleteConfirm = false,
     memorySelectedIdx = -1,
@@ -93,9 +99,6 @@ function makeCtx(overrides = {}) {
     mainFocus,
     selectedIdx,
     focusedAgent,
-    composeMode,
-    deleteConfirm,
-    memorySelectedIdx,
   };
 
   const base = {
@@ -114,8 +117,8 @@ function makeCtx(overrides = {}) {
     liveAgentNameCounts: new Map(),
     agents: makeAgents(),
     integrations: makeIntegrations(),
-    composer: makeComposer(),
-    memory: makeMemory(),
+    composer: makeComposer({ composeMode }),
+    memory: makeMemory({ deleteConfirm, memorySelectedIdx }),
     commandSuggestions: [],
     handleCommandSubmit: vi.fn(),
     handleOpenWebDashboard: vi.fn(),
@@ -169,7 +172,7 @@ describe('createInputHandler', () => {
       const ctx = makeCtx({ view: 'agent-focus' });
       const handler = createInputHandler(ctx);
       handler('', makeKey({ escape: true }));
-      expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NAVIGATE_BACK' });
+      expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'EXIT_AGENT_FOCUS' });
     });
 
     it('kills managed agent on x', () => {
@@ -181,7 +184,7 @@ describe('createInputHandler', () => {
         focusedAgent,
         ctx.liveAgentNameCounts,
       );
-      expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NAVIGATE_BACK' });
+      expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'EXIT_AGENT_FOCUS' });
     });
 
     it('removes dead managed agent on x', () => {
@@ -191,7 +194,7 @@ describe('createInputHandler', () => {
       const handler = createInputHandler(ctx);
       handler('x', makeKey());
       expect(agents.handleRemoveAgent).toHaveBeenCalledWith(focusedAgent, ctx.liveAgentNameCounts);
-      expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NAVIGATE_BACK' });
+      expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'EXIT_AGENT_FOCUS' });
     });
 
     it('restarts dead agent on r', () => {
@@ -201,7 +204,7 @@ describe('createInputHandler', () => {
       const handler = createInputHandler(ctx);
       handler('r', makeKey());
       expect(agents.handleRestartAgent).toHaveBeenCalledWith(focusedAgent);
-      expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NAVIGATE_BACK' });
+      expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'EXIT_AGENT_FOCUS' });
     });
 
     it('toggles diagnostics on l for managed agent', () => {
@@ -224,14 +227,20 @@ describe('createInputHandler', () => {
       expect(composer.clearCompose).toHaveBeenCalled();
     });
 
-    it('navigates suggestions with arrows in command mode', () => {
+    it('navigates suggestions with down arrow in command mode', () => {
       const composer = makeComposer({ isComposing: true, composeMode: 'command' });
       const ctx = makeCtx({ composeMode: 'command', composer });
       const handler = createInputHandler(ctx);
       handler('', makeKey({ downArrow: true }));
-      expect(ctx.dispatch).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'COMMAND_SELECT_DOWN' }),
-      );
+      expect(composer.setCommandSelectedIdx).toHaveBeenCalledWith(expect.any(Function));
+    });
+
+    it('navigates suggestions with up arrow in command mode', () => {
+      const composer = makeComposer({ isComposing: true, composeMode: 'command' });
+      const ctx = makeCtx({ composeMode: 'command', composer });
+      const handler = createInputHandler(ctx);
+      handler('', makeKey({ upArrow: true }));
+      expect(composer.setCommandSelectedIdx).toHaveBeenCalledWith(expect.any(Function));
     });
   });
 
@@ -281,6 +290,35 @@ describe('createInputHandler', () => {
       expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'SET_MAIN_FOCUS', focus: 'agents' });
     });
 
+    it('sets selectedIdx to 0 when entering agents list with no selection', () => {
+      const agent = { _display: 'Claude Code', agent_id: 'test' };
+      const ctx = makeCtx({
+        view: 'home',
+        mainFocus: 'input',
+        selectedIdx: -1,
+        allVisibleAgents: [agent],
+      });
+      const handler = createInputHandler(ctx);
+      handler('', makeKey({ downArrow: true }));
+      expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'SET_SELECTED_IDX', idx: 0 });
+    });
+
+    it('moves selection down in agents list', () => {
+      const agents = [{ _display: 'a1' }, { _display: 'a2' }];
+      const ctx = makeCtx({
+        view: 'home',
+        mainFocus: 'agents',
+        selectedIdx: 0,
+        allVisibleAgents: agents,
+      });
+      const handler = createInputHandler(ctx);
+      handler('', makeKey({ downArrow: true }));
+      expect(ctx.dispatch).toHaveBeenCalledWith({
+        type: 'SET_SELECTED_IDX',
+        idx: expect.any(Function),
+      });
+    });
+
     it('navigates up from agents to input', () => {
       const ctx = makeCtx({
         view: 'home',
@@ -301,7 +339,7 @@ describe('createInputHandler', () => {
       });
       const handler = createInputHandler(ctx);
       handler('', makeKey({ return: true }));
-      expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'FOCUS_AGENT', agent });
+      expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'ENTER_AGENT_FOCUS', agent });
     });
   });
 
@@ -358,7 +396,7 @@ describe('createInputHandler', () => {
   // ── Memory view ───────────────────────────────────
 
   describe('memory view', () => {
-    it('navigates list with arrows', () => {
+    it('navigates list down with arrows', () => {
       const memory = makeMemory();
       const ctx = makeCtx({
         view: 'memory',
@@ -367,9 +405,19 @@ describe('createInputHandler', () => {
       });
       const handler = createInputHandler(ctx);
       handler('', makeKey({ downArrow: true }));
-      expect(ctx.dispatch).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'MEMORY_SELECT_DOWN' }),
-      );
+      expect(memory.setMemorySelectedIdx).toHaveBeenCalledWith(expect.any(Function));
+    });
+
+    it('navigates list up with arrows', () => {
+      const memory = makeMemory({ memorySelectedIdx: 1 });
+      const ctx = makeCtx({
+        view: 'memory',
+        visibleMemories: [{ id: 1 }, { id: 2 }],
+        memory,
+      });
+      const handler = createInputHandler(ctx);
+      handler('', makeKey({ upArrow: true }));
+      expect(memory.setMemorySelectedIdx).toHaveBeenCalledWith(expect.any(Function));
     });
 
     it('goes back on escape', () => {
@@ -380,10 +428,11 @@ describe('createInputHandler', () => {
     });
 
     it('cancels delete confirm on escape before back', () => {
-      const ctx = makeCtx({ view: 'memory', deleteConfirm: true });
+      const memory = makeMemory({ deleteConfirm: true });
+      const ctx = makeCtx({ view: 'memory', deleteConfirm: true, memory });
       const handler = createInputHandler(ctx);
       handler('', makeKey({ escape: true }));
-      expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'SET_DELETE_CONFIRM', confirm: false });
+      expect(memory.setDeleteConfirm).toHaveBeenCalledWith(false);
       // Should NOT navigate away
       expect(ctx.dispatch).not.toHaveBeenCalledWith({ type: 'NAVIGATE_TO_VIEW', view: 'home' });
     });
@@ -396,10 +445,11 @@ describe('createInputHandler', () => {
     });
 
     it('initiates delete on d with selected memory', () => {
-      const ctx = makeCtx({ view: 'memory', memorySelectedIdx: 0 });
+      const memory = makeMemory({ memorySelectedIdx: 0 });
+      const ctx = makeCtx({ view: 'memory', memorySelectedIdx: 0, memory });
       const handler = createInputHandler(ctx);
       handler('d', makeKey());
-      expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'SET_DELETE_CONFIRM', confirm: true });
+      expect(memory.setDeleteConfirm).toHaveBeenCalledWith(true);
     });
   });
 
@@ -460,7 +510,7 @@ describe('createCommandHandler', () => {
     const handler = createCommandHandler(ctx);
     handler('/knowledge');
     expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NAVIGATE_TO_VIEW', view: 'memory' });
-    expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'RESET_MEMORY_SELECTION' });
+    expect(ctx.memory.resetMemorySelection).toHaveBeenCalled();
     expect(ctx.composer.clearCompose).toHaveBeenCalled();
   });
 
@@ -527,11 +577,8 @@ describe('createCommandHandler', () => {
     const ctx = makeCommandCtx();
     const handler = createCommandHandler(ctx);
     handler('some text');
-    expect(ctx.dispatch).toHaveBeenCalledWith({
-      type: 'SET_HERO_INPUT',
-      text: 'some text',
-      active: true,
-    });
+    expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'SET_HERO_INPUT', text: 'some text' });
+    expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'SET_HERO_INPUT_ACTIVE', active: true });
     expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'SET_MAIN_FOCUS', focus: 'input' });
     expect(ctx.composer.clearCompose).toHaveBeenCalled();
   });

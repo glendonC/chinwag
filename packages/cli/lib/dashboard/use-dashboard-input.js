@@ -2,17 +2,7 @@ import { useEffect, useCallback } from 'react';
 import { useInput } from 'ink';
 import { createInputHandler } from './input.js';
 import { useDashboard } from './DashboardProvider.jsx';
-import {
-  navigateToView,
-  setSelectedIdx,
-  setMainFocus,
-  setHeroInput,
-  setHeroInputActive,
-  setFocusedAgent,
-  setShowDiagnostics,
-  toggleDiagnostics,
-  clampSelection,
-} from './reducer.js';
+import { clampSelection } from './reducer.js';
 
 /**
  * Hook that wires up all dashboard input handling: footer hints, selection clamping,
@@ -45,7 +35,7 @@ export function useDashboardInput({ commandPalette }) {
     handleOpenWebDashboard,
   } = useDashboard();
 
-  const { view, selectedIdx: stateSelectedIdx, mainFocus, focusedAgent, showDiagnostics } = state;
+  const { view, selectedIdx: stateSelectedIdx, mainFocus } = state;
   const { commandSuggestions, handleCommandSubmit } = commandPalette;
 
   // ── Footer hints (pushed to shell) ─────────────────
@@ -84,41 +74,11 @@ export function useDashboardInput({ commandPalette }) {
     }
   }, [memory.memorySelectedIdx, visibleMemories.length]);
 
-  // ── Dispatch wrappers (support functional updaters from input.js) ──
-  const dispatchSetView = useCallback(
-    (v) => {
-      const resolved = typeof v === 'function' ? v(view) : v;
-      dispatch(navigateToView(resolved));
-    },
-    [view, dispatch],
-  );
-
-  const dispatchSetShowDiagnostics = useCallback(
-    (v) => {
-      if (typeof v === 'function') {
-        dispatch(toggleDiagnostics());
-      } else {
-        dispatch(setShowDiagnostics(v));
-      }
-    },
-    [dispatch],
-  );
-
   // ── Input handler ──────────────────────────────────
   const inputHandler = useCallback(
     createInputHandler({
-      view,
-      setView: dispatchSetView,
-      mainFocus,
-      setMainFocus: (v) => dispatch(setMainFocus(v)),
-      selectedIdx: stateSelectedIdx,
-      setSelectedIdx: (v) => dispatch(setSelectedIdx(v)),
-      focusedAgent,
-      setFocusedAgent: (v) => dispatch(setFocusedAgent(v)),
-      showDiagnostics,
-      setShowDiagnostics: dispatchSetShowDiagnostics,
-      setHeroInput: (v) => dispatch(setHeroInput(v)),
-      setHeroInputActive: (v) => dispatch(setHeroInputActive(v)),
+      state,
+      dispatch,
       cols,
       error,
       context,
@@ -140,11 +100,8 @@ export function useDashboardInput({ commandPalette }) {
       navigate,
     }),
     [
-      view,
-      mainFocus,
-      stateSelectedIdx,
-      focusedAgent,
-      showDiagnostics,
+      state,
+      dispatch,
       cols,
       error,
       context,
@@ -163,9 +120,6 @@ export function useDashboardInput({ commandPalette }) {
       handleCommandSubmit,
       handleOpenWebDashboard,
       navigate,
-      dispatchSetView,
-      dispatchSetShowDiagnostics,
-      dispatch,
     ],
   );
 

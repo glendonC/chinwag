@@ -2,19 +2,15 @@
 
 import { isBlocked } from '../../moderation.js';
 import { getDB, getTeam } from '../../lib/env.js';
-import { json } from '../../lib/http.js';
+import { json, parseBody } from '../../lib/http.js';
 import { getAgentRuntime, teamErrorStatus } from '../../lib/request-utils.js';
 import { sanitizeString, withRateLimit } from '../../lib/validation.js';
 import { RATE_LIMIT_JOINS, MAX_NAME_LENGTH } from '../../lib/constants.js';
 
 export async function handleTeamJoin(request, user, env, teamId) {
-  let name = null;
-  try {
-    const body = await request.json();
-    name = sanitizeString(body.name, MAX_NAME_LENGTH);
-  } catch {
-    /* body is optional */
-  }
+  // Body is optional for join — only extract name if valid JSON was provided
+  const body = await parseBody(request);
+  const name = body._parseError ? null : sanitizeString(body.name, MAX_NAME_LENGTH);
   // Moderation: team names are user-visible and persistent
   if (name && isBlocked(name)) return json({ error: 'Content blocked' }, 400);
 

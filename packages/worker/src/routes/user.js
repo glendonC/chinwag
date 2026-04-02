@@ -95,10 +95,7 @@ export async function handleRefreshToken(request, env) {
       await db.revokeAllRefreshTokens(tokenRecord.user_id);
       // Also delete any KV entries for active refresh tokens
       const activeTokens = await db.getActiveRefreshTokens(tokenRecord.user_id);
-      await Promise.all(
-        activeTokens.map(t => env.AUTH_KV.delete(`refresh:${t.token}`))
-      );
-      await db.revokeAllRefreshTokens(tokenRecord.user_id);
+      await Promise.all(activeTokens.map((t) => env.AUTH_KV.delete(`refresh:${t.token}`)));
     }
     return json({ error: 'Invalid or expired refresh token' }, 401);
   }

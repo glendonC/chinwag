@@ -32,8 +32,12 @@ export function requireJson(body) {
  * Returns an error string if invalid, null if valid.
  * @param {*} files - The files value to validate
  * @param {number} max - Maximum number of files allowed
+ * @param {{ nullable?: boolean }} [opts] - Options; nullable allows null/undefined to pass
  */
-export function validateFileArray(files, max) {
+export function validateFileArray(files, max, opts) {
+  if (opts?.nullable && (files === null || files === undefined)) {
+    return null;
+  }
   if (!Array.isArray(files) || files.length === 0) {
     return 'files must be a non-empty array';
   }
