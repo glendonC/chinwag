@@ -29,6 +29,82 @@ describe('Join ownership verification', () => {
   });
 });
 
+// --- Atomic join: spoofing does not corrupt existing owner's data ---
+
+describe('Atomic join ownership enforcement', () => {
+  const team = () => getTeam('atomic-join-ownership');
+  const agentId = 'cursor:atomic-join';
+  const ownerA = 'userA-atomic';
+  const ownerB = 'userB-atomic';
+
+  it('ownerA joins and claims agent_id', async () => {
+    const res = await team().join(agentId, ownerA, 'alice', 'cursor');
+    expect(res.ok).toBe(true);
+  });
+
+  it('ownerB spoofing same agent_id is rejected without corrupting ownerA data', async () => {
+    const res = await team().join(agentId, ownerB, 'mallory', 'cursor');
+    expect(res.error).toBe('Agent ID already claimed by another user');
+
+    // Verify ownerA's data is still intact — not overwritten by the failed join
+    const ctx = await team().getContext(agentId, ownerA);
+    expect(ctx.error).toBeUndefined();
+    const me = ctx.members.find(m => m.agent_id === agentId);
+    expect(me).toBeDefined();
+    expect(me.handle).toBe('alice');
+  });
+
+  it('ownerA idempotent re-join updates metadata correctly', async () => {
+    const res = await team().join(agentId, ownerA, 'alice-updated', {
+      hostTool: 'cursor',
+      agentSurface: 'copilot',
+      transport: 'mcp',
+    });
+    expect(res.ok).toBe(true);
+
+    const ctx = await team().getContext(agentId, ownerA);
+    const me = ctx.members.find(m => m.agent_id === agentId);
+    expect(me.handle).toBe('alice-updated');
+    expect(me.agent_surface).toBe('copilot');
+  });
+});
+
+// --- Atomic lock claims: first claimer wins ---
+
+describe('Atomic lock claim enforcement', () => {
+  const team = () => getTeam('atomic-lock-claims');
+  const agent1 = 'cursor:atomlk1';
+  const agent2 = 'claude:atomlk2';
+  const owner1 = 'user-atomlk1';
+  const owner2 = 'user-atomlk2';
+
+  it('setup: join two agents', async () => {
+    await team().join(agent1, owner1, 'alice', 'cursor');
+    await team().join(agent2, owner2, 'bob', 'claude');
+  });
+
+  it('first claimer wins, second is blocked with correct details', async () => {
+    const claim1 = await team().claimFiles(agent1, ['src/atomic.js'], 'alice', 'cursor', owner1);
+    expect(claim1.ok).toBe(true);
+    expect(claim1.claimed).toContain('src/atomic.js');
+    expect(claim1.blocked).toHaveLength(0);
+
+    const claim2 = await team().claimFiles(agent2, ['src/atomic.js'], 'bob', 'claude', owner2);
+    expect(claim2.ok).toBe(true);
+    expect(claim2.claimed).toHaveLength(0);
+    expect(claim2.blocked).toHaveLength(1);
+    expect(claim2.blocked[0].file).toBe('src/atomic.js');
+    expect(claim2.blocked[0].held_by).toBe('alice');
+  });
+
+  it('same agent re-claiming refreshes lock (idempotent)', async () => {
+    const claim = await team().claimFiles(agent1, ['src/atomic.js'], 'alice', 'cursor', owner1);
+    expect(claim.ok).toBe(true);
+    expect(claim.claimed).toContain('src/atomic.js');
+    expect(claim.blocked).toHaveLength(0);
+  });
+});
+
 // --- Leave with ownership verification ---
 
 describe('Leave ownership verification', () => {
