@@ -146,7 +146,7 @@
 .memoryControls {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-md);
   margin-bottom: 20px;
 }
 
@@ -317,8 +317,8 @@
 .distributionList {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-top: 18px;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
 }
 
 .distributionRow {

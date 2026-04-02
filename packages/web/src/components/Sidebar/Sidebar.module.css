@@ -169,7 +169,7 @@
   background: rgba(255, 255, 255, 0.94);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-xs);
-  padding: 8px;
+  padding: var(--space-sm);
   cursor: pointer;
   color: var(--ink);
 }

@@ -39,7 +39,7 @@
 }
 
 .handle {
-  font-size: 14px;
+  font-size: var(--text-14);
   font-weight: 400;
   color: var(--ink);
   opacity: var(--opacity-primary);
@@ -71,7 +71,7 @@
 }
 
 .summary {
-  font-size: 12px;
+  font-size: var(--text-12);
   color: var(--muted);
   font-weight: 400;
   overflow: hidden;
