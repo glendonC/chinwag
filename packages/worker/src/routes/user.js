@@ -6,8 +6,15 @@ import { requireJson, withRateLimit } from '../lib/validation.js';
 
 export async function authenticate(request, env) {
   const auth = request.headers.get('Authorization');
-  if (!auth?.startsWith('Bearer ')) return null;
-  const token = auth.slice(7);
+  let token;
+  if (auth?.startsWith('Bearer ')) {
+    token = auth.slice(7);
+  } else if (request.headers.get('Upgrade') === 'websocket') {
+    // Browser WebSocket API can't set custom headers.
+    // Accept token from query param for WS upgrades only.
+    token = new URL(request.url).searchParams.get('token');
+  }
+  if (!token) return null;
 
   let userId = await env.AUTH_KV.get(`token:${token}`);
   if (!userId) return null;

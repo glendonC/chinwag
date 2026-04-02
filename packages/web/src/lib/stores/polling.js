@@ -1,14 +1,18 @@
 import { createStore, useStore } from 'zustand';
-import { api } from '../api.js';
+import { api, getApiUrl } from '../api.js';
 import { authActions } from './auth.js';
 import { teamActions } from './teams.js';
 import { requestRefresh, setRefreshHandler } from './refresh.js';
+import { applyDelta } from '../dashboard-ws.js';
 
 const POLL_MS = 5000;
 const SLOW_POLL_MS = 30000;
+const RECONCILE_MS = 60_000;
 
 let pollTimer = null;
 let consecutiveFailures = 0;
+let activeWs = null;
+let reconcileTimer = null;
 
 const pollingStore = createStore((set, get) => ({
   dashboardData: null,
@@ -123,6 +127,79 @@ function restartPolling() {
   pollTimer = setInterval(poll, delay);
 }
 
+/** Close any active WebSocket and its reconciliation timer. */
+function closeWebSocket() {
+  if (reconcileTimer) { clearInterval(reconcileTimer); reconcileTimer = null; }
+  if (activeWs) {
+    try { activeWs.close(); } catch {}
+    activeWs = null;
+  }
+}
+
+/**
+ * Attempt a WebSocket connection for project (single-team) view.
+ * Falls back to polling if WebSocket fails.
+ */
+function connectTeamWebSocket(teamId) {
+  const { token } = authActions.getState();
+  if (!token || !teamId) return;
+
+  const wsBase = getApiUrl().replace(/^http/, 'ws');
+  const agentId = `web-dashboard:${token.slice(0, 8)}`;
+  const wsUrl = `${wsBase}/teams/${teamId}/ws?agentId=${encodeURIComponent(agentId)}&token=${encodeURIComponent(token)}`;
+
+  try {
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      if (teamActions.getState().activeTeamId !== teamId) { ws.close(); return; }
+      // WebSocket connected — stop polling, start reconciliation
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      reconcileTimer = setInterval(poll, RECONCILE_MS);
+    };
+
+    ws.onmessage = (evt) => {
+      if (teamActions.getState().activeTeamId !== teamId) return;
+      try {
+        const event = JSON.parse(evt.data);
+        if (event.type === 'context') {
+          pollingStore.setState({
+            contextData: event.data,
+            contextStatus: 'ready',
+            contextTeamId: teamId,
+            pollError: null,
+            pollErrorData: null,
+            lastUpdate: new Date(),
+          });
+        } else {
+          pollingStore.setState((state) => {
+            if (state.contextTeamId !== teamId || !state.contextData) return state;
+            return {
+              contextData: applyDelta(state.contextData, event),
+              lastUpdate: new Date(),
+            };
+          });
+        }
+      } catch { /* malformed event */ }
+    };
+
+    ws.onclose = () => {
+      activeWs = null;
+      if (reconcileTimer) { clearInterval(reconcileTimer); reconcileTimer = null; }
+      // Fall back to polling if we're still on this team
+      if (teamActions.getState().activeTeamId === teamId) {
+        restartPolling();
+      }
+    };
+
+    ws.onerror = () => { /* onclose fires after */ };
+
+    activeWs = ws;
+  } catch {
+    // WebSocket constructor failed — stay on polling
+  }
+}
+
 function formatError(err) {
   if (typeof err === 'string') return err;
   const msg = err?.message || 'Something went wrong';
@@ -133,20 +210,31 @@ function formatError(err) {
   return msg;
 }
 
-/** Start polling. Automatically determines mode from activeTeamId. */
+/** Start polling. Attempts WebSocket for project view, falls back to polling. */
 export function startPolling() {
   stopPolling();
   poll(); // immediate first poll
-  const delay = consecutiveFailures >= 3 ? SLOW_POLL_MS : POLL_MS;
-  pollTimer = setInterval(poll, delay);
+
+  const { activeTeamId } = teamActions.getState();
+  if (activeTeamId) {
+    // Project view — try WebSocket, polling runs as fallback until WS connects
+    const delay = consecutiveFailures >= 3 ? SLOW_POLL_MS : POLL_MS;
+    pollTimer = setInterval(poll, delay);
+    connectTeamWebSocket(activeTeamId);
+  } else {
+    // Overview — polling only (aggregates across all teams, no single-team WS)
+    const delay = consecutiveFailures >= 3 ? SLOW_POLL_MS : POLL_MS;
+    pollTimer = setInterval(poll, delay);
+  }
 }
 
-/** Stop polling. */
+/** Stop polling and close WebSocket. */
 export function stopPolling() {
   if (pollTimer) {
     clearInterval(pollTimer);
     pollTimer = null;
   }
+  closeWebSocket();
 }
 
 // Pause polling when tab is hidden, resume when visible

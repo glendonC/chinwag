@@ -99,9 +99,11 @@ export async function handleTeamConflicts(request, user, env, teamId) {
 }
 
 export async function handleTeamHeartbeat(request, user, env, teamId) {
-  const { agentId } = getAgentRuntime(request, user);
+  const { agentId, transport } = getAgentRuntime(request, user);
+  // hook transport = Claude Code hooks (highest signal), mcp = MCP tool calls
+  const signalLevel = transport === 'hook' ? 2 : 1;
   const team = getTeam(env, teamId);
-  const result = await team.heartbeat(agentId, user.id);
+  const result = await team.heartbeat(agentId, user.id, signalLevel);
   if (result.error) return json({ error: result.error }, teamErrorStatus(result.error));
   return json(result);
 }
@@ -384,6 +386,27 @@ export async function handleTeamHistory(request, user, env, teamId) {
   const result = await team.getHistory(agentId, days, user.id);
   if (result.error) return json({ error: result.error }, 403);
   return json(result);
+}
+
+export async function handleTeamWebSocket(request, user, env, teamId) {
+  const { agentId } = getAgentRuntime(request, user);
+  const team = getTeam(env, teamId);
+
+  const wsUrl = new URL(request.url);
+  wsUrl.pathname = '/ws';
+  wsUrl.searchParams.delete('token');
+  wsUrl.searchParams.set('agentId', agentId);
+
+  return team.fetch(new Request(wsUrl.toString(), {
+    headers: {
+      'X-Chinwag-Verified': '1',
+      Upgrade: request.headers.get('Upgrade'),
+      Connection: request.headers.get('Connection'),
+      'Sec-WebSocket-Key': request.headers.get('Sec-WebSocket-Key'),
+      'Sec-WebSocket-Protocol': request.headers.get('Sec-WebSocket-Protocol'),
+      'Sec-WebSocket-Version': request.headers.get('Sec-WebSocket-Version'),
+    },
+  }));
 }
 
 export async function handleTeamEnrichModel(request, user, env, teamId) {

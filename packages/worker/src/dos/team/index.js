@@ -23,10 +23,127 @@ const SESSION_RETENTION_DAYS = 30;      // How long session history is kept
 export class TeamDO extends DurableObject {
   #schemaReady = false;
   #lastCleanup = 0;
+  #lastHeartbeatBroadcast = new Map();
 
   constructor(ctx, env) {
     super(ctx, env);
     this.sql = ctx.storage.sql;
+  }
+
+  // --- WebSocket support (Hibernation API) ---
+  // Two roles: 'agent' (MCP servers — connection IS presence) and
+  // 'watcher' (dashboards — observe only, no presence signal).
+  // Tags: [resolvedAgentId, 'role:agent'] or [resolvedAgentId, 'role:watcher']
+
+  async fetch(request) {
+    const url = new URL(request.url);
+    if (url.pathname !== '/ws') {
+      return new Response('Not found', { status: 404 });
+    }
+
+    if (request.headers.get('X-Chinwag-Verified') !== '1') {
+      return new Response('Forbidden', { status: 403 });
+    }
+
+    const agentId = url.searchParams.get('agentId');
+    if (!agentId) {
+      return new Response('Missing agentId', { status: 400 });
+    }
+
+    this.#ensureSchema();
+
+    const resolved = this.#resolveOwnedAgentId(agentId);
+    if (!resolved) {
+      return new Response('Not a member of this team', { status: 403 });
+    }
+
+    const role = url.searchParams.get('role') === 'agent' ? 'agent' : 'watcher';
+    const pair = new WebSocketPair();
+    const [client, server] = Object.values(pair);
+
+    this.ctx.acceptWebSocket(server, [resolved, `role:${role}`]);
+
+    // Agents: bump heartbeat on connect (WS keeps them alive going forward)
+    if (role === 'agent') {
+      this.sql.exec("UPDATE members SET last_heartbeat = datetime('now') WHERE agent_id = ?", resolved);
+      this.#broadcastToWatchers({ type: 'status_change', agent_id: resolved, status: 'active' });
+    }
+
+    // Send initial full context
+    try {
+      const ctx = await this.getContext(resolved);
+      server.send(JSON.stringify({ type: 'context', data: ctx }));
+    } catch (err) {
+      console.error('Failed to send initial context:', err);
+    }
+
+    return new Response(null, { status: 101, webSocket: client });
+  }
+
+  async webSocketMessage(ws, rawMessage) {
+    try {
+      const data = JSON.parse(rawMessage);
+      const tags = this.ctx.getTags(ws);
+      const agentId = tags.find(t => !t.startsWith('role:'));
+      const isAgent = tags.includes('role:agent');
+
+      if (data.type === 'ping') {
+        // Bump heartbeat so SQL queries that check last_heartbeat stay current
+        if (agentId) {
+          this.#ensureSchema();
+          this.sql.exec("UPDATE members SET last_heartbeat = datetime('now') WHERE agent_id = ?", agentId);
+        }
+        ws.send(JSON.stringify({ type: 'pong' }));
+      } else if (data.type === 'activity' && isAgent && agentId) {
+        this.#ensureSchema();
+        const result = updateActivityFn(this.sql, agentId, data.files || [], data.summary || '');
+        if (!result.error) {
+          this.#broadcastToWatchers({ type: 'activity', agent_id: agentId, files: data.files, summary: data.summary });
+        }
+      } else if (data.type === 'file' && isAgent && agentId) {
+        this.#ensureSchema();
+        const result = reportFileFn(this.sql, agentId, data.file);
+        if (!result.error) {
+          this.#broadcastToWatchers({ type: 'file', agent_id: agentId, file: data.file });
+        }
+      }
+    } catch { /* ignore malformed messages */ }
+  }
+
+  async webSocketClose(ws) {
+    const tags = this.ctx.getTags(ws);
+    const isAgent = tags.includes('role:agent');
+    const agentId = tags.find(t => !t.startsWith('role:'));
+
+    if (isAgent && agentId) {
+      this.#ensureSchema();
+      // Release locks — agent is gone, don't block others
+      releaseFilesFn(this.sql, agentId, null);
+      this.#broadcastToWatchers({ type: 'status_change', agent_id: agentId, status: 'offline' });
+      this.#broadcastToWatchers({ type: 'lock_change', action: 'release_all', agent_id: agentId });
+    }
+  }
+
+  async webSocketError(ws) {
+    // webSocketClose fires after — cleanup happens there
+  }
+
+  /** Agent IDs with an active 'role:agent' WebSocket connection. */
+  #getConnectedAgentIds() {
+    return new Set(
+      this.ctx.getWebSockets('role:agent')
+        .flatMap(ws => this.ctx.getTags(ws))
+        .filter(tag => !tag.startsWith('role:'))
+    );
+  }
+
+  #broadcastToWatchers(event) {
+    const sockets = this.ctx.getWebSockets();
+    if (!sockets.length) return;
+    const data = JSON.stringify(event);
+    for (const ws of sockets) {
+      try { ws.send(data); } catch { /* dead connection */ }
+    }
   }
 
   #ensureSchema() {
@@ -45,6 +162,7 @@ export class TeamDO extends DurableObject {
       ["ALTER TABLE sessions ADD COLUMN transport TEXT", null],
       ["ALTER TABLE sessions ADD COLUMN agent_model TEXT", null],
       ["ALTER TABLE members ADD COLUMN agent_model TEXT", null],
+      ["ALTER TABLE members ADD COLUMN signal_level INTEGER DEFAULT 1", null],
       ["ALTER TABLE memories ADD COLUMN source_model TEXT", null],
     ];
     for (const [alter, backfill] of migrations) {
@@ -259,19 +377,37 @@ export class TeamDO extends DurableObject {
 
   async join(agentId, ownerId, ownerHandle, runtimeOrTool = 'unknown') {
     this.#ensureSchema();
-    return join(this.sql, agentId, ownerId, ownerHandle, runtimeOrTool, this.#boundRecordMetric);
+    const result = join(this.sql, agentId, ownerId, ownerHandle, runtimeOrTool, this.#boundRecordMetric);
+    if (!result.error) {
+      const tool = typeof runtimeOrTool === 'object' ? runtimeOrTool?.host_tool : runtimeOrTool;
+      this.#broadcastToWatchers({ type: 'member_joined', agent_id: agentId, handle: ownerHandle, tool: tool || 'unknown' });
+    }
+    return result;
   }
 
   async leave(agentId, ownerId = null) {
     this.#ensureSchema();
-    return leave(this.sql, agentId, ownerId);
+    const result = leave(this.sql, agentId, ownerId);
+    if (!result.error) {
+      this.#broadcastToWatchers({ type: 'member_left', agent_id: agentId });
+    }
+    return result;
   }
 
-  async heartbeat(agentId, ownerId = null) {
+  async heartbeat(agentId, ownerId = null, signalLevel = null) {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
     if (!resolved) return { error: 'Not a member of this team' };
-    return heartbeatFn(this.sql, resolved);
+    const result = heartbeatFn(this.sql, resolved, signalLevel);
+    if (!result.error) {
+      const now = Date.now();
+      const last = this.#lastHeartbeatBroadcast.get(resolved) || 0;
+      if (now - last >= 3000) {
+        this.#lastHeartbeatBroadcast.set(resolved, now);
+        this.#broadcastToWatchers({ type: 'heartbeat', agent_id: resolved, ts: now });
+      }
+    }
+    return result;
   }
 
   // --- Activity ---
@@ -280,7 +416,11 @@ export class TeamDO extends DurableObject {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
     if (!resolved) return { error: 'Not a member of this team' };
-    return updateActivityFn(this.sql, resolved, files, summary);
+    const result = updateActivityFn(this.sql, resolved, files, summary);
+    if (!result.error) {
+      this.#broadcastToWatchers({ type: 'activity', agent_id: resolved, files, summary });
+    }
+    return result;
   }
 
   async checkConflicts(agentId, files, ownerId = null) {
@@ -294,7 +434,11 @@ export class TeamDO extends DurableObject {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
     if (!resolved) return { error: 'Not a member of this team' };
-    return reportFileFn(this.sql, resolved, filePath);
+    const result = reportFileFn(this.sql, resolved, filePath);
+    if (!result.error) {
+      this.#broadcastToWatchers({ type: 'file', agent_id: resolved, file: filePath });
+    }
+    return result;
   }
 
   // --- Context (composite query across all tables) ---
@@ -304,18 +448,23 @@ export class TeamDO extends DurableObject {
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
     if (!resolved) return { error: 'Not a member of this team' };
 
-    // Keep the calling agent alive — getContext polling is proof of presence
+    // Keep the calling agent's heartbeat fresh (for SQL queries in checkConflicts/getLocks)
     this.sql.exec("UPDATE members SET last_heartbeat = datetime('now') WHERE agent_id = ?", resolved);
 
     this.#maybeCleanup();
 
+    // Primary presence: WebSocket connection state. Fallback: heartbeat timestamp.
+    const connectedIds = this.#getConnectedAgentIds();
+
     const members = this.sql.exec(
-      `SELECT m.agent_id, m.owner_handle, m.tool, m.host_tool, m.agent_surface, m.transport, m.agent_model, a.files, a.summary, a.updated_at,
+      `SELECT m.agent_id, m.owner_handle, m.tool, m.host_tool, m.agent_surface, m.transport, m.agent_model,
+              m.signal_level, a.files, a.summary, a.updated_at,
               s.framework, s.started_at as session_started,
               ROUND((julianday('now') - julianday(s.started_at)) * 24 * 60) as session_minutes,
+              ROUND((julianday('now') - julianday(a.updated_at)) * 86400) as seconds_since_update,
               ROUND((julianday('now') - julianday(a.updated_at)) * 1440) as minutes_since_update,
               CASE WHEN m.last_heartbeat > datetime('now', '-' || ? || ' seconds')
-                THEN 'active' ELSE 'offline' END as status
+                THEN 1 ELSE 0 END as heartbeat_active
        FROM members m
        LEFT JOIN activities a ON a.agent_id = m.agent_id
        LEFT JOIN sessions s ON s.agent_id = m.agent_id AND s.ended_at IS NULL`,
@@ -339,24 +488,32 @@ export class TeamDO extends DurableObject {
       LIMIT 20
     `).toArray();
 
-    const memberList = members.map(m => ({
-      agent_id: m.agent_id,
-      handle: m.owner_handle,
-      tool: m.tool || m.host_tool || 'unknown',
-      host_tool: m.host_tool || m.tool || 'unknown',
-      agent_surface: m.agent_surface || null,
-      transport: m.transport || null,
-      agent_model: m.agent_model || null,
-      status: m.status,
-      framework: m.framework || null,
-      session_minutes: m.session_minutes || null,
-      minutes_since_update: m.minutes_since_update ?? null,
-      activity: m.files ? {
-        files: JSON.parse(m.files),
-        summary: m.summary,
-        updated_at: m.updated_at,
-      } : null,
-    }));
+    const memberList = members.map(m => {
+      // WebSocket connection = active. Heartbeat fallback for hooks/HTTP-only agents.
+      const status = connectedIds.has(m.agent_id) ? 'active'
+        : m.heartbeat_active ? 'active' : 'offline';
+      return {
+        agent_id: m.agent_id,
+        handle: m.owner_handle,
+        tool: m.tool || m.host_tool || 'unknown',
+        host_tool: m.host_tool || m.tool || 'unknown',
+        agent_surface: m.agent_surface || null,
+        transport: m.transport || null,
+        agent_model: m.agent_model || null,
+        status,
+        framework: m.framework || null,
+        session_minutes: m.session_minutes || null,
+        seconds_since_update: m.seconds_since_update ?? null,
+        minutes_since_update: m.minutes_since_update ?? null,
+        signal_tier: connectedIds.has(m.agent_id) ? 'websocket'
+          : m.signal_level >= 2 ? 'hook+mcp' : m.signal_level === 0 ? 'heartbeat-only' : 'mcp',
+        activity: m.files ? {
+          files: JSON.parse(m.files),
+          summary: m.summary,
+          updated_at: m.updated_at,
+        } : null,
+      };
+    });
 
     // Server-side conflict detection — single source of truth
     const conflicts = [];
@@ -508,7 +665,11 @@ export class TeamDO extends DurableObject {
     const resolvedOwnerId = runtime ? ownerId : runtimeOrOwnerId;
     const resolved = this.#resolveOwnedAgentId(agentId, resolvedOwnerId);
     if (!resolved) return { error: 'Not a member of this team' };
-    return saveMemoryFn(this.sql, resolved, text, tags, handle, runtime, this.#boundRecordMetric);
+    const result = saveMemoryFn(this.sql, resolved, text, tags, handle, runtime, this.#boundRecordMetric);
+    if (!result.error) {
+      this.#broadcastToWatchers({ type: 'memory', text, tags });
+    }
+    return result;
   }
 
   async searchMemories(agentId, query, tags, limit = 20, ownerId = null) {
@@ -537,14 +698,22 @@ export class TeamDO extends DurableObject {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
     if (!resolved) return { error: 'Not a member of this team' };
-    return claimFilesFn(this.sql, resolved, files, handle, runtimeOrTool);
+    const result = claimFilesFn(this.sql, resolved, files, handle, runtimeOrTool);
+    if (!result.error) {
+      this.#broadcastToWatchers({ type: 'lock_change', action: 'claim', agent_id: resolved, files });
+    }
+    return result;
   }
 
   async releaseFiles(agentId, files, ownerId = null) {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
     if (!resolved) return { error: 'Not a member of this team' };
-    return releaseFilesFn(this.sql, resolved, files);
+    const result = releaseFilesFn(this.sql, resolved, files);
+    if (!result.error) {
+      this.#broadcastToWatchers({ type: 'lock_change', action: 'release', agent_id: resolved, files });
+    }
+    return result;
   }
 
   async getLockedFiles(agentId, ownerId = null) {
@@ -559,7 +728,11 @@ export class TeamDO extends DurableObject {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
     if (!resolved) return { error: 'Not a member of this team' };
-    return sendMessageFn(this.sql, resolved, handle, runtimeOrTool, text, targetAgent, this.#boundRecordMetric);
+    const result = sendMessageFn(this.sql, resolved, handle, runtimeOrTool, text, targetAgent, this.#boundRecordMetric);
+    if (!result.error) {
+      this.#broadcastToWatchers({ type: 'message', from_handle: handle, text });
+    }
+    return result;
   }
 
   async getMessages(agentId, since, ownerId = null) {

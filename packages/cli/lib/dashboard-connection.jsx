@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
-import { api } from './api.js';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { api, getApiUrl } from './api.js';
 import { detectTools } from './mcp-config.js';
 import { getProjectContext } from './project.js';
 import { SPINNER } from './dashboard-utils.js';
+import { applyDelta } from './dashboard-ws.js';
 
 function classifyError(err) {
   const msg = err.message || '';
@@ -19,6 +20,18 @@ function classifyError(err) {
   return { state: 'reconnecting', detail: msg || 'Connection issue. Retrying...' };
 }
 
+// Minimal fingerprint of context for change detection (avoids JSON.stringify on every poll)
+function contextFingerprint(ctx) {
+  if (!ctx) return '';
+  const members = (ctx.members || []).map(m =>
+    `${m.agent_id}:${m.status}:${m.activity?.summary || ''}:${(m.activity?.files || []).length}`
+  ).join('|');
+  const memCount = (ctx.memories || []).length;
+  const msgCount = (ctx.messages || []).length;
+  const lockCount = (ctx.locks || []).length;
+  return `${members};${memCount};${msgCount};${lockCount}`;
+}
+
 export function useDashboardConnection({ config, stdout }) {
   // Project state
   const [teamId, setTeamId] = useState(null);
@@ -32,6 +45,8 @@ export function useDashboardConnection({ config, stdout }) {
   const [connState, setConnState] = useState('connecting');
   const [connDetail, setConnDetail] = useState(null);
   const consecutiveFailures = useRef(0);
+  const unchangedPolls = useRef(0);
+  const lastFingerprint = useRef('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [spinnerFrame, setSpinnerFrame] = useState(0);
 
@@ -74,60 +89,155 @@ export function useDashboardConnection({ config, stdout }) {
     } catch {}
   }, []);
 
-  // ── API polling ──────────────────────────────────────
+  // ── WebSocket connection with polling fallback ───
+  const wsRef = useRef(null);
+
   useEffect(() => {
     if (!teamId) return;
     const dashboardAgentId = `dashboard:${(config?.token || '').slice(0, 8)}`;
     const client = api(config, { agentId: dashboardAgentId });
-    let joined = false;
+    const joined = { current: false };
+    let pollInterval = null;
+    let reconcileInterval = null;
+    let destroyed = false;
 
-    async function fetchContext() {
-      try {
-        if (!joined) {
-          try {
-            await client.post(`/teams/${teamId}/join`, { name: teamName });
-          } catch (joinErr) {
-            // Rate limit or transient failure — still try getContext in case
-            // the agent is already a member from a previous join
-            if (joinErr.status === 429) {
-              // Don't block context fetch; agent may still be active
-            } else {
-              throw joinErr;
-            }
-          }
-          joined = true;
+    async function fetchContextOnce() {
+      if (!joined.current) {
+        try {
+          await client.post(`/teams/${teamId}/join`, { name: teamName });
+        } catch (joinErr) {
+          if (joinErr.status !== 429) throw joinErr;
         }
-        const ctx = await client.get(`/teams/${teamId}/context`);
-        setContext(ctx);
-        consecutiveFailures.current = 0;
-        setConnState('connected');
-        setConnDetail(null);
-      } catch (err) {
-        if (err.message?.includes('Not a member')) joined = false;
-        consecutiveFailures.current++;
-        const classified = classifyError(err);
-        if (consecutiveFailures.current >= 6 && classified.state === 'reconnecting') {
-          setConnState('offline');
-          setConnDetail(classified.detail.replace('Retrying...', 'Press [r] to retry.').replace('Retrying shortly.', 'Press [r] to retry.'));
-        } else {
-          setConnState(classified.state);
-          setConnDetail(classified.detail);
-        }
+        joined.current = true;
+      }
+      const ctx = await client.get(`/teams/${teamId}/context`);
+      setContext(ctx);
+      consecutiveFailures.current = 0;
+      setConnState('connected');
+      setConnDetail(null);
+
+      // Track whether context changed for idle backoff
+      const fp = contextFingerprint(ctx);
+      if (fp === lastFingerprint.current) {
+        unchangedPolls.current++;
+      } else {
+        unchangedPolls.current = 0;
+        lastFingerprint.current = fp;
       }
     }
 
-    fetchContext();
-    const interval = setInterval(fetchContext,
-      consecutiveFailures.current >= 6 ? 30_000
-        : consecutiveFailures.current >= 3 ? 15_000
-        : 5000);
-    return () => clearInterval(interval);
+    function handleFetchError(err) {
+      if (err.message?.includes('Not a member')) joined.current = false;
+      consecutiveFailures.current++;
+      const classified = classifyError(err);
+      if (consecutiveFailures.current >= 6 && classified.state === 'reconnecting') {
+        setConnState('offline');
+        setConnDetail(classified.detail.replace('Retrying...', 'Press [r] to retry.').replace('Retrying shortly.', 'Press [r] to retry.'));
+      } else {
+        setConnState(classified.state);
+        setConnDetail(classified.detail);
+      }
+    }
+
+    // ── Polling fallback ──────────────────────────
+    function getPollInterval() {
+      if (consecutiveFailures.current >= 6) return 30_000;
+      if (consecutiveFailures.current >= 3) return 15_000;
+      // Progressive backoff when context is unchanged (idle team)
+      const idle = unchangedPolls.current;
+      if (idle >= 60) return 60_000;   // 5+ min idle → poll every 60s
+      if (idle >= 12) return 30_000;   // 1+ min idle → poll every 30s
+      if (idle >= 6) return 15_000;    // 30s idle → poll every 15s
+      return 5_000;
+    }
+
+    function startPolling() {
+      if (destroyed || pollInterval) return;
+      function schedulePoll() {
+        pollInterval = setTimeout(async () => {
+          if (destroyed) return;
+          try { await fetchContextOnce(); }
+          catch (err) { handleFetchError(err); }
+          if (!destroyed) schedulePoll();
+        }, getPollInterval());
+      }
+      schedulePoll();
+    }
+
+    function stopPolling() {
+      if (pollInterval) { clearTimeout(pollInterval); pollInterval = null; }
+    }
+
+    // ── WebSocket connection ──────────────────────
+    async function connect() {
+      // Join team + fetch initial context via HTTP
+      try { await fetchContextOnce(); }
+      catch (err) { handleFetchError(err); startPolling(); return; }
+
+      // Attempt WebSocket upgrade (token in URL — standard WS API can't set headers)
+      const wsBase = getApiUrl().replace(/^http/, 'ws');
+      const wsUrl = `${wsBase}/teams/${teamId}/ws?agentId=${encodeURIComponent(dashboardAgentId)}&token=${encodeURIComponent(config.token)}`;
+
+      try {
+        const ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          if (destroyed) { ws.close(); return; }
+          stopPolling();
+          setConnState('connected');
+          setConnDetail(null);
+          // Full reconciliation every 60s to correct drift
+          reconcileInterval = setInterval(async () => {
+            try { await fetchContextOnce(); } catch { /* non-critical */ }
+          }, 60_000);
+        };
+
+        ws.onmessage = (evt) => {
+          if (destroyed) return;
+          try {
+            const event = JSON.parse(typeof evt.data === 'string' ? evt.data : evt.data.toString());
+            if (event.type === 'context') {
+              setContext(event.data);
+            } else {
+              setContext(prev => prev ? applyDelta(prev, event) : prev);
+            }
+          } catch { /* malformed event */ }
+        };
+
+        ws.onclose = () => {
+          if (destroyed) return;
+          wsRef.current = null;
+          if (reconcileInterval) { clearInterval(reconcileInterval); reconcileInterval = null; }
+          startPolling();
+        };
+
+        ws.onerror = () => { /* onclose fires after onerror */ };
+
+        wsRef.current = ws;
+      } catch {
+        startPolling();
+      }
+    }
+
+    connect();
+
+    return () => {
+      destroyed = true;
+      stopPolling();
+      if (reconcileInterval) clearInterval(reconcileInterval);
+      if (wsRef.current) {
+        try { wsRef.current.close(); } catch {}
+        wsRef.current = null;
+      }
+    };
   }, [teamId, teamName, refreshKey, config?.token]);
 
   function retry() {
     setError(null);
     setConnState('connecting');
     consecutiveFailures.current = 0;
+    unchangedPolls.current = 0;
+    lastFingerprint.current = '';
     setRefreshKey(k => k + 1);
   }
 

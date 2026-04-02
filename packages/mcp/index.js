@@ -9,7 +9,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { readFileSync } from 'fs';
 import { basename } from 'path';
 import { loadConfig, configExists } from './lib/config.js';
-import { api } from './lib/api.js';
+import { api, getApiUrl } from './lib/api.js';
 import { scanEnvironment } from './lib/profile.js';
 import { findTeamFile, teamHandlers } from './lib/team.js';
 import { detectRuntimeIdentity, generateSessionAgentId, getConfiguredAgentId } from './lib/identity.js';
@@ -67,10 +67,11 @@ async function main() {
   // read/write these values, and they run in a different module's closures).
   const state = {
     teamId: findTeamFile(),
-    heartbeatInterval: null,
+    ws: null,           // WebSocket to TeamDO (presence + activity channel)
     sessionId: null,
     tty: parentTty,
     modelReported: false,
+    lastActivity: Date.now(),
   };
 
   const team = teamHandlers(client);
@@ -89,23 +90,63 @@ async function main() {
         console.error('[chinwag] Failed to start session:', err.message);
       }
 
-      state.heartbeatInterval = setInterval(async () => {
+      // WebSocket presence — connection IS the heartbeat.
+      // Pings every 60s keep the DB timestamp fresh for SQL queries.
+      // Reconnects with exponential backoff on disconnect.
+      const WS_PING_MS = 60_000;
+      let reconnectDelay = 1000;
+      let pingTimer = null;
+      let lastWsSend = 0;
+
+      function connectTeamWs() {
+        const wsBase = getApiUrl().replace(/^http/, 'ws');
+        const wsUrl = `${wsBase}/teams/${state.teamId}/ws?agentId=${encodeURIComponent(agentId)}&token=${encodeURIComponent(config.token)}&role=agent`;
+
         try {
-          await team.heartbeat(state.teamId);
-        } catch (err) {
-          // If evicted (stale heartbeat), rejoin automatically
-          if (err.message?.includes('Not a member')) {
-            try {
-              await team.joinTeam(state.teamId, projectName);
-              console.error('[chinwag] Rejoined team after eviction');
-            } catch (joinErr) {
-              console.error('[chinwag] Rejoin failed:', joinErr.message);
+          const ws = new WebSocket(wsUrl);
+
+          ws.onopen = () => {
+            state.ws = ws;
+            reconnectDelay = 1000;
+            console.error('[chinwag] WebSocket connected (presence active)');
+
+            // Ping to keep DB heartbeat fresh — only when no activity was sent recently
+            pingTimer = setInterval(() => {
+              if (Date.now() - lastWsSend > WS_PING_MS - 5000) {
+                try {
+                  ws.send(JSON.stringify({ type: 'ping' }));
+                  lastWsSend = Date.now();
+                } catch { /* close will fire */ }
+              }
+            }, WS_PING_MS);
+            if (pingTimer.unref) pingTimer.unref();
+          };
+
+          ws.onmessage = () => {}; // agent doesn't need broadcasts
+
+          ws.onclose = () => {
+            state.ws = null;
+            if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
+            if (!state._shuttingDown) {
+              console.error(`[chinwag] WebSocket disconnected, reconnecting in ${reconnectDelay / 1000}s`);
+              const timer = setTimeout(connectTeamWs, reconnectDelay);
+              if (timer.unref) timer.unref();
+              reconnectDelay = Math.min(reconnectDelay * 2, 60_000);
             }
-          } else {
-            console.error('[chinwag] Heartbeat failed:', err.message);
+          };
+
+          ws.onerror = () => {}; // onclose fires after
+        } catch {
+          // WebSocket constructor failed — retry
+          if (!state._shuttingDown) {
+            const timer = setTimeout(connectTeamWs, reconnectDelay);
+            if (timer.unref) timer.unref();
+            reconnectDelay = Math.min(reconnectDelay * 2, 60_000);
           }
         }
-      }, 30_000);
+      }
+
+      connectTeamWs();
     } catch (err) {
       console.error(`[chinwag] Failed to join team ${state.teamId}:`, err.message);
       state.teamId = null;
