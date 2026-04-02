@@ -42,6 +42,7 @@ import {
   handleTeamSessionEdit,
   handleTeamUpdateMemory,
   handleTeamEnrichModel,
+  handleTeamWebSocket,
 } from './routes/team.js';
 
 export { DatabaseDO } from './db.js';
@@ -198,6 +199,8 @@ export default {
             response = await handleTeamSessionEdit(request, user, env, parsed.teamId);
           } else if (method === 'GET' && parsed.action === 'history') {
             response = await handleTeamHistory(request, user, env, parsed.teamId);
+          } else if (method === 'GET' && parsed.action === 'ws') {
+            return handleTeamWebSocket(request, user, env, parsed.teamId);
           } else {
             response = json({ error: 'Not found' }, 404);
           }

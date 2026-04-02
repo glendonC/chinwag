@@ -15,6 +15,42 @@
   display: flex;
   align-items: center;
   padding: 6px 20px 26px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.logoSvg {
+  display: block;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 0 transparent);
+  transition: filter 0.4s ease;
+}
+
+.logoSvg path {
+  transition: transform 0.4s cubic-bezier(0.22, 0.68, 0, 1),
+              opacity 0.4s ease;
+}
+
+.sidebarLogo:hover .logoSvg {
+  filter:
+    drop-shadow(0 3px 6px rgba(212, 154, 174, 0.45))
+    drop-shadow(0 0 8px rgba(168, 150, 212, 0.35))
+    drop-shadow(0 -3px 6px rgba(142, 192, 164, 0.4));
+}
+
+/* bottom pink layer — shift down */
+.sidebarLogo:hover .logoSvg path:nth-child(1) {
+  transform: translateY(3px);
+}
+
+/* top green layer — shift up */
+.sidebarLogo:hover .logoSvg path:nth-child(3) {
+  transform: translateY(-3px);
+}
+
+.sidebarLogo:focus-visible {
+  outline: none;
 }
 
 .sidebarNav {

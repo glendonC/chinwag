@@ -53,13 +53,13 @@ export default function Sidebar({ activeNav, onNavigate }) {
       )}
 
       <aside className={`${styles.sidebar} ${mobileOpen ? styles.sidebarOpen : ''}`}>
-        <div className={styles.sidebarLogo}>
-          <svg width="36" height="36" viewBox="0 0 32 32">
+        <button type="button" className={styles.sidebarLogo} onClick={goOverview} aria-label="Home">
+          <svg width="36" height="36" viewBox="0 0 32 32" className={styles.logoSvg}>
             <path fill="#d49aae" d="M4 24 20 24 24 20 8 20z" />
             <path fill="#a896d4" d="M6 18 22 18 26 14 10 14z" />
             <path fill="#8ec0a4" d="M8 12 24 12 28 8 12 8z" />
           </svg>
-        </div>
+        </button>
 
         <nav className={styles.sidebarNav} aria-label="Primary">
           <button

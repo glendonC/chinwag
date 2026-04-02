@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { usePollingStore, forceRefresh } from '../../lib/stores/polling.js';
 import { useAuthStore } from '../../lib/stores/auth.js';
 import { useTeamStore } from '../../lib/stores/teams.js';
