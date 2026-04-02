@@ -11,7 +11,7 @@
  * @property {WebSocket|null} ws             - WebSocket to TeamDO (presence channel)
  * @property {string|null}  sessionId        - Active session ID
  * @property {string|null}  tty              - Parent TTY path for terminal title
- * @property {boolean}      modelReported    - Whether model identifier was reported to server
+ * @property {string|null}  reportedModel    - Model identifier last reported to server (null = not yet reported)
  * @property {number}       lastActivity     - Epoch ms of last tool invocation
  * @property {*}            heartbeatInterval - setInterval handle for team heartbeat
  * @property {boolean}      shuttingDown     - True once cleanup begins (prevents reconnect)

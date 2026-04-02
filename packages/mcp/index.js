@@ -73,7 +73,7 @@ async function main() {
     ws: null,
     sessionId: null,
     tty: parentTty,
-    modelReported: false,
+    reportedModel: null,
     lastActivity: Date.now(),
     heartbeatInterval: null,
     shuttingDown: false,

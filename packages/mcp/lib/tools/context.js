@@ -3,7 +3,8 @@
 import * as z from 'zod/v4';
 import { refreshContext, offlinePrefix } from '../context.js';
 import { noTeam } from '../utils/responses.js';
-import { formatToolTag, formatWho } from '../utils/formatting.js';
+import { formatWho } from '../utils/formatting.js';
+import { formatTeamContextDisplay } from '../utils/display.js';
 
 export function registerContextTool(addTool, { team, state }) {
   // Promise-based mutex: stores the in-flight report promise so concurrent
@@ -30,13 +31,14 @@ export function registerContextTool(addTool, { team, state }) {
       if (!state.teamId) return noTeam();
 
       // Fire-once model enrichment with Promise-based dedup.
-      // Concurrent calls share the same in-flight promise. Flag is only set
-      // after success; on failure the promise is cleared to allow retry.
-      if (model && !state.modelReported && state.teamId && !modelReportPromise) {
+      // Tracks which model was reported (not just a boolean) so a different
+      // model triggers a new report. Concurrent calls share the in-flight
+      // promise. Cleared on failure to allow retry.
+      if (model && model !== state.reportedModel && state.teamId && !modelReportPromise) {
         modelReportPromise = team
           .reportModel(state.teamId, model)
           .then(() => {
-            state.modelReported = true;
+            state.reportedModel = model;
           })
           .catch((err) => {
             console.error('[chinwag] Model report failed:', err.message);
@@ -58,44 +60,22 @@ export function registerContextTool(addTool, { team, state }) {
       const lines = [];
       if (offlinePrefix()) lines.push('[offline — showing cached data]');
 
-      if (!ctx.members || ctx.members.length === 0) {
+      // Shared display logic for members, locks, and memories
+      const contextLines = formatTeamContextDisplay(ctx);
+      if (contextLines.length === 0) {
         lines.push('No other agents connected.');
       } else {
         lines.push('Agents:');
-        for (const m of ctx.members) {
-          const tool = m.host_tool || m.tool;
-          const toolInfo = formatToolTag(tool) ? `, ${tool}` : '';
-          const activity = m.activity?.files?.length
-            ? `working on ${m.activity.files.join(', ')}${m.activity.summary ? ` — "${m.activity.summary}"` : ''}`
-            : 'idle';
-          lines.push(`  ${m.handle} (${m.status}${toolInfo}): ${activity}`);
-        }
+        lines.push(...contextLines);
       }
 
-      if (ctx.locks && ctx.locks.length > 0) {
-        lines.push('');
-        lines.push('Locked files:');
-        for (const l of ctx.locks) {
-          const who = formatWho(l.owner_handle, l.tool);
-          lines.push(`  ${l.file_path} — ${who} (${Math.round(l.minutes_held)}m)`);
-        }
-      }
-
+      // Messages (tool-specific — not in shared display)
       if (ctx.messages && ctx.messages.length > 0) {
         lines.push('');
         lines.push('Messages:');
         for (const msg of ctx.messages) {
           const from = formatWho(msg.from_handle, msg.from_tool);
           lines.push(`  ${from}: ${msg.text}`);
-        }
-      }
-
-      if (ctx.memories && ctx.memories.length > 0) {
-        lines.push('');
-        lines.push('Project knowledge:');
-        for (const mem of ctx.memories) {
-          const tagStr = mem.tags?.length ? ` [${mem.tags.join(', ')}]` : '';
-          lines.push(`  ${mem.text}${tagStr}`);
         }
       }
 

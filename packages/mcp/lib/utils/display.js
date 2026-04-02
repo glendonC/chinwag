@@ -36,11 +36,7 @@ export function formatConflictsList(conflicts, lockedFiles) {
 export function formatTeamContextDisplay(ctx, options = {}) {
   const lines = [];
 
-  if (!ctx.members || ctx.members.length === 0) {
-    return lines;
-  }
-
-  for (const m of ctx.members) {
+  for (const m of ctx.members || []) {
     const tool = m.host_tool || m.tool;
     const toolInfo = formatToolTag(tool) ? `, ${tool}` : '';
     const activity = m.activity?.files?.length

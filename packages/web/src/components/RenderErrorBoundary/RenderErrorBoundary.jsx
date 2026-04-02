@@ -1,5 +1,13 @@
 import { Component } from 'react';
 
+/**
+ * Consolidated error boundary used across the app.
+ *
+ * Props:
+ *   label    - Log label (e.g. "Sidebar", "App shell")
+ *   resetKey - Auto-reset when this key changes
+ *   fallback - Optional render prop: ({ reset }) => JSX. Uses default UI if omitted.
+ */
 export default class RenderErrorBoundary extends Component {
   state = { hasError: false };
 
@@ -20,6 +28,8 @@ export default class RenderErrorBoundary extends Component {
 
   render() {
     if (this.state.hasError) {
+      const reset = () => this.setState({ hasError: false });
+      if (this.props.fallback) return this.props.fallback({ reset });
       return (
         <div
           style={{
@@ -31,7 +41,7 @@ export default class RenderErrorBoundary extends Component {
         >
           <p style={{ fontSize: '1.1rem' }}>Something went wrong.</p>
           <button
-            onClick={() => this.setState({ hasError: false })}
+            onClick={reset}
             style={{
               marginTop: '1rem',
               padding: '0.5rem 1rem',

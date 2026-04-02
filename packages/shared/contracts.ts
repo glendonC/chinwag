@@ -16,13 +16,21 @@ export interface MemberActivity {
   updated_at?: string | null;
 }
 
-export interface TeamMember {
-  agent_id: string;
-  handle: string;
-  host_tool: string;
+/**
+ * Common agent metadata attached to team resources.
+ * Extracted to avoid duplicating these four fields across every interface.
+ */
+export interface AgentMetadata {
+  host_tool?: string | null;
   agent_surface?: string | null;
   transport?: string | null;
   agent_model?: string | null;
+}
+
+export interface TeamMember extends AgentMetadata {
+  agent_id: string;
+  handle: string;
+  host_tool: string;
   status: AgentStatus;
   framework?: string | null;
   session_minutes?: number | null;
@@ -51,49 +59,37 @@ export interface LockedConflict {
   claimed_at: string;
 }
 
-export interface TeamLock {
+export interface TeamLock extends AgentMetadata {
   file_path: string;
-  agent_id?: string;
+  agent_id: string;
   handle?: string | null;
-  host_tool?: string | null;
-  agent_surface?: string | null;
-  transport?: string | null;
-  agent_model?: string | null;
   claimed_at?: string;
   minutes_held?: number | null;
 }
 
-export interface TeamMemory {
+export interface TeamMemory extends AgentMetadata {
   id: string;
   text: string;
   tags: string[];
   handle?: string | null;
-  host_tool?: string | null;
-  agent_surface?: string | null;
-  agent_model?: string | null;
   created_at?: string;
   updated_at?: string;
 }
 
-export interface TeamMessage {
+export interface TeamMessage extends AgentMetadata {
   id?: string;
   agent_id?: string | null;
   handle: string;
-  host_tool?: string | null;
-  agent_surface?: string | null;
   text: string;
   created_at: string;
 }
 
-export interface TeamSession {
+export interface TeamSession extends AgentMetadata {
   id?: string;
   agent_id: string;
   handle: string;
   framework?: string | null;
   host_tool: string;
-  agent_surface?: string | null;
-  transport?: string | null;
-  agent_model?: string | null;
   started_at: string;
   ended_at?: string | null;
   edit_count?: number;

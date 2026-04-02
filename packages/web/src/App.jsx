@@ -1,4 +1,4 @@
-import { useState, useEffect, Component } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore, authActions } from './lib/stores/auth.js';
 import { useTeamStore, teamActions } from './lib/stores/teams.js';
 import {
@@ -16,103 +16,45 @@ import ProjectView from './views/ProjectView/ProjectView.jsx';
 import SettingsView from './views/SettingsView/SettingsView.jsx';
 import ToolsView from './views/ToolsView/ToolsView.jsx';
 import Sidebar from './components/Sidebar/Sidebar.jsx';
+import RenderErrorBoundary from './components/RenderErrorBoundary/RenderErrorBoundary.jsx';
 
 import styles from './App.module.css';
 
-class AppErrorBoundary extends Component {
-  state = { hasError: false };
-
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error, info) {
-    console.error('[chinwag] Render error:', error, info.componentStack);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div
-          style={{
-            padding: '2rem',
-            textAlign: 'center',
-            color: '#b0b0b0',
-            fontFamily: 'system-ui',
-          }}
-        >
-          <p style={{ fontSize: '1.1rem' }}>Something went wrong.</p>
-          <button
-            onClick={() => this.setState({ hasError: false })}
-            style={{
-              marginTop: '1rem',
-              padding: '0.5rem 1rem',
-              cursor: 'pointer',
-              background: '#2a2a2a',
-              color: '#e0e0e0',
-              border: '1px solid #444',
-              borderRadius: '6px',
-            }}
-          >
-            Try again
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-/** Sidebar-specific error boundary with minimal fallback nav. */
-class SidebarErrorBoundary extends Component {
-  state = { hasError: false };
-
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error, info) {
-    console.error('[chinwag] Sidebar render error:', error, info.componentStack);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <aside
-          style={{
-            width: 'var(--sidebar-width, 216px)',
-            padding: '18px 0 24px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-          }}
-        >
-          <svg width="36" height="36" viewBox="0 0 32 32" style={{ marginBottom: '14px' }}>
-            <path fill="#d49aae" d="M4 24 20 24 24 20 8 20z" />
-            <path fill="#a896d4" d="M6 18 22 18 26 14 10 14z" />
-            <path fill="#8ec0a4" d="M8 12 24 12 28 8 12 8z" />
-          </svg>
-          <button
-            onClick={() => this.setState({ hasError: false })}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--muted, #888)',
-              fontFamily: 'var(--mono, monospace)',
-              fontSize: '10px',
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              cursor: 'pointer',
-              padding: '4px 8px',
-            }}
-          >
-            Reload sidebar
-          </button>
-        </aside>
-      );
-    }
-    return this.props.children;
-  }
+/** Sidebar-specific fallback used by the shared error boundary. */
+function SidebarFallback({ reset }) {
+  return (
+    <aside
+      style={{
+        width: 'var(--sidebar-width, 216px)',
+        padding: '18px 0 24px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+      }}
+    >
+      <svg width="36" height="36" viewBox="0 0 32 32" style={{ marginBottom: '14px' }}>
+        <path fill="#d49aae" d="M4 24 20 24 24 20 8 20z" />
+        <path fill="#a896d4" d="M6 18 22 18 26 14 10 14z" />
+        <path fill="#8ec0a4" d="M8 12 24 12 28 8 12 8z" />
+      </svg>
+      <button
+        onClick={reset}
+        style={{
+          background: 'none',
+          border: 'none',
+          color: 'var(--muted, #888)',
+          fontFamily: 'var(--mono, monospace)',
+          fontSize: '10px',
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          cursor: 'pointer',
+          padding: '4px 8px',
+        }}
+      >
+        Reload sidebar
+      </button>
+    </aside>
+  );
 }
 
 export default function App() {
@@ -206,9 +148,9 @@ export default function App() {
 
   return (
     <div className={styles.layout}>
-      <SidebarErrorBoundary>
+      <RenderErrorBoundary label="Sidebar" fallback={SidebarFallback}>
         <Sidebar activeNav={activeNav} onNavigate={setActiveNav} />
-      </SidebarErrorBoundary>
+      </RenderErrorBoundary>
 
       <div className={styles.main}>
         {showError && (
@@ -246,12 +188,12 @@ export default function App() {
         )}
 
         <div className={styles.content}>
-          <AppErrorBoundary>
+          <RenderErrorBoundary label="App">
             {activeView === 'overview' && <OverviewView />}
             {activeView === 'project' && <ProjectView />}
             {activeView === 'tools' && <ToolsView />}
             {activeView === 'settings' && <SettingsView />}
-          </AppErrorBoundary>
+          </RenderErrorBoundary>
         </div>
       </div>
     </div>
