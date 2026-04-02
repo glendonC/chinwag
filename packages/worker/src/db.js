@@ -4,6 +4,7 @@
 
 import { DurableObject } from 'cloudflare:workers';
 import { seedEvaluations } from './lib/seed-evaluations.js';
+import { runMigration } from './lib/migrate.js';
 
 const COLORS = [
   'red', 'cyan', 'yellow', 'green', 'magenta', 'blue',
@@ -117,13 +118,13 @@ export class DatabaseDO extends DurableObject {
     `);
 
     // Migrate: add team_name column for tables created before this column existed
-    try { this.sql.exec('ALTER TABLE user_teams ADD COLUMN team_name TEXT'); } catch {}
+    runMigration(this.sql, 'ALTER TABLE user_teams ADD COLUMN team_name TEXT', null, 'DatabaseDO');
 
     // Migrate: add GitHub OAuth columns
-    try { this.sql.exec('ALTER TABLE users ADD COLUMN github_id TEXT'); } catch {}
-    try { this.sql.exec('ALTER TABLE users ADD COLUMN github_login TEXT'); } catch {}
-    try { this.sql.exec('ALTER TABLE users ADD COLUMN avatar_url TEXT'); } catch {}
-    try { this.sql.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_github_id ON users(github_id)'); } catch {}
+    runMigration(this.sql, 'ALTER TABLE users ADD COLUMN github_id TEXT', null, 'DatabaseDO');
+    runMigration(this.sql, 'ALTER TABLE users ADD COLUMN github_login TEXT', null, 'DatabaseDO');
+    runMigration(this.sql, 'ALTER TABLE users ADD COLUMN avatar_url TEXT', null, 'DatabaseDO');
+    runMigration(this.sql, 'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_github_id ON users(github_id)', null, 'DatabaseDO');
 
     // Prune stale rate limit rows and expired sessions
     this.sql.exec("DELETE FROM account_limits WHERE date < date('now', '-7 days')");

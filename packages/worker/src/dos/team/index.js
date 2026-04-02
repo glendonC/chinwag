@@ -14,6 +14,7 @@ import { claimFiles as claimFilesFn, releaseFiles as releaseFilesFn, getLockedFi
 import { startSession as startSessionFn, endSession as endSessionFn, recordEdit as recordEditFn, getSessionHistory, enrichSessionModel as enrichSessionModelFn } from './sessions.js';
 import { sendMessage as sendMessageFn, getMessages as getMessagesFn } from './messages.js';
 import { inferHostToolFromAgentId } from './runtime.js';
+import { runMigrations } from '../../lib/migrate.js';
 
 // --- Tuning constants ---
 const HEARTBEAT_ACTIVE_SECONDS = 60;    // Heartbeat within this window = "active"
@@ -187,12 +188,7 @@ export class TeamDO extends DurableObject {
       ["ALTER TABLE members ADD COLUMN last_tool_use TEXT", null],
       ["ALTER TABLE memories ADD COLUMN source_model TEXT", null],
     ];
-    for (const [alter, backfill] of migrations) {
-      try {
-        this.sql.exec(alter);
-        if (backfill) this.sql.exec(backfill);
-      } catch {}
-    }
+    runMigrations(this.sql, migrations, 'TeamDO');
 
     if (this.#schemaReady) return;
 
