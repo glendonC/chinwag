@@ -117,7 +117,8 @@ export function readSessionRecord(
   if (!existsSync(filePath)) return null;
   try {
     return JSON.parse(readFileSync(filePath, 'utf-8')) as SessionRecord;
-  } catch {
+  } catch (err: any) {
+    console.error('session-registry: failed to parse session file', filePath + ':', err.message ?? err);
     return null;
   }
 }
@@ -129,7 +130,8 @@ export function deleteSessionRecord(
   try {
     unlinkSync(getSessionFilePath(agentId, homeDir));
     return true;
-  } catch {
+  } catch (err: any) {
+    if (err.code !== 'ENOENT') console.error('session-registry: failed to delete session record:', err.message ?? err);
     return false;
   }
 }
@@ -151,7 +153,8 @@ export function resolveSessionAgentId({
       .map((name) => {
         try {
           return JSON.parse(readFileSync(join(dir, name), 'utf-8')) as SessionRecord;
-        } catch {
+        } catch (err: any) {
+          console.error('session-registry: failed to parse session file', join(dir, name) + ':', err.message ?? err);
           return null;
         }
       })
@@ -168,7 +171,8 @@ export function resolveSessionAgentId({
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
     return matches[0]?.agentId || fallbackAgentId;
-  } catch {
+  } catch (err: any) {
+    if (err.code !== 'ENOENT') console.error('session-registry: failed to resolve session agent ID:', err.message ?? err);
     return fallbackAgentId;
   }
 }
