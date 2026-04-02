@@ -1,5 +1,8 @@
+// Polling store — manages cross-project overview and single-team context.
+// WebSocket connection lifecycle is delegated to teamWebSocket.js.
+
 import { createStore, useStore } from 'zustand';
-import { api, getApiUrl } from '../api.js';
+import { api } from '../api.js';
 import { authActions } from './auth.js';
 import { teamActions } from './teams.js';
 import { requestRefresh, setRefreshHandler } from './refresh.js';
@@ -10,12 +13,11 @@ import {
   dashboardSummarySchema,
   teamContextSchema,
   validateResponse,
-  webSocketTicketSchema,
 } from '../apiSchemas.js';
+import { connectTeamWebSocket, closeWebSocket } from './teamWebSocket.js';
 
 const POLL_MS = 5000;
 const SLOW_POLL_MS = 30000;
-const RECONCILE_MS = 60_000;
 
 // Internal state encapsulated in a single resettable object.
 // Keeps timer/WS refs out of the Zustand store (they're not UI state)
@@ -23,8 +25,6 @@ const RECONCILE_MS = 60_000;
 const _internal = {
   pollTimer: null,
   consecutiveFailures: 0,
-  activeWs: null,
-  reconcileTimer: null,
   abortController: null,
 };
 
@@ -160,125 +160,6 @@ function restartPolling() {
   _internal.pollTimer = setInterval(poll, delay);
 }
 
-/** Close any active WebSocket and its reconciliation timer. */
-function closeWebSocket() {
-  if (_internal.reconcileTimer) {
-    clearInterval(_internal.reconcileTimer);
-    _internal.reconcileTimer = null;
-  }
-  if (_internal.activeWs) {
-    try {
-      _internal.activeWs.close();
-    } catch {
-      /* ignore close errors */
-    }
-    _internal.activeWs = null;
-  }
-}
-
-/**
- * Attempt a WebSocket connection for project (single-team) view.
- * Falls back to polling if WebSocket fails.
- */
-async function connectTeamWebSocket(teamId) {
-  const { token } = authActions.getState();
-  if (!token || !teamId) return;
-
-  // Fetch a short-lived ticket — keeps the real token out of the WS URL
-  let ticket;
-  try {
-    const rawData = await api('POST', '/auth/ws-ticket', null, token);
-    const data = validateResponse(webSocketTicketSchema, rawData, 'ws-ticket', {
-      throwOnError: true,
-    });
-    ticket = data.ticket;
-  } catch {
-    return; // polling continues as fallback
-  }
-
-  // Team may have changed while waiting for ticket
-  if (teamActions.getState().activeTeamId !== teamId) return;
-
-  const wsBase = getApiUrl().replace(/^http/, 'ws');
-  const agentId = `web-dashboard:${token.slice(0, 8)}`;
-  const wsUrl = `${wsBase}/teams/${teamId}/ws?agentId=${encodeURIComponent(agentId)}&ticket=${encodeURIComponent(ticket)}`;
-
-  try {
-    const ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-      if (teamActions.getState().activeTeamId !== teamId) {
-        ws.close();
-        return;
-      }
-      // WebSocket connected — stop polling, start reconciliation
-      if (_internal.pollTimer) {
-        clearInterval(_internal.pollTimer);
-        _internal.pollTimer = null;
-      }
-      if (_internal.reconcileTimer) {
-        clearInterval(_internal.reconcileTimer);
-        _internal.reconcileTimer = null;
-      }
-      _internal.reconcileTimer = setInterval(poll, RECONCILE_MS);
-    };
-
-    ws.onmessage = (evt) => {
-      if (teamActions.getState().activeTeamId !== teamId) return;
-      try {
-        const event = JSON.parse(evt.data);
-        if (event.type === 'context') {
-          pollingStore.setState({
-            contextData: validateResponse(teamContextSchema, event.data, 'ws-context', {
-              fallback: createEmptyTeamContext(),
-            }),
-            contextStatus: 'ready',
-            contextTeamId: teamId,
-            pollError: null,
-            pollErrorData: null,
-            lastUpdate: new Date(),
-          });
-        } else {
-          const normalizedEvent = normalizeDashboardDeltaEvent(event);
-          if (!normalizedEvent) {
-            console.warn('[chinwag] Ignoring malformed WS delta event');
-            return;
-          }
-          pollingStore.setState((state) => {
-            if (state.contextTeamId !== teamId || !state.contextData) return state;
-            return {
-              contextData: applyDelta(state.contextData, normalizedEvent),
-              lastUpdate: new Date(),
-            };
-          });
-        }
-      } catch (e) {
-        console.warn('[chinwag] Malformed WS event:', e.message);
-      }
-    };
-
-    ws.onclose = () => {
-      _internal.activeWs = null;
-      if (_internal.reconcileTimer) {
-        clearInterval(_internal.reconcileTimer);
-        _internal.reconcileTimer = null;
-      }
-      // Fall back to polling if we're still on this team
-      if (teamActions.getState().activeTeamId === teamId) {
-        restartPolling();
-      }
-    };
-
-    ws.onerror = () => {
-      /* onclose fires after */
-    };
-
-    _internal.activeWs = ws;
-  } catch {
-    // WebSocket constructor failed — stay on polling
-  }
-}
-
 function formatError(err) {
   if (typeof err === 'string') return err;
   const msg = err?.message || 'Something went wrong';
@@ -296,15 +177,51 @@ export function startPolling() {
   poll(); // immediate first poll
 
   const { activeTeamId } = teamActions.getState();
+  const delay = _internal.consecutiveFailures >= 3 ? SLOW_POLL_MS : POLL_MS;
+  _internal.pollTimer = setInterval(poll, delay);
+
   if (activeTeamId) {
     // Project view — try WebSocket, polling runs as fallback until WS connects
-    const delay = _internal.consecutiveFailures >= 3 ? SLOW_POLL_MS : POLL_MS;
-    _internal.pollTimer = setInterval(poll, delay);
-    connectTeamWebSocket(activeTeamId);
-  } else {
-    // Overview — polling only (aggregates across all teams, no single-team WS)
-    const delay = _internal.consecutiveFailures >= 3 ? SLOW_POLL_MS : POLL_MS;
-    _internal.pollTimer = setInterval(poll, delay);
+    connectTeamWebSocket(activeTeamId, {
+      onConnected() {
+        // WebSocket connected — stop interval polling
+        if (_internal.pollTimer) {
+          clearInterval(_internal.pollTimer);
+          _internal.pollTimer = null;
+        }
+      },
+      onContextSnapshot(data) {
+        pollingStore.setState({
+          contextData: validateResponse(teamContextSchema, data, 'ws-context', {
+            fallback: createEmptyTeamContext(),
+          }),
+          contextStatus: 'ready',
+          contextTeamId: activeTeamId,
+          pollError: null,
+          pollErrorData: null,
+          lastUpdate: new Date(),
+        });
+      },
+      onDeltaEvent(event) {
+        const normalized = normalizeDashboardDeltaEvent(event);
+        if (!normalized) {
+          console.warn('[chinwag] Ignoring malformed WS delta event');
+          return;
+        }
+        pollingStore.setState((state) => {
+          if (state.contextTeamId !== activeTeamId || !state.contextData) return state;
+          return {
+            contextData: applyDelta(state.contextData, normalized),
+            lastUpdate: new Date(),
+          };
+        });
+      },
+      onClose: restartPolling,
+      onMalformed(msg) {
+        console.warn('[chinwag] Malformed WS event:', msg);
+      },
+      onReconcile: poll,
+    });
   }
 }
 
