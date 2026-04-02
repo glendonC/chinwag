@@ -1,10 +1,29 @@
 // chinwag API client
 // Pure utility — no store imports to avoid circular deps.
 
-import { createJsonApiClient, DEFAULT_API_URL } from '../../../shared/api-client.js';
+import { createJsonApiClient, DEFAULT_API_URL } from '@chinwag/shared/api-client.js';
+
+const LOCAL_DEV_API_PORT = '8787';
+
+function isLoopbackHostname(hostname) {
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '[::1]' ||
+    hostname === '::1'
+  );
+}
+
+function getLoopbackApiUrl() {
+  if (typeof window === 'undefined') return null;
+  const hostname = window.location?.hostname || '';
+  if (!isLoopbackHostname(hostname)) return null;
+  const normalizedHost = hostname === '::1' ? '[::1]' : hostname;
+  return `http://${normalizedHost}:${LOCAL_DEV_API_PORT}`;
+}
 
 export function getApiUrl() {
-  return import.meta.env.VITE_CHINWAG_API_URL || DEFAULT_API_URL;
+  return import.meta.env.VITE_CHINWAG_API_URL || getLoopbackApiUrl() || DEFAULT_API_URL;
 }
 
 /**

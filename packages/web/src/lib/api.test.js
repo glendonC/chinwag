@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, getApiUrl } from './api.js';
 
+function stubHostname(hostname) {
+  vi.stubGlobal('window', {
+    ...window,
+    location: { ...window.location, hostname },
+  });
+}
+
 function mockJsonResponse(body, status = 200) {
   return {
     ok: status >= 200 && status < 300,
@@ -12,10 +19,12 @@ function mockJsonResponse(body, status = 200) {
 describe('web API client', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
+    stubHostname('localhost');
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -35,8 +44,29 @@ describe('web API client', () => {
           Authorization: 'Bearer web-token',
           'Content-Type': 'application/json',
         }),
-      })
+      }),
     );
+  });
+
+  it('defaults to the local worker API on loopback origins', async () => {
+    fetch.mockResolvedValue(mockJsonResponse({ teams: [] }));
+    stubHostname('localhost');
+
+    await api('GET', '/me/teams', null, 'web-token');
+
+    expect(getApiUrl()).toBe('http://localhost:8787');
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8787/me/teams',
+      expect.objectContaining({
+        method: 'GET',
+      }),
+    );
+  });
+
+  it('uses the matching loopback host when served on 127.0.0.1', () => {
+    stubHostname('127.0.0.1');
+
+    expect(getApiUrl()).toBe('http://127.0.0.1:8787');
   });
 
   it('uses web-specific parse errors for non-JSON responses', async () => {
@@ -54,10 +84,15 @@ describe('web API client', () => {
   });
 
   it('preserves parsed error payloads on HTTP failures', async () => {
-    fetch.mockResolvedValue(mockJsonResponse({
-      error: 'Project summary is temporarily unavailable.',
-      failed_teams: [{ team_id: 't_one', team_name: 'chinwag' }],
-    }, 503));
+    fetch.mockResolvedValue(
+      mockJsonResponse(
+        {
+          error: 'Project summary is temporarily unavailable.',
+          failed_teams: [{ team_id: 't_one', team_name: 'chinwag' }],
+        },
+        503,
+      ),
+    );
 
     await expect(api('GET', '/me/dashboard')).rejects.toMatchObject({
       message: 'Project summary is temporarily unavailable.',

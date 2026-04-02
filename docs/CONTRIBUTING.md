@@ -73,7 +73,7 @@ The CLI points to the production API by default. To point it at your local worke
 CHINWAG_API_URL=http://localhost:8787 CHINWAG_WS_URL=ws://localhost:8787/ws/chat npm run dev:cli
 ```
 
-The web dashboard defaults to the production API too. To point the Vite app at a local or staging worker:
+When the web dashboard is served from a loopback origin, it prefers the local worker automatically. To point the Vite app at a specific local or staging worker explicitly:
 
 ```bash
 VITE_CHINWAG_API_URL=http://localhost:8787 npm run dev --workspace=packages/web
@@ -258,7 +258,7 @@ refactor(worker): extract rate limit logic to moderation.js
 chore: update wrangler to v4.1
 ```
 
-Keep the subject line under 72 characters. Use the body for context on *why*, not *what* (the diff shows what).
+Keep the subject line under 72 characters. Use the body for context on _why_, not _what_ (the diff shows what).
 
 ## Pull request process
 
@@ -309,4 +309,4 @@ We do not require a CLA. We do not require `Signed-off-by` lines. Submitting a P
 
 ---
 
-*This guide is a living document. If something is missing or unclear, open an issue or PR to improve it.*
+_This guide is a living document. If something is missing or unclear, open an issue or PR to improve it._
