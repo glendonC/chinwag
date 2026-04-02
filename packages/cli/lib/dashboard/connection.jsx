@@ -1,13 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api, getApiUrl } from '../api.js';
 import { detectTools } from '../mcp-config.js';
 import { getProjectContext } from '../project.js';
 import { SPINNER } from './utils.js';
 import { applyDelta } from '@chinwag/shared/dashboard-ws.js';
 
-import { SPINNER_INTERVAL_MS } from './constants.js';
-
 // ── Constants ───────────────────────────────────────
+const SPINNER_INTERVAL_MS = 80;
 const OFFLINE_THRESHOLD = 6; // consecutive failures before going offline
 const POLL_FAST_MS = 5_000;
 const POLL_MEDIUM_MS = 15_000;
@@ -52,29 +51,30 @@ export function contextFingerprint(ctx) {
   return `${members};${memCount};${msgCount};${lockCount}`;
 }
 
-/**
- * Pure function that computes the poll interval based on failure count and idle polls.
- * Extracted for testability — the hook closure delegates to this.
- */
-export function computePollInterval(failures, idlePolls) {
-  if (failures >= OFFLINE_THRESHOLD) return POLL_SLOW_MS;
-  if (failures >= 3) return POLL_MEDIUM_MS;
-  if (idlePolls >= IDLE_TIER_3) return POLL_IDLE_MS;
-  if (idlePolls >= IDLE_TIER_2) return POLL_SLOW_MS;
-  if (idlePolls >= IDLE_TIER_1) return POLL_MEDIUM_MS;
-  return POLL_FAST_MS;
-}
-
 export function useDashboardConnection({ config, stdout }) {
+  // ── .chinwag file discovery (sync, computed once via lazy init) ───
+  const [initialProject] = useState(() => {
+    const project = getProjectContext(process.cwd());
+    if (!project) return { error: 'No .chinwag file found. Run `npx chinwag init` first.' };
+    if (project.error) return { error: project.error };
+    let tools = [];
+    try {
+      tools = detectTools(project.root);
+    } catch (err) {
+      console.error('[chinwag]', err?.message || err);
+    }
+    return { teamId: project.teamId, teamName: project.teamName, root: project.root, tools };
+  });
+
   // Project state
-  const [teamId, setTeamId] = useState(null);
-  const [teamName, setTeamName] = useState(null);
-  const [projectRoot, setProjectRoot] = useState(process.cwd());
-  const [detectedTools, setDetectedTools] = useState([]);
+  const [teamId] = useState(initialProject.teamId ?? null);
+  const [teamName] = useState(initialProject.teamName ?? null);
+  const [projectRoot] = useState(initialProject.root ?? process.cwd());
+  const [detectedTools] = useState(initialProject.tools ?? []);
 
   // Connection state
   const [context, setContext] = useState(null);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(initialProject.error ?? null);
   const [connState, setConnState] = useState('connecting');
   const [connDetail, setConnDetail] = useState(null);
   const consecutiveFailures = useRef(0);
@@ -103,31 +103,6 @@ export function useDashboardConnection({ config, stdout }) {
     stdout.on('resize', onResize);
     return () => stdout.off('resize', onResize);
   }, [stdout]);
-
-  // ── .chinwag file discovery (mount-only init, sets state synchronously) ──
-  /* eslint-disable react-hooks/set-state-in-effect -- init runs once on mount */
-  useEffect(() => {
-    const project = getProjectContext(process.cwd());
-    if (!project) {
-      setError('No .chinwag file found. Run `npx chinwag init` first.');
-      return;
-    }
-    if (project.error) {
-      setError(project.error);
-      return;
-    }
-
-    setTeamId(project.teamId);
-    setTeamName(project.teamName);
-    setProjectRoot(project.root);
-
-    try {
-      setDetectedTools(detectTools(project.root));
-    } catch (err) {
-      console.error('[chinwag]', err?.message || err);
-    }
-  }, []);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   // ── WebSocket connection with polling fallback ───
   const wsRef = useRef(null);
@@ -185,7 +160,14 @@ export function useDashboardConnection({ config, stdout }) {
 
     // ── Polling fallback ──────────────────────────
     function getPollInterval() {
-      return computePollInterval(consecutiveFailures.current, unchangedPolls.current);
+      if (consecutiveFailures.current >= OFFLINE_THRESHOLD) return POLL_SLOW_MS;
+      if (consecutiveFailures.current >= 3) return POLL_MEDIUM_MS;
+      // Progressive backoff when context is unchanged (idle team)
+      const idle = unchangedPolls.current;
+      if (idle >= IDLE_TIER_3) return POLL_IDLE_MS;
+      if (idle >= IDLE_TIER_2) return POLL_SLOW_MS;
+      if (idle >= IDLE_TIER_1) return POLL_MEDIUM_MS;
+      return POLL_FAST_MS;
     }
 
     function startPolling() {
@@ -308,7 +290,7 @@ export function useDashboardConnection({ config, stdout }) {
         wsRef.current = null;
       }
     };
-  }, [teamId, teamName, refreshKey, config?.token]);
+  }, [teamId, teamName, refreshKey, config]);
 
   function retry() {
     setError(null);

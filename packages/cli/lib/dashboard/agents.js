@@ -1,7 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  spawnAgent, killAgent, getAgents, getOutput, onUpdate,
-  removeAgent, registerExternalAgent, setExternalAgentPid,
+  spawnAgent,
+  killAgent,
+  getAgents,
+  getOutput,
+  onUpdate,
+  removeAgent,
+  registerExternalAgent,
+  setExternalAgentPid,
   checkExternalAgentLiveness,
 } from '../process-manager.js';
 import { spawnInTerminal, detectTerminalEnvironment, readPidFile } from '../terminal-spawner.js';
@@ -31,13 +37,7 @@ const FAILURE_OUTPUT_LINES = 200;
  * Handles spawning, killing, restarting agents, tool availability checking,
  * and managed tool state tracking.
  */
-export function useAgentLifecycle({
-  config,
-  teamId,
-  projectRoot,
-  stdout,
-  flash,
-}) {
+export function useAgentLifecycle({ config, teamId, projectRoot, stdout, flash }) {
   // Process manager state
   const [managedAgents, setManagedAgents] = useState([]);
   const previousManagedStatuses = useRef(new Map());
@@ -61,7 +61,10 @@ export function useAgentLifecycle({
     const unsub = onUpdate(() => setManagedAgents(getAgents()));
     // Tick every 10s to update duration display
     const ticker = setInterval(() => setManagedAgents(getAgents()), DURATION_TICK_MS);
-    return () => { unsub(); clearInterval(ticker); };
+    return () => {
+      unsub();
+      clearInterval(ticker);
+    };
   }, []);
 
   // ── Tool availability checking ───────────────────────
@@ -71,7 +74,9 @@ export function useAgentLifecycle({
     let cancelled = false;
 
     async function checkManagedTools() {
-      setManagedToolStates(prev => {
+      if (cancelled) return;
+
+      setManagedToolStates((prev) => {
         const next = { ...prev };
         for (const tool of installedCliAgents) {
           const existing = next[tool.id];
@@ -83,14 +88,18 @@ export function useAgentLifecycle({
       });
 
       const results = await Promise.all(
-        installedCliAgents.map(tool => checkManagedAgentToolAvailability(tool, { cwd: projectRoot }))
+        installedCliAgents.map((tool) =>
+          checkManagedAgentToolAvailability(tool, { cwd: projectRoot }),
+        ),
       );
 
       if (cancelled) return;
 
-      setManagedToolStates(prev => {
+      setManagedToolStates((prev) => {
+        if (cancelled) return prev;
         const next = { ...prev };
         for (const result of results) {
+          if (cancelled) break;
           if (next[result.toolId]?.source === 'runtime') continue;
           next[result.toolId] = result;
         }
@@ -110,11 +119,15 @@ export function useAgentLifecycle({
     for (const agent of managedAgents) {
       const lastStatus = previous.get(agent.id);
       if (lastStatus === 'running' && agent.status !== 'running') {
-        const failureStatus = agent.status === 'failed'
-          ? classifyManagedAgentFailure(agent.toolId, getOutput(agent.id, FAILURE_OUTPUT_LINES).join('\n'))
-          : null;
+        const failureStatus =
+          agent.status === 'failed'
+            ? classifyManagedAgentFailure(
+                agent.toolId,
+                getOutput(agent.id, FAILURE_OUTPUT_LINES).join('\n'),
+              )
+            : null;
         if (failureStatus) {
-          setManagedToolStates(prev => ({
+          setManagedToolStates((prev) => ({
             ...prev,
             [agent.toolId]: failureStatus,
           }));
@@ -122,17 +135,17 @@ export function useAgentLifecycle({
 
         const preview = agent.outputPreview ? `: ${agent.outputPreview}` : '';
         flash(
-          failureStatus?.detail
-            || (agent.status === 'exited'
+          failureStatus?.detail ||
+            (agent.status === 'exited'
               ? `${agent.toolName} finished${preview}`
               : `${agent.toolName} failed${preview}`),
-          { tone: agent.status === 'exited' ? 'success' : 'warning' }
+          { tone: agent.status === 'exited' ? 'success' : 'warning' },
         );
       }
       previous.set(agent.id, agent.status);
     }
 
-    const liveIds = new Set(managedAgents.map(agent => agent.id));
+    const liveIds = new Set(managedAgents.map((agent) => agent.id));
     for (const id of [...previous.keys()]) {
       if (!liveIds.has(id)) previous.delete(id);
     }
@@ -148,8 +161,8 @@ export function useAgentLifecycle({
   const externalAgentPrevStatus = useRef(new Map());
   useEffect(() => {
     const interval = setInterval(() => {
-      const agents = getAgents();
-      for (const agent of agents) {
+      const currentAgents = getAgents();
+      for (const agent of currentAgents) {
         if (agent.spawnType !== 'external' || agent.status !== 'running') continue;
         if (!agent.pid && agent.agentId) {
           const pid = readPidFile(agent.agentId);
@@ -160,20 +173,32 @@ export function useAgentLifecycle({
       const changed = checkExternalAgentLiveness();
       if (changed) {
         const now = Date.now();
-        for (const agent of getAgents()) {
+        const freshAgents = getAgents();
+        for (const agent of freshAgents) {
           if (agent.spawnType !== 'external') continue;
           const was = prev.get(agent.id);
           if (was === 'running' && agent.status !== 'running') {
             const age = now - (agent.startedAt || 0);
             if (age < EARLY_EXIT_THRESHOLD_MS && agent.toolId) {
-              flash(`${agent.toolName || agent.toolId} exited immediately. Press [f] to fix.`, { tone: 'warning' });
-              setManagedToolStatusTick(t => t + 1);
+              flash(`${agent.toolName || agent.toolId} exited immediately. Press [f] to fix.`, {
+                tone: 'warning',
+              });
+              setManagedToolStatusTick((t) => t + 1);
             }
           }
         }
       }
+
+      // Update status tracking and prune entries for agents that no longer exist
+      const currentIds = new Set();
       for (const agent of getAgents()) {
-        if (agent.spawnType === 'external') prev.set(agent.id, agent.status);
+        if (agent.spawnType === 'external') {
+          prev.set(agent.id, agent.status);
+          currentIds.add(agent.id);
+        }
+      }
+      for (const id of [...prev.keys()]) {
+        if (!currentIds.has(id)) prev.delete(id);
       }
     }, EXTERNAL_AGENT_POLL_MS);
     return () => clearInterval(interval);
@@ -185,25 +210,32 @@ export function useAgentLifecycle({
     return managedToolStates[toolId] || { toolId, state: 'checking', detail: 'Checking readiness' };
   }
 
-  const readyCliAgents = installedCliAgents.filter(tool => getManagedToolState(tool.id).state === 'ready');
-  const unavailableCliAgents = installedCliAgents.filter(tool => {
+  const readyCliAgents = installedCliAgents.filter(
+    (tool) => getManagedToolState(tool.id).state === 'ready',
+  );
+  const unavailableCliAgents = installedCliAgents.filter((tool) => {
     const state = getManagedToolState(tool.id).state;
     return state === 'needs_auth' || state === 'unavailable';
   });
-  const checkingCliAgents = installedCliAgents.filter(tool => getManagedToolState(tool.id).state === 'checking');
+  const checkingCliAgents = installedCliAgents.filter(
+    (tool) => getManagedToolState(tool.id).state === 'checking',
+  );
   const preferredLaunchTool = resolvePreferredManagedTool(readyCliAgents, preferredLaunchToolId);
-  const selectedLaunchTool = installedCliAgents.find(tool => tool.id === launchToolId)
-    || preferredLaunchTool
-    || readyCliAgents[0]
-    || installedCliAgents[0]
-    || null;
-  const selectedLaunchToolState = selectedLaunchTool ? getManagedToolState(selectedLaunchTool.id) : null;
+  const selectedLaunchTool =
+    installedCliAgents.find((tool) => tool.id === launchToolId) ||
+    preferredLaunchTool ||
+    readyCliAgents[0] ||
+    installedCliAgents[0] ||
+    null;
+  const selectedLaunchToolState = selectedLaunchTool
+    ? getManagedToolState(selectedLaunchTool.id)
+    : null;
   const canLaunchSelectedTool = selectedLaunchToolState?.state === 'ready';
   const launcherChoices = readyCliAgents.length > 0 ? readyCliAgents : installedCliAgents;
 
   // ── Launch tool fallback clamping ────────────────────
   useEffect(() => {
-    if (launchToolId && installedCliAgents.some(tool => tool.id === launchToolId)) return;
+    if (launchToolId && installedCliAgents.some((tool) => tool.id === launchToolId)) return;
 
     const fallbackTool = preferredLaunchTool || readyCliAgents[0] || installedCliAgents[0] || null;
     if (fallbackTool) {
@@ -227,7 +259,7 @@ export function useAgentLifecycle({
 
   function cycleToolForward() {
     if (launcherChoices.length <= 1) return;
-    const currentIdx = launcherChoices.findIndex(t => t.id === launchToolId);
+    const currentIdx = launcherChoices.findIndex((t) => t.id === launchToolId);
     const nextIdx = (currentIdx + 1) % launcherChoices.length;
     setLaunchToolId(launcherChoices[nextIdx].id);
   }
@@ -235,16 +267,19 @@ export function useAgentLifecycle({
   function resolveReadyTool(query) {
     if (!query) return null;
     const normalized = query.toLowerCase();
-    return readyCliAgents.find((tool) => (
-      tool.id === normalized
-      || tool.name.toLowerCase() === normalized
-      || tool.name.toLowerCase().startsWith(normalized)
-      || tool.id.startsWith(normalized)
-    )) || null;
+    return (
+      readyCliAgents.find(
+        (tool) =>
+          tool.id === normalized ||
+          tool.name.toLowerCase() === normalized ||
+          tool.name.toLowerCase().startsWith(normalized) ||
+          tool.id.startsWith(normalized),
+      ) || null
+    );
   }
 
   function refreshManagedToolStates({ clearRuntimeFailures = false } = {}) {
-    setManagedToolStates(prev => {
+    setManagedToolStates((prev) => {
       if (!clearRuntimeFailures) return prev;
       const next = {};
       for (const [toolId, status] of Object.entries(prev)) {
@@ -252,7 +287,7 @@ export function useAgentLifecycle({
       }
       return next;
     });
-    setManagedToolStatusTick(tick => tick + 1);
+    setManagedToolStatusTick((tick) => tick + 1);
     flash('Rechecking tools...', { tone: 'info' });
   }
 
@@ -345,13 +380,16 @@ export function useAgentLifecycle({
       flash('Restart failed. Try stopping and launching a new agent.', { tone: 'error' });
       return false;
     }
-    launchManagedTask({
-      id: agent.tool,
-      name: agent.toolName || agent._display,
-      cmd: agent.cmd,
-      args: agent.args,
-      taskArg: agent.taskArg,
-    }, agent.task);
+    launchManagedTask(
+      {
+        id: agent.tool,
+        name: agent.toolName || agent._display,
+        cmd: agent.cmd,
+        args: agent.args,
+        taskArg: agent.taskArg,
+      },
+      agent.task,
+    );
     return true;
   }
 
