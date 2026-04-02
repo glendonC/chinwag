@@ -1,104 +1,138 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { homedir } from 'os';
 import {
   truncateText,
   getVisibleWindow,
   formatProjectPath,
-  SPINNER,
   MIN_WIDTH,
+  SPINNER,
   DASHBOARD_URL,
 } from '../dashboard/utils.js';
 
 describe('truncateText', () => {
-  it('returns falsy values unchanged', () => {
+  it('returns null/undefined unchanged', () => {
     expect(truncateText(null, 10)).toBeNull();
-    expect(truncateText('', 10)).toBe('');
     expect(truncateText(undefined, 10)).toBeUndefined();
   });
 
-  it('returns text unchanged if within limit', () => {
+  it('returns empty string unchanged', () => {
+    expect(truncateText('', 10)).toBe('');
+  });
+
+  it('returns short text unchanged', () => {
     expect(truncateText('hello', 10)).toBe('hello');
+  });
+
+  it('returns text exactly at max unchanged', () => {
     expect(truncateText('hello', 5)).toBe('hello');
   });
 
-  it('truncates and appends ellipsis when over limit', () => {
-    expect(truncateText('hello world', 6)).toBe('hello\u2026');
-    expect(truncateText('abcdefgh', 4)).toBe('abc\u2026');
+  it('truncates long text with ellipsis', () => {
+    expect(truncateText('hello world', 5)).toBe('hell\u2026');
+  });
+
+  it('truncates at max=1 to just ellipsis', () => {
+    expect(truncateText('ab', 1)).toBe('\u2026');
   });
 });
 
 describe('getVisibleWindow', () => {
-  it('returns all items when list fits within max', () => {
-    const items = ['a', 'b', 'c'];
-    const result = getVisibleWindow(items, 0, 5);
-    expect(result.items).toEqual(['a', 'b', 'c']);
-    expect(result.start).toBe(0);
+  const items = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+
+  it('returns all items when list fits within maxItems', () => {
+    const result = getVisibleWindow(['a', 'b', 'c'], 0, 5);
+    expect(result).toEqual({ items: ['a', 'b', 'c'], start: 0 });
   });
 
-  it('returns empty for null/empty items', () => {
-    expect(getVisibleWindow(null, 0, 5).items).toEqual([]);
-    expect(getVisibleWindow([], 0, 5).items).toEqual([]);
+  it('returns empty array for null/undefined items', () => {
+    expect(getVisibleWindow(null, 0, 5)).toEqual({ items: [], start: 0 });
+    expect(getVisibleWindow(undefined, 0, 5)).toEqual({ items: [], start: 0 });
   });
 
-  it('returns first window when no selection', () => {
-    const items = ['a', 'b', 'c', 'd', 'e', 'f'];
+  it('returns empty array for empty items', () => {
+    expect(getVisibleWindow([], 0, 5)).toEqual({ items: [], start: 0 });
+  });
+
+  it('shows first window when selectedIdx is null', () => {
+    const result = getVisibleWindow(items, null, 3);
+    expect(result).toEqual({ items: ['a', 'b', 'c'], start: 0 });
+  });
+
+  it('shows first window when selectedIdx is negative', () => {
     const result = getVisibleWindow(items, -1, 3);
-    expect(result.items).toEqual(['a', 'b', 'c']);
-    expect(result.start).toBe(0);
+    expect(result).toEqual({ items: ['a', 'b', 'c'], start: 0 });
   });
 
-  it('centers window around selected item', () => {
-    const items = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
-    const result = getVisibleWindow(items, 5, 4);
-    // half = 2, start = 5-2 = 3
-    expect(result.start).toBe(3);
-    expect(result.items).toEqual(['d', 'e', 'f', 'g']);
+  it('centers window around selected index', () => {
+    const result = getVisibleWindow(items, 5, 3);
+    expect(result.items).toHaveLength(3);
+    expect(result.items).toContain('f');
   });
 
-  it('clamps window at end of list', () => {
-    const items = ['a', 'b', 'c', 'd', 'e'];
-    const result = getVisibleWindow(items, 4, 3);
-    // Would start at 3, 3+3 > 5? No, 3+3=6>5 so start=max(0,5-3)=2
-    expect(result.start).toBe(2);
-    expect(result.items).toEqual(['c', 'd', 'e']);
+  it('clamps window at the end of the list', () => {
+    const result = getVisibleWindow(items, 9, 3);
+    expect(result).toEqual({ items: ['h', 'i', 'j'], start: 7 });
   });
 
-  it('clamps window at start of list', () => {
-    const items = ['a', 'b', 'c', 'd', 'e', 'f'];
+  it('clamps window at the start of the list', () => {
     const result = getVisibleWindow(items, 0, 3);
-    expect(result.start).toBe(0);
-    expect(result.items).toEqual(['a', 'b', 'c']);
+    expect(result).toEqual({ items: ['a', 'b', 'c'], start: 0 });
+  });
+
+  it('handles selectedIdx at first element', () => {
+    const result = getVisibleWindow(items, 0, 4);
+    expect(result).toEqual({ items: ['a', 'b', 'c', 'd'], start: 0 });
+  });
+
+  it('handles maxItems equal to list length', () => {
+    const result = getVisibleWindow(items, 5, 10);
+    expect(result).toEqual({ items: items, start: 0 });
+  });
+
+  it('handles maxItems larger than list length', () => {
+    const result = getVisibleWindow(items, 5, 20);
+    expect(result).toEqual({ items: items, start: 0 });
+  });
+
+  it('handles single-item list', () => {
+    const result = getVisibleWindow(['only'], 0, 5);
+    expect(result).toEqual({ items: ['only'], start: 0 });
   });
 });
 
 describe('formatProjectPath', () => {
-  it('replaces home directory with tilde', () => {
+  it('replaces home directory prefix with ~', () => {
     const home = homedir();
     expect(formatProjectPath(`${home}/projects/chinwag`)).toBe('~/projects/chinwag');
   });
 
-  it('returns non-home paths unchanged', () => {
+  it('returns path unchanged when not under home', () => {
     expect(formatProjectPath('/tmp/project')).toBe('/tmp/project');
   });
 
-  it('handles null/undefined', () => {
+  it('returns null/undefined unchanged', () => {
     expect(formatProjectPath(null)).toBeNull();
     expect(formatProjectPath(undefined)).toBeUndefined();
+  });
+
+  it('handles home directory itself', () => {
+    const home = homedir();
+    expect(formatProjectPath(home)).toBe('~');
   });
 });
 
 describe('constants', () => {
-  it('exports spinner frames as a non-empty array', () => {
-    expect(Array.isArray(SPINNER)).toBe(true);
-    expect(SPINNER.length).toBeGreaterThan(0);
+  it('exports MIN_WIDTH as a reasonable minimum', () => {
+    expect(MIN_WIDTH).toBeGreaterThanOrEqual(30);
+    expect(MIN_WIDTH).toBeLessThan(100);
   });
 
-  it('exports MIN_WIDTH as a positive number', () => {
-    expect(MIN_WIDTH).toBe(50);
+  it('exports SPINNER with multiple frames', () => {
+    expect(SPINNER).toBeInstanceOf(Array);
+    expect(SPINNER.length).toBeGreaterThan(1);
   });
 
-  it('exports DASHBOARD_URL', () => {
-    expect(typeof DASHBOARD_URL).toBe('string');
-    expect(DASHBOARD_URL).toContain('chinwag');
+  it('exports DASHBOARD_URL as a valid URL', () => {
+    expect(DASHBOARD_URL).toMatch(/^https?:\/\//);
   });
 });

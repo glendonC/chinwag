@@ -9,13 +9,11 @@ export default defineConfig({
       exclude: ['lib/__tests__/**', 'dist/**'],
       reporter: ['text', 'json-summary'],
       reportsDirectory: './coverage',
-      // Thresholds enforce current coverage floor (~5% margin below actual).
-      // CLI is mostly UI components (Ink/React) that need render-test infrastructure.
-      // Target: raise to 30/25/20 as render tests are added.
       thresholds: {
-        lines: 8,
-        functions: 7,
-        branches: 4,
+        statements: 22,
+        branches: 22,
+        functions: 15,
+        lines: 23,
       },
     },
   },
