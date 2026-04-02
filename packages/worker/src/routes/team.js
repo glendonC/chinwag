@@ -393,6 +393,7 @@ export async function handleTeamWebSocket(request, user, env, teamId) {
   const wsUrl = new URL(request.url);
   wsUrl.pathname = '/ws';
   wsUrl.searchParams.delete('token');
+  wsUrl.searchParams.delete('ticket');
   wsUrl.searchParams.set('agentId', agentId);
 
   return team.fetch(new Request(wsUrl.toString(), {

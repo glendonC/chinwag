@@ -140,13 +140,22 @@ function closeWebSocket() {
  * Attempt a WebSocket connection for project (single-team) view.
  * Falls back to polling if WebSocket fails.
  */
-function connectTeamWebSocket(teamId) {
+async function connectTeamWebSocket(teamId) {
   const { token } = authActions.getState();
   if (!token || !teamId) return;
 
+  // Fetch a short-lived ticket — keeps the real token out of the WS URL
+  let ticket;
+  try {
+    const data = await api('POST', '/auth/ws-ticket', null, token);
+    ticket = data.ticket;
+  } catch {
+    return; // polling continues as fallback
+  }
+
   const wsBase = getApiUrl().replace(/^http/, 'ws');
   const agentId = `web-dashboard:${token.slice(0, 8)}`;
-  const wsUrl = `${wsBase}/teams/${teamId}/ws?agentId=${encodeURIComponent(agentId)}&token=${encodeURIComponent(token)}`;
+  const wsUrl = `${wsBase}/teams/${teamId}/ws?agentId=${encodeURIComponent(agentId)}&ticket=${encodeURIComponent(ticket)}`;
 
   try {
     const ws = new WebSocket(wsUrl);

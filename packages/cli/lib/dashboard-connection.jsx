@@ -174,9 +174,18 @@ export function useDashboardConnection({ config, stdout }) {
       try { await fetchContextOnce(); }
       catch (err) { handleFetchError(err); startPolling(); return; }
 
-      // Attempt WebSocket upgrade (token in URL — standard WS API can't set headers)
+      // Fetch short-lived ticket — keeps real token out of WS URL
+      let wsTicket;
+      try {
+        const ticketData = await client.post('/auth/ws-ticket');
+        wsTicket = ticketData.ticket;
+      } catch {
+        startPolling();
+        return;
+      }
+
       const wsBase = getApiUrl().replace(/^http/, 'ws');
-      const wsUrl = `${wsBase}/teams/${teamId}/ws?agentId=${encodeURIComponent(dashboardAgentId)}&token=${encodeURIComponent(config.token)}`;
+      const wsUrl = `${wsBase}/teams/${teamId}/ws?agentId=${encodeURIComponent(dashboardAgentId)}&ticket=${encodeURIComponent(wsTicket)}`;
 
       try {
         const ws = new WebSocket(wsUrl);

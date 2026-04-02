@@ -103,10 +103,13 @@ async function main() {
         if (connecting || state._shuttingDown) return;
         connecting = true;
 
-        const wsBase = getApiUrl().replace(/^http/, 'ws');
-        const wsUrl = `${wsBase}/teams/${state.teamId}/ws?agentId=${encodeURIComponent(agentId)}&token=${encodeURIComponent(config.token)}&role=agent`;
+        // Fetch short-lived ticket, then open WS
+        client.post('/auth/ws-ticket').then(({ ticket }) => {
+          if (state._shuttingDown) { connecting = false; return; }
 
-        try {
+          const wsBase = getApiUrl().replace(/^http/, 'ws');
+          const wsUrl = `${wsBase}/teams/${state.teamId}/ws?agentId=${encodeURIComponent(agentId)}&ticket=${encodeURIComponent(ticket)}&role=agent`;
+
           const ws = new WebSocket(wsUrl);
 
           ws.onopen = () => {
@@ -142,14 +145,14 @@ async function main() {
           };
 
           ws.onerror = () => {}; // onclose fires after
-        } catch {
+        }).catch(() => {
           connecting = false;
           if (!state._shuttingDown) {
             const timer = setTimeout(connectTeamWs, reconnectDelay);
             if (timer.unref) timer.unref();
             reconnectDelay = Math.min(reconnectDelay * 2, 60_000);
           }
-        }
+        });
       }
 
       connectTeamWs();

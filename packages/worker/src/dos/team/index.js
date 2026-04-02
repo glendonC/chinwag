@@ -19,11 +19,14 @@ import { inferHostToolFromAgentId } from './runtime.js';
 const HEARTBEAT_ACTIVE_SECONDS = 60;    // Heartbeat within this window = "active"
 const HEARTBEAT_STALE_SECONDS = 300;    // No heartbeat for this long = evicted
 const SESSION_RETENTION_DAYS = 30;      // How long session history is kept
+const CONTEXT_CACHE_TTL_MS = 2000;      // getContext() cache lifetime
 
 export class TeamDO extends DurableObject {
   #schemaReady = false;
   #lastCleanup = 0;
   #lastHeartbeatBroadcast = new Map();
+  #contextCache = null;
+  #contextCacheExpire = 0;
 
   constructor(ctx, env) {
     super(ctx, env);
@@ -144,7 +147,13 @@ export class TeamDO extends DurableObject {
     );
   }
 
+  #invalidateContextCache() {
+    this.#contextCache = null;
+    this.#contextCacheExpire = 0;
+  }
+
   #broadcastToWatchers(event) {
+    this.#invalidateContextCache();
     const sockets = this.ctx.getWebSockets();
     if (!sockets.length) return;
     const data = JSON.stringify(event);
@@ -469,8 +478,24 @@ export class TeamDO extends DurableObject {
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
     if (!resolved) return { error: 'Not a member of this team' };
 
-    // Keep the calling agent's heartbeat fresh (for SQL queries in checkConflicts/getLocks)
+    // Always bump calling agent's heartbeat (cheap, per-agent)
     this.sql.exec("UPDATE members SET last_heartbeat = datetime('now') WHERE agent_id = ?", resolved);
+
+    // Per-agent messages query (always fresh — has target_agent filter, can't be cached team-wide)
+    const messages = this.sql.exec(
+      `SELECT from_handle, from_tool, from_host_tool, from_agent_surface, text, created_at
+       FROM messages
+       WHERE created_at > datetime('now', '-1 hour')
+         AND (target_agent IS NULL OR target_agent = ?)
+       ORDER BY created_at DESC LIMIT 10`,
+      resolved
+    ).toArray();
+
+    // Return cached team-wide context if fresh (2s TTL, invalidated on mutations)
+    const now = Date.now();
+    if (this.#contextCache && now < this.#contextCacheExpire) {
+      return { ...this.#contextCache, messages };
+    }
 
     this.#maybeCleanup();
 
@@ -566,16 +591,6 @@ export class TeamDO extends DurableObject {
       HEARTBEAT_ACTIVE_SECONDS
     ).toArray();
 
-    // Recent messages (last 10 within the hour, visible to this agent)
-    const messages = this.sql.exec(
-      `SELECT from_handle, from_tool, from_host_tool, from_agent_surface, text, created_at
-       FROM messages
-       WHERE created_at > datetime('now', '-1 hour')
-         AND (target_agent IS NULL OR target_agent = ?)
-       ORDER BY created_at DESC LIMIT 10`,
-      resolved
-    ).toArray();
-
     // Telemetry — tool usage breakdown + key metrics
     const toolMetrics = this.sql.exec(
       "SELECT metric, count FROM telemetry WHERE metric LIKE 'tool:%' ORDER BY count DESC LIMIT 10"
@@ -615,12 +630,11 @@ export class TeamDO extends DurableObject {
     const usage = {};
     for (const m of keyMetrics) usage[m.metric] = m.count;
 
-    return {
+    const teamContext = {
       members: memberList,
       conflicts,
       locks,
       memories,
-      messages,
       tools_configured,
       hosts_configured,
       surfaces_seen,
@@ -639,6 +653,11 @@ export class TeamDO extends DurableObject {
         };
       }),
     };
+
+    this.#contextCache = teamContext;
+    this.#contextCacheExpire = Date.now() + CONTEXT_CACHE_TTL_MS;
+
+    return { ...teamContext, messages };
   }
 
   // --- Sessions (observability) ---

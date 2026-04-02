@@ -17,6 +17,7 @@ import {
   handleUpdateAgentProfile,
   handleUpdateColor,
   handleUnlinkGithub,
+  handleGetWsTicket,
   handleUpdateHandle,
 } from './routes/user.js';
 import { handleListDirectory, handleGetDirectoryEntry, handleTriggerEvaluation, handleBatchEvaluate, handleAdminDelete } from './routes/directory.js';
@@ -151,6 +152,8 @@ export default {
           response = await handleUpdateAgentProfile(request, user, env);
         } else if (method === 'POST' && path === '/tools/evaluate') {
           response = await handleTriggerEvaluation(request, user, env);
+        } else if (method === 'POST' && path === '/auth/ws-ticket') {
+          response = await handleGetWsTicket(user, env);
         } else if (method === 'POST' && path === '/teams') {
           response = await handleCreateTeam(request, user, env);
         } else if (path.startsWith('/teams/')) {

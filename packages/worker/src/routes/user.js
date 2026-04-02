@@ -10,9 +10,23 @@ export async function authenticate(request, env) {
   if (auth?.startsWith('Bearer ')) {
     token = auth.slice(7);
   } else if (request.headers.get('Upgrade') === 'websocket') {
-    // Browser WebSocket API can't set custom headers.
-    // Accept token from query param for WS upgrades only.
-    token = new URL(request.url).searchParams.get('token');
+    const url = new URL(request.url);
+    // Prefer ticket (short-lived, single-use) over token for WS auth
+    const ticket = url.searchParams.get('ticket');
+    if (ticket) {
+      const kvKey = `ticket:${ticket}`;
+      const userId = await env.AUTH_KV.get(kvKey);
+      if (!userId) return null;
+      await env.AUTH_KV.delete(kvKey);
+      const db = getDB(env);
+      if (!userId.includes('-')) {
+        const user = await db.getUserByHandle(userId);
+        return user || null;
+      }
+      return db.getUser(userId);
+    }
+    // Fallback: raw token in URL (backwards compat for old clients)
+    token = url.searchParams.get('token');
   }
   if (!token) return null;
 
@@ -28,6 +42,15 @@ export async function authenticate(request, env) {
   }
 
   return db.getUser(userId);
+}
+
+export async function handleGetWsTicket(user, env) {
+  const db = getDB(env);
+  return withRateLimit(db, `ws-ticket:${user.id}`, 100, 'Ticket request limit reached. Try again later.', async () => {
+    const ticket = `tk_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`;
+    await env.AUTH_KV.put(`ticket:${ticket}`, user.id, { expirationTtl: 30 });
+    return json({ ticket });
+  });
 }
 
 export async function handleUnlinkGithub(user, env) {
