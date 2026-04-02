@@ -90,7 +90,9 @@ export async function withRateLimit(db, key, max, errorMsg, handler) {
     console.error(`[chinwag] Rate limit check failed for ${key}:`, err?.message || err);
     return json({ error: 'Service temporarily unavailable' }, 503);
   }
-  if (!limit.allowed) return json({ error: errorMsg }, 429);
+  if (!limit.allowed) {
+    return json({ error: errorMsg }, 429, { 'Retry-After': String(secondsUntilMidnightUTC()) });
+  }
   const response = await handler();
   if (response.status < 400) {
     try {
@@ -163,7 +165,20 @@ export async function withIpRateLimit(request, env, prefix, max, handler) {
   const key = `pub:${prefix}:${ip}`;
   const db = getDB(env);
   const limit = await db.checkRateLimit(key, max);
-  if (!limit.allowed) return json({ error: 'Rate limit exceeded. Try again tomorrow.' }, 429);
+  if (!limit.allowed) {
+    return json({ error: 'Rate limit exceeded. Try again tomorrow.' }, 429, {
+      'Retry-After': String(secondsUntilMidnightUTC()),
+    });
+  }
   await db.consumeRateLimit(key);
   return handler();
+}
+
+/** Seconds remaining until the next UTC midnight. */
+function secondsUntilMidnightUTC() {
+  const now = new Date();
+  const midnight = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1),
+  );
+  return Math.ceil((midnight - now) / 1000);
 }

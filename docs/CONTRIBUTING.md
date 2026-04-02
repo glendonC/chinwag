@@ -73,7 +73,7 @@ The CLI points to the production API by default. To point it at your local worke
 CHINWAG_API_URL=http://localhost:8787 CHINWAG_WS_URL=ws://localhost:8787/ws/chat npm run dev:cli
 ```
 
-When the web dashboard is served from a loopback origin, it prefers the local worker automatically. To point the Vite app at a specific local or staging worker explicitly:
+The web dashboard defaults to the production API too. To point the Vite app at a local or staging worker:
 
 ```bash
 VITE_CHINWAG_API_URL=http://localhost:8787 npm run dev --workspace=packages/web
@@ -205,6 +205,13 @@ npm run test:worker
 npm run test:web
 npm run test
 ```
+
+### React versions
+
+- `packages/cli` uses **React 18** (required by [Ink](https://github.com/vadimdemedes/ink) for terminal rendering)
+- `packages/web` uses **React 19** (standard browser React)
+
+These versions must not be unified. They target different runtimes, and Ink does not support React 19.
 
 ### Per-package notes
 
