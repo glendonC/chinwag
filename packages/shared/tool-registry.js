@@ -1,3 +1,70 @@
+/**
+ * @typedef {Object} ToolDetect
+ * @property {string[]} [dirs] - Directory markers to detect
+ * @property {string[]} [cmds] - CLI command names to detect
+ */
+
+/**
+ * @typedef {Object} ToolProcessDetection
+ * @property {string[]} executables - Executable names to match in process tree
+ * @property {string[]} aliases - Human-readable aliases for fuzzy matching
+ */
+
+/**
+ * @typedef {Object} ToolSpawnConfig
+ * @property {string} cmd - CLI command to run
+ * @property {string[]} [args] - Default args for non-interactive mode
+ * @property {string[]} [interactiveArgs] - Args for interactive mode
+ * @property {string} [taskArg] - How the task text is passed (e.g. 'positional')
+ */
+
+/**
+ * @typedef {Object} AvailabilityCheckResult
+ * @property {'ready'|'needs_auth'|'unavailable'} state
+ * @property {string} detail
+ * @property {string} recoveryCommand
+ */
+
+/**
+ * @typedef {Object} ToolAvailabilityCheck
+ * @property {string[]} args - CLI args to run for status check
+ * @property {(output: string) => AvailabilityCheckResult} parse - Output parser
+ */
+
+/**
+ * @typedef {Object} ToolFailurePattern
+ * @property {RegExp} pattern - Regex to match against error output
+ * @property {string} detail - Human-readable failure description
+ * @property {string} recoveryCommand - Command to fix the issue
+ */
+
+/**
+ * @typedef {Object} ToolCatalog
+ * @property {string} description - Short description for catalog display
+ * @property {string} category - e.g. 'coding-agent'
+ * @property {string} [website] - Product URL
+ * @property {string} [installCmd] - Installation command
+ * @property {boolean} [mcpCompatible] - Whether this tool supports MCP
+ * @property {boolean} [mcpConfigurable] - Whether chinwag can write its MCP config
+ * @property {boolean} [featured] - Whether to feature in catalog
+ */
+
+/**
+ * @typedef {Object} McpTool
+ * @property {string} id - Unique tool identifier
+ * @property {string} name - Display name
+ * @property {string} color - Chalk color name for terminal display
+ * @property {ToolDetect} detect - Detection markers
+ * @property {ToolProcessDetection} processDetection - Process tree matching rules
+ * @property {string} mcpConfig - Relative path to MCP config file
+ * @property {boolean} [hooks] - Whether this tool supports hooks
+ * @property {boolean} [channel] - Whether this tool supports channels
+ * @property {ToolSpawnConfig} [spawn] - Spawn configuration (managed tools only)
+ * @property {ToolAvailabilityCheck} [availabilityCheck] - Authentication check
+ * @property {ToolFailurePattern[]} [failurePatterns] - Error diagnosis patterns
+ * @property {ToolCatalog} catalog - Catalog metadata
+ */
+
 const CLAUDE_AUTH_LOGIN = 'claude auth login';
 const CODEX_LOGIN = 'codex login';
 
@@ -22,6 +89,7 @@ function parseCodexAvailability(output) {
   return { state: 'unavailable', detail: 'Could not verify Codex', recoveryCommand: CODEX_LOGIN };
 }
 
+/** @type {McpTool[]} */
 export const MCP_TOOLS = [
   {
     id: 'claude-code',
@@ -204,9 +272,11 @@ export const MCP_TOOLS = [
   },
 ];
 
+/**
+ * @param {string} toolId
+ * @returns {McpTool|undefined}
+ */
 export function getMcpToolById(toolId) {
   return MCP_TOOLS.find((tool) => tool.id === toolId) || null;
 }
-
-export const getToolById = getMcpToolById;
 

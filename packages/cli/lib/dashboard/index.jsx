@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useReducer, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
 import { basename } from 'path';
 import {
@@ -19,63 +19,14 @@ import {
   openWebDashboard, getVisibleWindow, formatProjectPath,
 } from './utils.js';
 import { isAgentAddressable } from './agent-display.js';
+import { dashboardReducer, initialState } from './reducer.js';
 
-import {
-  RECENTLY_FINISHED_LIMIT, MIN_VIEWPORT_ROWS,
-  VIEWPORT_CHROME_ROWS, COMMAND_SUGGESTION_LIMIT,
-} from './constants.js';
+// ── Constants ───────────────────────────────────────
+const RECENTLY_FINISHED_LIMIT = 3;
+const MIN_VIEWPORT_ROWS = 4;
+const VIEWPORT_CHROME_ROWS = 11;
+const COMMAND_SUGGESTION_LIMIT = 5;
 
-// ── View management hook ────────────────────────────
-
-function useViewManager() {
-  const [selectedIdx, setSelectedIdx] = useState(-1);
-  const [mainFocus, setMainFocus] = useState('input');
-  const [view, setView] = useState('home');
-  const [heroInput, setHeroInput] = useState('');
-  const [heroInputActive, setHeroInputActive] = useState(false);
-  const [focusedAgent, setFocusedAgent] = useState(null);
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
-
-  const isHomeView = view === 'home';
-  const isSessionsView = view === 'sessions';
-  const isMemoryView = view === 'memory';
-  const isAgentFocusView = view === 'agent-focus';
-
-  return {
-    selectedIdx, setSelectedIdx,
-    mainFocus, setMainFocus,
-    view, setView,
-    heroInput, setHeroInput,
-    heroInputActive, setHeroInputActive,
-    focusedAgent, setFocusedAgent,
-    showDiagnostics, setShowDiagnostics,
-    isHomeView, isSessionsView, isMemoryView, isAgentFocusView,
-  };
-}
-
-// ── Flash notification hook ─────────────────────────
-
-function useFlashNotification() {
-  const [notice, setNotice] = useState(null);
-  const noticeTimer = useRef(null);
-
-  const flash = useCallback(function flash(msg, opts = {}) {
-    const tone = typeof opts === 'object' ? opts.tone || 'info' : 'info';
-    const autoClearMs = typeof opts === 'object' ? opts.autoClearMs : null;
-    if (noticeTimer.current) { clearTimeout(noticeTimer.current); noticeTimer.current = null; }
-    setNotice({ text: msg, tone });
-    if (autoClearMs && autoClearMs > 0) {
-      noticeTimer.current = setTimeout(() => {
-        setNotice(current => (current?.text === msg ? null : current));
-        noticeTimer.current = null;
-      }, autoClearMs);
-    }
-  }, []);
-
-  useEffect(() => () => { if (noticeTimer.current) clearTimeout(noticeTimer.current); }, []);
-
-  return { notice, flash };
-}
 
 // ── Main Dashboard component ────────────────────────
 
@@ -91,31 +42,39 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
     retry: connectionRetry, bumpRefreshKey,
   } = connection;
 
-  // ── View state ─────────────────────────────────────
-  const vm = useViewManager();
-  const {
-    selectedIdx, setSelectedIdx,
-    mainFocus, setMainFocus,
-    view, setView,
-    heroInput, setHeroInput,
-    heroInputActive, setHeroInputActive,
-    focusedAgent, setFocusedAgent,
-    showDiagnostics, setShowDiagnostics,
-    isHomeView, isSessionsView, isMemoryView, isAgentFocusView,
-  } = vm;
+  // ── UI state (single reducer) ──────────────────────
+  const [state, dispatch] = useReducer(dashboardReducer, initialState);
+  const { view, mainFocus, selectedIdx, focusedAgent, showDiagnostics, notice } = state;
+  const isHomeView = view === 'home';
+  const isSessionsView = view === 'sessions';
+  const isMemoryView = view === 'memory';
+  const isAgentFocusView = view === 'agent-focus';
 
   // ── Flash notification ─────────────────────────────
-  const { notice, flash } = useFlashNotification();
+  const noticeTimer = useRef(null);
+  const flash = useCallback((msg, opts = {}) => {
+    const tone = typeof opts === 'object' ? opts.tone || 'info' : 'info';
+    const autoClearMs = typeof opts === 'object' ? opts.autoClearMs : null;
+    if (noticeTimer.current) { clearTimeout(noticeTimer.current); noticeTimer.current = null; }
+    dispatch({ type: 'FLASH', text: msg, tone });
+    if (autoClearMs && autoClearMs > 0) {
+      noticeTimer.current = setTimeout(() => {
+        dispatch({ type: 'CLEAR_NOTICE', text: msg });
+        noticeTimer.current = null;
+      }, autoClearMs);
+    }
+  }, []);
+  useEffect(() => () => { if (noticeTimer.current) clearTimeout(noticeTimer.current); }, []);
 
   // ── Custom hooks ───────────────────────────────────
-  const memory = useMemoryManager({ config, teamId, bumpRefreshKey, flash });
+  const memory = useMemoryManager({ config, teamId, bumpRefreshKey, flash }, state, dispatch);
   const agents = useAgentLifecycle({ config, teamId, projectRoot, stdout, flash });
   const integrations = useIntegrationDoctor({ projectRoot, flash });
   const composer = useComposer({
     config, teamId, bumpRefreshKey, flash,
     clearMemorySearch: memory.clearMemorySearch,
     clearMemoryInput: memory.clearMemoryInput,
-  });
+  }, state, dispatch);
 
   // ── Footer hints (pushed to shell) ─────────────────
   useEffect(() => {
@@ -205,21 +164,12 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
 
   // ── Clamp selection indices ────────────────────────
   useEffect(() => {
-    if (allVisibleAgents.length === 0) {
-      if (selectedIdx !== -1) setSelectedIdx(-1);
-      if (mainFocus === 'agents') setMainFocus('input');
-      return;
-    }
-    if (selectedIdx >= allVisibleAgents.length) {
-      setSelectedIdx(allVisibleAgents.length > 0 ? allVisibleAgents.length - 1 : -1);
-    }
-  }, [selectedIdx, allVisibleAgents.length, mainFocus]);
+    dispatch({ type: 'CLAMP_SELECTION', listLength: allVisibleAgents.length });
+  }, [allVisibleAgents.length]);
 
   useEffect(() => {
-    if (memory.memorySelectedIdx >= visibleMemories.length) {
-      memory.setMemorySelectedIdx(visibleMemories.length > 0 ? visibleMemories.length - 1 : -1);
-    }
-  }, [memory.memorySelectedIdx, visibleMemories.length]);
+    dispatch({ type: 'CLAMP_MEMORY_SELECTION', listLength: visibleMemories.length });
+  }, [visibleMemories.length]);
 
   // ── Handlers ───────────────────────────────────────
   const handleOpenWebDashboard = useCallback(() => {
@@ -232,8 +182,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
 
   const handleCommandSubmit = useCallback(
     createCommandHandler({
-      agents, integrations, composer, memory, flash,
-      setView, setSelectedIdx, setHeroInput, setHeroInputActive, setMainFocus,
+      agents, integrations, composer, memory, flash, dispatch,
       handleOpenWebDashboard, liveAgents, selectedAgent,
       isAgentAddressable,
     }),
@@ -247,17 +196,13 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
 
   const onMemorySubmit = useCallback(() => {
     memory.onMemorySubmit();
-    composer.setComposeMode(null);
-  }, [memory, composer]);
+    dispatch({ type: 'CLEAR_COMPOSE' });
+  }, [memory]);
 
   // ── Input handling (wrapped in useCallback) ────────
   const inputHandler = useCallback(
     createInputHandler({
-      view, setView, mainFocus, setMainFocus,
-      selectedIdx, setSelectedIdx,
-      focusedAgent, setFocusedAgent,
-      showDiagnostics, setShowDiagnostics,
-      setHeroInput, setHeroInputActive,
+      state, dispatch,
       cols, error, context, connectionRetry,
       allVisibleAgents, liveAgents, visibleMemories,
       hasLiveAgents, hasMemories, mainSelectedAgent,
@@ -266,7 +211,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
       commandSuggestions, handleCommandSubmit, handleOpenWebDashboard,
       navigate,
     }),
-    [view, mainFocus, selectedIdx, focusedAgent, showDiagnostics,
+    [state,
      cols, error, context, connectionRetry,
      allVisibleAgents, liveAgents, visibleMemories,
      hasLiveAgents, hasMemories, mainSelectedAgent,
@@ -387,7 +332,7 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
         visibleKnowledgeRows={visibleKnowledgeRows}
         memory={memory}
         composer={composer}
-        notice={notice}
+        state={state}
         commandSuggestions={commandSuggestions}
         onComposeSubmit={onComposeSubmit}
         onMemorySubmit={onMemorySubmit}
@@ -401,11 +346,10 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
       <SessionsView
         liveAgents={liveAgents}
         visibleSessionRows={visibleSessionRows}
-        selectedIdx={selectedIdx}
+        state={state}
         cols={cols}
         composer={composer}
         memory={memory}
-        notice={notice}
         commandSuggestions={commandSuggestions}
         onComposeSubmit={onComposeSubmit}
         onMemorySubmit={onMemorySubmit}
@@ -416,22 +360,16 @@ export function Dashboard({ config, navigate, layout, projectLabel = null, appVe
   // ── Home view ──────────────────────────────────────
   return (
     <MainPane
-      projectDisplayName={projectDisplayName}
-      connState={connState}
-      connDetail={connDetail}
-      spinnerFrame={spinnerFrame}
-      cols={cols}
+      state={state}
+      connection={{ connState, connDetail, spinnerFrame, cols, projectDisplayName }}
       allVisibleAgents={allVisibleAgents}
       liveAgents={liveAgents}
       visibleSessionRows={visibleSessionRows}
-      selectedIdx={selectedIdx}
-      mainFocus={mainFocus}
       liveAgentNameCounts={liveAgentNameCounts}
       agents={agents}
       integrationIssues={integrations.integrationIssues}
       composer={composer}
       memory={memory}
-      notice={notice}
       contextHints={contextHints}
       commandSuggestions={commandSuggestions}
       onComposeSubmit={onComposeSubmit}

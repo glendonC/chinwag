@@ -1,3 +1,31 @@
+/**
+ * @typedef {Object} ApiClientConfig
+ * @property {string} [baseUrl] - Base URL (default: DEFAULT_API_URL)
+ * @property {string} [authToken] - Bearer token
+ * @property {string} [agentId] - X-Agent-Id header value
+ * @property {import('./agent-identity.js').RuntimeIdentity} [runtimeIdentity]
+ * @property {string} [userAgent] - User-Agent header value
+ * @property {number} [timeoutMs] - Request timeout in ms (default: 10000)
+ * @property {number} [maxRetryAttempts] - Max retries for server/network errors (default: 0)
+ * @property {number} [maxTimeoutRetryAttempts] - Max retries for timeouts (default: 0)
+ * @property {number} [retryDelayMs] - Base retry delay in ms (default: 200)
+ * @property {number} [timeoutRetryDelayMs] - Timeout retry delay in ms (default: 1000)
+ * @property {string[]} [retryableCodes] - Network error codes to retry
+ * @property {(ctx: {status: number}) => string} [parseErrorMessage]
+ * @property {(ctx: {method: string, path: string, status: number, data: *}) => string} [httpErrorMessage]
+ * @property {(ctx: {method: string, path: string}) => string} [timeoutErrorMessage]
+ */
+
+/**
+ * @typedef {Object} JsonApiClient
+ * @property {(method: string, path: string, body?: *) => Promise<*>} request
+ * @property {(path: string) => Promise<*>} get
+ * @property {(path: string, body?: *) => Promise<*>} post
+ * @property {(path: string, body?: *) => Promise<*>} put
+ * @property {(path: string, body?: *) => Promise<*>} del
+ */
+
+/** @type {string} */
 export const DEFAULT_API_URL = 'https://chinwag-api.glendonchin.workers.dev';
 
 const DEFAULT_RETRYABLE_CODES = ['ECONNREFUSED', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'EPIPE', 'ETIMEDOUT'];
@@ -6,6 +34,10 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/**
+ * @param {ApiClientConfig} [config]
+ * @returns {JsonApiClient}
+ */
 export function createJsonApiClient({
   baseUrl = DEFAULT_API_URL,
   authToken = null,

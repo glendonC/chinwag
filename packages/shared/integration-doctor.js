@@ -3,14 +3,48 @@ import { dirname, join } from 'path';
 import { execFileSync } from 'child_process';
 import { HOST_INTEGRATIONS, getHostIntegrationById } from './integration-model.js';
 
+/**
+ * @typedef {Object} IntegrationScanResult
+ * @property {string} id - Host integration ID
+ * @property {string} name - Display name
+ * @property {'managed'|'connected'} tier
+ * @property {string[]} capabilities
+ * @property {boolean} detected
+ * @property {'ready'|'needs_setup'|'needs_repair'|'not_detected'} status
+ * @property {string} configPath - Relative path to MCP config file
+ * @property {boolean} mcpConfigured
+ * @property {boolean} hooksConfigured
+ * @property {string[]} issues
+ * @property {boolean} repairable
+ */
+
+/**
+ * @typedef {Object} IntegrationScanSummary
+ * @property {string} text
+ * @property {'info'|'success'|'warning'} tone
+ */
+
+/**
+ * @typedef {Object} ConfigureResult
+ * @property {boolean} [ok]
+ * @property {string} [error]
+ * @property {string} [name]
+ * @property {string} [detail]
+ */
+
+/**
+ * @typedef {Object} WriteResult
+ * @property {boolean} [ok]
+ * @property {string} [error]
+ */
+
 const EXEC_TIMEOUT_MS = 5000;
 
 function readJson(filePath) {
   if (!existsSync(filePath)) return {};
   try {
     return JSON.parse(readFileSync(filePath, 'utf-8'));
-  } catch (err) {
-    console.error(`[chinwag] Failed to parse JSON at ${filePath}: ${err.message}`);
+  } catch {
     return {};
   }
 }
@@ -21,6 +55,10 @@ function writeJson(filePath, value) {
   writeFileSync(filePath, JSON.stringify(value, null, 2) + '\n');
 }
 
+/**
+ * @param {string} cmd - CLI command name
+ * @returns {boolean}
+ */
 export function commandExists(cmd) {
   try {
     const bin = process.platform === 'win32' ? 'where' : 'which';
@@ -31,6 +69,13 @@ export function commandExists(cmd) {
   }
 }
 
+/**
+ * @param {string} subcommand
+ * @param {Object} [options]
+ * @param {string|null} [options.hostId]
+ * @param {string|null} [options.surfaceId]
+ * @returns {string[]}
+ */
 export function buildChinwagCliArgs(subcommand, { hostId = null, surfaceId = null } = {}) {
   const args = ['-y', 'chinwag', subcommand];
   if (hostId) args.push('--tool', hostId);
@@ -38,6 +83,13 @@ export function buildChinwagCliArgs(subcommand, { hostId = null, surfaceId = nul
   return args;
 }
 
+/**
+ * @param {string} subcommand
+ * @param {Object} [options]
+ * @param {string} [options.hostId]
+ * @param {string|null} [options.surfaceId]
+ * @returns {string}
+ */
 export function buildChinwagHookCommand(subcommand, { hostId = 'claude-code', surfaceId = null } = {}) {
   const args = ['npx', '-y', 'chinwag', 'hook', subcommand];
   // Hooks are currently Claude Code-specific, so keep the subcommand positional
@@ -93,10 +145,20 @@ function detectHost(cwd, host) {
   return dirs.some((dir) => existsSync(join(cwd, dir))) || cmds.some((cmd) => commandExists(cmd));
 }
 
+/**
+ * @param {string} cwd - Working directory to scan
+ * @returns {import('./integration-model.js').HostIntegration[]}
+ */
 export function detectHostIntegrations(cwd) {
   return HOST_INTEGRATIONS.filter((host) => detectHost(cwd, host));
 }
 
+/**
+ * @param {IntegrationScanResult[]} scanResults
+ * @param {Object} [options]
+ * @param {boolean} [options.onlyDetected]
+ * @returns {string}
+ */
 export function formatIntegrationScanResults(scanResults, { onlyDetected = false } = {}) {
   const rows = onlyDetected ? scanResults.filter((item) => item.detected) : scanResults;
   if (rows.length === 0) return 'No supported integrations detected in this repo.';
@@ -114,6 +176,12 @@ export function formatIntegrationScanResults(scanResults, { onlyDetected = false
   return lines.join('\n');
 }
 
+/**
+ * @param {IntegrationScanResult[]} scanResults
+ * @param {Object} [options]
+ * @param {boolean} [options.onlyDetected]
+ * @returns {IntegrationScanSummary}
+ */
 export function summarizeIntegrationScan(scanResults, { onlyDetected = true } = {}) {
   const rows = onlyDetected ? scanResults.filter((item) => item.detected) : scanResults;
   if (rows.length === 0) return { text: 'No supported integrations detected.', tone: 'info' };
@@ -133,6 +201,15 @@ export function summarizeIntegrationScan(scanResults, { onlyDetected = true } = 
   };
 }
 
+/**
+ * @param {string} cwd - Working directory
+ * @param {string} relativePath - Relative path to MCP config file
+ * @param {Object} [options]
+ * @param {boolean} [options.channel]
+ * @param {string|null} [options.hostId]
+ * @param {string|null} [options.surfaceId]
+ * @returns {WriteResult}
+ */
 export function writeMcpConfig(cwd, relativePath, { channel = false, hostId = null, surfaceId = null } = {}) {
   const filePath = join(cwd, relativePath);
   const isSharedRootConfig = relativePath === '.mcp.json' || relativePath === 'mcp.json';
@@ -185,6 +262,13 @@ export function writeMcpConfig(cwd, relativePath, { channel = false, hostId = nu
   return { ok: true };
 }
 
+/**
+ * @param {string} cwd - Working directory
+ * @param {Object} [options]
+ * @param {string} [options.hostId]
+ * @param {string|null} [options.surfaceId]
+ * @returns {WriteResult}
+ */
 export function writeHooksConfig(cwd, { hostId = 'claude-code', surfaceId = null } = {}) {
   const filePath = join(cwd, '.claude', 'settings.json');
   const config = readJson(filePath);
@@ -215,6 +299,13 @@ export function writeHooksConfig(cwd, { hostId = 'claude-code', surfaceId = null
   return { ok: true };
 }
 
+/**
+ * @param {string} cwd - Working directory
+ * @param {string} hostId - Host integration ID
+ * @param {Object} [options]
+ * @param {string|null} [options.surfaceId]
+ * @returns {ConfigureResult}
+ */
 export function configureHostIntegration(cwd, hostId, options = {}) {
   const host = getHostIntegrationById(hostId);
   if (!host) return { error: `Unknown host integration: ${hostId}` };
@@ -241,6 +332,10 @@ export function configureHostIntegration(cwd, hostId, options = {}) {
   return { ok: true, name: host.name, detail };
 }
 
+/**
+ * @param {string} cwd - Working directory to scan
+ * @returns {IntegrationScanResult[]}
+ */
 export function scanHostIntegrations(cwd) {
   return HOST_INTEGRATIONS.map((host) => {
     const detected = detectHost(cwd, host);

@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { usePollingStore, forceRefresh } from '../../lib/stores/polling.js';
 import { useAuthStore } from '../../lib/stores/auth.js';
 import { useTeamStore } from '../../lib/stores/teams.js';
@@ -7,6 +7,7 @@ import { formatRelativeTime } from '../../lib/relativeTime.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
 import { buildHostJoinShare, buildSurfaceJoinShare } from '../../lib/toolAnalytics.js';
 import { projectGradient } from '../../lib/projectGradient.js';
+import { useTabKeyboard } from '../../lib/useTabKeyboard.js';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
 import KeyboardHint, { useKeyboardHint } from '../../components/KeyboardHint/KeyboardHint.jsx';
 import EmptyState from '../../components/EmptyState/EmptyState.jsx';
@@ -100,26 +101,8 @@ export default function OverviewView() {
     const q = search.trim().toLowerCase();
     return summaries.filter((t) => (t.team_name || t.team_id).toLowerCase().includes(q));
   }, [summaries, search]);
-  const statsRef = useRef(null);
   const statIds = useMemo(() => ['projects', 'agents', 'tools', 'memories'], []);
-  useEffect(() => {
-    function onKey(e) {
-      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-      const tag = e.target.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
-      e.preventDefault();
-      setActiveViz((prev) => {
-        const cur = statIds.indexOf(prev);
-        const next = e.key === 'ArrowRight'
-          ? statIds[(cur + 1) % statIds.length]
-          : statIds[(cur - 1 + statIds.length) % statIds.length];
-        statsRef.current?.querySelector(`[data-tab="${next}"]`)?.focus();
-        return next;
-      });
-    }
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [statIds]);
+  const statsRef = useTabKeyboard(statIds, setActiveViz);
 
   const isLoading = !dashboardData && (dashboardStatus === 'idle' || dashboardStatus === 'loading');
   const isUnavailable = dashboardStatus === 'error' || (!pollError && hasKnownProjects && summaries.length === 0);

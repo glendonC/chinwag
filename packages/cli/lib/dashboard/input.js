@@ -1,6 +1,8 @@
 import { isAgentAddressable } from './agent-display.js';
 import { MIN_WIDTH } from './utils.js';
-import { KEYS, COMMAND_SUGGESTION_LIMIT } from './constants.js';
+
+// ── Constants ───────────────────────────────────────
+const COMMAND_SUGGESTION_LIMIT = 5;
 
 // ── Mode-specific input handlers ────────────────────
 
@@ -9,38 +11,34 @@ import { KEYS, COMMAND_SUGGESTION_LIMIT } from './constants.js';
  * @returns {boolean} Whether the input was consumed.
  */
 function handleAgentFocusInput(input, key, ctx) {
-  const { setView, setFocusedAgent, setShowDiagnostics, focusedAgent, agents, liveAgentNameCounts, composer } = ctx;
+  const { state, dispatch, agents, liveAgentNameCounts, composer } = ctx;
+  const { focusedAgent } = state;
 
   if (key.escape) {
-    setView('home');
-    setFocusedAgent(null);
-    setShowDiagnostics(false);
+    dispatch({ type: 'NAVIGATE_BACK' });
     return true;
   }
-  if (input === KEYS.KILL && focusedAgent?._managed) {
+  if (input === 'x' && focusedAgent?._managed) {
     if (focusedAgent._dead) {
       const removed = agents.handleRemoveAgent(focusedAgent, liveAgentNameCounts);
-      if (removed) { setView('home'); setFocusedAgent(null); }
+      if (removed) { dispatch({ type: 'NAVIGATE_BACK' }); }
     } else {
       agents.handleKillAgent(focusedAgent, liveAgentNameCounts);
-      setView('home');
-      setFocusedAgent(null);
+      dispatch({ type: 'NAVIGATE_BACK' });
     }
     return true;
   }
-  if (input === KEYS.RESTART && focusedAgent?._managed && focusedAgent._dead) {
+  if (input === 'r' && focusedAgent?._managed && focusedAgent._dead) {
     const restarted = agents.handleRestartAgent(focusedAgent);
-    if (restarted) { setView('home'); setFocusedAgent(null); }
+    if (restarted) { dispatch({ type: 'NAVIGATE_BACK' }); }
     return true;
   }
-  if (input === KEYS.DIAGNOSTICS && focusedAgent?._managed) {
-    setShowDiagnostics(prev => !prev);
+  if (input === 'l' && focusedAgent?._managed) {
+    dispatch({ type: 'TOGGLE_DIAGNOSTICS' });
     return true;
   }
-  if (input === KEYS.MESSAGE && isAgentAddressable(focusedAgent)) {
-    setView('home');
-    setFocusedAgent(null);
-    setShowDiagnostics(false);
+  if (input === 'm' && isAgentAddressable(focusedAgent)) {
+    dispatch({ type: 'NAVIGATE_BACK' });
     composer.beginTargetedMessage(focusedAgent);
     return true;
   }
@@ -52,16 +50,16 @@ function handleAgentFocusInput(input, key, ctx) {
  * @returns {boolean} Whether the input was consumed.
  */
 function handleComposeModeInput(input, key, ctx) {
-  const { composer, commandSuggestions } = ctx;
+  const { state, dispatch, composer, commandSuggestions } = ctx;
 
   if (key.escape) { composer.clearCompose(); return true; }
-  if (composer.composeMode === 'command') {
+  if (state.composeMode === 'command') {
     if (key.downArrow) {
-      composer.setCommandSelectedIdx(i => Math.min(i + 1, Math.min(commandSuggestions.length - 1, COMMAND_SUGGESTION_LIMIT)));
+      dispatch({ type: 'COMMAND_SELECT_DOWN', maxIdx: Math.min(commandSuggestions.length - 1, COMMAND_SUGGESTION_LIMIT) });
       return true;
     }
     if (key.upArrow) {
-      composer.setCommandSelectedIdx(i => Math.max(i - 1, 0));
+      dispatch({ type: 'COMMAND_SELECT_UP' });
       return true;
     }
   }
@@ -92,48 +90,46 @@ function handleToolPickerInput(input, key, ctx) {
  */
 function handleHomeViewInput(input, key, ctx) {
   const {
-    mainFocus, setMainFocus, selectedIdx, setSelectedIdx,
-    setFocusedAgent, setShowDiagnostics, setView,
+    state, dispatch,
     allVisibleAgents, mainSelectedAgent, liveAgentNameCounts,
     agents, composer,
   } = ctx;
+  const { mainFocus, selectedIdx } = state;
 
-  if (input === KEYS.NEW) {
+  if (input === 'n') {
     agents.openToolPicker();
     return true;
   }
   if (key.downArrow) {
     if (mainFocus === 'input' && allVisibleAgents.length > 0) {
-      setMainFocus('agents');
-      setSelectedIdx(prev => prev >= 0 ? prev : 0);
+      dispatch({ type: 'SET_MAIN_FOCUS', focus: 'agents' });
+      if (selectedIdx < 0) dispatch({ type: 'SELECT_AGENT', idx: 0 });
       return true;
     }
     if (mainFocus === 'agents' && allVisibleAgents.length > 0) {
-      setSelectedIdx(prev => Math.min((prev < 0 ? 0 : prev) + 1, allVisibleAgents.length - 1));
+      dispatch({ type: 'MOVE_SELECTION_DOWN', listLength: allVisibleAgents.length });
       return true;
     }
   }
   if (key.upArrow) {
     if (mainFocus === 'agents' && selectedIdx > 0) {
-      setSelectedIdx(prev => Math.max(prev - 1, 0));
+      dispatch({ type: 'MOVE_SELECTION_UP' });
       return true;
     }
     if (mainFocus === 'agents') {
-      setMainFocus('input');
+      dispatch({ type: 'SET_MAIN_FOCUS', focus: 'input' });
       return true;
     }
   }
   if (key.return && mainSelectedAgent) {
-    setFocusedAgent(mainSelectedAgent);
-    setView('agent-focus');
-    setShowDiagnostics(false);
+    dispatch({ type: 'FOCUS_AGENT', agent: mainSelectedAgent });
     return true;
   }
-  if (input === KEYS.MESSAGE && mainSelectedAgent && isAgentAddressable(mainSelectedAgent)) {
+  if (input === 'm' && mainSelectedAgent && isAgentAddressable(mainSelectedAgent)) {
     composer.beginTargetedMessage(mainSelectedAgent);
     return true;
   }
-  if (input === KEYS.KILL && mainSelectedAgent?._managed && !mainSelectedAgent._dead) {
+  if (input === 'x' && mainSelectedAgent?._managed && !mainSelectedAgent._dead) {
     agents.handleKillAgent(mainSelectedAgent, liveAgentNameCounts);
     return true;
   }
@@ -146,28 +142,31 @@ function handleHomeViewInput(input, key, ctx) {
  */
 function handleSessionsViewInput(input, key, ctx) {
   const {
-    selectedIdx, setSelectedIdx, setFocusedAgent, setShowDiagnostics, setView,
+    state, dispatch,
     liveAgents, allVisibleAgents, liveAgentNameCounts, agents,
   } = ctx;
+  const { selectedIdx } = state;
 
   if (key.downArrow && liveAgents.length > 0) {
-    setSelectedIdx(prev => Math.min(prev + 1, liveAgents.length - 1));
+    dispatch({ type: 'MOVE_SELECTION_DOWN', listLength: liveAgents.length });
     return true;
   }
   if (key.upArrow) {
-    setSelectedIdx(prev => prev <= 0 ? -1 : prev - 1);
-    return true;
-  }
-  if (key.escape) { setView('home'); return true; }
-  if (key.return) {
-    if (selectedIdx >= 0 && selectedIdx < allVisibleAgents.length) {
-      setFocusedAgent(liveAgents[selectedIdx]);
-      setView('agent-focus');
-      setShowDiagnostics(false);
+    if (selectedIdx <= 0) {
+      dispatch({ type: 'SELECT_AGENT', idx: -1 });
+    } else {
+      dispatch({ type: 'MOVE_SELECTION_UP' });
     }
     return true;
   }
-  if (input === KEYS.KILL && selectedIdx >= 0) {
+  if (key.escape) { dispatch({ type: 'NAVIGATE_TO_VIEW', view: 'home' }); return true; }
+  if (key.return) {
+    if (selectedIdx >= 0 && selectedIdx < allVisibleAgents.length) {
+      dispatch({ type: 'FOCUS_AGENT', agent: liveAgents[selectedIdx] });
+    }
+    return true;
+  }
+  if (input === 'x' && selectedIdx >= 0) {
     const agent = liveAgents[selectedIdx];
     if (agent?._managed) {
       if (agent._dead) {
@@ -178,7 +177,7 @@ function handleSessionsViewInput(input, key, ctx) {
       return true;
     }
   }
-  if (input === KEYS.RESTART && selectedIdx >= 0) {
+  if (input === 'r' && selectedIdx >= 0) {
     const agent = liveAgents[selectedIdx];
     if (agent?._managed && agent._dead) {
       agents.handleRestartAgent(agent);
@@ -193,21 +192,19 @@ function handleSessionsViewInput(input, key, ctx) {
  * @returns {boolean} Whether the input was consumed.
  */
 function handleMemoryViewInput(input, key, ctx) {
-  const { setView, visibleMemories, memory } = ctx;
+  const { state, dispatch, visibleMemories, memory } = ctx;
 
   if (key.downArrow && visibleMemories.length > 0) {
-    memory.setMemorySelectedIdx(prev => Math.min(prev + 1, visibleMemories.length - 1));
-    memory.setDeleteConfirm(false);
+    dispatch({ type: 'MEMORY_SELECT_DOWN', listLength: visibleMemories.length });
     return true;
   }
   if (key.upArrow) {
-    memory.setMemorySelectedIdx(prev => prev <= 0 ? -1 : prev - 1);
-    memory.setDeleteConfirm(false);
+    dispatch({ type: 'MEMORY_SELECT_UP' });
     return true;
   }
   if (key.escape) {
-    if (memory.deleteConfirm) { memory.setDeleteConfirm(false); return true; }
-    setView('home');
+    if (state.deleteConfirm) { dispatch({ type: 'SET_DELETE_CONFIRM', confirm: false }); return true; }
+    dispatch({ type: 'NAVIGATE_TO_VIEW', view: 'home' });
     return true;
   }
   return false; // Not consumed — fall through to global shortcuts
@@ -219,35 +216,38 @@ function handleMemoryViewInput(input, key, ctx) {
  */
 function handleGlobalShortcuts(input, key, ctx) {
   const {
-    view, setView, setSelectedIdx,
+    state, dispatch,
     hasLiveAgents, hasMemories, visibleMemories,
     agents, integrations, composer, memory,
     handleOpenWebDashboard, navigate,
   } = ctx;
 
+  const { view } = state;
   const isHomeView = view === 'home';
   const isSessionsView = view === 'sessions';
   const isMemoryView = view === 'memory';
 
-  if (input === KEYS.SESSIONS && hasLiveAgents) {
-    setView('sessions');
-    setSelectedIdx(prev => prev >= 0 ? prev : 0);
+  if (input === 's' && hasLiveAgents) {
+    dispatch({ type: 'NAVIGATE_TO_VIEW', view: 'sessions', selectedIdx: state.selectedIdx >= 0 ? state.selectedIdx : 0 });
     return true;
   }
 
-  if (input === KEYS.WEB) {
+  if (input === 'w') {
     handleOpenWebDashboard();
     return true;
   }
 
-  if (input === KEYS.KNOWLEDGE && hasMemories) {
-    setView(prev => prev === 'memory' ? 'home' : 'memory');
-    setSelectedIdx(-1);
+  if (input === 'k' && hasMemories) {
+    if (view === 'memory') {
+      dispatch({ type: 'NAVIGATE_TO_VIEW', view: 'home' });
+    } else {
+      dispatch({ type: 'NAVIGATE_TO_VIEW', view: 'memory', selectedIdx: -1 });
+    }
     memory.resetMemorySelection();
     return true;
   }
 
-  if (input === KEYS.FIX) {
+  if (input === 'f') {
     const fixableTool = agents.unavailableCliAgents.find(tool => agents.getManagedToolState(tool.id).recoveryCommand);
     if (fixableTool) {
       agents.handleFixLauncher(fixableTool);
@@ -260,7 +260,7 @@ function handleGlobalShortcuts(input, key, ctx) {
     return true;
   }
 
-  if (input === KEYS.COMMAND) {
+  if (input === '/') {
     if (isHomeView || isSessionsView) {
       composer.beginCommandInput('');
       return true;
@@ -271,19 +271,19 @@ function handleGlobalShortcuts(input, key, ctx) {
     }
   }
 
-  if (input === KEYS.ADD_MEMORY && isMemoryView) {
+  if (input === 'a' && isMemoryView) {
     composer.beginMemoryAdd();
     memory.setMemoryInput('');
     return true;
   }
 
-  if (input === KEYS.DELETE_MEMORY && isMemoryView && memory.memorySelectedIdx >= 0) {
-    if (!memory.deleteConfirm) { memory.setDeleteConfirm(true); return true; }
-    memory.deleteMemoryItem(visibleMemories[memory.memorySelectedIdx]);
+  if (input === 'd' && isMemoryView && state.memorySelectedIdx >= 0) {
+    if (!state.deleteConfirm) { dispatch({ type: 'SET_DELETE_CONFIRM', confirm: true }); return true; }
+    memory.deleteMemoryItem(visibleMemories[state.memorySelectedIdx]);
     return true;
   }
 
-  if (input === KEYS.QUIT) { navigate('quit'); return true; }
+  if (input === 'q') { navigate('quit'); return true; }
 
   return false;
 }
@@ -296,13 +296,8 @@ function handleGlobalShortcuts(input, key, ctx) {
  * then falls through to global shortcuts.
  */
 export function createInputHandler({
-  // View state
-  view, setView,
-  mainFocus, setMainFocus,
-  selectedIdx, setSelectedIdx,
-  focusedAgent, setFocusedAgent,
-  showDiagnostics, setShowDiagnostics,
-  setHeroInput, setHeroInputActive,
+  // Reducer state + dispatch
+  state, dispatch,
   // Connection
   cols, error, context, connectionRetry,
   // Data
@@ -324,11 +319,7 @@ export function createInputHandler({
 }) {
   // Shared context object passed to all handlers
   const ctx = {
-    view, setView, mainFocus, setMainFocus,
-    selectedIdx, setSelectedIdx,
-    focusedAgent, setFocusedAgent,
-    showDiagnostics, setShowDiagnostics,
-    setHeroInput, setHeroInputActive,
+    state, dispatch,
     cols, error, context, connectionRetry,
     allVisibleAgents, liveAgents, visibleMemories,
     hasLiveAgents, hasMemories, mainSelectedAgent, liveAgentNameCounts,
@@ -340,16 +331,17 @@ export function createInputHandler({
   return function handleInput(input, key) {
     // ── Narrow terminal guard ──────────────────
     if (cols < MIN_WIDTH) {
-      if (input === KEYS.QUIT) navigate('quit');
+      if (input === 'q') navigate('quit');
       return;
     }
 
     // ── Connection retry (error / loading states) ──
-    if (input === KEYS.RETRY && (error || !context)) {
+    if (input === 'r' && (error || !context)) {
       connectionRetry();
       return;
     }
 
+    const { view } = state;
     const isHomeView = view === 'home';
     const isSessionsView = view === 'sessions';
     const isMemoryView = view === 'memory';
@@ -357,7 +349,7 @@ export function createInputHandler({
 
     // ── Modal views (consume all input) ────────
     if (isAgentFocusView) { handleAgentFocusInput(input, key, ctx); return; }
-    if (composer.isComposing) { handleComposeModeInput(input, key, ctx); return; }
+    if (state.composeMode !== null) { handleComposeModeInput(input, key, ctx); return; }
     if (agents.toolPickerOpen) { handleToolPickerInput(input, key, ctx); return; }
 
     // ── View-specific input (may fall through) ─
@@ -379,11 +371,7 @@ export function createCommandHandler({
   composer,
   memory,
   flash,
-  setView,
-  setSelectedIdx,
-  setHeroInput,
-  setHeroInputActive,
-  setMainFocus,
+  dispatch,
   handleOpenWebDashboard,
   liveAgents,
   selectedAgent,
@@ -440,15 +428,14 @@ export function createCommandHandler({
     }
 
     if (verb === 'knowledge' || verb === 'memory') {
-      setView('memory');
-      memory.setMemorySelectedIdx(-1);
+      dispatch({ type: 'NAVIGATE_TO_VIEW', view: 'memory' });
+      dispatch({ type: 'RESET_MEMORY_SELECTION' });
       composer.clearCompose();
       return;
     }
 
     if (verb === 'sessions' || verb === 'agents' || verb === 'history') {
-      setView('sessions');
-      setSelectedIdx(liveAgents.length > 0 ? 0 : -1);
+      dispatch({ type: 'NAVIGATE_TO_VIEW', view: 'sessions', selectedIdx: liveAgents.length > 0 ? 0 : -1 });
       composer.clearCompose();
       return;
     }
@@ -481,9 +468,8 @@ export function createCommandHandler({
       return;
     }
 
-    setHeroInput(text);
-    setHeroInputActive(true);
-    setMainFocus('input');
+    dispatch({ type: 'SET_HERO_INPUT', text, active: true });
+    dispatch({ type: 'SET_MAIN_FOCUS', focus: 'input' });
     composer.clearCompose();
   };
 }

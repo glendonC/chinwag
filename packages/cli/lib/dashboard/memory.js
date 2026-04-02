@@ -6,14 +6,15 @@ const DELETE_FEEDBACK_MS = 2000;
 
 /**
  * Custom hook for memory management in the dashboard.
- * Handles memory selection, search, add, and delete operations.
+ * Reads memorySelectedIdx, deleteConfirm, deleteMsg from the dashboard reducer.
+ * Keeps memorySearch and memoryInput as local state (bound to TextInput onChange).
  */
-export function useMemoryManager({ config, teamId, bumpRefreshKey, flash }) {
-  const [memorySelectedIdx, setMemorySelectedIdx] = useState(-1);
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [deleteMsg, setDeleteMsg] = useState(null);
+export function useMemoryManager({ config, teamId, bumpRefreshKey, flash }, state, dispatch) {
   const [memorySearch, setMemorySearch] = useState('');
   const [memoryInput, setMemoryInput] = useState('');
+
+  // Read from reducer state
+  const { memorySelectedIdx, deleteConfirm, deleteMsg } = state;
 
   function saveMemory(text) {
     if (!teamId || !text.trim()) return;
@@ -26,22 +27,20 @@ export function useMemoryManager({ config, teamId, bumpRefreshKey, flash }) {
     if (!mem?.id || !teamId) return;
     api(config).del(`/teams/${teamId}/memory`, { id: mem.id })
       .then(() => {
-        setDeleteMsg('Deleted');
-        setDeleteConfirm(false);
-        setMemorySelectedIdx(-1);
+        dispatch({ type: 'SET_DELETE_MSG', msg: 'Deleted' });
+        dispatch({ type: 'RESET_MEMORY_SELECTION' });
         bumpRefreshKey();
-        setTimeout(() => setDeleteMsg(null), DELETE_FEEDBACK_MS);
+        setTimeout(() => dispatch({ type: 'SET_DELETE_MSG', msg: null }), DELETE_FEEDBACK_MS);
       })
       .catch(() => {
-        setDeleteMsg('Delete failed');
-        setDeleteConfirm(false);
-        setTimeout(() => setDeleteMsg(null), DELETE_FEEDBACK_MS);
+        dispatch({ type: 'SET_DELETE_MSG', msg: 'Delete failed' });
+        dispatch({ type: 'SET_DELETE_CONFIRM', confirm: false });
+        setTimeout(() => dispatch({ type: 'SET_DELETE_MSG', msg: null }), DELETE_FEEDBACK_MS);
       });
   }
 
   function resetMemorySelection() {
-    setMemorySelectedIdx(-1);
-    setDeleteConfirm(false);
+    dispatch({ type: 'RESET_MEMORY_SELECTION' });
   }
 
   const clearMemorySearch = useCallback(() => {
@@ -59,9 +58,7 @@ export function useMemoryManager({ config, teamId, bumpRefreshKey, flash }) {
 
   return {
     memorySelectedIdx,
-    setMemorySelectedIdx,
     deleteConfirm,
-    setDeleteConfirm,
     deleteMsg,
     memorySearch,
     setMemorySearch,

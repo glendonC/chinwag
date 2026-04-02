@@ -1,27 +1,18 @@
-import { useState } from 'react';
 import { api } from '../api.js';
 import { isAgentAddressable, getAgentTargetLabel } from './agent-display.js';
 
 /**
  * Custom hook for message composition and command palette.
- * Handles compose modes: command, targeted message, memory-search, memory-add.
+ * Reads compose state from the dashboard reducer; dispatches to change it.
  */
-export function useComposer({ config, teamId, bumpRefreshKey, flash, clearMemorySearch, clearMemoryInput }) {
-  // Composer: null | 'command' | 'targeted' | 'memory-search' | 'memory-add'
-  const [composeMode, setComposeMode] = useState(null);
-  const [composeText, setComposeText] = useState('');
-  const [composeTarget, setComposeTarget] = useState(null);
-  const [composeTargetLabel, setComposeTargetLabel] = useState(null);
-  const [commandSelectedIdx, setCommandSelectedIdx] = useState(0);
-
-  const isComposing = Boolean(composeMode);
+export function useComposer({ config, teamId, bumpRefreshKey, flash, clearMemorySearch, clearMemoryInput }, state, dispatch) {
+  // Read compose state from reducer
+  const { composeMode, composeText, composeTarget, composeTargetLabel, commandSelectedIdx } = state;
+  const isComposing = composeMode !== null;
 
   function clearCompose() {
     const previousMode = composeMode;
-    setComposeMode(null);
-    setComposeText('');
-    setComposeTarget(null);
-    setComposeTargetLabel(null);
+    dispatch({ type: 'CLEAR_COMPOSE' });
     if (previousMode === 'memory-search') {
       clearMemorySearch();
     }
@@ -35,24 +26,31 @@ export function useComposer({ config, teamId, bumpRefreshKey, flash, clearMemory
       flash('Select a running agent to message directly', { tone: 'warning' });
       return;
     }
-    setComposeTarget(agent.agent_id);
-    setComposeTargetLabel(getAgentTargetLabel(agent));
-    setComposeMode('targeted');
-    setComposeText('');
+    dispatch({
+      type: 'BEGIN_TARGETED_MESSAGE',
+      target: agent.agent_id,
+      targetLabel: getAgentTargetLabel(agent),
+    });
   }
 
   function beginCommandInput(initialText = '') {
-    setComposeMode('command');
-    setComposeText(initialText);
-    setCommandSelectedIdx(0);
+    dispatch({ type: 'BEGIN_COMMAND', initialText });
   }
 
   function beginMemorySearch() {
-    setComposeMode('memory-search');
+    dispatch({ type: 'BEGIN_MEMORY_SEARCH' });
   }
 
   function beginMemoryAdd() {
-    setComposeMode('memory-add');
+    dispatch({ type: 'BEGIN_MEMORY_ADD' });
+  }
+
+  function setComposeText(text) {
+    dispatch({ type: 'SET_COMPOSE_TEXT', text });
+  }
+
+  function setCommandSelectedIdx() {
+    dispatch({ type: 'RESET_COMMAND_SELECTION' });
   }
 
   function sendMessage(text, target, targetLabel = null) {
@@ -63,10 +61,7 @@ export function useComposer({ config, teamId, bumpRefreshKey, flash, clearMemory
         flash(targetLabel ? `Sent to ${targetLabel}` : 'Sent to team', { tone: 'success' });
         bumpRefreshKey();
       })
-      .catch((err) => {
-        console.error('[chinwag] Message send failed:', err?.message || err);
-        flash('Message not sent. Check connection.', { tone: 'error' });
-      });
+      .catch(() => flash('Message not sent. Check connection.', { tone: 'error' }));
   }
 
   function onComposeSubmit(commandSuggestions, handleCommandSubmit) {
@@ -85,9 +80,8 @@ export function useComposer({ config, teamId, bumpRefreshKey, flash, clearMemory
 
   return {
     composeMode,
-    setComposeMode,
-    composeText,
     setComposeText,
+    composeText,
     composeTarget,
     composeTargetLabel,
     commandSelectedIdx,

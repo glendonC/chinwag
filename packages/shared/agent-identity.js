@@ -3,6 +3,32 @@ import { execFileSync } from 'child_process';
 import { basename } from 'path';
 import { HOST_INTEGRATIONS, getHostIntegrationById } from './integration-model.js';
 
+/**
+ * @typedef {Object} RuntimeIdentity
+ * @property {string} hostTool - Detected host tool ID
+ * @property {string|null} agentSurface - Agent surface ID or null
+ * @property {string} transport - e.g. 'mcp', 'managed-cli'
+ * @property {'managed'|'connected'} tier
+ * @property {string[]} capabilities - Sorted capability list
+ * @property {'explicit'|'parent-process'|'fallback'} detectionSource
+ * @property {number} detectionConfidence - 0 to 1
+ */
+
+/**
+ * @typedef {Object} DetectRuntimeOptions
+ * @property {string[]} [argv] - Process args (defaults to process.argv)
+ * @property {(pid: number) => {ppid: number, command: string}|null} [readProcessInfoFn]
+ * @property {number} [parentPid] - Starting PID (defaults to process.ppid)
+ * @property {number} [maxParentHops] - Max process tree hops (default 5)
+ * @property {string} [defaultTransport] - Override default transport
+ */
+
+/**
+ * @typedef {Object} RuntimeIdentityLike
+ * @property {string} [hostTool]
+ * @property {string} [tool]
+ */
+
 const EXEC_TIMEOUT_MS = 5000;
 
 function defaultReadProcessInfo(pid) {
@@ -98,6 +124,11 @@ function normalizeToolName(toolNameOrRuntime) {
   return toolNameOrRuntime.hostTool || toolNameOrRuntime.tool || null;
 }
 
+/**
+ * @param {string} [defaultHost] - Fallback host tool ID
+ * @param {DetectRuntimeOptions} [options]
+ * @returns {RuntimeIdentity}
+ */
 export function detectRuntimeIdentity(defaultHost = 'unknown', options = {}) {
   const argv = options.argv || process.argv;
   const explicitTool = getArgValue('--tool', argv) || process.env.CHINWAG_TOOL;
@@ -145,22 +176,41 @@ export function detectRuntimeIdentity(defaultHost = 'unknown', options = {}) {
   };
 }
 
+/**
+ * @param {string} [defaultTool] - Fallback tool name
+ * @param {DetectRuntimeOptions} [options]
+ * @returns {string}
+ */
 export function detectToolName(defaultTool = 'unknown', options = {}) {
   return detectRuntimeIdentity(defaultTool, options).hostTool;
 }
 
+/**
+ * @param {string} token - Authentication token
+ * @param {string|RuntimeIdentityLike|null} toolNameOrRuntime - Tool name string or runtime identity object
+ * @returns {string}
+ */
 export function generateAgentId(token, toolNameOrRuntime) {
   const toolName = normalizeToolName(toolNameOrRuntime) || 'unknown';
   const hash = createHash('sha256').update(token).digest('hex').slice(0, 12);
   return `${toolName}:${hash}`;
 }
 
+/**
+ * @param {string} token - Authentication token
+ * @param {string|RuntimeIdentityLike|null} toolNameOrRuntime - Tool name string or runtime identity object
+ * @returns {string}
+ */
 export function generateSessionAgentId(token, toolNameOrRuntime) {
   const base = generateAgentId(token, toolNameOrRuntime);
   const suffix = randomBytes(4).toString('hex');
   return `${base}:${suffix}`;
 }
 
+/**
+ * @param {string|RuntimeIdentityLike|null} [toolNameOrRuntime] - Tool name string or runtime identity object
+ * @returns {string|null}
+ */
 export function getConfiguredAgentId(toolNameOrRuntime = null) {
   const agentId = process.env.CHINWAG_AGENT_ID?.trim();
   if (!agentId || agentId.length > 60) return null;

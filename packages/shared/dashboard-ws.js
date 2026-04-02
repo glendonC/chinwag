@@ -3,8 +3,69 @@
 // Shared by CLI (Ink) and web (React) dashboards.
 
 /**
+ * @typedef {Object} MemberActivity
+ * @property {string[]} files - Files being worked on
+ * @property {string|null} summary - One-line description of current work
+ */
+
+/**
+ * @typedef {Object} DashboardMember
+ * @property {string} agent_id
+ * @property {string} handle
+ * @property {string} tool
+ * @property {string} status - e.g. 'active', 'idle', 'offline'
+ * @property {number} seconds_since_update
+ * @property {number} [minutes_since_update]
+ * @property {MemberActivity|null} activity
+ */
+
+/**
+ * @typedef {Object} FileLock
+ * @property {string} file_path
+ * @property {string} agent_id
+ */
+
+/**
+ * @typedef {Object} ChatMessage
+ * @property {string} from_handle
+ * @property {string} text
+ * @property {string} created_at - ISO 8601 timestamp
+ */
+
+/**
+ * @typedef {Object} MemoryEntry
+ * @property {string} text
+ * @property {string[]} tags
+ * @property {string} created_at - ISO 8601 timestamp
+ */
+
+/**
+ * @typedef {Object} DashboardContext
+ * @property {DashboardMember[]} members
+ * @property {FileLock[]} locks
+ * @property {ChatMessage[]} messages - Max 50, newest last
+ * @property {MemoryEntry[]} memories - Max 100, newest first
+ */
+
+/**
+ * @typedef {{type: 'heartbeat', agent_id: string}} HeartbeatEvent
+ * @typedef {{type: 'activity', agent_id: string, files?: string[], summary?: string}} ActivityEvent
+ * @typedef {{type: 'file', agent_id: string, file: string}} FileEvent
+ * @typedef {{type: 'member_joined', agent_id: string, handle?: string, tool?: string}} MemberJoinedEvent
+ * @typedef {{type: 'member_left', agent_id: string}} MemberLeftEvent
+ * @typedef {{type: 'status_change', agent_id: string, status: string}} StatusChangeEvent
+ * @typedef {{type: 'lock_change', action: 'claim'|'release'|'release_all', agent_id: string, files?: string[]}} LockChangeEvent
+ * @typedef {{type: 'message', from_handle: string, text: string}} MessageEvent
+ * @typedef {{type: 'memory', text: string, tags?: string[]}} MemoryDeltaEvent
+ * @typedef {HeartbeatEvent|ActivityEvent|FileEvent|MemberJoinedEvent|MemberLeftEvent|StatusChangeEvent|LockChangeEvent|MessageEvent|MemoryDeltaEvent} DashboardDeltaEvent
+ */
+
+/**
  * Apply a delta event from the TeamDO WebSocket to the current context.
  * Returns a new context object (immutable update).
+ * @param {DashboardContext} context
+ * @param {DashboardDeltaEvent} event
+ * @returns {DashboardContext}
  */
 export function applyDelta(context, event) {
   if (!context || !event?.type) return context;

@@ -128,27 +128,23 @@ export function CommandBar({ composer, memory, notice, view, commandSuggestions,
  * Renders the home view main pane with agents table, tool issues, tool picker, and compose overlay.
  */
 export function MainPane({
-  projectDisplayName,
-  connState,
-  connDetail,
-  spinnerFrame,
-  cols,
+  state,
+  connection,
   allVisibleAgents,
   liveAgents,
   visibleSessionRows,
-  selectedIdx,
-  mainFocus,
   liveAgentNameCounts,
   agents,
   integrationIssues,
   composer,
   memory,
-  notice,
   contextHints,
   commandSuggestions,
   onComposeSubmit,
   onMemorySubmit,
 }) {
+  const { selectedIdx, mainFocus, notice } = state;
+  const { connState, connDetail, spinnerFrame, cols, projectDisplayName } = connection;
   const activeAgents = liveAgents.filter(a => !a._dead);
   const workingCount = activeAgents.filter(a => {
     const intent = getAgentIntent(a);
@@ -292,7 +288,8 @@ export function MainPane({
 /**
  * Renders the memory view.
  */
-export function MemoryView({ memories, filteredMemories, visibleKnowledgeRows, memory, composer, notice, commandSuggestions, onComposeSubmit, onMemorySubmit }) {
+export function MemoryView({ memories, filteredMemories, visibleKnowledgeRows, memory, composer, state, commandSuggestions, onComposeSubmit, onMemorySubmit }) {
+  const { notice } = state;
   return (
     <Box flexDirection="column">
       <Box flexDirection="column" paddingTop={1}>
@@ -327,7 +324,8 @@ export function MemoryView({ memories, filteredMemories, visibleKnowledgeRows, m
 /**
  * Renders the sessions view.
  */
-export function SessionsView({ liveAgents, visibleSessionRows, selectedIdx, cols, composer, memory, notice, commandSuggestions, onComposeSubmit, onMemorySubmit }) {
+export function SessionsView({ liveAgents, visibleSessionRows, state, cols, composer, memory, commandSuggestions, onComposeSubmit, onMemorySubmit }) {
+  const { selectedIdx, notice } = state;
   return (
     <Box flexDirection="column">
       <Box flexDirection="column" paddingTop={1}>
