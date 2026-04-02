@@ -51,9 +51,12 @@ export function createJsonApiClient({
 
       const res = await fetch(`${baseUrl}${path}`, opts);
 
-      if (res.status >= 500 && attempt < maxRetryAttempts) {
+      if ((res.status >= 500 || res.status === 429) && attempt < maxRetryAttempts) {
         clearTimeout(timeout);
-        await sleep(retryDelayMs * Math.pow(2, attempt));
+        const backoff = res.status === 429
+          ? Math.max(1000, parseInt(res.headers.get('retry-after') || '1', 10) * 1000)
+          : retryDelayMs * Math.pow(2, attempt);
+        await sleep(backoff);
         return request(method, path, body, attempt + 1);
       }
 

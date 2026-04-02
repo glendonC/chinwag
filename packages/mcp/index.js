@@ -97,8 +97,12 @@ async function main() {
       let reconnectDelay = 1000;
       let pingTimer = null;
       let lastWsSend = 0;
+      let connecting = false;
 
       function connectTeamWs() {
+        if (connecting || state._shuttingDown) return;
+        connecting = true;
+
         const wsBase = getApiUrl().replace(/^http/, 'ws');
         const wsUrl = `${wsBase}/teams/${state.teamId}/ws?agentId=${encodeURIComponent(agentId)}&token=${encodeURIComponent(config.token)}&role=agent`;
 
@@ -106,6 +110,7 @@ async function main() {
           const ws = new WebSocket(wsUrl);
 
           ws.onopen = () => {
+            connecting = false;
             state.ws = ws;
             reconnectDelay = 1000;
             console.error('[chinwag] WebSocket connected (presence active)');
@@ -125,6 +130,7 @@ async function main() {
           ws.onmessage = () => {}; // agent doesn't need broadcasts
 
           ws.onclose = () => {
+            connecting = false;
             state.ws = null;
             if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
             if (!state._shuttingDown) {
@@ -137,7 +143,7 @@ async function main() {
 
           ws.onerror = () => {}; // onclose fires after
         } catch {
-          // WebSocket constructor failed — retry
+          connecting = false;
           if (!state._shuttingDown) {
             const timer = setTimeout(connectTeamWs, reconnectDelay);
             if (timer.unref) timer.unref();

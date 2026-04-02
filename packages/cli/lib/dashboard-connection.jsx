@@ -3,7 +3,7 @@ import { api, getApiUrl } from './api.js';
 import { detectTools } from './mcp-config.js';
 import { getProjectContext } from './project.js';
 import { SPINNER } from './dashboard-utils.js';
-import { applyDelta } from './dashboard-ws.js';
+import { applyDelta } from '../../shared/dashboard-ws.js';
 
 function classifyError(err) {
   const msg = err.message || '';
@@ -187,6 +187,7 @@ export function useDashboardConnection({ config, stdout }) {
           setConnState('connected');
           setConnDetail(null);
           // Full reconciliation every 60s to correct drift
+          if (reconcileInterval) clearInterval(reconcileInterval);
           reconcileInterval = setInterval(async () => {
             try { await fetchContextOnce(); } catch { /* non-critical */ }
           }, 60_000);

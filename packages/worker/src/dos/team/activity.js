@@ -22,14 +22,20 @@ export function updateActivity(sql, resolvedAgentId, files, summary) {
   return { ok: true };
 }
 
-export function checkConflicts(sql, resolvedAgentId, files, recordMetric) {
+export function checkConflicts(sql, resolvedAgentId, files, recordMetric, connectedAgentIds = new Set()) {
+  // Active = recent heartbeat OR live WebSocket connection
+  const wsAlive = [...connectedAgentIds];
+  const wsPlaceholders = wsAlive.length ? wsAlive.map(() => '?').join(',') : "'__none__'";
+  const wsParams = wsAlive.length ? wsAlive : [];
+
   const others = sql.exec(
     `SELECT m.agent_id, m.owner_handle, m.tool, a.files, a.summary
      FROM members m
      LEFT JOIN activities a ON a.agent_id = m.agent_id
      WHERE m.agent_id != ?
-       AND m.last_heartbeat > datetime('now', '-' || ? || ' seconds')`,
-    resolvedAgentId, HEARTBEAT_ACTIVE_SECONDS
+       AND (m.last_heartbeat > datetime('now', '-' || ? || ' seconds')
+            OR m.agent_id IN (${wsPlaceholders}))`,
+    resolvedAgentId, HEARTBEAT_ACTIVE_SECONDS, ...wsParams
   ).toArray();
 
   const myFiles = new Set(files.map(normalizePath));
@@ -49,15 +55,18 @@ export function checkConflicts(sql, resolvedAgentId, files, recordMetric) {
     }
   }
 
-  // Check file locks — files locked by other agents are also conflicts
+  // Check file locks — only from active agents (heartbeat OR WebSocket)
   const lockedFiles = [];
   const fileList = [...myFiles];
   if (fileList.length > 0) {
     const placeholders = fileList.map(() => '?').join(',');
     const lockRows = sql.exec(
-      `SELECT file_path, owner_handle, tool, claimed_at FROM locks
-       WHERE file_path IN (${placeholders}) AND agent_id != ?`,
-      ...fileList, resolvedAgentId
+      `SELECT l.file_path, l.owner_handle, l.tool, l.claimed_at FROM locks l
+       JOIN members m ON m.agent_id = l.agent_id
+       WHERE l.file_path IN (${placeholders}) AND l.agent_id != ?
+         AND (m.last_heartbeat > datetime('now', '-' || ? || ' seconds')
+              OR m.agent_id IN (${wsPlaceholders}))`,
+      ...fileList, resolvedAgentId, HEARTBEAT_ACTIVE_SECONDS, ...wsParams
     ).toArray();
     for (const lock of lockRows) {
       lockedFiles.push({

@@ -53,8 +53,8 @@ export async function cleanupProcessSession(agentId, state, team, options = {}) 
   const deleteRecord = options.deleteRecord || deleteSessionRecord;
   const clearTimer = options.clearIntervalFn || clearInterval;
 
-  deleteRecord(agentId, options.homeDir ? { homeDir: options.homeDir } : {});
   state._shuttingDown = true;
+  deleteRecord(agentId, options.homeDir ? { homeDir: options.homeDir } : {});
   if (state.heartbeatInterval) clearTimer(state.heartbeatInterval);
   if (state.ws) try { state.ws.close(); } catch {}
 

@@ -12,6 +12,12 @@ import { Discover } from './lib/discover.jsx';
 import { ControlShell } from './lib/shell.jsx';
 import { useTerminalControl } from './lib/terminal-control.js';
 
+// Node 22+ required for native WebSocket
+if (parseInt(process.version.slice(1)) < 22) {
+  console.error('chinwag requires Node.js 22 or later (current: ' + process.version + ')');
+  process.exit(1);
+}
+
 let PKG_VERSION = '0.1.0';
 try {
   const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));

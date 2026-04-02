@@ -56,8 +56,8 @@ export function isSessionRecordAlive(record, {
 
 export function writeSessionRecord(agentId, record, { homeDir = homedir() } = {}) {
   const filePath = getSessionFilePath(agentId, homeDir);
-  mkdirSync(getSessionsDir(homeDir), { recursive: true });
-  writeFileSync(filePath, JSON.stringify({ agentId, ...record }) + '\n');
+  mkdirSync(getSessionsDir(homeDir), { recursive: true, mode: 0o700 });
+  writeFileSync(filePath, JSON.stringify({ agentId, ...record }) + '\n', { mode: 0o600 });
   return filePath;
 }
 

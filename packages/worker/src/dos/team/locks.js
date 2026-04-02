@@ -13,13 +13,28 @@ export function claimFiles(sql, resolvedAgentId, files, handle, runtimeOrTool) {
   const blocked = [];
 
   for (const file of normalized) {
-    // Check if already locked by another agent
-    const existing = sql.exec(
+    // Atomic claim: insert if free, no-op if already held by another agent.
+    // ON CONFLICT DO UPDATE only if we already own it (refresh our lock).
+    sql.exec(
+      `INSERT INTO locks (file_path, agent_id, owner_handle, tool, host_tool, agent_surface, claimed_at)
+       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+       ON CONFLICT(file_path) DO UPDATE SET
+         owner_handle = excluded.owner_handle,
+         tool = excluded.tool,
+         host_tool = excluded.host_tool,
+         agent_surface = excluded.agent_surface,
+         claimed_at = datetime('now')
+       WHERE locks.agent_id = excluded.agent_id`,
+      file, resolvedAgentId, handle || 'unknown', runtime.tool, runtime.hostTool, runtime.agentSurface
+    );
+
+    // Check who actually owns the lock
+    const owner = sql.exec(
       'SELECT agent_id, owner_handle, tool, host_tool, agent_surface, claimed_at FROM locks WHERE file_path = ?', file
     ).toArray();
 
-    if (existing.length > 0 && existing[0].agent_id !== resolvedAgentId) {
-      const lock = existing[0];
+    if (owner.length > 0 && owner[0].agent_id !== resolvedAgentId) {
+      const lock = owner[0];
       blocked.push({
         file,
         held_by: lock.owner_handle,
@@ -28,23 +43,9 @@ export function claimFiles(sql, resolvedAgentId, files, handle, runtimeOrTool) {
         agent_surface: lock.agent_surface || null,
         claimed_at: lock.claimed_at,
       });
-      continue;
+    } else {
+      claimed.push(file);
     }
-
-    // Claim or refresh the lock
-    sql.exec(
-      `INSERT INTO locks (file_path, agent_id, owner_handle, tool, host_tool, agent_surface, claimed_at)
-       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-       ON CONFLICT(file_path) DO UPDATE SET
-         agent_id = excluded.agent_id,
-         owner_handle = excluded.owner_handle,
-         tool = excluded.tool,
-         host_tool = excluded.host_tool,
-         agent_surface = excluded.agent_surface,
-         claimed_at = datetime('now')`,
-      file, resolvedAgentId, handle || 'unknown', runtime.tool, runtime.hostTool, runtime.agentSurface
-    );
-    claimed.push(file);
   }
 
   return { ok: true, claimed, blocked };
@@ -63,15 +64,20 @@ export function releaseFiles(sql, resolvedAgentId, files) {
   return { ok: true };
 }
 
-export function getLockedFiles(sql) {
+export function getLockedFiles(sql, connectedAgentIds = new Set()) {
+  const wsAlive = [...connectedAgentIds];
+  const wsPlaceholders = wsAlive.length ? wsAlive.map(() => '?').join(',') : "'__none__'";
+  const wsParams = wsAlive.length ? wsAlive : [];
+
   const locks = sql.exec(
     `SELECT l.file_path, l.agent_id, l.owner_handle, l.tool, l.host_tool, l.agent_surface, l.claimed_at,
             ROUND((julianday('now') - julianday(l.claimed_at)) * 1440) as minutes_held
      FROM locks l
      JOIN members m ON m.agent_id = l.agent_id
      WHERE m.last_heartbeat > datetime('now', '-' || ? || ' seconds')
+        OR m.agent_id IN (${wsPlaceholders})
      ORDER BY l.claimed_at DESC`,
-    HEARTBEAT_ACTIVE_SECONDS
+    HEARTBEAT_ACTIVE_SECONDS, ...wsParams
   ).toArray();
 
   return { locks };

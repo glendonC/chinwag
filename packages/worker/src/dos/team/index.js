@@ -271,22 +271,30 @@ export class TeamDO extends DurableObject {
   }
 
   // Evict stale members and prune old sessions — at most once per minute.
-  // Keeps getContext fast when polled frequently by channels/dashboards.
+  // Preserves agents with active WebSocket connections regardless of heartbeat age.
   #maybeCleanup() {
     const now = Date.now();
     if (now - this.#lastCleanup < 60_000) return;
     this.#lastCleanup = now;
 
+    // Agents with live WebSocket connections must not be evicted
+    const wsAlive = [...this.#getConnectedAgentIds()];
+    const wsPlaceholders = wsAlive.length ? wsAlive.map(() => '?').join(',') : "'__none__'";
+    const wsParams = wsAlive.length ? wsAlive : [];
+
     this.sql.exec(
       `DELETE FROM activities WHERE agent_id IN (
         SELECT agent_id FROM members
         WHERE last_heartbeat < datetime('now', '-' || ? || ' seconds')
+          AND agent_id NOT IN (${wsPlaceholders})
       )`,
-      HEARTBEAT_STALE_SECONDS
+      HEARTBEAT_STALE_SECONDS, ...wsParams
     );
     this.sql.exec(
-      `DELETE FROM members WHERE last_heartbeat < datetime('now', '-' || ? || ' seconds')`,
-      HEARTBEAT_STALE_SECONDS
+      `DELETE FROM members
+       WHERE last_heartbeat < datetime('now', '-' || ? || ' seconds')
+         AND agent_id NOT IN (${wsPlaceholders})`,
+      HEARTBEAT_STALE_SECONDS, ...wsParams
     );
     this.sql.exec(
       `DELETE FROM sessions WHERE started_at < datetime('now', '-' || ? || ' days')`,
@@ -294,24 +302,28 @@ export class TeamDO extends DurableObject {
     );
     // Expire messages older than 1 hour
     this.sql.exec("DELETE FROM messages WHERE created_at < datetime('now', '-1 hour')");
-    // Auto-release locks for stale agents
+    // Auto-release locks for stale agents (WS-connected agents keep their locks)
     this.sql.exec(
       `DELETE FROM locks WHERE agent_id NOT IN (
         SELECT agent_id FROM members
         WHERE last_heartbeat > datetime('now', '-' || ? || ' seconds')
+          OR agent_id IN (${wsPlaceholders})
       )`,
-      HEARTBEAT_STALE_SECONDS
+      HEARTBEAT_STALE_SECONDS, ...wsParams
     );
-    // Auto-close orphaned sessions (agent stopped heartbeating)
+    // Auto-close orphaned sessions
     this.sql.exec(
       `UPDATE sessions SET ended_at = datetime('now')
        WHERE ended_at IS NULL
        AND agent_id NOT IN (
          SELECT agent_id FROM members
          WHERE last_heartbeat > datetime('now', '-' || ? || ' seconds')
+           OR agent_id IN (${wsPlaceholders})
        )`,
-      HEARTBEAT_STALE_SECONDS
+      HEARTBEAT_STALE_SECONDS, ...wsParams
     );
+    // Prune stale telemetry
+    this.sql.exec("DELETE FROM telemetry WHERE last_at < datetime('now', '-30 days')");
   }
 
   #recordMetric(metric) {
@@ -427,7 +439,7 @@ export class TeamDO extends DurableObject {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
     if (!resolved) return { error: 'Not a member of this team' };
-    return checkConflictsFn(this.sql, resolved, files, this.#boundRecordMetric);
+    return checkConflictsFn(this.sql, resolved, files, this.#boundRecordMetric, this.#getConnectedAgentIds());
   }
 
   async reportFile(agentId, filePath, ownerId = null) {
@@ -719,7 +731,7 @@ export class TeamDO extends DurableObject {
   async getLockedFiles(agentId, ownerId = null) {
     this.#ensureSchema();
     if (!this.#resolveOwnedAgentId(agentId, ownerId)) return { error: 'Not a member of this team' };
-    return getLockedFilesFn(this.sql);
+    return getLockedFilesFn(this.sql, this.#getConnectedAgentIds());
   }
 
   // --- Messages ---

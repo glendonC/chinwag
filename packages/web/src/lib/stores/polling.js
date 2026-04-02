@@ -3,7 +3,7 @@ import { api, getApiUrl } from '../api.js';
 import { authActions } from './auth.js';
 import { teamActions } from './teams.js';
 import { requestRefresh, setRefreshHandler } from './refresh.js';
-import { applyDelta } from '../dashboard-ws.js';
+import { applyDelta } from '../../../../shared/dashboard-ws.js';
 
 const POLL_MS = 5000;
 const SLOW_POLL_MS = 30000;
@@ -155,6 +155,7 @@ function connectTeamWebSocket(teamId) {
       if (teamActions.getState().activeTeamId !== teamId) { ws.close(); return; }
       // WebSocket connected — stop polling, start reconciliation
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      if (reconcileTimer) { clearInterval(reconcileTimer); reconcileTimer = null; }
       reconcileTimer = setInterval(poll, RECONCILE_MS);
     };
 

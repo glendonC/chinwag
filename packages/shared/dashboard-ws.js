@@ -1,6 +1,11 @@
-// WebSocket delta application for the web dashboard.
+// WebSocket delta application for dashboards.
 // Pure functions that merge server-pushed events into existing context state.
+// Shared by CLI (Ink) and web (React) dashboards.
 
+/**
+ * Apply a delta event from the TeamDO WebSocket to the current context.
+ * Returns a new context object (immutable update).
+ */
 export function applyDelta(context, event) {
   if (!context || !event?.type) return context;
 
@@ -133,6 +138,6 @@ function applyMemory(ctx, event) {
     tags: event.tags || [],
     created_at: new Date().toISOString(),
   };
-  const memories = [newMem, ...(ctx.memories || [])];
+  const memories = [newMem, ...(ctx.memories || [])].slice(0, 100);
   return { ...ctx, memories };
 }
