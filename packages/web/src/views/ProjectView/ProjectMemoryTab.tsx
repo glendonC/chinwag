@@ -1,16 +1,24 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, type ChangeEvent } from 'react';
+import type { Memory } from '../../lib/apiSchemas.js';
 import MemoryRow from '../../components/MemoryRow/MemoryRow.jsx';
 import EmptyState from '../../components/EmptyState/EmptyState.jsx';
 import styles from './ProjectView.module.css';
+
+interface ProjectMemoryTabProps {
+  memories: Memory[];
+  memoryBreakdown: [string, number][];
+  onUpdateMemory: (id: string, text?: string, tags?: string[]) => Promise<void>;
+  onDeleteMemory: (id: string) => Promise<void>;
+}
 
 export default function ProjectMemoryTab({
   memories,
   memoryBreakdown,
   onUpdateMemory,
   onDeleteMemory,
-}) {
+}: ProjectMemoryTabProps) {
   const [search, setSearch] = useState('');
-  const [activeTag, setActiveTag] = useState(null);
+  const [activeTag, setActiveTag] = useState<string | null>(null);
   const allTags = useMemo(() => memoryBreakdown.map(([tag]) => tag), [memoryBreakdown]);
 
   const filtered = useMemo(() => {
@@ -18,7 +26,9 @@ export default function ProjectMemoryTab({
     if (activeTag) list = list.filter((m) => (m.tags || []).includes(activeTag));
     if (search.trim()) {
       const q = search.trim().toLowerCase();
-      list = list.filter((m) => m.text.toLowerCase().includes(q) || (m.tags || []).some((t) => t.includes(q)));
+      list = list.filter(
+        (m) => m.text.toLowerCase().includes(q) || (m.tags || []).some((t) => t.includes(q)),
+      );
     }
     return list;
   }, [memories, activeTag, search]);
@@ -34,7 +44,7 @@ export default function ProjectMemoryTab({
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
             placeholder="Search memories"
             className={styles.searchInput}
           />

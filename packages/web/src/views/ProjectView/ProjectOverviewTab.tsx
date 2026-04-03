@@ -4,6 +4,52 @@ import { getToolMeta } from '../../lib/toolMeta.js';
 import SummaryStat from './SummaryStat.jsx';
 import styles from './ProjectView.module.css';
 
+interface MemberEntry {
+  handle: string;
+  status?: string;
+  host_tool?: string;
+  [key: string]: unknown;
+}
+
+interface ActiveAgent {
+  minutes_since_update?: number;
+  [key: string]: unknown;
+}
+
+interface LockEntry {
+  minutes_held?: number;
+  [key: string]: unknown;
+}
+
+interface FileConflict {
+  file: string;
+  owners: string[];
+}
+
+interface ToolSummary {
+  tool: string;
+  live: number;
+  joins: number;
+  share: number;
+}
+
+interface RosterEntry {
+  handle: string;
+  online: boolean;
+  tools: string[];
+}
+
+interface ProjectOverviewTabProps {
+  members: MemberEntry[];
+  activeAgents: ActiveAgent[];
+  conflicts: FileConflict[];
+  locks: LockEntry[];
+  sessionEditCount: number;
+  liveSessionCount: number;
+  filesTouchedCount: number;
+  toolSummaries: ToolSummary[];
+}
+
 export default function ProjectOverviewTab({
   members,
   activeAgents,
@@ -13,7 +59,7 @@ export default function ProjectOverviewTab({
   liveSessionCount,
   filesTouchedCount,
   toolSummaries,
-}) {
+}: ProjectOverviewTabProps) {
   const stuckAgents = useMemo(
     () => activeAgents.filter((a) => (a.minutes_since_update || 0) >= 15),
     [activeAgents],
@@ -21,8 +67,8 @@ export default function ProjectOverviewTab({
 
   const staleLocks = useMemo(() => locks.filter((l) => (l.minutes_held || 0) >= 30), [locks]);
 
-  const teamRoster = useMemo(() => {
-    const byHandle = new Map();
+  const teamRoster = useMemo((): RosterEntry[] => {
+    const byHandle = new Map<string, RosterEntry>();
     for (const m of members) {
       const prev = byHandle.get(m.handle);
       const online = m.status === 'active';

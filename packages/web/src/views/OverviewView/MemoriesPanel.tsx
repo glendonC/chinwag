@@ -1,7 +1,24 @@
 import { projectGradient } from '../../lib/projectGradient.js';
 import styles from './OverviewView.module.css';
 
-export default function MemoriesPanel({ summaries, totalMemories, selectTeam }) {
+interface TeamSummary {
+  team_id: string;
+  team_name?: string;
+  memory_count?: number;
+  [key: string]: unknown;
+}
+
+interface MemoriesPanelProps {
+  summaries: TeamSummary[];
+  totalMemories: number;
+  selectTeam: (teamId: string) => void;
+}
+
+export default function MemoriesPanel({
+  summaries,
+  totalMemories,
+  selectTeam,
+}: MemoriesPanelProps) {
   if (totalMemories === 0) {
     return (
       <div className={styles.vizPanel} role="tabpanel" id="panel-memories">
@@ -30,7 +47,7 @@ export default function MemoriesPanel({ summaries, totalMemories, selectTeam }) 
                   key={team.team_id}
                   type="button"
                   className={styles.tableRow}
-                  style={{ '--row-index': i }}
+                  style={{ '--row-index': i } as React.CSSProperties}
                   onClick={() => selectTeam(team.team_id)}
                 >
                   <span className={styles.tdLeft}>

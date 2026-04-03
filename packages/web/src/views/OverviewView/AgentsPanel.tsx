@@ -2,7 +2,18 @@ import { getToolMeta } from '../../lib/toolMeta.js';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
 import styles from './OverviewView.module.css';
 
-export default function AgentsPanel({ agentRows }) {
+interface AgentRow {
+  tool: string;
+  teamName: string;
+  teamId: string;
+  joins: number;
+}
+
+interface AgentsPanelProps {
+  agentRows: AgentRow[];
+}
+
+export default function AgentsPanel({ agentRows }: AgentsPanelProps) {
   return (
     <div className={styles.vizPanel} role="tabpanel" id="panel-agents">
       {agentRows.length > 0 ? (
@@ -19,7 +30,7 @@ export default function AgentsPanel({ agentRows }) {
                 <div
                   key={`${agent.teamId}-${agent.tool}-${i}`}
                   className={styles.tableRow}
-                  style={{ '--row-index': i }}
+                  style={{ '--row-index': i } as React.CSSProperties}
                 >
                   <span className={styles.tdLeft}>
                     <span className={styles.toolDot} style={{ background: meta.color }} />

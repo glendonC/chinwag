@@ -1,7 +1,18 @@
+import type { Session } from '../../lib/apiSchemas.js';
 import SessionRow from '../../components/SessionRow/SessionRow.jsx';
 import EmptyState from '../../components/EmptyState/EmptyState.jsx';
 import SummaryStat from './SummaryStat.jsx';
 import styles from './ProjectView.module.css';
+
+type SessionWithId = Session & { id?: string };
+
+interface ProjectSessionsTabProps {
+  sessions: SessionWithId[];
+  sessionEditCount: number;
+  filesTouched: string[];
+  filesTouchedCount: number;
+  liveSessionCount: number;
+}
 
 export default function ProjectSessionsTab({
   sessions,
@@ -9,7 +20,7 @@ export default function ProjectSessionsTab({
   filesTouched,
   filesTouchedCount,
   liveSessionCount,
-}) {
+}: ProjectSessionsTabProps) {
   const hasFiles = filesTouched.length > 0;
 
   if (sessions.length === 0) {

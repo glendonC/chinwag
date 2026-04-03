@@ -1,3 +1,4 @@
+import type { Member, Lock, Session } from '../../lib/apiSchemas.js';
 import ConflictBanner from '../../components/ConflictBanner/ConflictBanner.jsx';
 import AgentRow from '../../components/AgentRow/AgentRow.jsx';
 import LockRow from '../../components/LockRow/LockRow.jsx';
@@ -6,7 +7,26 @@ import EmptyState from '../../components/EmptyState/EmptyState.jsx';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
 import { formatShare } from '../../lib/toolAnalytics.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
+import type { ToolMixEntry } from '../../lib/toolAnalytics.js';
 import styles from './ProjectView.module.css';
+
+interface FileConflict {
+  file: string;
+  owners?: string[];
+  agents?: string[];
+}
+
+type SessionWithId = Session & { id?: string };
+
+interface ProjectLiveTabProps {
+  sortedAgents: (Member & { session_minutes?: number | null })[];
+  offlineAgents: (Member & { session_minutes?: number | null })[];
+  conflicts: FileConflict[];
+  filesInPlay: string[];
+  locks: Lock[];
+  liveToolMix: ToolMixEntry[];
+  sessions?: SessionWithId[];
+}
 
 export default function ProjectLiveTab({
   sortedAgents,
@@ -16,7 +36,7 @@ export default function ProjectLiveTab({
   locks,
   liveToolMix,
   sessions = [],
-}) {
+}: ProjectLiveTabProps) {
   const hasAgents = sortedAgents.length > 0;
   const hasFiles = filesInPlay.length > 0;
   const hasLocks = locks.length > 0;

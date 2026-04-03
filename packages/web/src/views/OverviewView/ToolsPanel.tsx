@@ -1,8 +1,37 @@
 import { getToolMeta } from '../../lib/toolMeta.js';
 import { summarizeList } from '../../lib/summarize.js';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
-import { arcPath, CX, CY, R, SW } from './useOverviewData.js';
+import { arcPath, CX, CY, R, SW, type ArcEntry } from './useOverviewData.js';
+import type { JoinShareEntry } from '../../lib/toolAnalytics.js';
 import styles from './OverviewView.module.css';
+
+interface ToolUsageEntry {
+  tool: string;
+  joins: number;
+  share: number;
+}
+
+interface HostConfigured {
+  host_tool?: string;
+  joins: number;
+  [key: string]: unknown;
+}
+
+interface TeamSummary {
+  team_id: string;
+  team_name?: string;
+  hosts_configured?: HostConfigured[];
+  [key: string]: unknown;
+}
+
+interface ToolsPanelProps {
+  arcs: ArcEntry[];
+  toolUsage: ToolUsageEntry[];
+  uniqueTools: number;
+  hostShare: JoinShareEntry[];
+  surfaceShare: JoinShareEntry[];
+  summaries: TeamSummary[];
+}
 
 export default function ToolsPanel({
   arcs,
@@ -11,7 +40,7 @@ export default function ToolsPanel({
   hostShare,
   surfaceShare,
   summaries,
-}) {
+}: ToolsPanelProps) {
   if (arcs.length === 0) {
     return (
       <div className={styles.vizPanel} role="tabpanel" id="panel-tools">
@@ -129,16 +158,16 @@ export default function ToolsPanel({
               {hostShare.length > 0 ? (
                 <div className={styles.signalList}>
                   {hostShare.map((entry) => {
-                    const meta = getToolMeta(entry.host_tool);
+                    const meta = getToolMeta(entry.host_tool as string);
                     return (
                       <div key={`host:${entry.host_tool}`} className={styles.signalRow}>
                         <span className={styles.signalIdentity}>
-                          <ToolIcon tool={entry.host_tool} size={16} />
+                          <ToolIcon tool={entry.host_tool as string} size={16} />
                           {meta.label}
                         </span>
                         <span className={styles.signalValue}>{Math.round(entry.share * 100)}%</span>
                         <span className={styles.signalProjects}>
-                          {summarizeList(entry.projects)}
+                          {summarizeList(entry.projects as string[])}
                         </span>
                       </div>
                     );
@@ -157,16 +186,16 @@ export default function ToolsPanel({
               {surfaceShare.length > 0 ? (
                 <div className={styles.signalList}>
                   {surfaceShare.map((entry) => {
-                    const meta = getToolMeta(entry.agent_surface);
+                    const meta = getToolMeta(entry.agent_surface as string);
                     return (
                       <div key={`surface:${entry.agent_surface}`} className={styles.signalRow}>
                         <span className={styles.signalIdentity}>
-                          <ToolIcon tool={entry.agent_surface} size={16} />
+                          <ToolIcon tool={entry.agent_surface as string} size={16} />
                           {meta.label}
                         </span>
                         <span className={styles.signalValue}>{Math.round(entry.share * 100)}%</span>
                         <span className={styles.signalProjects}>
-                          {summarizeList(entry.projects)}
+                          {summarizeList(entry.projects as string[])}
                         </span>
                       </div>
                     );

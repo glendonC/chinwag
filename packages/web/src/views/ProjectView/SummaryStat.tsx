@@ -1,6 +1,11 @@
 import styles from './ProjectView.module.css';
 
-export default function SummaryStat({ label, value }) {
+interface SummaryStatProps {
+  label: string;
+  value: number | string;
+}
+
+export default function SummaryStat({ label, value }: SummaryStatProps) {
   return (
     <div className={styles.summaryItem}>
       <span className={styles.summaryValue}>{value}</span>

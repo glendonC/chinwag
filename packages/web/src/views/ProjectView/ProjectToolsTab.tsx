@@ -5,6 +5,59 @@ import { getToolMeta } from '../../lib/toolMeta.js';
 import SummaryStat from './SummaryStat.jsx';
 import styles from './ProjectView.module.css';
 
+interface ToolSummary {
+  tool: string;
+  live: number;
+  joins: number;
+  share: number;
+}
+
+interface HostSummary {
+  host_tool: string;
+  live: number;
+  joins: number;
+  share: number;
+}
+
+interface SurfaceSummary {
+  agent_surface: string;
+  live: number;
+  joins: number;
+  share: number;
+}
+
+interface ModelSeen {
+  agent_model: string;
+  count: number;
+}
+
+interface FileConflict {
+  file: string;
+  owners: string[];
+}
+
+interface LockEntry {
+  file_path: string;
+  [key: string]: unknown;
+}
+
+interface UsageEntry {
+  id: string;
+  label: string;
+  value: number;
+}
+
+interface ProjectToolsTabProps {
+  toolSummaries: ToolSummary[];
+  hostSummaries: HostSummary[];
+  surfaceSummaries: SurfaceSummary[];
+  modelsSeen: ModelSeen[];
+  conflicts: FileConflict[];
+  filesInPlay: string[];
+  locks: LockEntry[];
+  usageEntries: UsageEntry[];
+}
+
 export default function ProjectToolsTab({
   toolSummaries,
   hostSummaries,
@@ -14,7 +67,7 @@ export default function ProjectToolsTab({
   filesInPlay,
   locks,
   usageEntries,
-}) {
+}: ProjectToolsTabProps) {
   const hasUsage = usageEntries.length > 0;
 
   if (toolSummaries.length === 0) {

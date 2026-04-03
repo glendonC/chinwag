@@ -1,6 +1,30 @@
+import { type ChangeEvent } from 'react';
 import { getToolMeta } from '../../lib/toolMeta.js';
 import { projectGradient } from '../../lib/projectGradient.js';
 import styles from './OverviewView.module.css';
+
+interface HostConfigured {
+  host_tool?: string;
+  joins: number;
+  [key: string]: unknown;
+}
+
+interface TeamSummary {
+  team_id: string;
+  team_name?: string;
+  active_agents?: number;
+  memory_count?: number;
+  hosts_configured?: HostConfigured[];
+  [key: string]: unknown;
+}
+
+interface ProjectsPanelProps {
+  summaries: TeamSummary[];
+  filteredProjects: TeamSummary[];
+  search: string;
+  setSearch: (value: string) => void;
+  selectTeam: (teamId: string) => void;
+}
 
 export default function ProjectsPanel({
   summaries,
@@ -8,14 +32,14 @@ export default function ProjectsPanel({
   search,
   setSearch,
   selectTeam,
-}) {
+}: ProjectsPanelProps) {
   return (
     <div className={styles.vizPanel} role="tabpanel" id="panel-projects">
       {summaries.length > 3 && (
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
           placeholder="Search projects"
           className={styles.searchInput}
         />
@@ -38,7 +62,7 @@ export default function ProjectsPanel({
                 key={team.team_id}
                 type="button"
                 className={styles.tableRow}
-                style={{ '--row-index': i }}
+                style={{ '--row-index': i } as React.CSSProperties}
                 onClick={() => selectTeam(team.team_id)}
               >
                 <span className={styles.tdLeft}>
