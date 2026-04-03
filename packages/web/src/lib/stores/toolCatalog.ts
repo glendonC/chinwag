@@ -2,20 +2,58 @@ import { createStore, useStore } from 'zustand';
 import { api } from '../api.js';
 import { authActions } from './auth.js';
 
+interface ToolDirectoryEvaluation {
+  id: string;
+  name: string;
+  category?: string;
+  verdict?: string;
+  tagline?: string;
+  integration_tier?: string;
+  mcp_support?: boolean | string;
+  metadata?: Record<string, unknown>;
+}
+
+interface CatalogItem {
+  id: string;
+  name: string;
+  category?: string;
+  description: string;
+  featured: boolean;
+  installCmd: string | null;
+  mcp_support?: boolean | string;
+}
+
+interface ToolDirectoryResponse {
+  evaluations?: ToolDirectoryEvaluation[];
+  categories?: Record<string, string>;
+}
+
 /** Map a directory evaluation to the catalog display shape used by ToolsView. */
-function evaluationToCatalogItem(ev) {
+function evaluationToCatalogItem(ev: ToolDirectoryEvaluation): CatalogItem {
   return {
     id: ev.id,
     name: ev.name,
     category: ev.category,
     description: ev.tagline || '',
     featured: ev.integration_tier === 'connected',
-    installCmd: ev.metadata?.install_command || null,
+    installCmd: (ev.metadata?.install_command as string | null) || null,
     mcp_support: ev.mcp_support,
   };
 }
 
-const toolCatalogStore = createStore(() => ({
+interface ToolCatalogState {
+  catalog: CatalogItem[];
+  categories: Record<string, string>;
+  evaluations: ToolDirectoryEvaluation[];
+  loading: boolean;
+  error: Error | null;
+  /** Token that produced the current cache — invalidates on auth change */
+  _cachedForToken: string | null;
+  /** In-flight promise deduplication */
+  _inflight: Promise<void> | null;
+}
+
+const toolCatalogStore = createStore<ToolCatalogState>(() => ({
   catalog: [],
   categories: {},
   evaluations: [],
@@ -31,7 +69,7 @@ const toolCatalogStore = createStore(() => ({
  * Fetch the tool catalog, deduplicating concurrent requests.
  * Skips if the cache was already populated for the current token.
  */
-async function fetchCatalog(token) {
+async function fetchCatalog(token: string): Promise<void> {
   const state = toolCatalogStore.getState();
 
   // Cache is valid for this token — nothing to do
@@ -60,7 +98,7 @@ async function fetchCatalog(token) {
     return;
   }
 
-  const request = api('GET', '/tools/directory?limit=200', null, token)
+  const request = api<ToolDirectoryResponse>('GET', '/tools/directory?limit=200', null, token)
     .then((data) => {
       const evaluations = data.evaluations || [];
       const categories = data.categories || {};
@@ -75,7 +113,7 @@ async function fetchCatalog(token) {
         _inflight: null,
       });
     })
-    .catch((error) => {
+    .catch((error: Error) => {
       toolCatalogStore.setState({
         catalog: [],
         categories: {},
@@ -92,7 +130,7 @@ async function fetchCatalog(token) {
 }
 
 /** Reset all catalog state (call on logout to prevent stale data on re-login). */
-function resetCatalogState() {
+function resetCatalogState(): void {
   toolCatalogStore.setState({
     catalog: [],
     categories: {},
@@ -112,13 +150,13 @@ authActions.subscribe((state, prev) => {
 });
 
 /** React hook — use inside components */
-export function useToolCatalogStore(selector) {
+export function useToolCatalogStore<T>(selector: (state: ToolCatalogState) => T): T {
   return useStore(toolCatalogStore, selector);
 }
 
 /** Direct access — use outside components and in tests */
 export const toolCatalogActions = {
-  getState: () => toolCatalogStore.getState(),
+  getState: (): ToolCatalogState => toolCatalogStore.getState(),
   fetchCatalog,
   resetCatalogState,
   subscribe: toolCatalogStore.subscribe,

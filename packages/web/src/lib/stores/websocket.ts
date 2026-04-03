@@ -5,9 +5,9 @@ import { authActions } from './auth.js';
 import { teamActions } from './teams.js';
 import { setWsConnected } from './refresh.js';
 
-let activeWs = null;
-let reconcileTimer = null;
-let reconcileDelay = RECONCILE_INITIAL_MS;
+let activeWs: WebSocket | null = null;
+let reconcileTimer: ReturnType<typeof setTimeout> | null = null;
+let reconcileDelay: number = RECONCILE_INITIAL_MS;
 let reconcileInFlight = false;
 /** Monotonic generation counter — prevents stale onclose handlers from
  *  restarting polling after a newer connection has replaced them. */
@@ -17,7 +17,15 @@ let wsGeneration = 0;
  * Callbacks into the polling module.
  * Set via `setPollingBridge` to avoid circular imports.
  */
-let pollingBridge = {
+export interface PollingBridge {
+  setState: (...args: unknown[]) => void;
+  getState: () => unknown;
+  stopPollTimer: () => void;
+  restartPolling: () => void;
+  poll: () => Promise<void> | void;
+}
+
+let pollingBridge: PollingBridge = {
   setState: () => {},
   getState: () => ({}),
   stopPollTimer: () => {},
@@ -26,12 +34,12 @@ let pollingBridge = {
 };
 
 /** Called by the polling module to wire up cross-store coordination. */
-export function setPollingBridge(bridge) {
+export function setPollingBridge(bridge: PollingBridge): void {
   pollingBridge = bridge;
 }
 
 /** Close any active WebSocket and its reconciliation timer. */
-export function closeWebSocket() {
+export function closeWebSocket(): void {
   if (reconcileTimer) {
     clearTimeout(reconcileTimer);
     reconcileTimer = null;
@@ -51,11 +59,15 @@ export function closeWebSocket() {
   }
 }
 
+interface WsTicketResponse {
+  ticket: string;
+}
+
 /**
  * Attempt a WebSocket connection for project (single-team) view.
  * Falls back to polling if WebSocket fails.
  */
-export async function connectTeamWebSocket(teamId) {
+export async function connectTeamWebSocket(teamId: string): Promise<void> {
   const { token } = authActions.getState();
   if (!token || !teamId) return;
 
@@ -67,9 +79,9 @@ export async function connectTeamWebSocket(teamId) {
   const gen = ++wsGeneration;
 
   // Fetch a short-lived ticket — keeps the real token out of the WS URL
-  let ticket;
+  let ticket: string;
   try {
-    const data = await api('POST', '/auth/ws-ticket', null, token);
+    const data = await api<WsTicketResponse>('POST', '/auth/ws-ticket', null, token);
     ticket = data.ticket;
   } catch {
     return; // polling continues as fallback
@@ -89,7 +101,7 @@ export async function connectTeamWebSocket(teamId) {
   const wsUrl = `${wsBase}/teams/${teamId}/ws?agentId=${encodeURIComponent(agentId)}&ticket=${encodeURIComponent(ticket)}`;
 
   /** Schedule the next reconciliation poll with exponential backoff. */
-  function scheduleReconcile(expectedGen) {
+  function scheduleReconcile(expectedGen: number): void {
     reconcileTimer = setTimeout(async () => {
       if (wsGeneration !== expectedGen) return;
       if (reconcileInFlight) return; // previous reconcile still running
@@ -129,7 +141,7 @@ export async function connectTeamWebSocket(teamId) {
       scheduleReconcile(gen);
     };
 
-    ws.onmessage = (evt) => {
+    ws.onmessage = (evt: MessageEvent) => {
       if (wsGeneration !== gen) return;
       if (teamActions.getState().activeTeamId !== teamId) return;
       // Reset reconciliation backoff — fresh data means less need to poll soon,
@@ -141,7 +153,7 @@ export async function connectTeamWebSocket(teamId) {
       }
       scheduleReconcile(gen);
       try {
-        const event = JSON.parse(evt.data);
+        const event = JSON.parse(evt.data as string) as Record<string, unknown>;
         if (event.type === 'context') {
           pollingBridge.setState({
             contextData: event.data,
@@ -152,16 +164,16 @@ export async function connectTeamWebSocket(teamId) {
             lastUpdate: new Date(),
           });
         } else {
-          pollingBridge.setState((state) => {
+          pollingBridge.setState((state: Record<string, unknown>) => {
             if (state.contextTeamId !== teamId || !state.contextData) return state;
             return {
-              contextData: applyDelta(state.contextData, event),
+              contextData: applyDelta(state.contextData as Parameters<typeof applyDelta>[0], event),
               lastUpdate: new Date(),
             };
           });
         }
       } catch (e) {
-        console.warn('[chinwag] Malformed WS event:', e.message);
+        console.warn('[chinwag] Malformed WS event:', (e as Error).message);
       }
     };
 
@@ -201,6 +213,6 @@ authActions.subscribe((state, prev) => {
 });
 
 /** Returns true if a WebSocket is currently open or connecting. */
-export function hasActiveWebSocket() {
+export function hasActiveWebSocket(): boolean {
   return activeWs !== null;
 }

@@ -1,10 +1,15 @@
-export function formatDuration(m) {
+export interface ColorEntry {
+  name: string;
+  hex: string;
+}
+
+export function formatDuration(m: number | null | undefined): string {
   if (m == null || typeof m !== 'number' || m <= 0) return '<1m';
   if (m >= 60) return `${Math.floor(m / 60)}h ${Math.round(m % 60)}m`;
   return `${Math.round(m)}m`;
 }
 
-export const COLOR_PALETTE = [
+export const COLOR_PALETTE: ColorEntry[] = [
   { name: 'red', hex: '#ff3b30' },
   { name: 'cyan', hex: '#32ced6' },
   { name: 'yellow', hex: '#ffc600' },
@@ -19,6 +24,6 @@ export const COLOR_PALETTE = [
   { name: 'white', hex: '#98989d' },
 ];
 
-export function getColorHex(name) {
-  return COLOR_PALETTE.find(c => c.name === name)?.hex;
+export function getColorHex(name: string): string | undefined {
+  return COLOR_PALETTE.find((c) => c.name === name)?.hex;
 }

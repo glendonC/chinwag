@@ -173,6 +173,23 @@ const toolDirectoryEvaluationSchema = z
   })
   .passthrough();
 
+// ── Inferred types from schemas ────────────────────
+
+export type HostMetric = z.infer<typeof hostMetricSchema>;
+export type SurfaceMetric = z.infer<typeof surfaceMetricSchema>;
+export type ModelMetric = z.infer<typeof modelMetricSchema>;
+export type Member = z.infer<typeof memberSchema>;
+export type Memory = z.infer<typeof memorySchema>;
+export type Lock = z.infer<typeof lockSchema>;
+export type Message = z.infer<typeof messageSchema>;
+export type Session = z.infer<typeof sessionSchema>;
+export type Conflict = z.infer<typeof conflictSchema>;
+export type Team = z.infer<typeof teamSchema>;
+export type User = z.infer<typeof userSchema>;
+export type WsTicket = z.infer<typeof wsTicketSchema>;
+export type ToolCatalogEntry = z.infer<typeof toolCatalogEntrySchema>;
+export type ToolDirectoryEvaluation = z.infer<typeof toolDirectoryEvaluationSchema>;
+
 // ── Team context response ───────────────────────────
 
 export const teamContextSchema = z
@@ -195,6 +212,8 @@ export const teamContextSchema = z
     recentSessions: context.recentSessions.length > 0 ? context.recentSessions : context.sessions,
   }));
 
+export type TeamContext = z.infer<typeof teamContextSchema>;
+
 // ── Dashboard summary response ──────────────────────
 
 const teamSummarySchema = z
@@ -214,6 +233,8 @@ const teamSummarySchema = z
   })
   .passthrough();
 
+export type TeamSummary = z.infer<typeof teamSummarySchema>;
+
 export const dashboardSummarySchema = z
   .object({
     teams: z.array(teamSummarySchema).default([]),
@@ -223,14 +244,21 @@ export const dashboardSummarySchema = z
   })
   .passthrough();
 
+export type DashboardSummary = z.infer<typeof dashboardSummarySchema>;
+
 export const userTeamsSchema = z
   .object({
     teams: z.array(teamSchema).default([]),
   })
   .passthrough();
 
+export type UserTeams = z.infer<typeof userTeamsSchema>;
+
 export const userProfileSchema = userSchema;
+export type UserProfile = z.infer<typeof userProfileSchema>;
+
 export const webSocketTicketSchema = wsTicketSchema;
+export type WebSocketTicket = z.infer<typeof webSocketTicketSchema>;
 
 export const toolCatalogSchema = z
   .object({
@@ -239,6 +267,8 @@ export const toolCatalogSchema = z
   })
   .passthrough();
 
+export type ToolCatalog = z.infer<typeof toolCatalogSchema>;
+
 export const toolDirectorySchema = z
   .object({
     evaluations: z.array(toolDirectoryEvaluationSchema).default([]),
@@ -246,7 +276,9 @@ export const toolDirectorySchema = z
   })
   .passthrough();
 
-export function createEmptyTeamContext() {
+export type ToolDirectory = z.infer<typeof toolDirectorySchema>;
+
+export function createEmptyTeamContext(): TeamContext {
   return {
     members: [],
     memories: [],
@@ -262,7 +294,7 @@ export function createEmptyTeamContext() {
   };
 }
 
-export function createEmptyDashboardSummary() {
+export function createEmptyDashboardSummary(): DashboardSummary {
   return {
     teams: [],
     degraded: true,
@@ -271,31 +303,35 @@ export function createEmptyDashboardSummary() {
   };
 }
 
-export function createEmptyUserTeams() {
+export function createEmptyUserTeams(): UserTeams {
   return { teams: [] };
 }
 
-export function createEmptyToolCatalog() {
+export function createEmptyToolCatalog(): ToolCatalog {
   return { tools: [], categories: {} };
 }
 
-export function createEmptyToolDirectory() {
+export function createEmptyToolDirectory(): ToolDirectory {
   return { evaluations: [], categories: {} };
 }
 
 // ── Safe parse wrapper ──────────────────────────────
 
+interface ValidateOptions<F> {
+  fallback?: F | (() => F);
+  throwOnError?: boolean;
+}
+
 /**
  * Validate an API response against a schema. On success, returns the parsed
  * data. On failure, either throws or returns a caller-provided safe fallback.
- *
- * @param {z.ZodSchema} schema
- * @param {*} data - Raw API response
- * @param {string} label - For log identification
- * @param {{ fallback?: *, throwOnError?: boolean }} [options]
- * @returns {*} Parsed data or safe fallback
  */
-export function validateResponse(schema, data, label, options = {}) {
+export function validateResponse<T, F = undefined>(
+  schema: z.ZodSchema<T>,
+  data: unknown,
+  label: string,
+  options: ValidateOptions<F> = {},
+): T | F {
   const result = schema.safeParse(data);
   if (result.success) return result.data;
 
@@ -305,9 +341,11 @@ export function validateResponse(schema, data, label, options = {}) {
   if (options.throwOnError) {
     const error = new Error(`Invalid API response (${label})`);
     error.name = 'SchemaValidationError';
-    error.details = detail;
+    (error as Error & { details: string }).details = detail;
     throw error;
   }
 
-  return typeof options.fallback === 'function' ? options.fallback() : options.fallback;
+  return typeof options.fallback === 'function'
+    ? (options.fallback as () => F)()
+    : (options.fallback as F);
 }

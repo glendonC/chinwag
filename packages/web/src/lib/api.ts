@@ -3,27 +3,31 @@
 
 import { createJsonApiClient, DEFAULT_API_URL } from '@chinwag/shared/api-client.js';
 
-export function getApiUrl() {
+export function getApiUrl(): string {
   return import.meta.env.VITE_CHINWAG_API_URL || DEFAULT_API_URL;
+}
+
+interface ApiOptions {
+  signal?: AbortSignal;
 }
 
 /**
  * Make an authenticated API request.
- * @param {string} method - HTTP method
- * @param {string} path - API path (e.g. '/me')
- * @param {object|null} body - JSON body
- * @param {string|null} authToken - Bearer token
- * @param {{ signal?: AbortSignal }} [options] - Optional fetch options
- * @returns {Promise<object>} parsed JSON response
  */
-export async function api(method, path, body = null, authToken = null, options = {}) {
+export async function api<T = unknown>(
+  method: string,
+  path: string,
+  body: unknown = null,
+  authToken: string | null = null,
+  options: ApiOptions = {},
+): Promise<T> {
   return createJsonApiClient({
     baseUrl: getApiUrl(),
     authToken,
     timeoutMs: 15_000,
     signal: options.signal,
     parseErrorMessage: ({ status }) => `HTTP ${status} (server error)`,
-    httpErrorMessage: ({ status, data }) => data?.error || `HTTP ${status}`,
+    httpErrorMessage: ({ status, data }) => (data as { error?: string })?.error || `HTTP ${status}`,
     timeoutErrorMessage: () => 'Request timed out',
-  }).request(method, path, body);
+  } as Parameters<typeof createJsonApiClient>[0]).request<T>(method, path, body);
 }

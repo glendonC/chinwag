@@ -1,4 +1,4 @@
-export function formatRelativeTime(dateInput) {
+export function formatRelativeTime(dateInput: Date | string | null | undefined): string | null {
   if (!dateInput) return null;
 
   const date = dateInput instanceof Date ? dateInput : new Date(dateInput);

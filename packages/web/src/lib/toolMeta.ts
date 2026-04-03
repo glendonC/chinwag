@@ -2,7 +2,22 @@
 // Icons use SVGs from /assets/ rendered as CSS masks with brand colors.
 // Tools without SVGs get a colored letter fallback.
 
-const TOOL_META = {
+export interface ToolMetaEntry {
+  label: string;
+  icon: string | null;
+  color: string;
+}
+
+export interface ResolvedToolMeta extends ToolMetaEntry {
+  id: string;
+}
+
+interface PartialMatch {
+  substring: string;
+  key: string;
+}
+
+const TOOL_META: Record<string, ToolMetaEntry> = {
   // Tools with SVG icons
   claude: { label: 'Claude Code', icon: '/assets/claude-code.svg', color: '#d9773c' },
   cursor: { label: 'Cursor', icon: '/assets/cursor.svg', color: '#111111' },
@@ -51,7 +66,7 @@ const TOOL_META = {
 };
 
 // Normalize tool IDs for matching (strip spaces, dashes, underscores, lowercase)
-export function normalizeToolId(toolId) {
+export function normalizeToolId(toolId: string | null | undefined): string {
   return String(toolId || '')
     .trim()
     .toLowerCase()
@@ -60,7 +75,7 @@ export function normalizeToolId(toolId) {
 }
 
 // Aliases: map various ID forms to canonical TOOL_META keys
-const ALIASES = {
+const ALIASES: Record<string, string> = {
   claudecode: 'claude',
   amazonqdeveloper: 'amazonq',
   visualstudiocode: 'vscode',
@@ -83,10 +98,10 @@ const ALIASES = {
 };
 
 // Explicit ordered partial matches for tools whose real-world IDs include
-// the canonical key with extra suffixes (e.g. "jetbrainsaiassistant" → "jetbrains").
+// the canonical key with extra suffixes (e.g. "jetbrainsaiassistant" -> "jetbrains").
 // Checked in order — put longer substrings first to avoid ambiguous matches.
 // Only add entries here when an alias can't cover the variant.
-const PARTIAL_MATCHES = [
+const PARTIAL_MATCHES: PartialMatch[] = [
   { substring: 'jetbrains', key: 'jetbrains' },
   { substring: 'amazonq', key: 'amazonq' },
   { substring: 'windsurf', key: 'windsurf' },
@@ -117,7 +132,7 @@ if (import.meta.env?.DEV) {
   }
 }
 
-export function getToolMeta(toolId) {
+export function getToolMeta(toolId: string | null | undefined): ResolvedToolMeta {
   const normalized = normalizeToolId(toolId);
 
   // Check aliases first

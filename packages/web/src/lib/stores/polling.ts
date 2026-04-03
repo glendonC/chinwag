@@ -6,30 +6,50 @@ import { teamActions } from './teams.js';
 import { requestRefresh, setRefreshHandler } from './refresh.js';
 import { closeWebSocket, connectTeamWebSocket, setPollingBridge } from './websocket.js';
 
+type DataStatus = 'idle' | 'loading' | 'ready' | 'stale' | 'error';
+
+interface PollingState {
+  dashboardData: unknown;
+  dashboardStatus: DataStatus;
+  contextData: unknown;
+  contextStatus: DataStatus;
+  contextTeamId: string | null;
+  pollError: string | null;
+  pollErrorData: unknown;
+  lastUpdate: Date | null;
+}
+
 /**
  * Internal mutable state for the polling subsystem.
  * Encapsulated in a single object so it's easy to reset and test.
  * `pollingBridge` is intentionally kept separate — it's a cross-module
  * callback interface, not internal polling state.
  */
-function createPollingState() {
+interface InternalPollingState {
+  /** setInterval ID for the poll timer. */
+  pollTimer: ReturnType<typeof setInterval> | null;
+  /** API failure counter — triggers slow mode at 3+. */
+  consecutiveFailures: number;
+  /** Incremented on every WebSocket state update. If a poll started before
+   *  a WS update and finishes after, the poll result is stale — skip it. */
+  dataVersion: number;
+  /** AbortController for the current poll cycle. Aborted on new polls,
+   *  team switches, stop, and logout so stale fetches never land. */
+  pollAbortController: AbortController | null;
+}
+
+function createPollingState(): InternalPollingState {
   return {
-    /** setInterval ID for the poll timer. */
     pollTimer: null,
-    /** API failure counter — triggers slow mode at 3+. */
     consecutiveFailures: 0,
-    /** Incremented on every WebSocket state update. If a poll started before
-     *  a WS update and finishes after, the poll result is stale — skip it. */
     dataVersion: 0,
-    /** AbortController for the current poll cycle. Aborted on new polls,
-     *  team switches, stop, and logout so stale fetches never land. */
     pollAbortController: null,
   };
 }
 
 const pollState = createPollingState();
 
-const pollingStore = createStore((set, get) => ({
+const pollingStore = createStore<PollingState>(() => ({
   dashboardData: null,
   dashboardStatus: 'idle',
   contextData: null,
@@ -43,9 +63,9 @@ const pollingStore = createStore((set, get) => ({
 // Wire up the bridge so the WebSocket module can update polling state
 // without a circular import.
 setPollingBridge({
-  setState: (...args) => {
+  setState: (...args: unknown[]) => {
     pollState.dataVersion++;
-    pollingStore.setState(...args);
+    (pollingStore.setState as (...a: unknown[]) => void)(...args);
   },
   getState: pollingStore.getState,
   stopPollTimer() {
@@ -59,14 +79,24 @@ setPollingBridge({
 });
 
 /** Abort the current poll controller (if any) and return a fresh signal. */
-function resetAbortController() {
+function resetAbortController(): AbortSignal {
   if (pollState.pollAbortController) pollState.pollAbortController.abort();
   pollState.pollAbortController = new AbortController();
   return pollState.pollAbortController.signal;
 }
 
+interface ApiError extends Error {
+  status?: number;
+  data?: { error?: string; failed_teams?: unknown[] };
+}
+
+interface DashboardResponse {
+  failed_teams?: unknown[];
+  [key: string]: unknown;
+}
+
 /** Single poll cycle. */
-async function poll() {
+async function poll(): Promise<void> {
   const snapshotTeamId = teamActions.getState().activeTeamId;
   const { token } = authActions.getState();
   if (!token) return;
@@ -78,11 +108,11 @@ async function poll() {
       pollingStore.setState((state) => ({
         contextData: null,
         contextTeamId: null,
-        contextStatus: 'idle',
-        dashboardStatus: state.dashboardData ? state.dashboardStatus : 'loading',
+        contextStatus: 'idle' as DataStatus,
+        dashboardStatus: state.dashboardData ? state.dashboardStatus : ('loading' as DataStatus),
       }));
-      const data = await api('GET', '/me/dashboard', null, token, { signal });
-      if (data.failed_teams?.length > 0) {
+      const data = await api<DashboardResponse>('GET', '/me/dashboard', null, token, { signal });
+      if (data.failed_teams?.length && (data.failed_teams.length as number) > 0) {
         await teamActions.loadTeams();
       }
       if (teamActions.getState().activeTeamId !== null) return;
@@ -99,9 +129,11 @@ async function poll() {
         const sameTeam = state.contextTeamId === snapshotTeamId;
         return {
           dashboardData: null,
-          dashboardStatus: 'idle',
+          dashboardStatus: 'idle' as DataStatus,
           contextData: sameTeam ? state.contextData : null,
-          contextStatus: sameTeam && state.contextData ? state.contextStatus : 'loading',
+          contextStatus: (sameTeam && state.contextData
+            ? state.contextStatus
+            : 'loading') as DataStatus,
           contextTeamId: snapshotTeamId,
         };
       });
@@ -127,27 +159,31 @@ async function poll() {
     }
   } catch (err) {
     // Aborted requests are not failures — silently discard them.
-    if (err?.name === 'AbortError') return;
+    if ((err as Error)?.name === 'AbortError') return;
 
-    if (err.status === 401) {
+    if ((err as ApiError).status === 401) {
       authActions.logout();
       stopPolling();
       return;
     }
     if (teamActions.getState().activeTeamId !== snapshotTeamId) return;
-    if (snapshotTeamId === null && err?.data?.failed_teams?.length > 0) {
+    if (
+      snapshotTeamId === null &&
+      (err as ApiError)?.data?.failed_teams?.length &&
+      ((err as ApiError).data!.failed_teams!.length as number) > 0
+    ) {
       await teamActions.loadTeams();
     }
     pollState.consecutiveFailures++;
     const pollError = formatError(err);
-    const pollErrorData = err?.data || null;
+    const pollErrorData = (err as ApiError)?.data || null;
     if (snapshotTeamId === null) {
       pollingStore.setState((state) => ({
         pollError,
         pollErrorData,
-        dashboardStatus: state.dashboardData ? 'stale' : 'error',
+        dashboardStatus: (state.dashboardData ? 'stale' : 'error') as DataStatus,
         contextData: null,
-        contextStatus: 'idle',
+        contextStatus: 'idle' as DataStatus,
         contextTeamId: null,
       }));
     } else {
@@ -157,8 +193,8 @@ async function poll() {
           pollError,
           pollErrorData,
           dashboardData: null,
-          dashboardStatus: 'idle',
-          contextStatus: hasSnapshot ? 'stale' : 'error',
+          dashboardStatus: 'idle' as DataStatus,
+          contextStatus: (hasSnapshot ? 'stale' : 'error') as DataStatus,
           contextTeamId: snapshotTeamId,
         };
       });
@@ -169,14 +205,14 @@ async function poll() {
 
 setRefreshHandler(poll);
 
-function restartPolling() {
+function restartPolling(): void {
   stopPollTimer();
   const delay = pollState.consecutiveFailures >= 3 ? SLOW_POLL_MS : POLL_MS;
   pollState.pollTimer = setInterval(poll, delay);
 }
 
 /** Stop only the HTTP poll timer (leaves WebSocket untouched). */
-function stopPollTimer() {
+function stopPollTimer(): void {
   if (pollState.pollAbortController) {
     pollState.pollAbortController.abort();
     pollState.pollAbortController = null;
@@ -187,18 +223,18 @@ function stopPollTimer() {
   }
 }
 
-function formatError(err) {
+function formatError(err: unknown): string {
   if (typeof err === 'string') return err;
-  const msg = err?.message || 'Something went wrong';
-  if (err?.status === 408) return 'Request timed out. Try again.';
-  if (msg.includes('Failed to fetch') || err?.name === 'TypeError') {
+  const msg = (err as Error)?.message || 'Something went wrong';
+  if ((err as ApiError)?.status === 408) return 'Request timed out. Try again.';
+  if (msg.includes('Failed to fetch') || (err as Error)?.name === 'TypeError') {
     return 'Cannot reach server. Check your connection.';
   }
   return msg;
 }
 
 /** Start polling. Attempts WebSocket for project view, falls back to polling. */
-export function startPolling() {
+export function startPolling(): void {
   stopPolling();
   poll(); // immediate first poll
 
@@ -216,13 +252,13 @@ export function startPolling() {
 }
 
 /** Stop polling and close WebSocket. */
-export function stopPolling() {
+export function stopPolling(): void {
   stopPollTimer();
   closeWebSocket();
 }
 
 /** Reset all polling state (call on logout to prevent stale data on re-login). */
-export function resetPollingState() {
+export function resetPollingState(): void {
   stopPolling();
   if (pollState.pollAbortController) {
     pollState.pollAbortController.abort();
@@ -253,17 +289,17 @@ if (typeof document !== 'undefined') {
 }
 
 /** Force an immediate poll cycle (use after mutations to refresh data). */
-export function forceRefresh() {
+export function forceRefresh(): void {
   requestRefresh();
 }
 
 /** React hook — use inside components */
-export function usePollingStore(selector) {
+export function usePollingStore<T>(selector: (state: PollingState) => T): T {
   return useStore(pollingStore, selector);
 }
 
 /** Direct access — use outside components and in tests */
 export const pollingActions = {
-  getState: () => pollingStore.getState(),
+  getState: (): PollingState => pollingStore.getState(),
   subscribe: pollingStore.subscribe,
 };

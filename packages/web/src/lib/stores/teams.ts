@@ -1,21 +1,31 @@
+import { z } from 'zod';
 import { createStore, useStore } from 'zustand';
 import { api } from '../api.js';
 import { createEmptyUserTeams, userTeamsSchema, validateResponse } from '../apiSchemas.js';
 import { authActions } from './auth.js';
 import { requestRefresh } from './refresh.js';
 
-/** Set of team IDs we've joined this session (for the /join call) */
-const joinedTeams = new Set();
-let joinedTeamsToken = null;
+type UserTeams = z.infer<typeof userTeamsSchema>;
+type Team = UserTeams['teams'][number];
 
-function syncJoinedTeamsCache(token) {
+/** Set of team IDs we've joined this session (for the /join call) */
+const joinedTeams = new Set<string>();
+let joinedTeamsToken: string | null = null;
+
+function syncJoinedTeamsCache(token: string | null): void {
   if (joinedTeamsToken !== token) {
     joinedTeams.clear();
     joinedTeamsToken = token;
   }
 }
 
-function formatTeamLoadError(err) {
+interface TeamLoadError {
+  status?: number;
+  message?: string;
+  name?: string;
+}
+
+function formatTeamLoadError(err: TeamLoadError | null | undefined): string {
   if (err?.status === 401) return 'Your session expired. Sign in again.';
   if (err?.status === 408) return 'Request timed out while loading projects.';
   if (err?.message?.includes('Failed to fetch') || err?.name === 'TypeError') {
@@ -24,7 +34,16 @@ function formatTeamLoadError(err) {
   return err?.message || 'Could not load projects.';
 }
 
-const teamStore = createStore((set) => ({
+interface TeamState {
+  teams: Team[];
+  activeTeamId: string | null;
+  teamsError: string | null;
+  loadTeams: () => Promise<void>;
+  selectTeam: (teamId: string | null) => void;
+  ensureJoined: (teamId: string) => Promise<void>;
+}
+
+const teamStore = createStore<TeamState>((set) => ({
   teams: [],
   activeTeamId: null,
   teamsError: null,
@@ -40,7 +59,7 @@ const teamStore = createStore((set) => ({
       const rawResult = await api('GET', '/me/teams', null, token);
       const result = validateResponse(userTeamsSchema, rawResult, 'me-teams', {
         fallback: createEmptyUserTeams(),
-      });
+      }) as UserTeams;
       const teamList = result.teams || [];
       set({
         teams: teamList,
@@ -51,13 +70,13 @@ const teamStore = createStore((set) => ({
       set({
         teams: [],
         activeTeamId: null,
-        teamsError: formatTeamLoadError(err),
+        teamsError: formatTeamLoadError(err as TeamLoadError),
       });
     }
   },
 
   /** Select a specific team (or null for overview). */
-  selectTeam(teamId) {
+  selectTeam(teamId: string | null) {
     set({ activeTeamId: teamId });
   },
 
@@ -65,7 +84,7 @@ const teamStore = createStore((set) => ({
    * Ensure we've joined a team (POST /teams/{id}/join).
    * Only calls once per session per team.
    */
-  async ensureJoined(teamId) {
+  async ensureJoined(teamId: string) {
     const { token } = authActions.getState();
     syncJoinedTeamsCache(token);
     if (joinedTeams.has(teamId)) return;
@@ -79,36 +98,36 @@ const teamStore = createStore((set) => ({
 }));
 
 /** React hook — use inside components */
-export function useTeamStore(selector) {
+export function useTeamStore<T>(selector: (state: TeamState) => T): T {
   return useStore(teamStore, selector);
 }
 
 /** Direct access — use outside components */
 export const teamActions = {
-  getState: () => teamStore.getState(),
-  loadTeams: () => teamStore.getState().loadTeams(),
-  selectTeam: (id) => teamStore.getState().selectTeam(id),
-  ensureJoined: (id) => teamStore.getState().ensureJoined(id),
+  getState: (): TeamState => teamStore.getState(),
+  loadTeams: (): Promise<void> => teamStore.getState().loadTeams(),
+  selectTeam: (id: string | null): void => teamStore.getState().selectTeam(id),
+  ensureJoined: (id: string): Promise<void> => teamStore.getState().ensureJoined(id),
   subscribe: teamStore.subscribe,
 
-  async updateMemory(teamId, id, text, tags) {
+  async updateMemory(teamId: string, id: string, text?: string, tags?: string[]): Promise<void> {
     const { token } = authActions.getState();
-    const body = { id };
+    const body: Record<string, unknown> = { id };
     if (text !== undefined) body.text = text;
     if (tags !== undefined) body.tags = tags;
     await api('PUT', `/teams/${teamId}/memory`, body, token);
     requestRefresh();
   },
 
-  async deleteMemory(teamId, id) {
+  async deleteMemory(teamId: string, id: string): Promise<void> {
     const { token } = authActions.getState();
     await api('DELETE', `/teams/${teamId}/memory`, { id }, token);
     requestRefresh();
   },
 
-  async sendMessage(teamId, text, target) {
+  async sendMessage(teamId: string, text: string, target?: string): Promise<void> {
     const { token } = authActions.getState();
-    const body = { text };
+    const body: Record<string, string> = { text };
     if (target) body.target = target;
     await api('POST', `/teams/${teamId}/messages`, body, token);
     requestRefresh();
