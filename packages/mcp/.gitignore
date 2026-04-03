@@ -1,0 +1,4 @@
+# Generated JS files from TypeScript compilation (source of truth is .ts)
+# These are built by `npm run build` and should not be committed.
+lib/**/*.js
+!lib/__tests__/**/*.js

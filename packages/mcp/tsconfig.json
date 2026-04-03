@@ -1,20 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "composite": true,
-    "lib": ["ES2024"],
-    "types": ["node", "vitest/globals"]
+    "rootDir": ".",
+    "outDir": "./dist",
+    "types": ["node"]
   },
-  "include": [
-    "./index.js",
-    "./hook.js",
-    "./channel.js",
-    "./index.ts",
-    "./hook.ts",
-    "./channel.ts",
-    "./lib/**/*.js",
-    "./lib/**/*.ts",
-    "./vitest.config.js"
-  ],
-  "exclude": ["./dist", "./node_modules"]
+  "include": ["lib/**/*.ts"],
+  "exclude": ["node_modules", "dist", "lib/__tests__"]
 }

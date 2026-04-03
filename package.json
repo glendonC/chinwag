@@ -5,10 +5,10 @@
   "workspaces": [
     "packages/cli",
     "packages/worker",
-    "packages/mcp",
-    "packages/shared"
+    "packages/mcp"
   ],
   "scripts": {
+    "build:vscode": "esbuild packages/vscode/extension.js --bundle --platform=node --format=cjs --outfile=packages/vscode/dist/extension.js --external:vscode",
     "dev:cli": "npm run dev --workspace=packages/cli",
     "dev:worker": "npm run dev --workspace=packages/worker",
     "deploy": "npm run deploy --workspace=packages/worker",
@@ -34,28 +34,25 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{js,jsx}": [
+    "*.{js,jsx,ts,tsx}": [
       "eslint --fix"
     ],
-    "*.{js,jsx,json,css,md}": [
+    "*.{js,jsx,ts,tsx,json,css,md}": [
       "prettier --write"
     ]
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.5.0",
-    "@commitlint/config-conventional": "^20.5.0",
     "@eslint/js": "^9.39.4",
-    "@typescript-eslint/eslint-plugin": "^8.58.0",
-    "@typescript-eslint/parser": "^8.58.0",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
     "@vitest/coverage-v8": "^4.1.2",
-    "commitlint": "^20.5.0",
     "eslint": "^9.39.4",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "prettier": "^3.8.1",
-    "typescript-eslint": "^8.58.0",
+    "typescript": "^6.0.2",
     "vitest": "^4.1.2"
   }
 }

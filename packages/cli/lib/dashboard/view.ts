@@ -1,17 +1,104 @@
 import { basename } from 'path';
-import { MAX_MEMORIES } from './constants.js';
 
-export { MAX_MEMORIES };
+export const MAX_MEMORIES = 8;
 
-export function createToolNameResolver(detectedTools) {
+// ── Shared types ───────────────────────────────────
+
+export interface DetectedTool {
+  id: string;
+  name: string;
+}
+
+export interface AgentActivity {
+  files: string[];
+  summary?: string;
+  updated_at?: string;
+}
+
+export interface TeamMember {
+  agent_id: string;
+  handle: string;
+  tool: string;
+  status: string;
+  session_minutes?: number;
+  minutes_since_update?: number | null;
+  activity?: AgentActivity | null;
+}
+
+export interface MemoryEntry {
+  id: string;
+  text: string;
+  tags?: string[];
+  source_handle?: string;
+}
+
+export interface SessionEntry {
+  owner_handle?: string;
+  duration_minutes?: number;
+  edit_count?: number;
+  files_touched?: string[];
+  ended_at?: string | null;
+}
+
+export interface TeamContext {
+  members?: TeamMember[];
+  memories?: MemoryEntry[];
+  messages?: Array<{ from_handle: string; from_tool?: string; text: string; created_at?: string }>;
+  locks?: Array<{ file_path: string; owner_handle: string; tool?: string; minutes_held: number }>;
+  tools_configured?: string[];
+  usage?: Record<string, unknown>;
+  recentSessions?: SessionEntry[];
+}
+
+export interface ManagedAgent {
+  id: number;
+  toolId: string;
+  toolName: string;
+  cmd: string;
+  args: string[];
+  taskArg: string;
+  task: string;
+  cwd: string;
+  agentId?: string;
+  agent_id?: string;
+  handle?: string | null;
+  status: string;
+  startedAt: number;
+  exitCode: number | null;
+  outputPreview?: string | null;
+  spawnType?: string;
+  pid?: number | null;
+  activity?: AgentActivity | null;
+  session_minutes?: number | null;
+  minutes_since_update?: number | null;
+  tool?: string;
+}
+
+export interface CombinedAgentRow extends ManagedAgent {
+  _managed: boolean;
+  _connected: boolean;
+  _display: string;
+  _summary: string | null;
+  _duration: string | null;
+  _dead: boolean;
+  _exited: boolean;
+  _failed: boolean;
+  _exitCode: number | null;
+}
+
+// ── Helper functions ───────────────────────────────
+
+export function createToolNameResolver(
+  detectedTools: DetectedTool[] | null | undefined,
+): (toolId: string) => string | null {
   const toolNameMap = new Map((detectedTools || []).map((t) => [t.id, t.name]));
-  return (toolId) => {
+  return (toolId: string) => {
     if (!toolId || toolId === 'unknown') return null;
     return toolNameMap.get(toolId) || toolId;
   };
 }
 
-export function formatDuration(minutes) {
+export function formatDuration(minutes: number | null | undefined): string | null {
   if (minutes == null) return null;
   const m = Math.round(minutes);
   if (m >= 60) {
@@ -41,12 +128,12 @@ const MEDIA_EXTS = new Set([
   '.ogg',
 ]);
 
-function isMediaFile(name) {
+function isMediaFile(name: string): boolean {
   const dot = name.lastIndexOf('.');
   return dot !== -1 && MEDIA_EXTS.has(name.slice(dot).toLowerCase());
 }
 
-export function formatFiles(files) {
+export function formatFiles(files: string[] | null | undefined): string | null {
   if (!files?.length) return null;
   const names = files.map((f) => basename(f));
   const code = names.filter((n) => !isMediaFile(n));
@@ -69,7 +156,7 @@ export function formatFiles(files) {
   return shown;
 }
 
-export function smartSummary(activity) {
+export function smartSummary(activity: AgentActivity | null | undefined): string | null {
   if (!activity?.summary) return null;
   const summary = activity.summary;
   if (/^editing\s/i.test(summary)) return null;
@@ -82,56 +169,19 @@ export function smartSummary(activity) {
   return summary;
 }
 
-/**
- * Agent row shape (combined from managed + connected sources):
- *
- * --- Identity ---
- * @property {string|null}  agent_id        - Composite ID (e.g. "claude-code:abc123:def45678"), null for pty-only agents
- * @property {string}       tool            - Tool ID (e.g. "claude-code", "cursor")
- * @property {string}       toolId          - Alias for tool (from managed agent source)
- * @property {string|null}  handle          - User's display handle (from backend), null for local-only agents
- *
- * --- Lifecycle ---
- * @property {string}       status          - Raw status: "running" | "exited" | "failed" (managed) or "active" (connected)
- * @property {number}       startedAt       - Unix timestamp (ms) when the agent was spawned
- * @property {number|null}  exitCode        - Process exit code, null while running
- *
- * --- Display (prefixed _ = computed at row-build time, not from raw data) ---
- * @property {boolean}      _managed        - true if spawned by this dashboard (pty or external terminal)
- * @property {boolean}      _connected      - true if the backend reports this agent as active
- * @property {string}       _display        - Human-readable tool label (e.g. "Claude Code")
- * @property {string|null}  _summary        - One-line description of current work (from activity or task)
- * @property {string|null}  _duration       - Formatted session duration (e.g. "5 min", "1h 30m")
- * @property {boolean}      _dead           - true if agent is no longer running (exited or failed)
- * @property {boolean}      _exited         - true if agent process has exited (same as _dead for managed)
- * @property {boolean}      _failed         - true if agent exited with non-zero code or "failed" status
- * @property {number|null}  _exitCode       - Same as exitCode, surfaced for display convenience
- *
- * --- Activity (from backend context, may be null for managed-only agents) ---
- * @property {Object|null}  activity            - { summary?: string, files?: string[] }
- * @property {number|null}  session_minutes     - Total session duration from backend
- * @property {number|null}  minutes_since_update - Time since last backend activity update
- *
- * --- Managed agent extras (only when _managed=true) ---
- * @property {number}       id              - Local process manager ID
- * @property {string}       cmd             - CLI command used to spawn (e.g. "claude")
- * @property {string[]}     args            - Additional CLI arguments
- * @property {string}       taskArg         - How the task is passed: "positional" | "--message"
- * @property {string}       task            - The task/prompt given to the agent
- * @property {string}       cwd             - Working directory
- * @property {string}       toolName        - Friendly name from tool registry
- * @property {string|null}  outputPreview   - Last meaningful line of captured output
- * @property {string}       spawnType       - "pty" | "external" (terminal tab)
- */
-function buildManagedAgentRows(managedAgents, getToolName, now = Date.now()) {
-  return (managedAgents || []).map((agent) => {
+function buildManagedAgentRows(
+  managedAgents: ManagedAgent[] | null | undefined,
+  getToolName: (id: string) => string | null,
+  now: number = Date.now(),
+): CombinedAgentRow[] {
+  return (managedAgents || []).map((agent): CombinedAgentRow => {
     const toolId = agent.toolId || agent.tool || 'unknown';
     const isDead = agent.status !== 'running';
     const hasError = agent.status === 'failed' || (agent.exitCode != null && agent.exitCode !== 0);
 
     return {
       ...agent,
-      agent_id: agent.agentId || agent.agent_id || null,
+      agent_id: agent.agentId || agent.agent_id || '',
       tool: toolId,
       _managed: true,
       _connected: false,
@@ -146,15 +196,22 @@ function buildManagedAgentRows(managedAgents, getToolName, now = Date.now()) {
   });
 }
 
+interface BuildCombinedOptions {
+  managedAgents?: ManagedAgent[];
+  connectedAgents?: TeamMember[];
+  getToolName: (id: string) => string | null;
+  now?: number;
+}
+
 export function buildCombinedAgentRows({
   managedAgents,
   connectedAgents,
   getToolName,
   now = Date.now(),
-} = {}) {
+}: BuildCombinedOptions): CombinedAgentRow[] {
   const managedRows = buildManagedAgentRows(managedAgents, getToolName, now);
   const connectedById = new Map((connectedAgents || []).map((agent) => [agent.agent_id, agent]));
-  const usedConnected = new Set();
+  const usedConnected = new Set<string>();
 
   const mergedManaged = managedRows.map((managed) => {
     const connected = managed.agent_id ? connectedById.get(managed.agent_id) : null;
@@ -177,41 +234,65 @@ export function buildCombinedAgentRows({
             ? formatDuration(connected.session_minutes)
             : managed._duration
           : managed._duration,
-    };
+    } as CombinedAgentRow;
   });
 
-  const remainingConnected = (connectedAgents || [])
+  const remainingConnected: CombinedAgentRow[] = (connectedAgents || [])
     .filter((agent) => !usedConnected.has(agent.agent_id))
     .map((agent) => ({
       ...agent,
-      tool: agent.host_tool || 'unknown',
+      id: 0,
+      toolId: agent.host_tool,
+      toolName: getToolName(agent.host_tool) || 'Unknown',
+      cmd: '',
+      args: [],
+      taskArg: '',
+      task: '',
+      cwd: '',
+      startedAt: 0,
+      exitCode: null,
       _managed: false,
       _connected: true,
       _display: getToolName(agent.host_tool) || 'Unknown',
       _summary: smartSummary(agent.activity),
       _duration: formatDuration(agent.session_minutes),
+      _dead: false,
+      _exited: false,
+      _failed: false,
+      _exitCode: null,
     }));
 
   return [...mergedManaged, ...remainingConnected];
 }
 
-export function countLiveAgents(agentRows) {
+export function countLiveAgents(agentRows: CombinedAgentRow[] | null | undefined): number {
   return (agentRows || []).filter((agent) => {
     if (agent._managed) return agent.status === 'running';
     return agent.status === 'active';
   }).length;
 }
 
-export function shortAgentId(agentId) {
+export function shortAgentId(agentId: string | null | undefined): string {
   if (!agentId) return '';
   const parts = agentId.split(':');
   if (parts.length >= 3) return parts[2].slice(0, 4);
   return '';
 }
 
-export function hasVisibleSessionActivity(session) {
+export function hasVisibleSessionActivity(session: SessionEntry | null | undefined): boolean {
   if (!session) return false;
-  return !session.ended_at || session.edit_count > 0 || session.files_touched?.length > 0;
+  return (
+    !session.ended_at || (session.edit_count ?? 0) > 0 || (session.files_touched?.length ?? 0) > 0
+  );
+}
+
+interface BuildDashboardViewOptions {
+  context?: TeamContext;
+  detectedTools?: DetectedTool[];
+  memoryFilter?: string | null;
+  memorySearch?: string;
+  cols?: number;
+  projectDir?: string;
 }
 
 export function buildDashboardView({
@@ -221,7 +302,7 @@ export function buildDashboardView({
   memorySearch,
   cols,
   projectDir,
-} = {}) {
+}: BuildDashboardViewOptions = {}) {
   const getToolName = createToolNameResolver(detectedTools);
   const dividerWidth = Math.min((cols || 80) - 4, 50);
 
@@ -234,18 +315,18 @@ export function buildDashboardView({
       m.host_tool !== 'unknown' &&
       m.host_tool !== 'dashboard',
   );
-  const agentsWithWork = activeAgents.filter((m) => m.activity?.files?.length > 0);
+  const agentsWithWork = activeAgents.filter((m) => m.activity?.files?.length);
   const uniqueHandles = new Set(activeAgents.map((m) => m.handle));
   const isTeam = uniqueHandles.size > 1;
 
-  const fileOwners = new Map();
+  const fileOwners = new Map<string, string[]>();
   for (const member of agentsWithWork) {
     const label = getToolName(member.host_tool)
       ? `${member.handle} (${getToolName(member.host_tool)})`
       : member.handle;
-    for (const file of member.activity.files) {
+    for (const file of member.activity!.files) {
       if (!fileOwners.has(file)) fileOwners.set(file, []);
-      fileOwners.get(file).push(label);
+      fileOwners.get(file)!.push(label);
     }
   }
   const conflicts = [...fileOwners.entries()].filter(([, owners]) => owners.length > 1);
@@ -263,7 +344,7 @@ export function buildDashboardView({
   const memoryOverflow = filteredMemories.length - MAX_MEMORIES;
 
   const messages = context?.messages || [];
-  const toolsConfigured = context?.hosts_configured || [];
+  const toolsConfigured = context?.tools_configured || [];
   const usage = context?.usage || {};
 
   const recentSessions = (context?.sessions || []).filter(hasVisibleSessionActivity);
@@ -272,7 +353,7 @@ export function buildDashboardView({
   const visibleAgents = activeAgents;
   const agentOverflow = 0;
 
-  const toolCounts = new Map();
+  const toolCounts = new Map<string, number>();
   for (const agent of activeAgents) {
     toolCounts.set(agent.tool, (toolCounts.get(agent.tool) || 0) + 1);
   }
