@@ -30,13 +30,13 @@ function renderComponent(Component, props) {
 async function loadProjectMemoryTab() {
   vi.resetModules();
 
-  vi.doMock('../../components/MemoryRow/MemoryRow.jsx', () => ({
+  vi.doMock('../../components/MemoryRow/MemoryRow.js', () => ({
     default: function MockMemoryRow({ memory }) {
       return <div data-testid="memory-row">{memory.text}</div>;
     },
   }));
 
-  vi.doMock('../../components/EmptyState/EmptyState.jsx', () => ({
+  vi.doMock('../../components/EmptyState/EmptyState.js', () => ({
     default: function MockEmptyState({ title, hint }) {
       return (
         <div data-testid="empty-state">
@@ -46,7 +46,7 @@ async function loadProjectMemoryTab() {
     },
   }));
 
-  const mod = await import('./ProjectMemoryTab.jsx');
+  const mod = await import('./ProjectMemoryTab.js');
   return mod.default;
 }
 

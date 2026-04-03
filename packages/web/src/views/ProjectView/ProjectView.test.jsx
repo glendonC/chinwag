@@ -3,6 +3,7 @@
 import React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
+import { shallow } from 'zustand/vanilla/shallow';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -30,6 +31,18 @@ function renderComponent(Component) {
 async function loadProjectView({ pollingState, teamState } = {}) {
   vi.resetModules();
 
+  // Pin zustand/react/shallow to use the statically imported React instance.
+  // Without this, vi.resetModules() causes zustand to load a second React copy.
+  vi.doMock('zustand/react/shallow', () => ({
+    useShallow: (selector) => {
+      const prev = React.useRef(undefined);
+      return (state) => {
+        const next = selector(state);
+        return shallow(prev.current, next) ? prev.current : (prev.current = next);
+      };
+    },
+  }));
+
   vi.doMock('../../lib/stores/polling.js', () => ({
     usePollingStore: (selector) => selector(pollingState),
     forceRefresh: vi.fn(),
@@ -43,38 +56,38 @@ async function loadProjectView({ pollingState, teamState } = {}) {
     },
   }));
 
-  vi.doMock('../../components/ActivityTimeline/ActivityTimeline.jsx', () => ({
+  vi.doMock('../../components/ActivityTimeline/ActivityTimeline.js', () => ({
     default: function MockActivityTimeline() {
       return <div data-testid="activity-timeline" />;
     },
   }));
 
-  vi.doMock('../../components/StatusState/StatusState.jsx', () => ({
+  vi.doMock('../../components/StatusState/StatusState.js', () => ({
     default: function MockStatusState({ title }) {
       return <div data-testid="status-state">{title}</div>;
     },
   }));
 
-  vi.doMock('../../components/ViewHeader/ViewHeader.jsx', () => ({
+  vi.doMock('../../components/ViewHeader/ViewHeader.js', () => ({
     default: function MockViewHeader({ title }) {
       return <div data-testid="view-header">{title}</div>;
     },
   }));
 
-  vi.doMock('./ProjectLiveTab.jsx', () => ({
+  vi.doMock('./ProjectLiveTab.js', () => ({
     default: () => <div />,
   }));
-  vi.doMock('./ProjectMemoryTab.jsx', () => ({
+  vi.doMock('./ProjectMemoryTab.js', () => ({
     default: () => <div />,
   }));
-  vi.doMock('./ProjectSessionsTab.jsx', () => ({
+  vi.doMock('./ProjectSessionsTab.js', () => ({
     default: () => <div />,
   }));
-  vi.doMock('./ProjectToolsTab.jsx', () => ({
+  vi.doMock('./ProjectToolsTab.js', () => ({
     default: () => <div />,
   }));
 
-  const mod = await import('./ProjectView.jsx');
+  const mod = await import('./ProjectView.js');
   return mod.default;
 }
 

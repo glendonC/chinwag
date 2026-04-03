@@ -30,25 +30,25 @@ function renderComponent(Component, props) {
 async function loadProjectLiveTab() {
   vi.resetModules();
 
-  vi.doMock('../../components/ConflictBanner/ConflictBanner.jsx', () => ({
+  vi.doMock('../../components/ConflictBanner/ConflictBanner.js', () => ({
     default: function MockConflictBanner({ conflicts }) {
       return <div data-testid="conflict-banner">{conflicts.length} conflicts</div>;
     },
   }));
 
-  vi.doMock('../../components/AgentRow/AgentRow.jsx', () => ({
+  vi.doMock('../../components/AgentRow/AgentRow.js', () => ({
     default: function MockAgentRow({ agent }) {
       return <div data-testid="agent-row">{agent.handle}</div>;
     },
   }));
 
-  vi.doMock('../../components/LockRow/LockRow.jsx', () => ({
+  vi.doMock('../../components/LockRow/LockRow.js', () => ({
     default: function MockLockRow({ lock }) {
       return <div data-testid="lock-row">{lock.file_path}</div>;
     },
   }));
 
-  vi.doMock('../../components/EmptyState/EmptyState.jsx', () => ({
+  vi.doMock('../../components/EmptyState/EmptyState.js', () => ({
     default: function MockEmptyState({ title, hint }) {
       return (
         <div data-testid="empty-state">
@@ -58,13 +58,13 @@ async function loadProjectLiveTab() {
     },
   }));
 
-  vi.doMock('../../components/ToolIcon/ToolIcon.jsx', () => ({
+  vi.doMock('../../components/ToolIcon/ToolIcon.js', () => ({
     default: function MockToolIcon() {
       return <span data-testid="tool-icon" />;
     },
   }));
 
-  const mod = await import('./ProjectLiveTab.jsx');
+  const mod = await import('./ProjectLiveTab.js');
   return mod.default;
 }
 

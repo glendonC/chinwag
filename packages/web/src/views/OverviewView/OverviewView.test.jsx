@@ -3,6 +3,7 @@
 import React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
+import { shallow } from 'zustand/vanilla/shallow';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -34,6 +35,18 @@ async function loadOverviewView({
 } = {}) {
   vi.resetModules();
 
+  // Pin zustand/react/shallow to use the statically imported React instance.
+  // Without this, vi.resetModules() causes zustand to load a second React copy.
+  vi.doMock('zustand/react/shallow', () => ({
+    useShallow: (selector) => {
+      const prev = React.useRef(undefined);
+      return (state) => {
+        const next = selector(state);
+        return shallow(prev.current, next) ? prev.current : (prev.current = next);
+      };
+    },
+  }));
+
   vi.doMock('../../lib/stores/polling.js', () => ({
     usePollingStore: (selector) => selector(pollingState),
     forceRefresh: vi.fn(),
@@ -47,13 +60,13 @@ async function loadOverviewView({
     useTeamStore: (selector) => selector(teamState),
   }));
 
-  vi.doMock('../../components/EmptyState/EmptyState.jsx', () => ({
+  vi.doMock('../../components/EmptyState/EmptyState.js', () => ({
     default: function MockEmptyState({ title }) {
       return <div data-testid="empty-state">{title}</div>;
     },
   }));
 
-  vi.doMock('../../components/StatusState/StatusState.jsx', () => ({
+  vi.doMock('../../components/StatusState/StatusState.js', () => ({
     default: function MockStatusState({ title, hint }) {
       return (
         <div data-testid="status-state">
@@ -63,7 +76,7 @@ async function loadOverviewView({
     },
   }));
 
-  const mod = await import('./OverviewView.jsx');
+  const mod = await import('./OverviewView.js');
   return mod.default;
 }
 

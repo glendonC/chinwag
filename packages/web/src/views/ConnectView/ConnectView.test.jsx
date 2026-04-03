@@ -60,7 +60,7 @@ async function loadConnectView({
     getApiUrl: () => 'https://test.chinwag.dev',
   }));
 
-  const mod = await import('./ConnectView.jsx');
+  const mod = await import('./ConnectView.js');
   return mod.default;
 }
 

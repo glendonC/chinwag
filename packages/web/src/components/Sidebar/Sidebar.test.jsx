@@ -59,7 +59,7 @@ async function loadSidebar({ teams = [], activeTeamId = null } = {}) {
     projectGradient: (id) => `gradient-${id}`,
   }));
 
-  const mod = await import('./Sidebar.jsx');
+  const mod = await import('./Sidebar.js');
   return mod.default;
 }
 

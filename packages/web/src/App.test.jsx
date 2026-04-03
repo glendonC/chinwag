@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
+import { shallow } from 'zustand/vanilla/shallow';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -85,66 +86,109 @@ async function loadAppModule(options = {}) {
     localStorage.setItem('chinwag_token', options.storedToken);
   }
 
+  // Pin zustand/react/shallow to use the statically imported React instance.
+  // Without this, vi.resetModules() causes zustand to load a second React copy.
+  vi.doMock('zustand/react/shallow', () => ({
+    useShallow: (selector) => {
+      const prev = React.useRef(undefined);
+      return (state) => {
+        const next = selector(state);
+        return shallow(prev.current, next) ? prev.current : (prev.current = next);
+      };
+    },
+  }));
+
+  // Mock the URL-based router. Provides navigate() that updates route state
+  // and triggers re-renders via useSyncExternalStore pattern.
+  let currentRoute = { view: 'overview', teamId: null };
+  const routeListeners = new Set();
+  function emitRoute() {
+    routeListeners.forEach((fn) => fn());
+  }
+  const navigateFn = vi.fn((view, teamId = null) => {
+    currentRoute = { view, teamId };
+    emitRoute();
+  });
+
+  vi.doMock('./lib/router.js', () => ({
+    useRoute() {
+      const [, setTick] = React.useState(0);
+      React.useEffect(() => {
+        const handler = () => setTick((t) => t + 1);
+        routeListeners.add(handler);
+        return () => routeListeners.delete(handler);
+      }, []);
+      return currentRoute;
+    },
+    navigate: navigateFn,
+    parseLocation: () => currentRoute,
+  }));
+
   const apiMock = options.apiMock || createApiMock(options);
-  vi.doMock('react', () => ({ ...React, default: React }));
 
   vi.doMock('./lib/api.js', () => ({
     api: apiMock,
     getApiUrl: () => 'https://test.chinwag.dev',
   }));
 
-  vi.doMock('./views/ConnectView/ConnectView.jsx', () => ({
+  vi.doMock('./views/ConnectView/ConnectView.js', () => ({
     default: function MockConnectView({ error }) {
       return <div data-testid="connect-view">{error || 'connect-view'}</div>;
     },
   }));
 
-  vi.doMock('./views/OverviewView/OverviewView.jsx', () => ({
+  vi.doMock('./views/OverviewView/OverviewView.js', () => ({
     default: function MockOverviewView() {
       return <div data-testid="overview-view">overview-view</div>;
     },
   }));
 
-  vi.doMock('./views/ProjectView/ProjectView.jsx', () => ({
+  vi.doMock('./views/ProjectView/ProjectView.js', () => ({
     default: function MockProjectView() {
       return <div data-testid="project-view">project-view</div>;
     },
   }));
 
-  vi.doMock('./views/SettingsView/SettingsView.jsx', () => ({
+  vi.doMock('./views/SettingsView/SettingsView.js', () => ({
     default: function MockSettingsView() {
       return <div data-testid="settings-view">settings-view</div>;
     },
   }));
 
-  vi.doMock('./views/ToolsView/ToolsView.jsx', () => ({
+  vi.doMock('./views/ToolsView/ToolsView.js', () => ({
     default: function MockToolsView() {
       return <div data-testid="tools-view">tools-view</div>;
     },
   }));
 
-  vi.doMock('./components/Sidebar/Sidebar.jsx', () => ({
-    default: function MockSidebar({ activeNav, onNavigate }) {
+  vi.doMock('./components/Sidebar/Sidebar.js', () => ({
+    default: function MockSidebar({ activeView }) {
       return (
         <div data-testid="sidebar">
-          <button data-testid="show-settings" onClick={() => onNavigate('settings')}>
+          <button data-testid="show-settings" onClick={() => navigateFn('settings')}>
             show settings
           </button>
-          <button data-testid="hide-settings" onClick={() => onNavigate(null)}>
+          <button data-testid="hide-settings" onClick={() => navigateFn('overview')}>
             hide settings
           </button>
-          <button data-testid="show-tools" onClick={() => onNavigate('tools')}>
+          <button data-testid="show-tools" onClick={() => navigateFn('tools')}>
             show tools
           </button>
-          <span data-testid="sidebar-state">{String(activeNav)}</span>
+          <span data-testid="sidebar-state">{String(activeView)}</span>
         </div>
       );
     },
   }));
 
-  vi.doMock('./components/RenderErrorBoundary/RenderErrorBoundary.jsx', () => ({
+  vi.doMock('./components/RenderErrorBoundary/RenderErrorBoundary.js', () => ({
     default: function MockRenderErrorBoundary({ children }) {
       return <>{children}</>;
+    },
+  }));
+
+  vi.doMock('./components/Banner/Banner.js', () => ({
+    default: function MockBanner() {
+      return null;
     },
   }));
 
@@ -377,8 +421,8 @@ describe('App boot and view switching', () => {
     stopPolling();
   });
 
-  it('boots into the project view when only one team exists', async () => {
-    const { App, apiMock, stopPolling, react, createRoot } = await loadAppModule({
+  it('shows the overview when only one team exists and URL is at root', async () => {
+    const { App, stopPolling, react, createRoot } = await loadAppModule({
       storedToken: 'tok_project',
       teams: [{ team_id: 't_solo' }],
       context: { members: [{ handle: 'alice', status: 'active' }] },
@@ -387,9 +431,9 @@ describe('App boot and view switching', () => {
 
     await flushEffects(6);
 
-    expect(container.querySelector('[data-testid="project-view"]')).not.toBeNull();
-    expect(apiMock).toHaveBeenCalledWith('POST', '/teams/t_solo/join', {}, 'tok_project');
-    expect(apiMock).toHaveBeenCalledWith('GET', '/teams/t_solo/context', null, 'tok_project');
+    // With URL-based routing, the view is driven by the URL, not team count.
+    // When the URL is at root (overview), the overview renders even with one team.
+    expect(container.querySelector('[data-testid="overview-view"]')).not.toBeNull();
 
     unmount();
     stopPolling();
