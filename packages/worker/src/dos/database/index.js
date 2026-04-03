@@ -9,7 +9,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { seedEvaluations } from '../../lib/seed-evaluations.js';
 import { toSQLDateTime } from '../../lib/text-utils.js';
 import { WEB_SESSION_DURATION_MS } from '../../lib/constants.js';
-import { runMigration } from '../../lib/migrate.js';
+import { ensureSchema as ensureSchemaFn, cleanup as schemaCleanup } from './schema.js';
 import {
   saveEvaluation as saveEvalFn,
   getEvaluation as getEvalFn,
@@ -172,104 +172,23 @@ export class DatabaseDO extends DurableObject {
   #schemaReady = false;
   #evaluationsSeeded = false;
 
+  /** @type {<T>(fn: () => T) => T} */
+  #transact;
+
   constructor(ctx, env) {
     super(ctx, env);
     this.sql = ctx.storage.sql;
+    this.#transact = (fn) => ctx.storage.transactionSync(fn);
   }
 
   #ensureSchema() {
     if (this.#schemaReady) return;
 
-    this.sql.exec(`
-      CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        handle TEXT UNIQUE NOT NULL,
-        color TEXT NOT NULL,
-        token TEXT UNIQUE NOT NULL,
-        status TEXT,
-        created_at TEXT NOT NULL,
-        last_active TEXT NOT NULL
-      );
+    ensureSchemaFn(this.sql, this.#transact);
 
-      CREATE TABLE IF NOT EXISTS account_limits (
-        ip TEXT NOT NULL,
-        date TEXT NOT NULL,
-        count INTEGER NOT NULL DEFAULT 0,
-        PRIMARY KEY (ip, date)
-      );
-
-      CREATE TABLE IF NOT EXISTS agent_profiles (
-        user_id TEXT PRIMARY KEY REFERENCES users(id),
-        framework TEXT,
-        languages TEXT,
-        frameworks TEXT,
-        tools TEXT,
-        platforms TEXT,
-        registered_at TEXT DEFAULT (datetime('now')),
-        last_active TEXT DEFAULT (datetime('now'))
-      );
-
-      CREATE TABLE IF NOT EXISTS user_teams (
-        user_id TEXT NOT NULL REFERENCES users(id),
-        team_id TEXT NOT NULL,
-        team_name TEXT,
-        joined_at TEXT DEFAULT (datetime('now')),
-        PRIMARY KEY (user_id, team_id)
-      );
-
-      CREATE TABLE IF NOT EXISTS tool_evaluations (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        tagline TEXT,
-        category TEXT,
-        mcp_support INTEGER,
-        has_cli INTEGER,
-        hooks_support INTEGER,
-        channel_support INTEGER,
-        process_detectable INTEGER,
-        open_source INTEGER,
-        verdict TEXT NOT NULL,
-        integration_tier TEXT,
-        blocking_issues TEXT DEFAULT '[]',
-        metadata TEXT NOT NULL DEFAULT '{}',
-        sources TEXT NOT NULL DEFAULT '[]',
-        in_registry INTEGER DEFAULT 0,
-        evaluated_at TEXT NOT NULL,
-        confidence TEXT NOT NULL DEFAULT 'medium',
-        evaluated_by TEXT
-      );
-      CREATE INDEX IF NOT EXISTS idx_eval_category ON tool_evaluations(category);
-      CREATE INDEX IF NOT EXISTS idx_eval_verdict ON tool_evaluations(verdict);
-
-      CREATE TABLE IF NOT EXISTS web_sessions (
-        token TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL REFERENCES users(id),
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        expires_at TEXT NOT NULL,
-        last_used TEXT DEFAULT (datetime('now')),
-        user_agent TEXT,
-        revoked INTEGER DEFAULT 0
-      );
-    `);
-
-    // Migrate: add team_name column for tables created before this column existed
-    runMigration(this.sql, 'ALTER TABLE user_teams ADD COLUMN team_name TEXT', null, 'DatabaseDO');
-
-    // Migrate: add GitHub OAuth columns
-    runMigration(this.sql, 'ALTER TABLE users ADD COLUMN github_id TEXT', null, 'DatabaseDO');
-    runMigration(this.sql, 'ALTER TABLE users ADD COLUMN github_login TEXT', null, 'DatabaseDO');
-    runMigration(this.sql, 'ALTER TABLE users ADD COLUMN avatar_url TEXT', null, 'DatabaseDO');
-    runMigration(
-      this.sql,
-      'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_github_id ON users(github_id)',
-      null,
-      'DatabaseDO',
-    );
-
-    // Prune stale rate limit rows (handles both old daily 'YYYY-MM-DD' and
-    // new hourly 'YYYY-MM-DDTHH' bucket formats) and expired sessions
-    this.sql.exec("DELETE FROM account_limits WHERE date < date('now', '-2 days')");
-    this.sql.exec("DELETE FROM web_sessions WHERE expires_at < datetime('now') OR revoked = 1");
+    // Prune stale rate limit rows and expired sessions (runs every startup,
+    // not a migration — these are recurring cleanup, not schema changes)
+    schemaCleanup(this.sql);
 
     this.#schemaReady = true;
   }

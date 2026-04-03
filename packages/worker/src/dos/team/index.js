@@ -71,7 +71,7 @@ export class TeamDO extends DurableObject {
   // ── Schema ──
 
   #ensureSchema() {
-    ensureSchema(this.sql, this.#schemaReady);
+    ensureSchema(this.sql, this.#schemaReady, this.#transact);
     this.#schemaReady = true;
   }
 

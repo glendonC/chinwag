@@ -9,13 +9,38 @@ import {
   CHAT_TARGET_ROOM_SIZE,
   PRESENCE_TTL_MS,
 } from './lib/constants.js';
+import { runMigrations } from './lib/migrator.js';
+
+const lobbyMigrations = [
+  {
+    name: '001_initial_schema',
+    up(sql) {
+      sql.exec(`
+        CREATE TABLE IF NOT EXISTS rooms (
+          room_id TEXT PRIMARY KEY,
+          count INTEGER NOT NULL DEFAULT 0,
+          last_updated TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS presence (
+          handle TEXT PRIMARY KEY,
+          last_seen INTEGER NOT NULL
+        );
+      `);
+    },
+  },
+];
 
 export class LobbyDO extends DurableObject {
   #schemaReady = false;
 
+  /** @type {<T>(fn: () => T) => T} */
+  #transact;
+
   constructor(ctx, env) {
     super(ctx, env);
     this.sql = ctx.storage.sql;
+    this.#transact = (fn) => ctx.storage.transactionSync(fn);
     // roomId → { count, lastUpdate }
     this.rooms = new Map();
     // handle → lastSeen timestamp
@@ -25,18 +50,7 @@ export class LobbyDO extends DurableObject {
   #ensureSchema() {
     if (this.#schemaReady) return;
 
-    this.sql.exec(`
-      CREATE TABLE IF NOT EXISTS rooms (
-        room_id TEXT PRIMARY KEY,
-        count INTEGER NOT NULL DEFAULT 0,
-        last_updated TEXT NOT NULL DEFAULT (datetime('now'))
-      );
-
-      CREATE TABLE IF NOT EXISTS presence (
-        handle TEXT PRIMARY KEY,
-        last_seen INTEGER NOT NULL
-      );
-    `);
+    runMigrations(this.sql, this.#transact, lobbyMigrations);
 
     // Hydrate in-memory Maps from SQLite
     for (const row of this.sql.exec('SELECT room_id, count, last_updated FROM rooms')) {
