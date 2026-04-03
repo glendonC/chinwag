@@ -16,6 +16,7 @@ import ProjectView from './views/ProjectView/ProjectView.jsx';
 import SettingsView from './views/SettingsView/SettingsView.jsx';
 import ToolsView from './views/ToolsView/ToolsView.jsx';
 import Sidebar from './components/Sidebar/Sidebar.jsx';
+import Banner from './components/Banner/Banner.jsx';
 import RenderErrorBoundary from './components/RenderErrorBoundary/RenderErrorBoundary.jsx';
 
 import styles from './App.module.css';
@@ -154,36 +155,20 @@ export default function App() {
 
       <div className={styles.main}>
         {showError && (
-          <div className={styles.errorBanner} role="status" aria-live="polite">
-            <div className={styles.errorCopy}>
-              <span className={styles.errorEyebrow}>Live sync paused</span>
-              <span className={styles.errorText}>{pollError}</span>
-              <span className={styles.errorMeta}>
-                {lastSynced
+          <div className={styles.bannerSlot}>
+            <Banner
+              variant="error"
+              eyebrow="Live sync paused"
+              meta={
+                lastSynced
                   ? `Showing the last successful snapshot from ${lastSynced}.`
-                  : 'Showing the last successful snapshot.'}
-              </span>
-            </div>
-
-            <div className={styles.errorActions}>
-              <button type="button" className={styles.errorRetry} onClick={forceRefresh}>
-                Retry
-              </button>
-              <button
-                className={styles.errorDismiss}
-                onClick={() => setDismissedError(pollError)}
-                aria-label="Dismiss"
-              >
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-                  <path
-                    d="M3 3l8 8M11 3l-8 8"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
-            </div>
+                  : 'Showing the last successful snapshot.'
+              }
+              actions={[{ label: 'Retry', onClick: forceRefresh }]}
+              onDismiss={() => setDismissedError(pollError)}
+            >
+              {pollError}
+            </Banner>
           </div>
         )}
 

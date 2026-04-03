@@ -82,87 +82,9 @@
   max-width: var(--content-max-width);
 }
 
-/* Error */
-.errorBanner {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-lg);
-  margin: 14px 56px 0;
-  max-width: 860px;
-  padding: 0;
-}
-
-.errorCopy {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-md);
-  min-width: 0;
-}
-
-.errorEyebrow {
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  font-weight: 500;
-  color: var(--danger);
-  letter-spacing: var(--tracking-eyebrow);
-  text-transform: uppercase;
-}
-
-.errorText {
-  font-size: var(--text-sm);
-  color: var(--ink);
-  font-weight: 400;
-}
-
-.errorMeta {
-  font-size: var(--text-sm);
-  color: var(--soft);
-}
-
-.errorActions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  flex: 0 0 auto;
-}
-
-.errorRetry {
-  border: none;
-  background: transparent;
-  color: var(--danger);
-  padding: 0;
-  cursor: pointer;
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  font-weight: 500;
-  letter-spacing: var(--tracking-stat);
-  text-transform: uppercase;
-  opacity: 0.72;
-  transition: opacity var(--motion-fast) ease;
-}
-
-.errorRetry:hover {
-  opacity: 1;
-}
-
-.errorDismiss {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--soft);
-  opacity: 0.64;
-  padding: 0;
-  display: flex;
-  transition:
-    color var(--motion-fast) var(--motion),
-    opacity var(--motion-fast) var(--motion);
-}
-
-.errorDismiss:hover {
-  color: var(--ink);
-  opacity: 1;
+/* Banner slot — centers the Banner component at the top of .main */
+.bannerSlot {
+  padding: 14px 56px 0;
 }
 
 /* Mobile */
@@ -173,14 +95,7 @@
   .content {
     padding: 20px 20px 64px;
   }
-  .errorBanner {
-    margin: 12px 20px 0;
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .errorActions {
-    width: 100%;
-    justify-content: flex-start;
+  .bannerSlot {
+    padding: 12px 20px 0;
   }
 }
