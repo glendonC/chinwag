@@ -5,6 +5,7 @@
 import { json } from './lib/http.js';
 import { buildRoutes, matchRoute } from './lib/router.js';
 import { createLogger, setLogLevel } from './lib/logger.js';
+import { getErrorMessage } from './lib/errors.js';
 import {
   handleInit,
   handleStats,
@@ -442,7 +443,7 @@ export default {
         method,
         path,
         status: 500,
-        error: err.message,
+        error: getErrorMessage(err),
       });
       return json({ error: `Internal server error (ref: ${ref})` }, 500, corsHeaders);
     }

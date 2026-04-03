@@ -278,7 +278,7 @@ export async function withTeamRateLimit({
  * @param {string} ip - Raw IP address
  * @returns {Promise<string>} Truncated hex hash
  */
-async function hashIp(ip) {
+export async function hashIp(ip) {
   const data = new TextEncoder().encode(ip);
   const hash = await crypto.subtle.digest('SHA-256', data);
   const hex = [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');

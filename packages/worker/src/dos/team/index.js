@@ -241,6 +241,7 @@ export class TeamDO extends DurableObject {
 
     if (isAgent && agentId) {
       this.#ensureSchema();
+      this.#lastHeartbeatBroadcast.delete(agentId);
       // Release locks — agent is gone, don't block others
       let locksReleased = true;
       try {
@@ -323,17 +324,23 @@ export class TeamDO extends DurableObject {
 
     const ws = buildInClause([...this.#getConnectedAgentIds()]);
 
-    withTransaction(this.#transact, () => {
-      // Clamp future heartbeats (clock skew)
+    /** Run a cleanup query, logging on failure without aborting the transaction. */
+    const step = (label, fn) => {
       try {
+        fn();
+      } catch (err) {
+        log.error(`cleanup: ${label} failed`, { error: getErrorMessage(err) });
+      }
+    };
+
+    withTransaction(this.#transact, () => {
+      step('clamp future heartbeats', () =>
         this.sql.exec(
           "UPDATE members SET last_heartbeat = datetime('now') WHERE last_heartbeat > datetime('now')",
-        );
-      } catch (err) {
-        log.error('cleanup: clamp future heartbeats failed', { error: getErrorMessage(err) });
-      }
+        ),
+      );
 
-      try {
+      step('delete stale activities', () =>
         this.sql.exec(
           `DELETE FROM activities WHERE agent_id IN (
             SELECT agent_id FROM members
@@ -342,39 +349,31 @@ export class TeamDO extends DurableObject {
           )`,
           HEARTBEAT_STALE_WINDOW_S,
           ...ws.params,
-        );
-      } catch (err) {
-        log.error('cleanup: delete stale activities failed', { error: getErrorMessage(err) });
-      }
+        ),
+      );
 
-      try {
+      step('delete stale members', () =>
         this.sql.exec(
           `DELETE FROM members
            WHERE last_heartbeat < datetime('now', '-' || ? || ' seconds')
              AND agent_id NOT IN (${ws.sql})`,
           HEARTBEAT_STALE_WINDOW_S,
           ...ws.params,
-        );
-      } catch (err) {
-        log.error('cleanup: delete stale members failed', { error: getErrorMessage(err) });
-      }
+        ),
+      );
 
-      try {
+      step('delete old sessions', () =>
         this.sql.exec(
           `DELETE FROM sessions WHERE started_at < datetime('now', '-' || ? || ' days')`,
           SESSION_RETENTION_DAYS,
-        );
-      } catch (err) {
-        log.error('cleanup: delete old sessions failed', { error: getErrorMessage(err) });
-      }
+        ),
+      );
 
-      try {
-        this.sql.exec("DELETE FROM messages WHERE created_at < datetime('now', '-1 hour')");
-      } catch (err) {
-        log.error('cleanup: delete old messages failed', { error: getErrorMessage(err) });
-      }
+      step('delete old messages', () =>
+        this.sql.exec("DELETE FROM messages WHERE created_at < datetime('now', '-1 hour')"),
+      );
 
-      try {
+      step('delete orphaned locks', () =>
         this.sql.exec(
           `DELETE FROM locks WHERE agent_id NOT IN (
             SELECT agent_id FROM members
@@ -383,12 +382,10 @@ export class TeamDO extends DurableObject {
           )`,
           HEARTBEAT_STALE_WINDOW_S,
           ...ws.params,
-        );
-      } catch (err) {
-        log.error('cleanup: delete orphaned locks failed', { error: getErrorMessage(err) });
-      }
+        ),
+      );
 
-      try {
+      step('close orphaned sessions', () =>
         this.sql.exec(
           `UPDATE sessions SET ended_at = datetime('now')
            WHERE ended_at IS NULL
@@ -399,16 +396,12 @@ export class TeamDO extends DurableObject {
            )`,
           HEARTBEAT_STALE_WINDOW_S,
           ...ws.params,
-        );
-      } catch (err) {
-        log.error('cleanup: close orphaned sessions failed', { error: getErrorMessage(err) });
-      }
+        ),
+      );
 
-      try {
-        this.sql.exec("DELETE FROM telemetry WHERE last_at < datetime('now', '-30 days')");
-      } catch (err) {
-        log.error('cleanup: delete old telemetry failed', { error: getErrorMessage(err) });
-      }
+      step('delete old telemetry', () =>
+        this.sql.exec("DELETE FROM telemetry WHERE last_at < datetime('now', '-30 days')"),
+      );
     });
   }
 
@@ -500,6 +493,7 @@ export class TeamDO extends DurableObject {
     this.#ensureSchema();
     const result = leave(this.sql, agentId, ownerId, this.#transact);
     if (!isDOError(result)) {
+      this.#lastHeartbeatBroadcast.delete(agentId);
       this.#broadcastToWatchers({ type: 'member_left', agent_id: agentId });
     }
     return result;

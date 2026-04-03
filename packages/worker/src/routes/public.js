@@ -2,20 +2,12 @@ import { TOOL_CATALOG, CATEGORY_NAMES } from '../catalog.js';
 import { getDB, getLobby } from '../lib/env.js';
 import { json } from '../lib/http.js';
 import { auditLog } from '../lib/audit.js';
-import { withIpRateLimit } from '../lib/validation.js';
+import { hashIp, withIpRateLimit } from '../lib/validation.js';
 import {
   RATE_LIMIT_ACCOUNTS_PER_IP,
   RATE_LIMIT_STATS_PER_IP,
   RATE_LIMIT_CATALOG_PER_IP,
 } from '../lib/constants.js';
-
-/** Hash an IP address for rate-limit keys (matches validation.js helper). */
-async function hashIp(ip) {
-  const data = new TextEncoder().encode(ip);
-  const hash = await crypto.subtle.digest('SHA-256', data);
-  const hex = [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');
-  return hex.slice(0, 16);
-}
 
 const GITHUB_AUTHORIZE_URL = 'https://github.com/login/oauth/authorize';
 const GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token';
