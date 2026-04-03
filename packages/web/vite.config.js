@@ -23,7 +23,7 @@ export default defineConfig({
     environment: 'jsdom',
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.js', 'src/**/*.jsx'],
+      include: ['src/**/*.{js,jsx,ts,tsx}'],
       exclude: ['src/**/*.test.*'],
       reporter: ['text', 'json-summary'],
       reportsDirectory: './coverage',
