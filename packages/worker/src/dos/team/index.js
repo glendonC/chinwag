@@ -95,13 +95,14 @@ export class TeamDO extends DurableObject {
     }
 
     const agentId = url.searchParams.get('agentId');
-    if (!agentId) {
-      return new Response('Missing agentId', { status: 400 });
+    const ownerId = url.searchParams.get('ownerId');
+    if (!agentId || !ownerId) {
+      return new Response('Missing agentId or ownerId', { status: 400 });
     }
 
     this.#ensureSchema();
 
-    const resolved = this.#resolveOwnedAgentId(agentId);
+    const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
     if (!resolved) {
       return new Response('Not a member of this team', { status: 403 });
     }

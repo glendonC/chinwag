@@ -19,7 +19,7 @@ describe('WebSocket fetch endpoint', () => {
 
   it('rejects requests without X-Chinwag-Verified header', async () => {
     const res = await team().fetch(
-      new Request(`http://localhost/ws?agentId=${agentId}&role=agent`),
+      new Request(`http://localhost/ws?agentId=${agentId}&ownerId=${ownerId}&role=agent`),
     );
     expect(res.status).toBe(403);
   });
@@ -35,7 +35,16 @@ describe('WebSocket fetch endpoint', () => {
 
   it('rejects non-member agent', async () => {
     const res = await team().fetch(
-      new Request('http://localhost/ws?agentId=cursor:nonexistent&role=agent', {
+      new Request(`http://localhost/ws?agentId=cursor:nonexistent&ownerId=${ownerId}&role=agent`, {
+        headers: { 'X-Chinwag-Verified': '1' },
+      }),
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it('rejects agent owned by different user', async () => {
+    const res = await team().fetch(
+      new Request(`http://localhost/ws?agentId=${agentId}&ownerId=other-user&role=agent`, {
         headers: { 'X-Chinwag-Verified': '1' },
       }),
     );

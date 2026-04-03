@@ -140,6 +140,7 @@ export async function handleTeamWebSocket(request, user, env, teamId) {
   wsUrl.searchParams.delete('token');
   wsUrl.searchParams.delete('ticket');
   wsUrl.searchParams.set('agentId', agentId);
+  wsUrl.searchParams.set('ownerId', user.id);
 
   return team.fetch(
     new Request(wsUrl.toString(), {
