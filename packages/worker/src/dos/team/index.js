@@ -433,16 +433,6 @@ export class TeamDO extends DurableObject {
     return rows[0] || null;
   }
 
-  #findLatestMemberForOwner(ownerId) {
-    const rows = this.sql
-      .exec(
-        'SELECT agent_id, owner_id FROM members WHERE owner_id = ? ORDER BY last_heartbeat DESC LIMIT 1',
-        ownerId,
-      )
-      .toArray();
-    return rows[0] || null;
-  }
-
   #resolveOwnedAgentId(agentId, ownerId = null) {
     const exact = this.#findExactMember(agentId);
     if (exact) {
@@ -452,12 +442,6 @@ export class TeamDO extends DurableObject {
     const prefixed = this.#findPrefixedMember(agentId);
     if (prefixed) {
       return !ownerId || prefixed.owner_id === ownerId ? prefixed.agent_id : null;
-    }
-
-    // Legacy callers may still send the authenticated user id instead of X-Agent-Id.
-    if (ownerId && agentId === ownerId) {
-      const latest = this.#findLatestMemberForOwner(ownerId);
-      return latest?.agent_id || null;
     }
 
     return null;
@@ -757,10 +741,13 @@ export class TeamDO extends DurableObject {
 
   // ── Summary (lightweight, for cross-project dashboard) ──
 
-  async getSummary(agentId, ownerId = null) {
+  async getSummary(ownerId) {
     this.#ensureSchema();
-    if (!this.#resolveOwnedAgentId(agentId, ownerId))
-      return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
+    // Dashboard summary: check that this user owns at least one agent in the team
+    const ownerRow = this.sql
+      .exec('SELECT 1 FROM members WHERE owner_id = ? LIMIT 1', ownerId)
+      .toArray();
+    if (ownerRow.length === 0) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
     this.#maybeCleanup();
     return queryTeamSummary(this.sql);
   }

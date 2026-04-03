@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { registerTools } from '../register-tools.js';
+import { registerTools } from '../tools/index.js';
 
-// We need to mock the context module since register-tools imports from it.
+// We need to mock the context module since tools/index imports from it.
 vi.mock('../context.js', () => ({
   refreshContext: vi.fn().mockResolvedValue(null),
   teamPreamble: vi.fn().mockResolvedValue(''),

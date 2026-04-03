@@ -245,19 +245,9 @@ describe('teamErrorStatus', () => {
     expect(teamErrorStatus({ error: 'Something else', code: 'UNKNOWN_CODE' })).toBe(400);
   });
 
-  // Legacy fallback: string messages
-  it('returns 403 for legacy "Not a member" string', () => {
-    expect(teamErrorStatus('Not a member of this team')).toBe(403);
-  });
-
-  it('returns 403 for object without code but with "Not a member" error', () => {
-    expect(teamErrorStatus({ error: 'Not a member' })).toBe(403);
-    expect(teamErrorStatus({ error: 'Error: Not a member of the team' })).toBe(403);
-  });
-
-  it('returns 400 for other error messages without code', () => {
+  it('returns 400 for objects without error code', () => {
     expect(teamErrorStatus({ error: 'Invalid input' })).toBe(400);
-    expect(teamErrorStatus({ error: 'Category must be one of: gotcha, pattern' })).toBe(400);
+    expect(teamErrorStatus({ error: 'Something else' })).toBe(400);
   });
 
   it('returns 400 for null or undefined', () => {
@@ -265,20 +255,11 @@ describe('teamErrorStatus', () => {
     expect(teamErrorStatus(undefined)).toBe(400);
   });
 
-  it('returns 400 for empty string', () => {
-    expect(teamErrorStatus('')).toBe(400);
-  });
-
   it('returns correct status for structured error codes', () => {
     expect(teamErrorStatus({ error: 'Not a member of this team', code: 'NOT_MEMBER' })).toBe(403);
     expect(teamErrorStatus({ error: 'Not your agent', code: 'NOT_OWNER' })).toBe(403);
     expect(teamErrorStatus({ error: 'Agent ID already claimed', code: 'AGENT_CLAIMED' })).toBe(409);
     expect(teamErrorStatus({ error: 'Memory not found', code: 'NOT_FOUND' })).toBe(404);
-  });
-
-  it('falls back to string matching when code is missing', () => {
-    expect(teamErrorStatus({ error: 'Not a member of this team' })).toBe(403);
-    expect(teamErrorStatus({ error: 'Something else' })).toBe(400);
   });
 });
 

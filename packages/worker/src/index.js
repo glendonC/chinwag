@@ -61,7 +61,7 @@ import {
   handleTeamUpdateMemory,
   handleTeamEnrichModel,
   handleTeamWebSocket,
-} from './routes/team.js';
+} from './routes/team/index.js';
 
 export { DatabaseDO } from './dos/database/index.js';
 export { LobbyDO } from './lobby.js';

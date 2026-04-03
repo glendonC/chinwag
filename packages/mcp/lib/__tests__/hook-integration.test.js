@@ -315,35 +315,6 @@ describe('hook.js entry point coverage', () => {
     expect(exitSpy).toHaveBeenCalledWith(0);
   });
 
-  it('runs report-tool-use (deprecated, exits 0)', async () => {
-    configExists.mockReturnValue(true);
-    loadConfig.mockReturnValue({ token: 'tok_test' });
-    findTeamFile.mockReturnValue('t_abc');
-    process.argv = ['node', 'hook.js', 'report-tool-use'];
-
-    const fakeStdin = new Readable({
-      read() {
-        this.push(null);
-      },
-    });
-    fakeStdin.setEncoding =
-      fakeStdin.setEncoding ||
-      function (enc) {
-        return this;
-      };
-    Object.defineProperty(process, 'stdin', {
-      value: fakeStdin,
-      writable: true,
-      configurable: true,
-    });
-
-    vi.resetModules();
-    await import('../../hook.js');
-    await new Promise((r) => setTimeout(r, 100));
-
-    expect(exitSpy).toHaveBeenCalledWith(0);
-  });
-
   it('exits 1 for unknown subcommand', async () => {
     configExists.mockReturnValue(true);
     loadConfig.mockReturnValue({ token: 'tok_test' });

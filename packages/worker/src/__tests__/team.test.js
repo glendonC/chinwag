@@ -35,7 +35,7 @@ describe('Membership', () => {
     expect(hb.error).toBeTruthy();
   });
 
-  it('persists structured runtime metadata alongside the legacy tool field', async () => {
+  it('persists structured runtime metadata across all entities', async () => {
     const runtimeTeam = () => getTeam('membership-runtime-tests');
     const runtimeAgent = 'cursor:runtime-m1';
     const runtimeOwner = 'user-runtime-m1';
@@ -111,7 +111,7 @@ describe('Membership', () => {
     expect(session.agent_surface).toBe('cline');
     expect(session.transport).toBe('mcp');
 
-    const summary = await runtimeTeam().getSummary(runtimeAgent, runtimeOwner);
+    const summary = await runtimeTeam().getSummary(runtimeOwner);
     expect(summary.hosts_configured.some((item) => item.host_tool === 'cursor')).toBe(true);
     expect(summary.surfaces_seen.some((item) => item.agent_surface === 'cline')).toBe(true);
   });

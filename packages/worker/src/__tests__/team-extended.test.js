@@ -358,7 +358,7 @@ describe('getSummary', () => {
   });
 
   it('returns correct field structure', async () => {
-    const summary = await team().getSummary(agent1, owner1);
+    const summary = await team().getSummary(owner1);
     expect(summary.error).toBeUndefined();
     expect(typeof summary.active_agents).toBe('number');
     expect(typeof summary.total_members).toBe('number');
@@ -371,30 +371,30 @@ describe('getSummary', () => {
   });
 
   it('counts members correctly', async () => {
-    const summary = await team().getSummary(agent1, owner1);
+    const summary = await team().getSummary(owner1);
     expect(summary.total_members).toBe(2);
     expect(summary.active_agents).toBe(2);
   });
 
   it('counts memories', async () => {
-    const summary = await team().getSummary(agent1, owner1);
+    const summary = await team().getSummary(owner1);
     expect(summary.memory_count).toBeGreaterThanOrEqual(1);
   });
 
   it('counts live sessions', async () => {
-    const summary = await team().getSummary(agent1, owner1);
+    const summary = await team().getSummary(owner1);
     expect(summary.live_sessions).toBeGreaterThanOrEqual(1);
   });
 
   it('tracks tool usage', async () => {
-    const summary = await team().getSummary(agent1, owner1);
+    const summary = await team().getSummary(owner1);
     const cursorTool = summary.hosts_configured.find((t) => t.host_tool === 'cursor');
     expect(cursorTool).toBeDefined();
     expect(cursorTool.joins).toBeGreaterThanOrEqual(1);
   });
 
   it('rejects non-member', async () => {
-    const summary = await team().getSummary('cursor:unknown', 'unknown-owner');
+    const summary = await team().getSummary('unknown-owner');
     expect(summary.error).toContain('Not a member');
   });
 });
@@ -925,7 +925,7 @@ describe('Telemetry tracking', () => {
   });
 
   it('summary includes usage metrics', async () => {
-    const summary = await team().getSummary(agentId, ownerId);
+    const summary = await team().getSummary(ownerId);
     expect(summary.usage).toBeDefined();
     expect(summary.usage.joins).toBeGreaterThanOrEqual(1);
     expect(summary.usage.memories_saved).toBeGreaterThanOrEqual(1);

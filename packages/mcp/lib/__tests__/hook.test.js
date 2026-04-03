@@ -327,21 +327,10 @@ describe('hook.js logic', () => {
   // --- Subcommand routing ---
 
   describe('subcommand routing', () => {
-    it('report-tool-use is deprecated', () => {
-      expect(() => {
-        const subcommand = 'report-tool-use';
-        if (subcommand === 'report-tool-use') process.exit(0);
-      }).toThrow('EXIT:0');
-    });
-
     it('unknown subcommand exits 1', () => {
       expect(() => {
         const subcommand = 'unknown';
-        if (
-          !['check-conflict', 'report-edit', 'report-tool-use', 'session-start'].includes(
-            subcommand,
-          )
-        ) {
+        if (!['check-conflict', 'report-edit', 'session-start'].includes(subcommand)) {
           console.error(`[chinwag] Unknown hook subcommand: ${subcommand}`);
           process.exit(1);
         }

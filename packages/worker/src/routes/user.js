@@ -41,11 +41,6 @@ export async function authenticate(request, env) {
       const result = await db.getUser(userId);
       return result.ok ? result.user : null;
     }
-    // Fallback: raw token in URL (backwards compat for old clients)
-    token = url.searchParams.get('token');
-    if (token) {
-      log.warn('DEPRECATED: WebSocket auth via URL token param, use ticket-based auth');
-    }
   }
   if (!token) return null;
 
@@ -270,7 +265,7 @@ export async function handleDashboardSummary(user, env) {
     capped.map(async (teamEntry) => {
       const team = getTeam(env, teamEntry.team_id);
       try {
-        const summary = await team.getSummary(user.id, user.id);
+        const summary = await team.getSummary(user.id);
         if (summary.error) {
           try {
             await db.removeUserTeam(user.id, teamEntry.team_id);

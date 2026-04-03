@@ -148,7 +148,7 @@ describe('Cleanup throttling', () => {
   });
 
   it('getSummary also triggers cleanup without error', async () => {
-    const summary = await team().getSummary(agentId, ownerId);
+    const summary = await team().getSummary(ownerId);
     expect(summary.error).toBeUndefined();
     expect(summary.total_members).toBeGreaterThanOrEqual(1);
   });

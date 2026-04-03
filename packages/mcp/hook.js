@@ -56,9 +56,6 @@ async function main() {
     case 'report-edit':
       await reportEdit(team, teamId, input);
       break;
-    case 'report-tool-use':
-      process.exit(0);
-      return; // Deprecated — activity tracked via WebSocket
     case 'session-start':
       await sessionStart(team, teamId, hasExactSession);
       break;

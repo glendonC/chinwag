@@ -2,7 +2,7 @@ import { createStore, useStore } from 'zustand';
 import { api } from '../api.js';
 import { authActions } from './auth.js';
 
-/** Map a directory evaluation to the old catalog shape for backwards compat. */
+/** Map a directory evaluation to the catalog display shape used by ToolsView. */
 function evaluationToCatalogItem(ev) {
   return {
     id: ev.id,
@@ -75,22 +75,6 @@ async function fetchCatalog(token) {
         _inflight: null,
       });
     })
-    .catch(() =>
-      // Fallback to old catalog endpoint if directory isn't deployed yet
-      api('GET', '/tools/catalog', null, token).then((data) => {
-        const catalog = data.tools || [];
-        const categories = data.categories || {};
-        toolCatalogStore.setState({
-          catalog,
-          categories,
-          evaluations: [],
-          loading: false,
-          error: null,
-          _cachedForToken: token,
-          _inflight: null,
-        });
-      }),
-    )
     .catch((error) => {
       toolCatalogStore.setState({
         catalog: [],

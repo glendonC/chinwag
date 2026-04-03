@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { basename } from 'node:path';
 import { HOST_INTEGRATIONS, getHostIntegrationById } from './integration-model.js';
-import { readProcessInfo } from './process-utils.js';
+import { readProcessInfo as defaultReadProcessInfo } from './process-utils.js';
 import type { RuntimeIdentityContract } from './contracts.js';
 
 export interface RuntimeIdentity extends RuntimeIdentityContract {}
@@ -21,9 +21,6 @@ export interface RuntimeIdentityLike {
 
 /** Maximum parent process hops when detecting host tool via process tree. */
 const DEFAULT_MAX_PARENT_HOPS = 5;
-
-/** @deprecated Use the `readProcessInfoFn` option to override. */
-const defaultReadProcessInfo = readProcessInfo;
 
 function extractExecutableName(command = ''): string {
   const match = String(command)
