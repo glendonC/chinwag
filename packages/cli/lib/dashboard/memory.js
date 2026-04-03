@@ -14,30 +14,33 @@ export function useMemoryManager({ config, teamId, bumpRefreshKey, flash }) {
   const [deleteMsg, setDeleteMsg] = useState(null);
   const [memorySearch, setMemorySearch] = useState('');
   const [memoryInput, setMemoryInput] = useState('');
-  const savingRef = useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const pendingSaveRef = useRef(Promise.resolve());
 
   function saveMemory(text) {
     if (!teamId || !text.trim()) return Promise.resolve();
-    if (savingRef.current) return Promise.resolve();
-    savingRef.current = true;
-    flash('Saving to shared memory\u2026', { tone: 'info' });
-    return api(config)
-      .post(`/teams/${teamId}/memory`, { text: text.trim() })
-      .then(() => {
+
+    const doSave = async () => {
+      setIsSaving(true);
+      flash('Saving to shared memory\u2026', { tone: 'info' });
+      try {
+        await api(config).post(`/teams/${teamId}/memory`, { text: text.trim() });
         flash('Saved to shared memory', { tone: 'success' });
         bumpRefreshKey();
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error('[chinwag] Could not save memory:', err?.message || err);
         flash('Could not save \u2014 check connection and try again', {
           tone: 'error',
           autoClearMs: 5000,
         });
         throw err; // re-throw so caller can preserve input
-      })
-      .finally(() => {
-        savingRef.current = false;
-      });
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    pendingSaveRef.current = pendingSaveRef.current.then(doSave, doSave);
+    return pendingSaveRef.current;
   }
 
   function deleteMemoryItem(mem) {
@@ -89,7 +92,7 @@ export function useMemoryManager({ config, teamId, bumpRefreshKey, flash }) {
     memoryInput,
     setMemoryInput,
     saveMemory,
-    isSaving: savingRef.current,
+    isSaving,
     deleteMemoryItem,
     resetMemorySelection,
     clearMemorySearch,

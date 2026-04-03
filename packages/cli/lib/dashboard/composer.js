@@ -20,7 +20,8 @@ export function useComposer({
   const [composeTarget, setComposeTarget] = useState(null);
   const [composeTargetLabel, setComposeTargetLabel] = useState(null);
   const [commandSelectedIdx, setCommandSelectedIdx] = useState(0);
-  const sendingRef = useRef(false);
+  const [isSending, setIsSending] = useState(false);
+  const pendingSendRef = useRef(Promise.resolve());
 
   const isComposing = Boolean(composeMode);
 
@@ -69,25 +70,30 @@ export function useComposer({
       return Promise.reject();
     }
     if (!teamId || !text.trim()) return Promise.reject();
-    if (sendingRef.current) return Promise.resolve();
-    sendingRef.current = true;
-    return api(config)
-      .post(`/teams/${teamId}/messages`, { text: text.trim(), target: target || undefined })
-      .then(() => {
+
+    const doSend = async () => {
+      setIsSending(true);
+      try {
+        await api(config).post(`/teams/${teamId}/messages`, {
+          text: text.trim(),
+          target: target || undefined,
+        });
         flash(targetLabel ? `Sent to ${targetLabel}` : 'Sent to team', { tone: 'success' });
         bumpRefreshKey();
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error('[chinwag] Could not send message:', err?.message || err);
         flash('Send failed \u2014 message preserved, try again', {
           tone: 'error',
           autoClearMs: 5000,
         });
         throw err; // re-throw so caller can restore compose state
-      })
-      .finally(() => {
-        sendingRef.current = false;
-      });
+      } finally {
+        setIsSending(false);
+      }
+    };
+
+    pendingSendRef.current = pendingSendRef.current.then(doSend, doSend);
+    return pendingSendRef.current;
   }
 
   function onComposeSubmit(commandSuggestions, handleCommandSubmit) {
@@ -130,7 +136,7 @@ export function useComposer({
     beginMemorySearch,
     beginMemoryAdd,
     sendMessage,
-    isSending: sendingRef.current,
+    isSending,
     onComposeSubmit,
   };
 }
