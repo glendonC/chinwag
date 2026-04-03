@@ -105,9 +105,29 @@ export const REFRESH_TOKEN_TTL_S = 180 * 24 * 60 * 60; // 180 days in seconds
 // Rate limit for token refresh requests (per user per day).
 export const RATE_LIMIT_TOKEN_REFRESH = 50;
 
+// --- Color palette ---
+// 12-color palette for user identity. Single source of truth — import these
+// instead of defining local copies.
+export const VALID_COLORS = [
+  'red',
+  'cyan',
+  'yellow',
+  'green',
+  'magenta',
+  'blue',
+  'orange',
+  'lime',
+  'pink',
+  'sky',
+  'lavender',
+  'white',
+];
+export const VALID_COLORS_SET = new Set(VALID_COLORS);
+
 // --- Misc ---
 export const CHAT_COOLDOWN_MS = 5 * 60 * 1000;
 export const MAX_BODY_SIZE = 50_000;
+export const MAX_WS_MESSAGE_SIZE = 50_000;
 export const CLEANUP_INTERVAL_MS = 60_000;
 export const HEARTBEAT_BROADCAST_DEBOUNCE_MS = 3000;
 export const MAX_DASHBOARD_TEAMS = 25;

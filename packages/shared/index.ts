@@ -28,6 +28,9 @@ export {
   type ChinwagConfig,
 } from './config.js';
 
+// error-utils
+export { formatError } from './error-utils.js';
+
 // contracts
 export type {
   AgentStatus,

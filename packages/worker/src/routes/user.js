@@ -15,6 +15,7 @@ import {
   CHAT_COOLDOWN_MS,
   MAX_DASHBOARD_TEAMS,
   MAX_NAME_LENGTH,
+  VALID_COLORS_SET,
 } from '../lib/constants.js';
 
 const log = createLogger('routes.user');
@@ -165,21 +166,6 @@ export async function handleUpdateHandle(request, user, env) {
   return json(result);
 }
 
-const VALID_COLORS = new Set([
-  'red',
-  'cyan',
-  'yellow',
-  'green',
-  'magenta',
-  'blue',
-  'orange',
-  'lime',
-  'pink',
-  'sky',
-  'lavender',
-  'white',
-]);
-
 export async function handleUpdateColor(request, user, env) {
   const body = await parseBody(request);
   const parseErr = requireJson(body);
@@ -189,8 +175,11 @@ export async function handleUpdateColor(request, user, env) {
   if (!color || typeof color !== 'string') {
     return json({ error: 'Color is required' }, 400);
   }
-  if (!VALID_COLORS.has(color)) {
-    return json({ error: `Invalid color. Must be one of: ${[...VALID_COLORS].join(', ')}` }, 400);
+  if (!VALID_COLORS_SET.has(color)) {
+    return json(
+      { error: `Invalid color. Must be one of: ${[...VALID_COLORS_SET].join(', ')}` },
+      400,
+    );
   }
 
   const result = await getDB(env).updateColor(user.id, color);

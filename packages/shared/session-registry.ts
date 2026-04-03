@@ -10,6 +10,7 @@ import {
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { getProcessTtyPath, getProcessCommandString } from './process-utils.js';
+import { formatError } from './error-utils.js';
 
 export interface SessionRecord {
   agentId: string;
@@ -99,7 +100,7 @@ export function readSessionRecord(
     console.error(
       'session-registry: failed to parse session file',
       filePath + ':',
-      err instanceof Error ? err.message : String(err),
+      formatError(err),
     );
     return null;
   }
@@ -116,10 +117,7 @@ export function deleteSessionRecord(
     if (
       !(err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT')
     )
-      console.error(
-        'session-registry: failed to delete session record:',
-        err instanceof Error ? err.message : String(err),
-      );
+      console.error('session-registry: failed to delete session record:', formatError(err));
     return false;
   }
 }
@@ -145,7 +143,7 @@ export function resolveSessionAgentId({
           console.error(
             'session-registry: failed to parse session file',
             join(dir, name) + ':',
-            err instanceof Error ? err.message : String(err),
+            formatError(err),
           );
           return null;
         }
@@ -167,10 +165,7 @@ export function resolveSessionAgentId({
     if (
       !(err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT')
     )
-      console.error(
-        'session-registry: failed to resolve session agent ID:',
-        err instanceof Error ? err.message : String(err),
-      );
+      console.error('session-registry: failed to resolve session agent ID:', formatError(err));
     return fallbackAgentId;
   }
 }

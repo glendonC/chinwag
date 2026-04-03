@@ -1,11 +1,12 @@
 import { execFileSync } from 'node:child_process';
+import { formatError } from './error-utils.js';
 
 const EXEC_TIMEOUT_MS = 5000;
 
 /** Log process-utils errors when CHINWAG_DEBUG is set. */
 function debugLog(fn: string, pid: number, err: unknown): void {
   if (!process.env.CHINWAG_DEBUG) return;
-  const message = err instanceof Error ? err.message : String(err);
+  const message = formatError(err);
   console.error(`[chinwag:process-utils] ${fn}(${pid}) failed: ${message}`);
 }
 

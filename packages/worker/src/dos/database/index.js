@@ -8,7 +8,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { seedEvaluations } from '../../lib/seed-evaluations.js';
 import { toSQLDateTime } from '../../lib/text-utils.js';
-import { WEB_SESSION_DURATION_MS } from '../../lib/constants.js';
+import { VALID_COLORS, WEB_SESSION_DURATION_MS } from '../../lib/constants.js';
 import { ensureSchema as ensureSchemaFn, cleanup as schemaCleanup } from './schema.js';
 import {
   saveEvaluation as saveEvalFn,
@@ -18,21 +18,6 @@ import {
   deleteEvaluation as deleteEvalFn,
   hasEvaluations as hasEvalsFn,
 } from './evaluations.js';
-
-const COLORS = [
-  'red',
-  'cyan',
-  'yellow',
-  'green',
-  'magenta',
-  'blue',
-  'orange',
-  'lime',
-  'pink',
-  'sky',
-  'lavender',
-  'white',
-];
 
 const ADJECTIVES = [
   'swift',
@@ -200,7 +185,7 @@ export class DatabaseDO extends DurableObject {
 
     const id = crypto.randomUUID();
     const token = crypto.randomUUID();
-    const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    const color = VALID_COLORS[Math.floor(Math.random() * VALID_COLORS.length)];
     const now = toSQLDateTime();
 
     const handle = this.#resolveUniqueHandle(this.#generateHandle());
@@ -276,8 +261,8 @@ export class DatabaseDO extends DurableObject {
   async updateColor(userId, color) {
     this.#ensureSchema();
 
-    if (!COLORS.includes(color)) {
-      return { error: `Color must be one of: ${COLORS.join(', ')}`, code: 'VALIDATION' };
+    if (!VALID_COLORS.includes(color)) {
+      return { error: `Color must be one of: ${VALID_COLORS.join(', ')}`, code: 'VALIDATION' };
     }
 
     this.sql.exec('UPDATE users SET color = ? WHERE id = ?', color, userId);
@@ -309,7 +294,7 @@ export class DatabaseDO extends DurableObject {
 
     const id = crypto.randomUUID();
     const token = crypto.randomUUID();
-    const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    const color = VALID_COLORS[Math.floor(Math.random() * VALID_COLORS.length)];
     const now = toSQLDateTime();
 
     let preferred = githubLogin.replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 20);
