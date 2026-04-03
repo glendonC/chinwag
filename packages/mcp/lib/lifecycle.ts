@@ -131,10 +131,16 @@ export function setupShutdownHandlers({ agentId, state, team, onDisconnectWs }: 
     // Force exit if cleanup hangs (e.g. backend unreachable)
     const forceExit = setTimeout(() => process.exit(0), FORCE_EXIT_TIMEOUT_MS);
     forceExit.unref?.();
-    cleanupProcessSession(agentId, state, team).then(() => {
-      clearTimeout(forceExit);
-      setTimeout(() => process.exit(0), 100);
-    });
+    cleanupProcessSession(agentId, state, team)
+      .then(() => {
+        clearTimeout(forceExit);
+        setTimeout(() => process.exit(0), 100);
+      })
+      .catch((err) => {
+        log.error('Cleanup failed: ' + (err instanceof Error ? err.message : String(err)));
+        clearTimeout(forceExit);
+        setTimeout(() => process.exit(0), 100);
+      });
   };
 
   process.on('SIGINT', cleanup);

@@ -15,6 +15,7 @@ import {
   CHAT_MAX_PER_MINUTE,
   CHAT_RATE_LIMIT_WINDOW_MS,
   CHAT_RATE_LIMIT_PRUNE_AFTER_MS,
+  MAX_WS_MESSAGE_SIZE,
 } from './lib/constants.js';
 
 export function checkWindowedRateLimit(rateLimits, key, maxPerMinute = 10, now = Date.now()) {
@@ -102,7 +103,13 @@ export class RoomDO extends DurableObject {
     const session = this.sessions.get(ws);
     if (!session) return;
 
-    const data = safeParse(rawMessage, `RoomDO.webSocketMessage room=${this.roomId}`, null, log);
+    const raw = typeof rawMessage === 'string' ? rawMessage : new TextDecoder().decode(rawMessage);
+    if (raw.length > MAX_WS_MESSAGE_SIZE) {
+      ws.close(1009, 'Message too large');
+      return;
+    }
+
+    const data = safeParse(raw, `RoomDO.webSocketMessage room=${this.roomId}`, null, log);
     if (!data) return;
 
     if (data.type === 'message') {

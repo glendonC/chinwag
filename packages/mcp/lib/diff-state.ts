@@ -143,10 +143,10 @@ export function diffState(
 
   // New messages
   const prevMsgIds = new Set(
-    (prev.messages || []).map((m) => (m.created_at || '') + m.from_handle),
+    (prev.messages || []).map((m) => `${m.created_at || ''}|${m.from_handle}|${m.text || ''}`),
   );
   for (const msg of curr.messages || []) {
-    const key = (msg.created_at || '') + msg.from_handle;
+    const key = `${msg.created_at || ''}|${msg.from_handle}|${msg.text || ''}`;
     if (!prevMsgIds.has(key)) {
       events.push(`Message from ${formatWho(msg.from_handle, msg.from_tool)}: ${msg.text}`);
     }

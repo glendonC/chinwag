@@ -137,7 +137,7 @@ export async function handleTeamHeartbeat(request, user, env, teamId) {
   const result = await team.heartbeat(agentId, user.id);
   if (result.error) {
     log.warn(`heartbeat failed: ${result.error}`);
-    return json({ error: result.error }, teamErrorStatus(result.error));
+    return json({ error: result.error }, teamErrorStatus(result));
   }
   return json(result);
 }

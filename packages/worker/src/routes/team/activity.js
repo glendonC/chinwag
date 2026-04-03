@@ -41,7 +41,7 @@ export async function handleTeamActivity(request, user, env, teamId) {
   const result = await team.updateActivity(agentId, files, summary, user.id);
   if (result.error) {
     log.warn(`updateActivity failed: ${result.error}`);
-    return json({ error: result.error }, teamErrorStatus(result.error));
+    return json({ error: result.error }, teamErrorStatus(result));
   }
   return json(result);
 }
@@ -91,7 +91,7 @@ export async function handleTeamFile(request, user, env, teamId) {
       const result = await team.reportFile(agentId, file, user.id);
       if (result.error) {
         log.warn(`reportFile failed: ${result.error}`);
-        return json({ error: result.error }, teamErrorStatus(result.error));
+        return json({ error: result.error }, teamErrorStatus(result));
       }
       return json(result);
     },
@@ -120,7 +120,7 @@ export async function handleTeamStartSession(request, user, env, teamId) {
       const result = await team.startSession(agentId, user.handle, framework, runtime, user.id);
       if (result.error) {
         log.warn(`startSession failed: ${result.error}`);
-        return json({ error: result.error }, teamErrorStatus(result.error));
+        return json({ error: result.error }, teamErrorStatus(result));
       }
       auditLog('session.start', {
         actor: user.handle,
@@ -147,7 +147,7 @@ export async function handleTeamEndSession(request, user, env, teamId) {
   const result = await team.endSession(agentId, session_id, user.id);
   if (result.error) {
     log.warn(`endSession failed: ${result.error}`);
-    return json({ error: result.error }, teamErrorStatus(result.error));
+    return json({ error: result.error }, teamErrorStatus(result));
   }
   auditLog('session.end', {
     actor: user.handle,
@@ -181,7 +181,7 @@ export async function handleTeamSessionEdit(request, user, env, teamId) {
       const result = await team.recordEdit(agentId, file, user.id);
       if (result.error) {
         log.warn(`recordEdit failed: ${result.error}`);
-        return json({ error: result.error }, teamErrorStatus(result.error));
+        return json({ error: result.error }, teamErrorStatus(result));
       }
       return json(result);
     },
@@ -224,7 +224,7 @@ export async function handleTeamEnrichModel(request, user, env, teamId) {
   const result = await team.enrichModel(agentId, model.trim(), user.id);
   if (result.error) {
     log.warn(`enrichModel failed: ${result.error}`);
-    return json({ error: result.error }, teamErrorStatus(result.error));
+    return json({ error: result.error }, teamErrorStatus(result));
   }
   return json(result);
 }
