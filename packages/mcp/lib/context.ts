@@ -9,6 +9,7 @@ let cachedContext: TeamContext | null = null;
 let cachedContextAt = 0;
 let cachedContextTeam: string | null = null;
 let isOffline = false;
+let consecutiveErrors = 0;
 const CONTEXT_TTL_MS = 30_000;
 
 let lastPreambleState = '';
@@ -28,16 +29,25 @@ export async function refreshContext(
     cachedContextTeam = teamId;
     if (isOffline) {
       isOffline = false;
+      consecutiveErrors = 0;
       console.error('[chinwag] Back online');
     }
     return cachedContext;
   } catch (err: unknown) {
-    if (!isOffline) {
-      isOffline = true;
-      const message = err instanceof Error ? err.message : 'unknown error';
-      console.error('[chinwag] API unreachable -- using cached context:', message);
+    consecutiveErrors++;
+    const message = err instanceof Error ? err.message : 'unknown error';
+    // Log on first failure and every 10th to avoid flooding stderr
+    if (!isOffline || consecutiveErrors % 10 === 0) {
+      const cacheAge = cachedContext
+        ? `${Math.round((now - cachedContextAt) / 1000)}s old`
+        : 'none';
+      console.error(
+        `[chinwag] API unreachable (${consecutiveErrors}x) -- cached context: ${cacheAge}:`,
+        message,
+      );
     }
-    return cachedContext; // may be null if never fetched
+    isOffline = true;
+    return cachedContext; // null if never fetched — caller must handle
   }
 }
 

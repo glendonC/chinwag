@@ -1,11 +1,8 @@
-// chinwag_join_team tool handler.
-
 import { basename } from 'path';
 import * as z from 'zod/v4';
 import { clearContextCache } from '../context.js';
 import { errorResult } from '../utils/responses.js';
-
-export function registerTeamTool(addTool, { team, state, profile }) {
+function registerTeamTool(addTool, { team, state, profile }) {
   addTool(
     'chinwag_join_team',
     {
@@ -28,25 +25,35 @@ export function registerTeamTool(addTool, { team, state, profile }) {
         state.sessionId = null;
         state.modelReported = null;
         clearContextCache();
-
         if (state.heartbeatInterval) clearInterval(state.heartbeatInterval);
-        state.heartbeatInterval = setInterval(async () => {
-          try {
-            await team.heartbeat(state.teamId);
-          } catch (err) {
-            if (err.status === 403) {
-              try {
-                await team.joinTeam(state.teamId, basename(process.cwd()));
-                console.error('[chinwag] Rejoined team after eviction');
-              } catch (joinErr) {
-                console.error('[chinwag] Rejoin failed:', joinErr.message);
+        let consecutiveFailures = 0;
+        state.heartbeatInterval = setInterval(() => {
+          void (async () => {
+            try {
+              await team.heartbeat(state.teamId);
+              consecutiveFailures = 0;
+            } catch (err) {
+              consecutiveFailures++;
+              const status = err instanceof Error && 'status' in err ? err.status : void 0;
+              if (status === 403) {
+                try {
+                  await team.joinTeam(state.teamId, basename(process.cwd()));
+                  console.error('[chinwag] Rejoined team after eviction');
+                  consecutiveFailures = 0;
+                } catch (joinErr) {
+                  const joinMessage = joinErr instanceof Error ? joinErr.message : String(joinErr);
+                  console.error('[chinwag] Rejoin failed:', joinMessage);
+                }
+              } else {
+                const message = err instanceof Error ? err.message : String(err);
+                console.error(
+                  `[chinwag] Heartbeat failed (attempt ${consecutiveFailures}):`,
+                  message,
+                );
               }
-            } else {
-              console.error('[chinwag] Heartbeat failed:', err.message);
             }
-          }
-        }, 30_000);
-
+          })();
+        }, 3e4);
         let sessionStarted = false;
         try {
           const session = await team.startSession(state.teamId, profile.framework);
@@ -55,9 +62,9 @@ export function registerTeamTool(addTool, { team, state, profile }) {
             sessionStarted = true;
           }
         } catch (err) {
-          console.error('[chinwag] Failed to start session after join:', err.message);
+          const message = err instanceof Error ? err.message : String(err);
+          console.error('[chinwag] Failed to start session after join:', message);
         }
-
         if (previousTeamId && previousTeamId !== team_id) {
           if (previousSessionId) {
             await team.endSession(previousTeamId, previousSessionId).catch((err) => {
@@ -68,7 +75,6 @@ export function registerTeamTool(addTool, { team, state, profile }) {
             console.error('[chinwag] Failed to leave previous team:', err.message);
           });
         }
-
         const text = sessionStarted
           ? `Joined team ${team_id}. Session started.`
           : `Joined team ${team_id}. Team membership is active, but session start failed.`;
@@ -79,3 +85,4 @@ export function registerTeamTool(addTool, { team, state, profile }) {
     },
   );
 }
+export { registerTeamTool };

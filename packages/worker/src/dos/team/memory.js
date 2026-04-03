@@ -80,17 +80,21 @@ export function searchMemories(sql, query, tags, limit = 20) {
   return {
     ok: true,
     memories: rows.map((m) => {
-      let tags = [];
+      let parsedTags = [];
       try {
-        tags = JSON.parse(m.tags || '[]');
+        parsedTags = JSON.parse(m.tags || '[]');
       } catch (err) {
         console.error(
           '[chinwag] searchMemories: malformed JSON in memory tags, id:',
           m.id,
+          'raw:',
+          String(m.tags).slice(0, 100),
           err?.message || err,
         );
+        // Return raw string as single-element array so the data isn't lost
+        parsedTags = m.tags ? [String(m.tags)] : [];
       }
-      return { ...m, tags };
+      return { ...m, tags: parsedTags };
     }),
   };
 }

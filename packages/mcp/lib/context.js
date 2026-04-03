@@ -1,17 +1,12 @@
-// Shared context cache — serves as both preamble source and offline fallback.
-// When the API is unreachable, tools return this cached state with an [offline] tag.
-
 import { formatToolTag } from './utils/formatting.js';
-
 let cachedContext = null;
 let cachedContextAt = 0;
 let cachedContextTeam = null;
 let isOffline = false;
-const CONTEXT_TTL_MS = 30_000;
-
+let consecutiveErrors = 0;
+const CONTEXT_TTL_MS = 3e4;
 let lastPreambleState = '';
-
-export async function refreshContext(team, teamId) {
+async function refreshContext(team, teamId) {
   if (!teamId) return null;
   const now = Date.now();
   if (cachedContext && cachedContextTeam === teamId && now - cachedContextAt < CONTEXT_TTL_MS) {
@@ -23,59 +18,58 @@ export async function refreshContext(team, teamId) {
     cachedContextTeam = teamId;
     if (isOffline) {
       isOffline = false;
+      consecutiveErrors = 0;
       console.error('[chinwag] Back online');
     }
     return cachedContext;
   } catch (err) {
-    if (!isOffline) {
-      isOffline = true;
+    consecutiveErrors++;
+    const message = err instanceof Error ? err.message : 'unknown error';
+    if (!isOffline || consecutiveErrors % 10 === 0) {
+      const cacheAge = cachedContext ? `${Math.round((now - cachedContextAt) / 1e3)}s old` : 'none';
       console.error(
-        '[chinwag] API unreachable — using cached context:',
-        err?.message || 'unknown error',
+        `[chinwag] API unreachable (${consecutiveErrors}x) -- cached context: ${cacheAge}:`,
+        message,
       );
     }
-    return cachedContext; // may be null if never fetched
+    isOffline = true;
+    return cachedContext;
   }
 }
-
-export function offlinePrefix() {
-  return isOffline ? '[offline — using cached data] ' : '';
+function offlinePrefix() {
+  return isOffline ? '[offline -- using cached data] ' : '';
 }
-
-export function getCachedContext() {
+function getCachedContext() {
   return cachedContext;
 }
-
-export function clearContextCache() {
+function clearContextCache() {
   cachedContext = null;
   cachedContextAt = 0;
   cachedContextTeam = null;
 }
-
-export async function teamPreamble(team, teamId) {
+async function teamPreamble(team, teamId) {
   const ctx = await refreshContext(team, teamId);
   if (!ctx) return isOffline ? '[offline] ' : '';
   const active = ctx.members?.filter((m) => m.status === 'active') || [];
   if (active.length === 0) return offlinePrefix();
-
   const summary = active
     .map((m) => {
-      const toolTag = formatToolTag(m.host_tool);
+      const toolTag = formatToolTag(m.tool);
       const files = m.activity?.files?.join(', ') || 'idle';
       return `${m.handle}${toolTag}: ${files}`;
     })
     .join(' | ');
-
   const lockCount = ctx.locks?.length || 0;
   const msgCount = ctx.messages?.length || 0;
   const extras = [];
   if (lockCount > 0) extras.push(`${lockCount} locked file${lockCount > 1 ? 's' : ''}`);
   if (msgCount > 0) extras.push(`${msgCount} message${msgCount > 1 ? 's' : ''}`);
-
   const currentState = `${summary}|${extras.join(',')}`;
   if (currentState === lastPreambleState) return offlinePrefix();
   lastPreambleState = currentState;
-
   const extraStr = extras.length > 0 ? ` (${extras.join(', ')})` : '';
-  return `${offlinePrefix()}[Team: ${summary}${extraStr}]\n\n`;
+  return `${offlinePrefix()}[Team: ${summary}${extraStr}]
+
+`;
 }
+export { clearContextCache, getCachedContext, offlinePrefix, refreshContext, teamPreamble };

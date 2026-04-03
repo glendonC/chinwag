@@ -30,16 +30,24 @@ export function registerContextTool(
 
       // Deferred model enrichment -- fire-and-forget on first report.
       // Tracks which model was reported (not just a boolean) so a different
-      // model triggers a new report. Set on success, cleared on failure.
+      // model triggers a new report. Retries once on failure; clears
+      // modelReported so the next tool call will try again.
       if (model && model !== state.modelReported && state.teamId) {
-        (async () => {
-          try {
-            await team.reportModel(state.teamId!, model);
-            state.modelReported = model;
-          } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : 'unknown';
-            console.error('[chinwag] Model report failed:', message);
+        void (async () => {
+          const teamId = state.teamId!;
+          for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+              await team.reportModel(teamId, model);
+              state.modelReported = model;
+              return;
+            } catch (err: unknown) {
+              const message = err instanceof Error ? err.message : 'unknown';
+              console.error(`[chinwag] Model report failed (attempt ${attempt + 1}/2):`, message);
+              if (attempt === 0) await new Promise((r) => setTimeout(r, 1000));
+            }
           }
+          // All retries exhausted — clear so next tool call retries
+          state.modelReported = null;
         })();
       }
       const ctx = await refreshContext(team, state.teamId);

@@ -1,17 +1,8 @@
-// chinwag_get_team_context tool handler.
-
 import * as z from 'zod/v4';
 import { refreshContext, offlinePrefix } from '../context.js';
 import { noTeam } from '../utils/responses.js';
-import { formatWho } from '../utils/formatting.js';
-import { formatTeamContextDisplay } from '../utils/display.js';
-
-export function registerContextTool(addTool, { team, state }) {
-  // Promise-based mutex: stores the in-flight report promise so concurrent
-  // calls await the same attempt instead of firing duplicates. Cleared on
-  // success (done) or failure (retry allowed).
-  let modelReportPromise = null;
-
+import { formatToolTag, formatWho } from '../utils/formatting.js';
+function registerContextTool(addTool, { team, state }) {
   addTool(
     'chinwag_get_team_context',
     {
@@ -29,47 +20,57 @@ export function registerContextTool(addTool, { team, state }) {
     },
     async ({ model } = {}) => {
       if (!state.teamId) return noTeam();
-
-      // Fire-once model enrichment with Promise-based dedup.
-      // Tracks which model was reported (not just a boolean) so a different
-      // model triggers a new report. Concurrent calls share the in-flight
-      // promise. Cleared on failure to allow retry.
-      if (model && model !== state.modelReported && state.teamId && !modelReportPromise) {
-        modelReportPromise = team
-          .reportModel(state.teamId, model)
-          .then(() => {
-            state.modelReported = model;
-          })
-          .catch((err) => {
-            console.error('[chinwag] Model report failed:', err.message);
-          })
-          .finally(() => {
-            modelReportPromise = null;
-          });
+      if (model && model !== state.modelReported && state.teamId) {
+        void (async () => {
+          const teamId = state.teamId;
+          for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+              await team.reportModel(teamId, model);
+              state.modelReported = model;
+              return;
+            } catch (err) {
+              const message = err instanceof Error ? err.message : 'unknown';
+              console.error(`[chinwag] Model report failed (attempt ${attempt + 1}/2):`, message);
+              if (attempt === 0) await new Promise((r) => setTimeout(r, 1e3));
+            }
+          }
+          state.modelReported = null;
+        })();
       }
       const ctx = await refreshContext(team, state.teamId);
       if (!ctx) {
         return {
           content: [
-            { type: 'text', text: 'No team context available (API unreachable, no cached data).' },
+            {
+              type: 'text',
+              text: 'No team context available (API unreachable, no cached data).',
+            },
           ],
           isError: true,
         };
       }
-
       const lines = [];
-      if (offlinePrefix()) lines.push('[offline — showing cached data]');
-
-      // Shared display logic for members, locks, and memories
-      const contextLines = formatTeamContextDisplay(ctx);
-      if (contextLines.length === 0) {
+      if (offlinePrefix()) lines.push('[offline \u2014 showing cached data]');
+      if (!ctx.members || ctx.members.length === 0) {
         lines.push('No other agents connected.');
       } else {
         lines.push('Agents:');
-        lines.push(...contextLines);
+        for (const m of ctx.members) {
+          const toolInfo = formatToolTag(m.tool) ? `, ${m.tool}` : '';
+          const activity = m.activity
+            ? `working on ${m.activity.files.join(', ')}${m.activity.summary ? ` \u2014 "${m.activity.summary}"` : ''}`
+            : 'idle';
+          lines.push(`  ${m.handle} (${m.status}${toolInfo}): ${activity}`);
+        }
       }
-
-      // Messages (tool-specific — not in shared display)
+      if (ctx.locks && ctx.locks.length > 0) {
+        lines.push('');
+        lines.push('Locked files:');
+        for (const l of ctx.locks) {
+          const who = formatWho(l.owner_handle, l.tool);
+          lines.push(`  ${l.file_path} \u2014 ${who} (${Math.round(l.minutes_held)}m)`);
+        }
+      }
       if (ctx.messages && ctx.messages.length > 0) {
         lines.push('');
         lines.push('Messages:');
@@ -78,8 +79,16 @@ export function registerContextTool(addTool, { team, state }) {
           lines.push(`  ${from}: ${msg.text}`);
         }
       }
-
+      if (ctx.memories && ctx.memories.length > 0) {
+        lines.push('');
+        lines.push('Project knowledge:');
+        for (const mem of ctx.memories) {
+          const tagStr = mem.tags?.length ? ` [${mem.tags.join(', ')}]` : '';
+          lines.push(`  ${mem.text}${tagStr}`);
+        }
+      }
       return { content: [{ type: 'text', text: lines.join('\n') }] };
     },
   );
 }
+export { registerContextTool };

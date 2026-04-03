@@ -110,12 +110,17 @@ export class TeamDO extends DurableObject {
       this.#broadcastToWatchers({ type: 'status_change', agent_id: resolved, status: 'active' });
     }
 
-    // Send initial full context
+    // Send initial full context — on failure, send error frame so client knows
     try {
       const ctx = await this.getContext(resolved);
       server.send(JSON.stringify({ type: 'context', data: ctx }));
     } catch (err) {
-      console.error('Failed to send initial context:', err);
+      console.error('[chinwag] Failed to send initial context:', err);
+      try {
+        server.send(JSON.stringify({ type: 'error', message: 'Failed to load initial context' }));
+      } catch {
+        // Client may have already disconnected
+      }
     }
 
     return new Response(null, { status: 101, webSocket: client });
@@ -191,7 +196,7 @@ export class TeamDO extends DurableObject {
         }
       }
     } catch (err) {
-      console.log(
+      console.error(
         JSON.stringify({
           event: 'ws_message_error',
           agent_id: agentId,
@@ -200,6 +205,11 @@ export class TeamDO extends DurableObject {
           timestamp: new Date().toISOString(),
         }),
       );
+      try {
+        ws.send(JSON.stringify({ type: 'error', message: 'Message processing failed' }));
+      } catch {
+        // Client may have disconnected
+      }
     }
   }
 
@@ -212,6 +222,8 @@ export class TeamDO extends DurableObject {
         '[chinwag] TeamDO.webSocketClose: failed to read tags on closing socket',
         err?.message || err,
       );
+      // Tags lost — cannot identify agent. This is rare (DO restart mid-close).
+      // Stale locks/members will be cleaned up by #maybeCleanup's heartbeat eviction.
       return;
     }
     const isAgent = tags.includes('role:agent');
@@ -220,7 +232,11 @@ export class TeamDO extends DurableObject {
     if (isAgent && agentId) {
       this.#ensureSchema();
       // Release locks — agent is gone, don't block others
-      releaseFilesFn(this.sql, agentId, null);
+      try {
+        releaseFilesFn(this.sql, agentId, null);
+      } catch (err) {
+        console.error('[chinwag] webSocketClose: lock release failed for', agentId, err?.message);
+      }
       this.#broadcastToWatchers({ type: 'status_change', agent_id: agentId, status: 'offline' });
       this.#broadcastToWatchers({ type: 'lock_change', action: 'release_all', agent_id: agentId });
     }

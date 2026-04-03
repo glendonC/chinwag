@@ -34,27 +34,36 @@ export function registerTeamTool(
         clearContextCache();
 
         if (state.heartbeatInterval) clearInterval(state.heartbeatInterval);
-        state.heartbeatInterval = setInterval(async () => {
-          try {
-            await team.heartbeat(state.teamId!);
-          } catch (err: unknown) {
-            const status =
-              err instanceof Error && 'status' in err
-                ? (err as { status: number }).status
-                : undefined;
-            if (status === 403) {
-              try {
-                await team.joinTeam(state.teamId!, basename(process.cwd()));
-                console.error('[chinwag] Rejoined team after eviction');
-              } catch (joinErr: unknown) {
-                const joinMessage = joinErr instanceof Error ? joinErr.message : String(joinErr);
-                console.error('[chinwag] Rejoin failed:', joinMessage);
+        let consecutiveFailures = 0;
+        state.heartbeatInterval = setInterval(() => {
+          void (async () => {
+            try {
+              await team.heartbeat(state.teamId!);
+              consecutiveFailures = 0;
+            } catch (err: unknown) {
+              consecutiveFailures++;
+              const status =
+                err instanceof Error && 'status' in err
+                  ? (err as { status: number }).status
+                  : undefined;
+              if (status === 403) {
+                try {
+                  await team.joinTeam(state.teamId!, basename(process.cwd()));
+                  console.error('[chinwag] Rejoined team after eviction');
+                  consecutiveFailures = 0;
+                } catch (joinErr: unknown) {
+                  const joinMessage = joinErr instanceof Error ? joinErr.message : String(joinErr);
+                  console.error('[chinwag] Rejoin failed:', joinMessage);
+                }
+              } else {
+                const message = err instanceof Error ? err.message : String(err);
+                console.error(
+                  `[chinwag] Heartbeat failed (attempt ${consecutiveFailures}):`,
+                  message,
+                );
               }
-            } else {
-              const message = err instanceof Error ? err.message : String(err);
-              console.error('[chinwag] Heartbeat failed:', message);
             }
-          }
+          })();
         }, 30_000);
 
         let sessionStarted = false;

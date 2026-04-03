@@ -2,6 +2,13 @@ import { execFileSync } from 'node:child_process';
 
 const EXEC_TIMEOUT_MS = 5000;
 
+/** Log process-utils errors when CHINWAG_DEBUG is set. */
+function debugLog(fn: string, pid: number, err: unknown): void {
+  if (!process.env.CHINWAG_DEBUG) return;
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(`[chinwag:process-utils] ${fn}(${pid}) failed: ${message}`);
+}
+
 /**
  * Read a process's parent PID and full command string via `ps`.
  * Returns null on Windows, invalid PIDs, or if `ps` fails.
@@ -22,7 +29,8 @@ export function readProcessInfo(pid: number): { ppid: number; command: string } 
       ppid: Number(match[1]),
       command: match[2],
     };
-  } catch {
+  } catch (err) {
+    debugLog('readProcessInfo', pid, err);
     return null;
   }
 }
@@ -40,8 +48,8 @@ export function getProcessTtyPath(pid: number): string | null {
     if (ttyName && ttyName !== '??' && ttyName !== '?') {
       return `/dev/${ttyName}`;
     }
-  } catch {
-    // ignore ps failures
+  } catch (err) {
+    debugLog('getProcessTtyPath', pid, err);
   }
   return null;
 }
@@ -56,7 +64,8 @@ export function getProcessCommandString(pid: number): string | null {
       encoding: 'utf-8',
       timeout: EXEC_TIMEOUT_MS,
     }).trim();
-  } catch {
+  } catch (err) {
+    debugLog('getProcessCommandString', pid, err);
     return null;
   }
 }
