@@ -15,7 +15,7 @@ export function selectRecentSessions(sessions: Session[] = []): Session[] {
     .slice(0, 24);
 }
 
-interface FileConflict {
+export interface FileConflict {
   file: string;
   owners: string[];
 }
@@ -51,7 +51,7 @@ export function buildProjectConflicts(
 }
 
 interface ActiveAgent {
-  activity?: { files?: string[] };
+  activity?: { files?: string[] } | null;
 }
 
 export function buildFilesInPlay(activeAgents: ActiveAgent[] = [], locks: Lock[] = []): string[] {
@@ -95,7 +95,7 @@ interface UsageSummaryKeys {
   outputKey: string;
 }
 
-interface UsageSummaryEntry {
+export interface UsageSummaryEntry {
   [key: string]: string | number;
   joins: number;
   live: number;

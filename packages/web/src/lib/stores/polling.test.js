@@ -109,7 +109,7 @@ describe('polling store', () => {
     const apiMock = vi
       .fn()
       .mockResolvedValueOnce({ teams: [{ team_id: 't_one' }] })
-      .mockResolvedValueOnce({ members: [{ handle: 'alice' }] });
+      .mockResolvedValueOnce({ members: [{ agent_id: 'a_1', handle: 'alice' }] });
     const ensureJoinedMock = vi.fn().mockResolvedValue({ ok: true });
     const { forceRefresh, pollingActions } = await loadPollingModule({
       teamState,
@@ -119,14 +119,18 @@ describe('polling store', () => {
 
     forceRefresh();
     await flushPromises();
-    expect(pollingActions.getState().dashboardData).toEqual({ teams: [{ team_id: 't_one' }] });
+    expect(pollingActions.getState().dashboardData).toMatchObject({
+      teams: [{ team_id: 't_one' }],
+    });
 
     teamState.activeTeamId = 't_active';
     forceRefresh();
     await flushPromises();
 
     expect(pollingActions.getState().dashboardData).toBeNull();
-    expect(pollingActions.getState().contextData).toEqual({ members: [{ handle: 'alice' }] });
+    expect(pollingActions.getState().contextData).toMatchObject({
+      members: [{ agent_id: 'a_1', handle: 'alice' }],
+    });
   });
 
   it('keeps the last overview snapshot when refresh fails', async () => {

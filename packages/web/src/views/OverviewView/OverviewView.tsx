@@ -15,30 +15,13 @@ import {
   SkeletonRows,
 } from '../../components/Skeleton/Skeleton.jsx';
 import { summarizeList } from '../../lib/summarize.js';
+import type { DashboardSummary } from '../../lib/apiSchemas.js';
 import { useOverviewData } from './useOverviewData.js';
 import ProjectsPanel from './ProjectsPanel.jsx';
 import AgentsPanel from './AgentsPanel.jsx';
 import ToolsPanel from './ToolsPanel.jsx';
 import MemoriesPanel from './MemoriesPanel.jsx';
 import styles from './OverviewView.module.css';
-
-interface DashboardData {
-  teams?: Array<{
-    team_id: string;
-    team_name?: string;
-    active_agents?: number;
-    memory_count?: number;
-    hosts_configured?: Array<{ host_tool?: string; joins: number }>;
-    [key: string]: unknown;
-  }>;
-  failed_teams?: Array<{ team_id?: string; team_name?: string }>;
-  [key: string]: unknown;
-}
-
-interface FailedTeam {
-  team_id?: string;
-  team_name?: string;
-}
 
 interface StatEntry {
   id: string;
@@ -47,7 +30,7 @@ interface StatEntry {
   tone: string;
 }
 
-function summarizeNames(items: FailedTeam[]): string {
+function summarizeNames(items: Array<{ team_id?: string; team_name?: string }>): string {
   const names = items.map((item) => item?.team_name || item?.team_id).filter(Boolean) as string[];
   return summarizeList(names);
 }
@@ -57,10 +40,10 @@ interface Props {}
 export default function OverviewView(_props: Props) {
   const { dashboardData, dashboardStatus, pollError, pollErrorData, lastUpdate } = usePollingStore(
     useShallow((s) => ({
-      dashboardData: s.dashboardData as DashboardData | null,
+      dashboardData: s.dashboardData,
       dashboardStatus: s.dashboardStatus,
       pollError: s.pollError,
-      pollErrorData: s.pollErrorData as DashboardData | null,
+      pollErrorData: s.pollErrorData,
       lastUpdate: s.lastUpdate,
     })),
   );
@@ -73,8 +56,8 @@ export default function OverviewView(_props: Props) {
     })),
   );
   const summaries = useMemo(() => dashboardData?.teams ?? [], [dashboardData?.teams]);
-  const failedTeams: FailedTeam[] = useMemo(
-    () => (dashboardData?.failed_teams ?? pollErrorData?.failed_teams ?? []) as FailedTeam[],
+  const failedTeams = useMemo(
+    () => dashboardData?.failed_teams ?? pollErrorData?.failed_teams ?? [],
     [dashboardData?.failed_teams, pollErrorData?.failed_teams],
   );
   const [activeViz, setActiveViz] = useState<string>('projects');

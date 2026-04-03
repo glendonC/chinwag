@@ -201,6 +201,7 @@ export const teamContextSchema = z
     recentSessions: z.array(sessionSchema).default([]),
     sessions: z.array(sessionSchema).default([]),
     conflicts: z.array(conflictSchema).default([]),
+    tools_configured: z.array(hostMetricSchema).default([]),
     hosts_configured: z.array(hostMetricSchema).default([]),
     surfaces_seen: z.array(surfaceMetricSchema).default([]),
     models_seen: z.array(modelMetricSchema).default([]),
@@ -239,7 +240,13 @@ export const dashboardSummarySchema = z
   .object({
     teams: z.array(teamSummarySchema).default([]),
     degraded: z.boolean().default(false),
-    failed_teams: z.array(z.any()).default([]),
+    failed_teams: z
+      .array(
+        z
+          .object({ team_id: z.string().optional(), team_name: z.string().optional() })
+          .passthrough(),
+      )
+      .default([]),
     truncated: z.boolean().default(false),
   })
   .passthrough();
@@ -287,6 +294,7 @@ export function createEmptyTeamContext(): TeamContext {
     recentSessions: [],
     sessions: [],
     conflicts: [],
+    tools_configured: [],
     hosts_configured: [],
     surfaces_seen: [],
     models_seen: [],

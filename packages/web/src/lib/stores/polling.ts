@@ -1,6 +1,15 @@
 import { createStore, useStore } from 'zustand';
 import { api } from '../api.js';
 import { POLL_MS, SLOW_POLL_MS } from '../constants.js';
+import {
+  type TeamContext,
+  type DashboardSummary,
+  teamContextSchema,
+  dashboardSummarySchema,
+  validateResponse,
+  createEmptyTeamContext,
+  createEmptyDashboardSummary,
+} from '../apiSchemas.js';
 import { authActions } from './auth.js';
 import { teamActions } from './teams.js';
 import { requestRefresh, setRefreshHandler } from './refresh.js';
@@ -9,13 +18,13 @@ import { closeWebSocket, connectTeamWebSocket, setPollingBridge } from './websoc
 type DataStatus = 'idle' | 'loading' | 'ready' | 'stale' | 'error';
 
 interface PollingState {
-  dashboardData: unknown;
+  dashboardData: DashboardSummary | null;
   dashboardStatus: DataStatus;
-  contextData: unknown;
+  contextData: TeamContext | null;
   contextStatus: DataStatus;
   contextTeamId: string | null;
   pollError: string | null;
-  pollErrorData: unknown;
+  pollErrorData: DashboardSummary | null;
   lastUpdate: Date | null;
 }
 
@@ -87,12 +96,7 @@ function resetAbortController(): AbortSignal {
 
 interface ApiError extends Error {
   status?: number;
-  data?: { error?: string; failed_teams?: unknown[] };
-}
-
-interface DashboardResponse {
-  failed_teams?: unknown[];
-  [key: string]: unknown;
+  data?: { error?: string; failed_teams?: Array<{ team_id?: string; team_name?: string }> };
 }
 
 /** Single poll cycle. */
@@ -111,13 +115,19 @@ async function poll(): Promise<void> {
         contextStatus: 'idle' as DataStatus,
         dashboardStatus: state.dashboardData ? state.dashboardStatus : ('loading' as DataStatus),
       }));
-      const data = await api<DashboardResponse>('GET', '/me/dashboard', null, token, { signal });
-      if (data.failed_teams?.length && (data.failed_teams.length as number) > 0) {
+      const data = await api('GET', '/me/dashboard', null, token, { signal });
+      const validated: DashboardSummary = validateResponse(
+        dashboardSummarySchema,
+        data,
+        'dashboard',
+        { fallback: createEmptyDashboardSummary },
+      ) as DashboardSummary;
+      if (validated.failed_teams?.length && validated.failed_teams.length > 0) {
         await teamActions.loadTeams();
       }
       if (teamActions.getState().activeTeamId !== null) return;
       pollingStore.setState({
-        dashboardData: data,
+        dashboardData: validated,
         dashboardStatus: 'ready',
         contextData: null,
         contextStatus: 'idle',
@@ -139,11 +149,14 @@ async function poll(): Promise<void> {
       });
       await teamActions.ensureJoined(snapshotTeamId);
       const data = await api('GET', `/teams/${snapshotTeamId}/context`, null, token, { signal });
+      const validated: TeamContext = validateResponse(teamContextSchema, data, 'team-context', {
+        fallback: createEmptyTeamContext,
+      }) as TeamContext;
       if (teamActions.getState().activeTeamId !== snapshotTeamId) return;
       // Skip if WebSocket delivered newer data while this fetch was in flight
       if (pollState.dataVersion !== versionBeforeFetch) return;
       pollingStore.setState({
-        contextData: data,
+        contextData: validated,
         contextStatus: 'ready',
         contextTeamId: snapshotTeamId,
         dashboardData: null,
@@ -176,7 +189,7 @@ async function poll(): Promise<void> {
     }
     pollState.consecutiveFailures++;
     const pollError = formatError(err);
-    const pollErrorData = (err as ApiError)?.data || null;
+    const pollErrorData = ((err as ApiError)?.data || null) as DashboardSummary | null;
     if (snapshotTeamId === null) {
       pollingStore.setState((state) => ({
         pollError,
