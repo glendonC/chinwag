@@ -6,26 +6,45 @@ import {
   buildProjectToolSummaries,
 } from './projectViewState.js';
 
-/**
- * Analytics and coordination data: conflicts, file overlap, and tool summaries.
- */
-export default function useProjectAnalytics() {
-  const contextData = usePollingStore((s) => s.contextData);
+type Member = any;
+type Lock = any;
+type ToolConfigured = any;
+type Conflict = any;
+type ToolSummary = any;
 
-  const members = contextData?.members || [];
-  const locks = contextData?.locks || [];
-  const toolsConfigured = contextData?.tools_configured || [];
+interface UseProjectAnalyticsReturn {
+  locks: Lock[];
+  conflicts: Conflict[];
+  filesInPlay: string[];
+  toolSummaries: ToolSummary[];
+}
+
+export default function useProjectAnalytics(): UseProjectAnalyticsReturn {
+  const contextData = usePollingStore((s) => s.contextData) as Record<string, unknown> | null;
+
+  const members = useMemo<Member[]>(
+    () => (contextData?.members as Member[]) ?? [],
+    [contextData?.members],
+  );
+  const locks = useMemo<Lock[]>(() => (contextData?.locks as Lock[]) ?? [], [contextData?.locks]);
+  const toolsConfigured = useMemo<ToolConfigured[]>(
+    () => (contextData?.tools_configured as ToolConfigured[]) ?? [],
+    [contextData?.tools_configured],
+  );
 
   const activeAgents = useMemo(
-    () => members.filter((member) => member.status === 'active'),
+    () => members.filter((member: Member) => member.status === 'active'),
     [members],
   );
   const conflicts = useMemo(
-    () => buildProjectConflicts(contextData?.conflicts || [], members),
-    [contextData, members],
+    () => buildProjectConflicts((contextData?.conflicts as Conflict[]) || [], members),
+    [contextData?.conflicts, members],
   );
-  const filesInPlay = useMemo(() => buildFilesInPlay(activeAgents, locks), [activeAgents, locks]);
-  const toolSummaries = useMemo(
+  const filesInPlay: string[] = useMemo(
+    () => buildFilesInPlay(activeAgents, locks),
+    [activeAgents, locks],
+  );
+  const toolSummaries: ToolSummary[] = useMemo(
     () => buildProjectToolSummaries(members, toolsConfigured),
     [members, toolsConfigured],
   );

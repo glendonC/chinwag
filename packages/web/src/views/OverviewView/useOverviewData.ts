@@ -1,11 +1,58 @@
 import { useMemo } from 'react';
-import { buildHostJoinShare, buildSurfaceJoinShare } from '../../lib/toolAnalytics.js';
+import {
+  buildHostJoinShare,
+  buildSurfaceJoinShare,
+  type JoinShareEntry,
+} from '../../lib/toolAnalytics.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
 import { arcPath, CX, CY, R, SW, GAP, DEG } from '../../lib/svgArcs.js';
 
 export { arcPath, CX, CY, R, SW, GAP, DEG };
 
-export function useOverviewData(summaries) {
+interface TeamSummary {
+  team_id?: string;
+  team_name?: string;
+  active_agents?: number;
+  memory_count?: number;
+  hosts_configured?: Array<{ host_tool?: string; joins: number }>;
+  [key: string]: unknown;
+}
+
+interface ToolUsageEntry {
+  tool: string;
+  joins: number;
+  share: number;
+}
+
+export interface ArcEntry extends ToolUsageEntry {
+  startDeg: number;
+  sweepDeg: number;
+  labelX: number;
+  labelY: number;
+  anchorX: number;
+  anchorY: number;
+  side: 'left' | 'right';
+}
+
+interface AgentRow {
+  tool: string;
+  teamName: string;
+  teamId: string;
+  joins: number;
+}
+
+interface UseOverviewDataReturn {
+  totalActive: number;
+  totalMemories: number;
+  hostShare: JoinShareEntry[];
+  surfaceShare: JoinShareEntry[];
+  toolUsage: ToolUsageEntry[];
+  uniqueTools: number;
+  arcs: ArcEntry[];
+  agentRows: AgentRow[];
+}
+
+export function useOverviewData(summaries: TeamSummary[]): UseOverviewDataReturn {
   const totalActive = useMemo(
     () => summaries.reduce((s, t) => s + (t.active_agents || 0), 0),
     [summaries],
@@ -17,8 +64,8 @@ export function useOverviewData(summaries) {
   const hostShare = useMemo(() => buildHostJoinShare(summaries), [summaries]);
   const surfaceShare = useMemo(() => buildSurfaceJoinShare(summaries), [summaries]);
 
-  const toolUsage = useMemo(() => {
-    const totals = new Map();
+  const toolUsage = useMemo((): ToolUsageEntry[] => {
+    const totals = new Map<string, number>();
     for (const team of summaries)
       for (const { host_tool, joins } of team.hosts_configured || []) {
         if (!host_tool) continue;
@@ -34,7 +81,7 @@ export function useOverviewData(summaries) {
 
   const uniqueTools = toolUsage.length;
 
-  const arcs = useMemo(() => {
+  const arcs = useMemo((): ArcEntry[] => {
     if (!toolUsage.length) return [];
     const totalGap = GAP * toolUsage.length,
       available = 360 - totalGap;
@@ -44,7 +91,7 @@ export function useOverviewData(summaries) {
       const midDeg = (offset + sweep / 2 - 90) * DEG;
       const labelR = R + SW / 2 + 22;
       const anchorR = R + SW / 2 + 5;
-      const arc = {
+      const arc: ArcEntry = {
         ...entry,
         startDeg: offset,
         sweepDeg: sweep,
@@ -59,16 +106,16 @@ export function useOverviewData(summaries) {
     });
   }, [toolUsage]);
 
-  const agentRows = useMemo(() => {
-    const rows = [];
+  const agentRows = useMemo((): AgentRow[] => {
+    const rows: AgentRow[] = [];
     for (const team of summaries)
       for (const t of (team.hosts_configured || []).filter(
-        (t) => t.host_tool && getToolMeta(t.host_tool).icon && t.joins > 0,
+        (t) => t.host_tool && getToolMeta(t.host_tool!).icon && t.joins > 0,
       ))
         rows.push({
-          tool: t.host_tool,
-          teamName: team.team_name || team.team_id,
-          teamId: team.team_id,
+          tool: t.host_tool!,
+          teamName: team.team_name || team.team_id || '',
+          teamId: team.team_id || '',
           joins: t.joins,
         });
     return rows.sort((a, b) => b.joins - a.joins);

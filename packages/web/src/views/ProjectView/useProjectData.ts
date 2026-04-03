@@ -3,7 +3,12 @@ import { useShallow } from 'zustand/react/shallow';
 import { usePollingStore } from '../../lib/stores/polling.js';
 import { useTeamStore } from '../../lib/stores/teams.js';
 import { formatRelativeTime } from '../../lib/relativeTime.js';
-import { buildLiveToolMix, buildUsageEntries } from '../../lib/toolAnalytics.js';
+import {
+  buildLiveToolMix,
+  buildUsageEntries,
+  type ToolMixEntry,
+  type UsageEntry,
+} from '../../lib/toolAnalytics.js';
 import {
   buildFilesInPlay,
   buildFilesTouched,
@@ -17,10 +22,66 @@ import {
   sumSessionEdits,
 } from './projectViewState.js';
 
-export function useProjectData() {
+type ContextData = Record<string, any> | null;
+type Member = any;
+type Memory = any;
+type Session = any;
+type Lock = any;
+type ToolConfigured = any;
+type HostConfigured = any;
+type SurfaceSeen = any;
+type Conflict = any;
+type ToolSummary = any;
+type HostSummary = any;
+type SurfaceSummary = any;
+
+type Team = { team_id: string; team_name?: string; joined_at?: string };
+
+interface UseProjectDataReturn {
+  contextData: ContextData;
+  contextStatus: string;
+  contextTeamId: string | null;
+  pollError: string | null;
+  lastUpdate: Date | null;
+  activeTeamId: string | null;
+  teams: Team[];
+  activeTeam: Team | null;
+  hasCurrentContext: boolean;
+  projectLabel: string;
+  members: Member[];
+  memories: Memory[];
+  allSessions: Session[];
+  sessions: Session[];
+  locks: Lock[];
+  toolsConfigured: ToolConfigured[];
+  hostsConfigured: HostConfigured[];
+  surfacesSeen: SurfaceSeen[];
+  usage: Record<string, unknown>;
+  activeAgents: Member[];
+  offlineAgents: Member[];
+  sortedAgents: Member[];
+  liveToolMix: ToolMixEntry[];
+  usageEntries: UsageEntry[];
+  conflicts: Conflict[];
+  filesInPlay: string[];
+  filesTouched: string[];
+  memoryBreakdown: [string, number][];
+  sessionEditCount: number;
+  filesTouchedCount: number;
+  liveSessionCount: number;
+  toolSummaries: ToolSummary[];
+  hostSummaries: HostSummary[];
+  surfaceSummaries: SurfaceSummary[];
+  modelsSeen: string[];
+  lastSynced: string | null;
+  isLoading: boolean;
+  isUnavailable: boolean;
+}
+
+export function useProjectData(): UseProjectDataReturn {
   const { contextData, contextStatus, contextTeamId, pollError, lastUpdate } = usePollingStore(
     useShallow((s) => ({
-      contextData: s.contextData,
+      contextData: s.contextData as ContextData,
       contextStatus: s.contextStatus,
       contextTeamId: s.contextTeamId,
       pollError: s.pollError,
@@ -38,50 +99,80 @@ export function useProjectData() {
   const hasCurrentContext = contextTeamId === activeTeamId && !!contextData;
   const projectLabel = activeTeam?.team_name || activeTeam?.team_id || 'this project';
 
-  const members = contextData?.members || [];
-  const memories = contextData?.memories || [];
-  const allSessions = useMemo(
-    () => selectRecentSessions(contextData?.recentSessions || contextData?.sessions || []),
-    [contextData],
+  const members = useMemo<Member[]>(
+    () => (contextData?.members as Member[]) ?? [],
+    [contextData?.members],
+  );
+  const memories = useMemo<Memory[]>(
+    () => (contextData?.memories as Memory[]) ?? [],
+    [contextData?.memories],
+  );
+  const allSessions = useMemo<Session[]>(
+    () =>
+      selectRecentSessions(
+        (contextData?.recentSessions as Session[]) || (contextData?.sessions as Session[]) || [],
+      ),
+    [contextData?.recentSessions, contextData?.sessions],
   );
   const sessions = allSessions.slice(0, 8);
-  const locks = contextData?.locks || [];
-  const toolsConfigured = contextData?.tools_configured || [];
-  const hostsConfigured = contextData?.hosts_configured || [];
-  const surfacesSeen = contextData?.surfaces_seen || [];
-  const usage = contextData?.usage || {};
+  const locks = useMemo<Lock[]>(() => (contextData?.locks as Lock[]) ?? [], [contextData?.locks]);
+  const toolsConfigured = useMemo<ToolConfigured[]>(
+    () => (contextData?.tools_configured as ToolConfigured[]) ?? [],
+    [contextData?.tools_configured],
+  );
+  const hostsConfigured = useMemo<HostConfigured[]>(
+    () => (contextData?.hosts_configured as HostConfigured[]) ?? [],
+    [contextData?.hosts_configured],
+  );
+  const surfacesSeen = useMemo<SurfaceSeen[]>(
+    () => (contextData?.surfaces_seen as SurfaceSeen[]) ?? [],
+    [contextData?.surfaces_seen],
+  );
+  const usage = useMemo<Record<string, unknown>>(
+    () => (contextData?.usage as Record<string, unknown>) ?? {},
+    [contextData?.usage],
+  );
 
   // Trivial derivations — compute directly, no memo overhead
-  const activeAgents = members.filter((member) => member.status === 'active');
-  const offlineAgents = members.filter((member) => member.status === 'offline');
+  const activeAgents = members.filter((member: Member) => member.status === 'active');
+  const offlineAgents = members.filter((member: Member) => member.status === 'offline');
   const sortedAgents = activeAgents.concat(offlineAgents);
-  const sessionEditCount = sumSessionEdits(allSessions);
-  const liveSessionCount = countLiveSessions(allSessions);
+  const sessionEditCount: number = sumSessionEdits(allSessions);
+  const liveSessionCount: number = countLiveSessions(allSessions);
 
   // Heavier derivations — build Maps/Sets/complex structures, worth memoizing
   const liveToolMix = useMemo(() => buildLiveToolMix(members), [members]);
   const usageEntries = useMemo(() => buildUsageEntries(usage), [usage]);
-  const conflicts = useMemo(
-    () => buildProjectConflicts(contextData?.conflicts || [], members),
-    [contextData, members],
+  const conflicts: Conflict[] = useMemo(
+    () => buildProjectConflicts((contextData?.conflicts as Conflict[]) || [], members),
+    [contextData?.conflicts, members],
   );
-  const filesInPlay = useMemo(() => buildFilesInPlay(activeAgents, locks), [activeAgents, locks]);
-  const filesTouched = useMemo(() => buildFilesTouched(allSessions), [allSessions]);
+  const filesInPlay: string[] = useMemo(
+    () => buildFilesInPlay(activeAgents, locks),
+    [activeAgents, locks],
+  );
+  const filesTouched: string[] = useMemo(() => buildFilesTouched(allSessions), [allSessions]);
   const filesTouchedCount = filesTouched.length;
-  const memoryBreakdown = useMemo(() => buildMemoryBreakdown(memories), [memories]);
-  const toolSummaries = useMemo(
+  const memoryBreakdown: [string, number][] = useMemo(
+    () => buildMemoryBreakdown(memories),
+    [memories],
+  );
+  const toolSummaries: ToolSummary[] = useMemo(
     () => buildProjectToolSummaries(members, toolsConfigured),
     [members, toolsConfigured],
   );
-  const hostSummaries = useMemo(
+  const hostSummaries: HostSummary[] = useMemo(
     () => buildProjectHostSummaries(members, hostsConfigured),
     [members, hostsConfigured],
   );
-  const surfaceSummaries = useMemo(
+  const surfaceSummaries: SurfaceSummary[] = useMemo(
     () => buildProjectSurfaceSummaries(members, surfacesSeen),
     [members, surfacesSeen],
   );
-  const modelsSeen = contextData?.models_seen || [];
+  const modelsSeen = useMemo<string[]>(
+    () => (contextData?.models_seen as string[]) ?? [],
+    [contextData?.models_seen],
+  );
 
   const lastSynced = formatRelativeTime(lastUpdate);
   const isLoading = !hasCurrentContext && (contextStatus === 'idle' || contextStatus === 'loading');

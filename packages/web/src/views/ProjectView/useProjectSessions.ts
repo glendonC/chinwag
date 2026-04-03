@@ -7,21 +7,32 @@ import {
   sumSessionEdits,
 } from './projectViewState.js';
 
-/**
- * Session-related derived data: recent sessions, edit counts, files touched.
- */
-export default function useProjectSessions() {
-  const contextData = usePollingStore((s) => s.contextData);
+type Session = any;
+
+interface UseProjectSessionsReturn {
+  allSessions: Session[];
+  sessions: Session[];
+  filesTouched: string[];
+  filesTouchedCount: number;
+  sessionEditCount: number;
+  liveSessionCount: number;
+}
+
+export default function useProjectSessions(): UseProjectSessionsReturn {
+  const contextData = usePollingStore((s) => s.contextData) as Record<string, unknown> | null;
 
   const allSessions = useMemo(
-    () => selectRecentSessions(contextData?.recentSessions || contextData?.sessions || []),
+    () =>
+      selectRecentSessions(
+        (contextData?.recentSessions as Session[]) || (contextData?.sessions as Session[]) || [],
+      ),
     [contextData],
   );
   const sessions = allSessions.slice(0, 8);
-  const filesTouched = useMemo(() => buildFilesTouched(allSessions), [allSessions]);
-  const sessionEditCount = useMemo(() => sumSessionEdits(allSessions), [allSessions]);
+  const filesTouched: string[] = useMemo(() => buildFilesTouched(allSessions), [allSessions]);
+  const sessionEditCount: number = useMemo(() => sumSessionEdits(allSessions), [allSessions]);
   const filesTouchedCount = filesTouched.length;
-  const liveSessionCount = useMemo(() => countLiveSessions(allSessions), [allSessions]);
+  const liveSessionCount: number = useMemo(() => countLiveSessions(allSessions), [allSessions]);
 
   return {
     allSessions,

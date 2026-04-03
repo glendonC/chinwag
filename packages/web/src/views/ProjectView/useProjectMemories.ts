@@ -4,18 +4,30 @@ import { useTeamStore } from '../../lib/stores/teams.js';
 import { teamActions } from '../../lib/stores/teams.js';
 import { buildMemoryBreakdown } from './projectViewState.js';
 
-/**
- * Memory-related derived data: memories list, tag breakdown, and mutation handlers.
- */
-export default function useProjectMemories() {
-  const contextData = usePollingStore((s) => s.contextData);
+type Memory = any;
+
+interface UseProjectMemoriesReturn {
+  memories: Memory[];
+  memoryBreakdown: [string, number][];
+  handleUpdateMemory: (id: string, text?: string, tags?: string[]) => Promise<void>;
+  handleDeleteMemory: (id: string) => Promise<void>;
+}
+
+export default function useProjectMemories(): UseProjectMemoriesReturn {
+  const contextData = usePollingStore((s) => s.contextData) as Record<string, unknown> | null;
   const activeTeamId = useTeamStore((s) => s.activeTeamId);
 
-  const memories = contextData?.memories || [];
-  const memoryBreakdown = useMemo(() => buildMemoryBreakdown(memories), [memories]);
+  const memories = useMemo<Memory[]>(
+    () => (contextData?.memories as Memory[]) ?? [],
+    [contextData?.memories],
+  );
+  const memoryBreakdown: [string, number][] = useMemo(
+    () => buildMemoryBreakdown(memories),
+    [memories],
+  );
 
   const handleUpdateMemory = useCallback(
-    async (id, text, tags) => {
+    async (id: string, text?: string, tags?: string[]) => {
       if (!activeTeamId) return;
       await teamActions.updateMemory(activeTeamId, id, text, tags);
     },
@@ -23,7 +35,7 @@ export default function useProjectMemories() {
   );
 
   const handleDeleteMemory = useCallback(
-    async (id) => {
+    async (id: string) => {
       if (!activeTeamId) return;
       await teamActions.deleteMemory(activeTeamId, id);
     },

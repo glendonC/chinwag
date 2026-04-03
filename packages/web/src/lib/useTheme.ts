@@ -1,25 +1,36 @@
 import { useState, useEffect, useCallback } from 'react';
 
+type ThemePreference = 'light' | 'dark' | 'system';
+type ResolvedTheme = 'light' | 'dark';
+
+interface UseThemeReturn {
+  theme: ThemePreference;
+  resolved: ResolvedTheme;
+  setTheme: (value: ThemePreference) => void;
+}
+
 const STORAGE_KEY = 'chinwag-theme';
 const darkMQ = window.matchMedia('(prefers-color-scheme: dark)');
 
-function getSystemTheme() {
+function getSystemTheme(): ResolvedTheme {
   return darkMQ.matches ? 'dark' : 'light';
 }
 
-function apply(resolved) {
+function apply(resolved: ResolvedTheme): void {
   document.documentElement.setAttribute('data-theme', resolved);
-  const meta = document.querySelector('meta[name="theme-color"]');
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
   if (meta) meta.content = resolved === 'dark' ? '#0e0f11' : '#ffffff';
 }
 
-export function useTheme() {
-  const [preference, setPreference] = useState(() => localStorage.getItem(STORAGE_KEY) || 'system');
-  const [systemTheme, setSystemTheme] = useState(getSystemTheme);
+export function useTheme(): UseThemeReturn {
+  const [preference, setPreference] = useState<ThemePreference>(
+    () => (localStorage.getItem(STORAGE_KEY) as ThemePreference) || 'system',
+  );
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(getSystemTheme);
 
-  const resolved = preference === 'system' ? systemTheme : preference;
+  const resolved: ResolvedTheme = preference === 'system' ? systemTheme : preference;
 
-  const setTheme = useCallback((value) => {
+  const setTheme = useCallback((value: ThemePreference) => {
     localStorage.setItem(STORAGE_KEY, value);
     setPreference(value);
   }, []);
@@ -29,7 +40,7 @@ export function useTheme() {
   }, [resolved]);
 
   useEffect(() => {
-    const handler = (e) => setSystemTheme(e.matches ? 'dark' : 'light');
+    const handler = (e: MediaQueryListEvent) => setSystemTheme(e.matches ? 'dark' : 'light');
     darkMQ.addEventListener('change', handler);
     return () => darkMQ.removeEventListener('change', handler);
   }, []);

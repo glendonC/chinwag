@@ -3,11 +3,19 @@ import { usePollingStore } from '../../lib/stores/polling.js';
 import { useTeamStore } from '../../lib/stores/teams.js';
 import { formatRelativeTime } from '../../lib/relativeTime.js';
 
-/**
- * Store subscriptions and derived project status.
- * Returns loading/unavailable flags, active team info, and sync metadata.
- */
-export default function useProjectStatus() {
+interface UseProjectStatusReturn {
+  contextData: unknown;
+  activeTeamId: string | null;
+  activeTeam: { team_id: string; team_name?: string; joined_at?: string } | null;
+  hasCurrentContext: boolean;
+  projectLabel: string;
+  pollError: string | null;
+  lastSynced: string | null;
+  isLoading: boolean;
+  isUnavailable: boolean;
+}
+
+export default function useProjectStatus(): UseProjectStatusReturn {
   const { contextData, contextStatus, contextTeamId, pollError, lastUpdate } = usePollingStore(
     useShallow((s) => ({
       contextData: s.contextData,
