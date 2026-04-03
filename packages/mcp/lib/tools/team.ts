@@ -38,10 +38,13 @@ export function registerTeamTool(
 
         if (state.heartbeatInterval) clearInterval(state.heartbeatInterval);
         let consecutiveFailures = 0;
+        const MAX_HEARTBEAT_FAILURES = 20;
         state.heartbeatInterval = setInterval(() => {
           void (async () => {
+            // Guard: if teamId was cleared (e.g. shutdown), skip
+            if (!state.teamId) return;
             try {
-              await team.heartbeat(state.teamId!);
+              await team.heartbeat(state.teamId);
               consecutiveFailures = 0;
             } catch (err: unknown) {
               consecutiveFailures++;
@@ -53,13 +56,19 @@ export function registerTeamTool(
                 } catch (joinErr: unknown) {
                   log.error('Rejoin failed: ' + getErrorMessage(joinErr));
                 }
-              } else {
+              } else if (consecutiveFailures <= 3 || consecutiveFailures % 10 === 0) {
+                // Log first few failures, then throttle to every 10th to avoid spam
                 log.warn(
                   `Heartbeat failed (attempt ${consecutiveFailures}): ${getErrorMessage(err)}`,
                   {
                     attempt: consecutiveFailures,
                   },
                 );
+              }
+              if (consecutiveFailures >= MAX_HEARTBEAT_FAILURES && state.heartbeatInterval) {
+                clearInterval(state.heartbeatInterval);
+                state.heartbeatInterval = null;
+                log.error(`Heartbeat stopped after ${MAX_HEARTBEAT_FAILURES} consecutive failures`);
               }
             }
           })();
