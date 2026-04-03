@@ -4,11 +4,7 @@ import { useAuthStore } from '../../lib/stores/auth.js';
 import { useTeamStore } from '../../lib/stores/teams.js';
 import { getColorHex } from '../../lib/utils.js';
 import { formatRelativeTime } from '../../lib/relativeTime.js';
-import { getToolMeta } from '../../lib/toolMeta.js';
-import { buildHostJoinShare, buildSurfaceJoinShare } from '../../lib/toolAnalytics.js';
-import { projectGradient } from '../../lib/projectGradient.js';
 import { useTabKeyboard } from '../../lib/useTabKeyboard.js';
-import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
 import KeyboardHint, { useKeyboardHint } from '../../components/KeyboardHint/KeyboardHint.jsx';
 import EmptyState from '../../components/EmptyState/EmptyState.jsx';
 import StatusState from '../../components/StatusState/StatusState.jsx';
@@ -17,8 +13,12 @@ import {
   SkeletonStatGrid,
   SkeletonRows,
 } from '../../components/Skeleton/Skeleton.jsx';
-import { arcPath, CX, CY, R, SW, GAP, DEG } from '../../lib/svgArcs.js';
 import { summarizeList } from '../../lib/summarize.js';
+import { useOverviewData } from './useOverviewData.js';
+import ProjectsPanel from './ProjectsPanel.jsx';
+import AgentsPanel from './AgentsPanel.jsx';
+import ToolsPanel from './ToolsPanel.jsx';
+import MemoriesPanel from './MemoriesPanel.jsx';
 import styles from './OverviewView.module.css';
 
 function summarizeNames(items) {
@@ -47,74 +47,17 @@ export default function OverviewView() {
   const lastSynced = formatRelativeTime(lastUpdate);
   const failedLabel = failedTeams.length > 0 ? summarizeNames(failedTeams) : '';
 
-  const totalActive = useMemo(
-    () => summaries.reduce((s, t) => s + (t.active_agents || 0), 0),
-    [summaries],
-  );
-  const totalMemories = useMemo(
-    () => summaries.reduce((s, t) => s + (t.memory_count || 0), 0),
-    [summaries],
-  );
-  const hostShare = useMemo(() => buildHostJoinShare(summaries), [summaries]);
-  const surfaceShare = useMemo(() => buildSurfaceJoinShare(summaries), [summaries]);
+  const {
+    totalActive,
+    totalMemories,
+    hostShare,
+    surfaceShare,
+    toolUsage,
+    uniqueTools,
+    arcs,
+    agentRows,
+  } = useOverviewData(summaries);
 
-  const toolUsage = useMemo(() => {
-    const totals = new Map();
-    for (const team of summaries)
-      for (const { host_tool, joins } of team.hosts_configured || [])
-        if (getToolMeta(host_tool).icon)
-          totals.set(host_tool, (totals.get(host_tool) || 0) + joins);
-    const entries = [...totals.entries()]
-      .map(([tool, joins]) => ({ tool, joins }))
-      .sort((a, b) => b.joins - a.joins);
-    const total = entries.reduce((s, e) => s + e.joins, 0);
-    return entries.map((e) => ({ ...e, share: total > 0 ? e.joins / total : 0 }));
-  }, [summaries]);
-
-  const uniqueTools = toolUsage.length;
-
-  const arcs = useMemo(() => {
-    if (!toolUsage.length) return [];
-    const totalGap = GAP * toolUsage.length,
-      available = 360 - totalGap;
-    let offset = 0;
-    return toolUsage.map((entry) => {
-      const sweep = Math.max(entry.share * available, 4);
-      const midDeg = (offset + sweep / 2 - 90) * DEG;
-      const labelR = R + SW / 2 + 22;
-      const anchorR = R + SW / 2 + 5;
-      const arc = {
-        ...entry,
-        startDeg: offset,
-        sweepDeg: sweep,
-        labelX: CX + labelR * Math.cos(midDeg),
-        labelY: CY + labelR * Math.sin(midDeg),
-        anchorX: CX + anchorR * Math.cos(midDeg),
-        anchorY: CY + anchorR * Math.sin(midDeg),
-        side: Math.cos(midDeg) >= 0 ? 'right' : 'left',
-      };
-      offset += sweep + GAP;
-      return arc;
-    });
-  }, [toolUsage]);
-
-  // Agents: per-project, per-tool breakdown
-  const agentRows = useMemo(() => {
-    const rows = [];
-    for (const team of summaries)
-      for (const t of (team.hosts_configured || []).filter(
-        (t) => getToolMeta(t.host_tool).icon && t.joins > 0,
-      ))
-        rows.push({
-          tool: t.host_tool,
-          teamName: team.team_name || team.team_id,
-          teamId: team.team_id,
-          joins: t.joins,
-        });
-    return rows.sort((a, b) => b.joins - a.joins);
-  }, [summaries]);
-
-  // Filtered projects
   const filteredProjects = useMemo(() => {
     if (!search.trim()) return summaries;
     const q = search.trim().toLowerCase();
@@ -269,318 +212,32 @@ export default function OverviewView() {
       </section>
 
       <section className={styles.vizArea}>
-        {/* ── PROJECTS ── */}
         {activeViz === 'projects' && (
-          <div className={styles.vizPanel} role="tabpanel" id="panel-projects">
-            {summaries.length > 3 && (
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search projects"
-                className={styles.searchInput}
-              />
-            )}
-            <div className={styles.tableWrap}>
-              <div className={styles.tableHead}>
-                <span className={styles.thLeft}>Name</span>
-                <span className={styles.th}>Live</span>
-                <span className={styles.th}>Memories</span>
-                <span className={styles.th}>Tools</span>
-              </div>
-              <div className={styles.tableBody}>
-                {filteredProjects.map((team, i) => {
-                  const agents = team.active_agents || 0;
-                  const toolCount = (team.hosts_configured || []).filter(
-                    (t) => getToolMeta(t.host_tool).icon,
-                  ).length;
-                  return (
-                    <button
-                      key={team.team_id}
-                      type="button"
-                      className={styles.tableRow}
-                      style={{ '--row-index': i }}
-                      onClick={() => selectTeam(team.team_id)}
-                    >
-                      <span className={styles.tdLeft}>
-                        <span
-                          className={styles.squircle}
-                          style={{ background: projectGradient(team.team_id) }}
-                        />
-                        {team.team_name || team.team_id}
-                      </span>
-                      <span className={`${styles.td} ${agents > 0 ? styles.tdAccent : ''}`}>
-                        {agents}
-                      </span>
-                      <span className={styles.td}>{team.memory_count || 0}</span>
-                      <span className={styles.td}>{toolCount}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+          <ProjectsPanel
+            summaries={summaries}
+            filteredProjects={filteredProjects}
+            search={search}
+            setSearch={setSearch}
+            selectTeam={selectTeam}
+          />
         )}
-
-        {/* ── AGENTS LIVE ── */}
-        {activeViz === 'agents' && (
-          <div className={styles.vizPanel} role="tabpanel" id="panel-agents">
-            {agentRows.length > 0 ? (
-              <div className={styles.tableWrap}>
-                <div className={styles.tableHead}>
-                  <span className={styles.thLeft}>Tool</span>
-                  <span className={styles.thLeft}>Project</span>
-                  <span className={styles.th}>Sessions</span>
-                </div>
-                <div className={styles.tableBody}>
-                  {agentRows.map((agent, i) => {
-                    const meta = getToolMeta(agent.tool);
-                    return (
-                      <div
-                        key={`${agent.teamId}-${agent.tool}-${i}`}
-                        className={styles.tableRow}
-                        style={{ '--row-index': i }}
-                      >
-                        <span className={styles.tdLeft}>
-                          <span className={styles.toolDot} style={{ background: meta.color }} />
-                          <ToolIcon tool={agent.tool} size={16} />
-                          {meta.label}
-                        </span>
-                        <span className={styles.tdLeftMuted}>{agent.teamName}</span>
-                        <span className={styles.td}>{agent.joins}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <p className={styles.emptyHint}>No agent activity recorded yet.</p>
-            )}
-          </div>
-        )}
-
-        {/* ── TOOLS ── */}
+        {activeViz === 'agents' && <AgentsPanel agentRows={agentRows} />}
         {activeViz === 'tools' && (
-          <div className={styles.vizPanel} role="tabpanel" id="panel-tools">
-            {arcs.length > 0 ? (
-              <div className={styles.toolsViz}>
-                <div className={styles.ringWrap}>
-                  <svg viewBox="0 0 260 260" className={styles.ringSvg}>
-                    {arcs.map((arc) => {
-                      const meta = getToolMeta(arc.tool);
-                      return (
-                        <g key={arc.tool}>
-                          <path
-                            d={arcPath(CX, CY, R, arc.startDeg, arc.sweepDeg)}
-                            fill="none"
-                            stroke={meta.color}
-                            strokeWidth={SW}
-                            strokeLinecap="round"
-                            opacity="0.8"
-                          />
-                          <line
-                            x1={arc.anchorX}
-                            y1={arc.anchorY}
-                            x2={arc.labelX}
-                            y2={arc.labelY}
-                            stroke="var(--faint)"
-                            strokeWidth="1"
-                            strokeDasharray="2 3"
-                          />
-                          <text
-                            x={arc.labelX}
-                            y={arc.labelY - 4}
-                            textAnchor={arc.side === 'right' ? 'start' : 'end'}
-                            fill={meta.color}
-                            fontSize="16"
-                            fontWeight="400"
-                            fontFamily="var(--display)"
-                            letterSpacing="-0.04em"
-                          >
-                            {Math.round(arc.share * 100)}%
-                          </text>
-                          <text
-                            x={arc.labelX}
-                            y={arc.labelY + 10}
-                            textAnchor={arc.side === 'right' ? 'start' : 'end'}
-                            fill="var(--muted)"
-                            fontSize="9"
-                            fontFamily="var(--sans)"
-                            fontWeight="500"
-                          >
-                            {meta.label}
-                          </text>
-                        </g>
-                      );
-                    })}
-                    <text
-                      x={CX}
-                      y={CY - 2}
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                      fill="var(--ink)"
-                      fontSize="28"
-                      fontWeight="200"
-                      fontFamily="var(--display)"
-                      letterSpacing="-0.06em"
-                    >
-                      {uniqueTools}
-                    </text>
-                    <text
-                      x={CX}
-                      y={CY + 16}
-                      textAnchor="middle"
-                      fill="var(--muted)"
-                      fontSize="8.5"
-                      fontFamily="var(--mono)"
-                      letterSpacing="0.1em"
-                    >
-                      STACK
-                    </text>
-                  </svg>
-                </div>
-
-                <div className={styles.toolsLegend}>
-                  {toolUsage.map((entry) => {
-                    const meta = getToolMeta(entry.tool);
-                    const projects = summaries
-                      .filter((t) =>
-                        (t.hosts_configured || []).some((tc) => tc.host_tool === entry.tool),
-                      )
-                      .map((t) => t.team_name || t.team_id);
-                    return (
-                      <div key={entry.tool} className={styles.legendRow}>
-                        <span className={styles.legendDot} style={{ background: meta.color }} />
-                        <span className={styles.legendName}>{meta.label}</span>
-                        <span className={styles.legendProjects}>{projects.join(', ')}</span>
-                        <span className={styles.legendShare}>{Math.round(entry.share * 100)}%</span>
-                        <span className={styles.legendSessions}>
-                          {entry.joins} session{entry.joins === 1 ? '' : 's'}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {(hostShare.length > 0 || surfaceShare.length > 0) && (
-                  <div className={styles.signalGrid}>
-                    <section className={styles.signalBlock}>
-                      <div className={styles.signalHeader}>
-                        <span className={styles.signalTitle}>Hosts</span>
-                        <span className={styles.signalMeta}>Overview signal</span>
-                      </div>
-                      {hostShare.length > 0 ? (
-                        <div className={styles.signalList}>
-                          {hostShare.map((entry) => {
-                            const meta = getToolMeta(entry.host_tool);
-                            return (
-                              <div key={`host:${entry.host_tool}`} className={styles.signalRow}>
-                                <span className={styles.signalIdentity}>
-                                  <ToolIcon tool={entry.host_tool} size={16} />
-                                  {meta.label}
-                                </span>
-                                <span className={styles.signalValue}>
-                                  {Math.round(entry.share * 100)}%
-                                </span>
-                                <span className={styles.signalProjects}>
-                                  {summarizeList(entry.projects)}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <p className={styles.emptyHint}>No host telemetry yet.</p>
-                      )}
-                    </section>
-
-                    <section className={styles.signalBlock}>
-                      <div className={styles.signalHeader}>
-                        <span className={styles.signalTitle}>Agent surfaces</span>
-                        <span className={styles.signalMeta}>Overview signal</span>
-                      </div>
-                      {surfaceShare.length > 0 ? (
-                        <div className={styles.signalList}>
-                          {surfaceShare.map((entry) => {
-                            const meta = getToolMeta(entry.agent_surface);
-                            return (
-                              <div
-                                key={`surface:${entry.agent_surface}`}
-                                className={styles.signalRow}
-                              >
-                                <span className={styles.signalIdentity}>
-                                  <ToolIcon tool={entry.agent_surface} size={16} />
-                                  {meta.label}
-                                </span>
-                                <span className={styles.signalValue}>
-                                  {Math.round(entry.share * 100)}%
-                                </span>
-                                <span className={styles.signalProjects}>
-                                  {summarizeList(entry.projects)}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <p className={styles.emptyHint}>
-                          No extension-level surfaces observed yet.
-                        </p>
-                      )}
-                    </section>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <p className={styles.emptyHint}>No tools connected yet.</p>
-            )}
-          </div>
+          <ToolsPanel
+            arcs={arcs}
+            toolUsage={toolUsage}
+            uniqueTools={uniqueTools}
+            hostShare={hostShare}
+            surfaceShare={surfaceShare}
+            summaries={summaries}
+          />
         )}
-
-        {/* ── MEMORIES ── */}
         {activeViz === 'memories' && (
-          <div className={styles.vizPanel} role="tabpanel" id="panel-memories">
-            {totalMemories > 0 ? (
-              <div className={styles.tableWrap}>
-                <div className={styles.tableHead}>
-                  <span className={styles.thLeft}>Project</span>
-                  <span className={styles.th}>Count</span>
-                  <span className={styles.th}>Share</span>
-                </div>
-                <div className={styles.tableBody}>
-                  {summaries
-                    .filter((t) => (t.memory_count || 0) > 0)
-                    .sort((a, b) => (b.memory_count || 0) - (a.memory_count || 0))
-                    .map((team, i) => {
-                      const count = team.memory_count || 0;
-                      const share =
-                        totalMemories > 0 ? Math.round((count / totalMemories) * 100) : 0;
-                      return (
-                        <button
-                          key={team.team_id}
-                          type="button"
-                          className={styles.tableRow}
-                          style={{ '--row-index': i }}
-                          onClick={() => selectTeam(team.team_id)}
-                        >
-                          <span className={styles.tdLeft}>
-                            <span
-                              className={styles.squircle}
-                              style={{ background: projectGradient(team.team_id) }}
-                            />
-                            {team.team_name || team.team_id}
-                          </span>
-                          <span className={styles.td}>{count}</span>
-                          <span className={styles.td}>{share}%</span>
-                        </button>
-                      );
-                    })}
-                </div>
-              </div>
-            ) : (
-              <p className={styles.emptyHint}>No memories saved yet.</p>
-            )}
-          </div>
+          <MemoriesPanel
+            summaries={summaries}
+            totalMemories={totalMemories}
+            selectTeam={selectTeam}
+          />
         )}
       </section>
     </div>
