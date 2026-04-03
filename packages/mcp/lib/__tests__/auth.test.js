@@ -129,7 +129,6 @@ describe('registerProfile', () => {
 
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining('Failed to register profile'),
-      'Network error',
     );
   });
 

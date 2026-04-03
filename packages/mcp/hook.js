@@ -27,12 +27,21 @@ async function main() {
   const input = await readStdin();
 
   // Graceful degradation: no config or no team = allow everything
-  if (!configExists()) process.exit(0);
+  if (!configExists()) {
+    process.exit(0);
+    return;
+  }
   const config = loadConfig();
-  if (!config?.token) process.exit(0);
+  if (!config?.token) {
+    process.exit(0);
+    return;
+  }
 
   const teamId = findTeamFile();
-  if (!teamId) process.exit(0);
+  if (!teamId) {
+    process.exit(0);
+    return;
+  }
 
   // Hooks are always Claude Code
   const runtime = detectRuntimeIdentity('claude-code', { defaultTransport: 'hook' });
@@ -48,14 +57,15 @@ async function main() {
       await reportEdit(team, teamId, input);
       break;
     case 'report-tool-use':
-      process.exit(0); // Deprecated — activity tracked via WebSocket
-      break;
+      process.exit(0);
+      return; // Deprecated — activity tracked via WebSocket
     case 'session-start':
       await sessionStart(team, teamId, hasExactSession);
       break;
     default:
       console.error(`[chinwag] Unknown hook subcommand: ${subcommand}`);
       process.exit(1);
+      return;
   }
 }
 

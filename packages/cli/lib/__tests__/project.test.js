@@ -23,14 +23,14 @@ describe('getProjectContext', () => {
     writeFileSync(
       join(tmpDir, '.chinwag'),
       JSON.stringify({
-        team: 't_abc123',
+        team: 't_abc1230000000000',
         name: 'my-project',
       }),
     );
 
     const ctx = getProjectContext(tmpDir);
     expect(ctx).not.toBeNull();
-    expect(ctx.teamId).toBe('t_abc123');
+    expect(ctx.teamId).toBe('t_abc1230000000000');
     expect(ctx.teamName).toBe('my-project');
     expect(ctx.root).toBe(tmpDir);
   });
@@ -41,13 +41,13 @@ describe('getProjectContext', () => {
     writeFileSync(
       join(tmpDir, '.chinwag'),
       JSON.stringify({
-        team: 't_parent',
+        team: 't_aabbccddee001122',
         name: 'parent-project',
       }),
     );
 
     const ctx = getProjectContext(subDir);
     expect(ctx).not.toBeNull();
-    expect(ctx.teamId).toBe('t_parent');
+    expect(ctx.teamId).toBe('t_aabbccddee001122');
   });
 });

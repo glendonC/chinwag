@@ -46,18 +46,21 @@ async function main() {
   if (!configExists()) {
     console.error('[chinwag-channel] No config found.');
     process.exit(1);
+    return;
   }
 
   const config = loadConfig();
   if (!config?.token) {
     console.error('[chinwag-channel] Invalid config — missing token.');
     process.exit(1);
+    return;
   }
 
   const teamId = findTeamFile();
   if (!teamId) {
     console.error('[chinwag-channel] No .chinwag file — channel inactive.');
     process.exit(0);
+    return;
   }
 
   const runtime = detectRuntimeIdentity('unknown', { defaultTransport: 'channel' });
@@ -65,6 +68,7 @@ async function main() {
   if (!runtime.capabilities.includes('channel')) {
     console.error(`[chinwag-channel] Parent host is ${toolName}; channel disabled.`);
     process.exit(0);
+    return;
   }
   const { agentId } = resolveAgentIdentity(config.token, toolName);
   const client = api(config, { agentId, runtimeIdentity: runtime });

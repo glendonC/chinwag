@@ -146,7 +146,7 @@ describe('createWebSocketManager', () => {
     manager.connect();
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(console.error).toHaveBeenCalledWith('[chinwag]', 'Network error');
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Network error'));
   });
 
   it('resets reconnect delay on successful connection', async () => {

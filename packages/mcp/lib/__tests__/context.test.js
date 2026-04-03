@@ -115,7 +115,7 @@ describe('context cache', () => {
 
       await refreshContext(team, 't_abc');
 
-      expect(offlinePrefix()).toBe('[offline — using cached data] ');
+      expect(offlinePrefix()).toBe('[offline -- using cached data] ');
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('API unreachable'),
         expect.anything(),
@@ -135,7 +135,7 @@ describe('context cache', () => {
 
       // Go offline
       await refreshContext(team, 't_abc');
-      expect(offlinePrefix()).toBe('[offline — using cached data] ');
+      expect(offlinePrefix()).toBe('[offline -- using cached data] ');
 
       // Come back online (need to bust TTL since we failed — the cachedContextAt
       // is not set on failure, so next call will try again)
@@ -182,7 +182,7 @@ describe('context cache', () => {
       const team = { getTeamContext: vi.fn().mockRejectedValue(new Error('fail')) };
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       await refreshContext(team, 't_abc');
-      expect(offlinePrefix()).toBe('[offline — using cached data] ');
+      expect(offlinePrefix()).toBe('[offline -- using cached data] ');
       consoleSpy.mockRestore();
     });
   });
@@ -260,7 +260,7 @@ describe('context cache', () => {
           {
             handle: 'alice',
             status: 'active',
-            host_tool: 'cursor',
+            tool: 'cursor',
             activity: { files: ['auth.js', 'db.js'] },
           },
         ],

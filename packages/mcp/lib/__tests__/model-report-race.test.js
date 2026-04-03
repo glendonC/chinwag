@@ -116,21 +116,25 @@ describe('model report race condition', () => {
   });
 
   it('allows retry after failure (promise is cleared)', async () => {
-    // First call fails
-    team.reportModel.mockRejectedValueOnce(new Error('network error'));
+    // Both retry attempts fail
+    team.reportModel
+      .mockRejectedValueOnce(new Error('network error'))
+      .mockRejectedValueOnce(new Error('network error'));
 
     await collector.callTool('chinwag_get_team_context', { model: 'gpt-4o' });
-    await new Promise((r) => setTimeout(r, 10));
 
-    // State should remain null after failure
+    // Wait for the full retry cycle (1s delay between attempts + buffer)
+    await new Promise((r) => setTimeout(r, 1200));
+
+    // State should remain null after all retries exhausted
     expect(state.modelReported).toBeNull();
 
-    // Second call should retry
+    // Second call should spawn a fresh report
     team.reportModel.mockResolvedValueOnce({ ok: true });
     await collector.callTool('chinwag_get_team_context', { model: 'gpt-4o' });
     await new Promise((r) => setTimeout(r, 10));
 
-    expect(team.reportModel).toHaveBeenCalledTimes(2);
+    expect(team.reportModel).toHaveBeenCalledTimes(3); // 2 retries + 1 fresh
     expect(state.modelReported).toBe('gpt-4o');
   });
 

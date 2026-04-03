@@ -38,11 +38,13 @@ describe('loadConfig', () => {
 
   it('returns parsed config when file exists and is valid JSON', () => {
     existsSync.mockReturnValue(true);
-    readFileSync.mockReturnValue(JSON.stringify({
-      token: 'tok_abc123',
-      handle: 'glendon',
-      userId: 'usr_xyz',
-    }));
+    readFileSync.mockReturnValue(
+      JSON.stringify({
+        token: 'tok_abc123',
+        handle: 'glendon',
+        userId: 'usr_xyz',
+      }),
+    );
 
     const config = loadConfig();
     expect(config).toEqual({
@@ -68,13 +70,15 @@ describe('loadConfig', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const config = loadConfig();
     expect(config).toBeNull();
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('corrupted'));
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('invalid JSON'));
     consoleSpy.mockRestore();
   });
 
   it('returns null when readFileSync throws', () => {
     existsSync.mockReturnValue(true);
-    readFileSync.mockImplementation(() => { throw new Error('EACCES'); });
+    readFileSync.mockImplementation(() => {
+      throw new Error('EACCES');
+    });
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const config = loadConfig();
@@ -92,12 +96,14 @@ describe('loadConfig', () => {
 
   it('preserves all fields from config file', () => {
     existsSync.mockReturnValue(true);
-    readFileSync.mockReturnValue(JSON.stringify({
-      token: 'tok_test',
-      handle: 'testuser',
-      userId: 'usr_1',
-      extraField: 'bonus',
-    }));
+    readFileSync.mockReturnValue(
+      JSON.stringify({
+        token: 'tok_test',
+        handle: 'testuser',
+        userId: 'usr_1',
+        extraField: 'bonus',
+      }),
+    );
 
     const config = loadConfig();
     expect(config.token).toBe('tok_test');

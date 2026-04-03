@@ -4,17 +4,18 @@ import { Readable } from 'stream';
 // This test imports hook.js to get v8 coverage on the entry point.
 // We need to mock everything before the dynamic import.
 
-// Mock all dependencies
-vi.mock('../config.js', () => ({
+// Mock all dependencies using paths that match hook.js imports
+// hook.js is at packages/mcp/hook.js and imports from ./dist/*
+vi.mock('../../dist/config.js', () => ({
   loadConfig: vi.fn().mockReturnValue({ token: 'tok_test' }),
   configExists: vi.fn().mockReturnValue(true),
 }));
 
-vi.mock('../api.js', () => ({
+vi.mock('../../dist/api.js', () => ({
   api: vi.fn().mockReturnValue({}),
 }));
 
-vi.mock('../team.js', () => ({
+vi.mock('../../dist/team.js', () => ({
   findTeamFile: vi.fn().mockReturnValue('t_abc'),
   teamHandlers: vi.fn().mockReturnValue({
     checkConflicts: vi.fn().mockResolvedValue({ conflicts: [], locked: [] }),
@@ -25,7 +26,7 @@ vi.mock('../team.js', () => ({
   }),
 }));
 
-vi.mock('../identity.js', () => ({
+vi.mock('../../dist/identity.js', () => ({
   detectRuntimeIdentity: vi.fn().mockReturnValue({
     hostTool: 'claude-code',
     agentSurface: null,
@@ -37,7 +38,7 @@ vi.mock('../identity.js', () => ({
   }),
 }));
 
-vi.mock('../lifecycle.js', () => ({
+vi.mock('../../dist/lifecycle.js', () => ({
   resolveAgentIdentity: vi.fn().mockReturnValue({
     agentId: 'claude-code:abc123',
     fallbackAgentId: 'claude-code:abc123',
@@ -45,20 +46,20 @@ vi.mock('../lifecycle.js', () => ({
   }),
 }));
 
-vi.mock('../utils/formatting.js', () => ({
+vi.mock('../../dist/utils/formatting.js', () => ({
   formatWho: vi.fn((handle, tool) => {
     if (tool && tool !== 'unknown') return `${handle} (${tool})`;
     return handle;
   }),
 }));
 
-vi.mock('../utils/display.js', () => ({
+vi.mock('../../dist/utils/display.js', () => ({
   formatTeamContextDisplay: vi.fn().mockReturnValue([]),
 }));
 
-import { configExists, loadConfig } from '../config.js';
-import { findTeamFile, teamHandlers } from '../team.js';
-import { resolveAgentIdentity } from '../lifecycle.js';
+import { configExists, loadConfig } from '../../dist/config.js';
+import { findTeamFile, teamHandlers } from '../../dist/team.js';
+import { resolveAgentIdentity } from '../../dist/lifecycle.js';
 
 describe('hook.js entry point coverage', () => {
   let originalArgv;

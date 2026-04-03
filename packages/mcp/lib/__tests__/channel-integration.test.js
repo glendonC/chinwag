@@ -17,17 +17,18 @@ vi.mock('@modelcontextprotocol/sdk/server/stdio.js', () => {
   return { StdioServerTransport: MockTransport };
 });
 
-// Mock all dependencies
-vi.mock('../config.js', () => ({
+// Mock all dependencies using paths that match channel.js imports
+// channel.js is at packages/mcp/channel.js and imports from ./dist/*
+vi.mock('../../dist/config.js', () => ({
   loadConfig: vi.fn().mockReturnValue({ token: 'tok_test' }),
   configExists: vi.fn().mockReturnValue(true),
 }));
 
-vi.mock('../api.js', () => ({
+vi.mock('../../dist/api.js', () => ({
   api: vi.fn().mockReturnValue({}),
 }));
 
-vi.mock('../team.js', () => ({
+vi.mock('../../dist/team.js', () => ({
   findTeamFile: vi.fn().mockReturnValue('t_abc'),
   teamHandlers: vi.fn().mockReturnValue({
     getTeamContext: vi.fn().mockResolvedValue({ members: [] }),
@@ -36,7 +37,7 @@ vi.mock('../team.js', () => ({
   }),
 }));
 
-vi.mock('../identity.js', () => ({
+vi.mock('../../dist/identity.js', () => ({
   detectRuntimeIdentity: vi.fn().mockReturnValue({
     hostTool: 'claude-code',
     agentSurface: null,
@@ -48,7 +49,7 @@ vi.mock('../identity.js', () => ({
   }),
 }));
 
-vi.mock('../lifecycle.js', () => ({
+vi.mock('../../dist/lifecycle.js', () => ({
   resolveAgentIdentity: vi.fn().mockReturnValue({
     agentId: 'claude-code:abc123',
     fallbackAgentId: 'claude-code:abc123',
@@ -56,19 +57,19 @@ vi.mock('../lifecycle.js', () => ({
   }),
 }));
 
-vi.mock('../diff-state.js', () => ({
+vi.mock('../../dist/diff-state.js', () => ({
   diffState: vi.fn().mockReturnValue([]),
 }));
 
-vi.mock('../../../shared/session-registry.js', () => ({
+vi.mock('@chinwag/shared/session-registry.js', () => ({
   isProcessAlive: vi.fn().mockReturnValue(true),
   pingAgentTerminal: vi.fn(),
 }));
 
-import { configExists, loadConfig } from '../config.js';
-import { findTeamFile, teamHandlers } from '../team.js';
-import { detectRuntimeIdentity } from '../identity.js';
-import { isProcessAlive, pingAgentTerminal } from '../../../shared/session-registry.js';
+import { configExists, loadConfig } from '../../dist/config.js';
+import { findTeamFile, teamHandlers } from '../../dist/team.js';
+import { detectRuntimeIdentity } from '../../dist/identity.js';
+import { isProcessAlive, pingAgentTerminal } from '@chinwag/shared/session-registry.js';
 
 describe('channel.js entry point coverage', () => {
   let exitSpy;

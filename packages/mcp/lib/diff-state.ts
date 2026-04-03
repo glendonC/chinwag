@@ -28,7 +28,8 @@ export function diffState(
   for (const key of currKeys) {
     if (!prevKeys.has(key)) {
       const m = currByKey.get(key)!;
-      const activity = m.activity ? ` \u2014 working on ${m.activity.files.join(', ')}` : '';
+      const files = m.activity?.files;
+      const activity = files && files.length > 0 ? ` \u2014 working on ${files.join(', ')}` : '';
       events.push(`Agent ${formatAgentLabel(m)} joined the team${activity}`);
     }
   }
