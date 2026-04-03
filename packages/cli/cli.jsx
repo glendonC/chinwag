@@ -22,7 +22,9 @@ let PKG_VERSION = '0.1.0';
 try {
   const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
   PKG_VERSION = pkg.version || PKG_VERSION;
-} catch (err) { console.error('[chinwag]', err?.message || err); }
+} catch (err) {
+  console.error('[chinwag]', err?.message || err);
+}
 
 async function handOffToRuntime(modulePath, { stripSubcommand = false, transport = null } = {}) {
   if (transport) {
@@ -51,9 +53,15 @@ class ErrorBoundary extends Component {
 
   render() {
     if (this.state.error) {
-      return React.createElement(Box, { flexDirection: 'column', padding: 1 },
-        React.createElement(Text, { color: 'red' }, `Something went wrong: ${this.state.error.message}`),
-        React.createElement(Text, { dimColor: true }, 'Press Ctrl+C to exit and restart.')
+      return React.createElement(
+        Box,
+        { flexDirection: 'column', padding: 1 },
+        React.createElement(
+          Text,
+          { color: 'red' },
+          `Something went wrong: ${this.state.error.message}`,
+        ),
+        React.createElement(Text, { dimColor: true }, 'Press Ctrl+C to exit and restart.'),
       );
     }
     return this.props.children;
@@ -139,18 +147,20 @@ function App() {
   const [footerHints, setFooterHints] = useState(null);
   const { exit } = useApp();
   const projectLabel = basename(process.cwd());
-  const isPrimaryMode = PRIMARY_MODES.some(mode => mode.key === screen);
-  const shellModes = screen === 'loading'
-    ? [{ key: 'loading', label: 'boot', shortLabel: 'boot', accent: 'cyan' }, ...PRIMARY_MODES]
-    : screen === 'welcome'
-      ? [{ key: 'welcome', label: 'setup', shortLabel: 'setup', accent: 'cyan' }, ...PRIMARY_MODES]
-      : PRIMARY_MODES;
+  const isPrimaryMode = PRIMARY_MODES.some((mode) => mode.key === screen);
+
+  const SHELL_MODE_PREFIXES = {
+    loading: { key: 'loading', label: 'boot', shortLabel: 'boot', accent: 'cyan' },
+    welcome: { key: 'welcome', label: 'setup', shortLabel: 'setup', accent: 'cyan' },
+  };
+  const prefix = SHELL_MODE_PREFIXES[screen];
+  const shellModes = prefix ? [prefix, ...PRIMARY_MODES] : PRIMARY_MODES;
 
   useTerminalControl(`chinwag · ${projectLabel || 'control plane'}`);
 
   useEffect(() => {
     if (screen !== 'loading') return;
-    const id = setInterval(() => setSpin(s => (s + 1) % SPINNER.length), SPINNER_INTERVAL_MS);
+    const id = setInterval(() => setSpin((s) => (s + 1) % SPINNER.length), SPINNER_INTERVAL_MS);
     return () => clearInterval(id);
   }, [screen]);
 
@@ -194,13 +204,15 @@ function App() {
     try {
       const me = await api(config).get('/me');
       setUser(me);
-    } catch (err) { console.error('[chinwag]', err?.message || err); }
+    } catch (err) {
+      console.error('[chinwag]', err?.message || err);
+    }
   };
 
   useInput((input, key) => {
     if (!isPrimaryMode || !key.tab) return;
 
-    const idx = PRIMARY_MODES.findIndex(mode => mode.key === screen);
+    const idx = PRIMARY_MODES.findIndex((mode) => mode.key === screen);
     if (idx === -1) return;
 
     const delta = key.shift ? -1 : 1;
@@ -208,42 +220,53 @@ function App() {
     setScreen(PRIMARY_MODES[nextIdx].key);
   });
 
+  function renderScreen({ viewportRows }) {
+    switch (screen) {
+      case 'loading':
+        return (
+          <Box paddingTop={1}>
+            <Text>
+              <Text color="cyan">{SPINNER[spin]}</Text>
+              <Text dimColor> connecting to chinwag</Text>
+            </Text>
+          </Box>
+        );
+      case 'welcome':
+        return <Welcome onComplete={onSetup} />;
+      case 'chat':
+        return <Chat config={config} user={user} navigate={navigate} layout={{ viewportRows }} />;
+      case 'customize':
+        return (
+          <Customize
+            config={config}
+            user={user}
+            navigate={navigate}
+            refreshUser={refreshUser}
+            layout={{ viewportRows }}
+          />
+        );
+      case 'dashboard':
+        return (
+          <Dashboard
+            config={config}
+            navigate={navigate}
+            layout={{ viewportRows }}
+            projectLabel={projectLabel}
+            appVersion={PKG_VERSION}
+            setFooterHints={setFooterHints}
+          />
+        );
+      case 'discover':
+        return <Discover config={config} navigate={navigate} layout={{ viewportRows }} />;
+      default:
+        return null;
+    }
+  }
+
   return (
-    <ControlShell
-      modeItems={shellModes}
-      activeMode={screen}
-      user={user}
-      footerHints={footerHints}
-    >
+    <ControlShell modeItems={shellModes} activeMode={screen} user={user} footerHints={footerHints}>
       {({ viewportRows, compact }) => (
-        <ErrorBoundary>
-          {(() => {
-          if (screen === 'loading') {
-            return (
-              <Box paddingTop={1}>
-                <Text><Text color="cyan">{SPINNER[spin]}</Text><Text dimColor>  connecting to chinwag</Text></Text>
-              </Box>
-            );
-          }
-          if (screen === 'welcome') return <Welcome onComplete={onSetup} />;
-          if (screen === 'chat') return <Chat config={config} user={user} navigate={navigate} layout={{ viewportRows }} />;
-          if (screen === 'customize') return <Customize config={config} user={user} navigate={navigate} refreshUser={refreshUser} layout={{ viewportRows }} />;
-          if (screen === 'dashboard') {
-            return (
-              <Dashboard
-                config={config}
-                navigate={navigate}
-                layout={{ viewportRows }}
-                projectLabel={projectLabel}
-                appVersion={PKG_VERSION}
-                setFooterHints={setFooterHints}
-              />
-            );
-          }
-          if (screen === 'discover') return <Discover config={config} navigate={navigate} layout={{ viewportRows }} />;
-          return null;
-          })()}
-        </ErrorBoundary>
+        <ErrorBoundary>{renderScreen({ viewportRows })}</ErrorBoundary>
       )}
     </ControlShell>
   );
