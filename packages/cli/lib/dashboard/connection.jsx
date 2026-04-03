@@ -17,6 +17,7 @@ const IDLE_TIER_1 = 6; // 30s idle -> medium poll
 const IDLE_TIER_2 = 12; // 1min idle -> slow poll
 const IDLE_TIER_3 = 60; // 5min idle -> idle poll
 const RECONCILE_INTERVAL_MS = 60_000;
+const WS_CONNECT_TIMEOUT_MS = 10_000;
 
 // Minimal fingerprint of context for change detection (avoids JSON.stringify on every poll)
 function contextFingerprint(ctx) {
@@ -96,6 +97,7 @@ export function useDashboardConnection({ config, stdout }) {
     const joined = { current: false };
     let pollInterval = null;
     let reconcileInterval = null;
+    let wsConnectTimeout = null;
     let destroyed = false;
 
     async function fetchContextOnce() {
@@ -203,7 +205,19 @@ export function useDashboardConnection({ config, stdout }) {
       try {
         const ws = new WebSocket(wsUrl);
 
+        // Timeout: if still CONNECTING after 10s, close and fall back to polling
+        wsConnectTimeout = setTimeout(() => {
+          if (ws.readyState === WebSocket.CONNECTING) {
+            ws.close();
+            startPolling();
+          }
+        }, WS_CONNECT_TIMEOUT_MS);
+
         ws.onopen = () => {
+          if (wsConnectTimeout) {
+            clearTimeout(wsConnectTimeout);
+            wsConnectTimeout = null;
+          }
           if (destroyed) {
             ws.close();
             return;
@@ -262,6 +276,10 @@ export function useDashboardConnection({ config, stdout }) {
     return () => {
       destroyed = true;
       stopPolling();
+      if (wsConnectTimeout) {
+        clearTimeout(wsConnectTimeout);
+        wsConnectTimeout = null;
+      }
       if (reconcileInterval) clearInterval(reconcileInterval);
       if (wsRef.current) {
         try {
