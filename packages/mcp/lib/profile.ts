@@ -1,5 +1,8 @@
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
+import { createLogger } from './utils/logger.js';
+
+const log = createLogger('profile');
 
 // Agent environment detection signals.
 // Only tools that set identifiable env vars when spawning MCP servers
@@ -84,7 +87,7 @@ export function scanEnvironment(cwd: string = process.cwd()): EnvironmentProfile
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'malformed package.json';
-      console.error('[chinwag]', message);
+      log.warn(message);
     }
   }
 

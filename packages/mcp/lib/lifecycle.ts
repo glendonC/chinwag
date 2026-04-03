@@ -6,7 +6,10 @@ import {
   writeSessionRecord,
 } from '../../shared/session-registry.js';
 import { generateAgentId, getConfiguredAgentId } from './identity.js';
+import { createLogger } from './utils/logger.js';
 import type { TeamHandlers } from './team.js';
+
+const log = createLogger('lifecycle');
 
 export interface AgentIdentityResult {
   agentId: string;
@@ -126,17 +129,17 @@ export async function cleanupProcessSession(
       state.ws.close();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'unknown error';
-      console.error('[chinwag] Failed to close WebSocket:', message);
+      log.error('Failed to close WebSocket: ' + message);
     }
 
   if (state.sessionId && state.teamId) {
     await team.endSession(state.teamId, state.sessionId).catch((err: Error) => {
-      console.error('[chinwag] Failed to end session:', err.message);
+      log.error('Failed to end session: ' + err.message);
     });
   }
   if (state.teamId) {
     await team.leaveTeam(state.teamId).catch((err: Error) => {
-      console.error('[chinwag] Failed to leave team:', err.message);
+      log.error('Failed to leave team: ' + err.message);
     });
   }
 }

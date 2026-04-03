@@ -2,8 +2,11 @@
 // When the API is unreachable, tools return this cached state with an [offline] tag.
 
 import { formatToolTag } from './utils/formatting.js';
+import { createLogger } from './utils/logger.js';
 import type { TeamContext } from './utils/display.js';
 import type { TeamHandlers } from './team.js';
+
+const log = createLogger('context');
 
 let cachedContext: TeamContext | null = null;
 let cachedContextAt = 0;
@@ -30,7 +33,7 @@ export async function refreshContext(
     if (isOffline) {
       isOffline = false;
       consecutiveErrors = 0;
-      console.error('[chinwag] Back online');
+      log.info('Back online');
     }
     return cachedContext;
   } catch (err: unknown) {
@@ -41,9 +44,12 @@ export async function refreshContext(
       const cacheAge = cachedContext
         ? `${Math.round((now - cachedContextAt) / 1000)}s old`
         : 'none';
-      console.error(
-        `[chinwag] API unreachable (${consecutiveErrors}x) -- cached context: ${cacheAge}:`,
-        message,
+      log.warn(
+        `API unreachable (${consecutiveErrors}x) -- cached context: ${cacheAge}: ${message}`,
+        {
+          consecutiveErrors,
+          cacheAge,
+        },
       );
     }
     isOffline = true;

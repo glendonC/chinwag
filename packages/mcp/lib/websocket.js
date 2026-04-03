@@ -2,6 +2,10 @@
 // Handles connect, reconnect with exponential backoff, heartbeat pings.
 // CRITICAL: Never console.log — stdio transport. Use console.error.
 
+import { createLogger } from '../dist/utils/logger.js';
+
+const log = createLogger('ws');
+
 /** @type {number} Ping interval to keep DB heartbeat fresh */
 export const WS_PING_MS = 60_000;
 /** @type {number} Initial delay before first reconnect attempt */
@@ -36,7 +40,9 @@ export function createWebSocketManager({ client, getApiUrl, teamId, agentId, sta
       reconnectTimer = null;
     }
     if (state.shuttingDown) return;
-    console.error(`[chinwag] WebSocket disconnected, reconnecting in ${reconnectDelay / 1000}s`);
+    log.info(`WebSocket disconnected, reconnecting in ${reconnectDelay / 1000}s`, {
+      reconnectDelay,
+    });
     reconnectTimer = setTimeout(connectWs, reconnectDelay);
     if (reconnectTimer.unref) reconnectTimer.unref();
     reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY_MS);
@@ -64,7 +70,7 @@ export function createWebSocketManager({ client, getApiUrl, teamId, agentId, sta
           connecting = false;
           state.ws = ws;
           reconnectDelay = INITIAL_RECONNECT_DELAY_MS;
-          console.error('[chinwag] WebSocket connected (presence active)');
+          log.info('WebSocket connected (presence active)');
 
           pingTimer = setInterval(() => {
             if (Date.now() - lastWsSend > WS_PING_MS - 5000) {
@@ -72,7 +78,7 @@ export function createWebSocketManager({ client, getApiUrl, teamId, agentId, sta
                 ws.send(JSON.stringify({ type: 'ping', lastToolUseAt: state.lastActivity }));
                 lastWsSend = Date.now();
               } catch (err) {
-                console.error('[chinwag]', err?.message || 'ws ping failed');
+                log.debug(err?.message || 'ws ping failed');
               }
             }
           }, WS_PING_MS);
@@ -92,12 +98,12 @@ export function createWebSocketManager({ client, getApiUrl, teamId, agentId, sta
         };
 
         ws.onerror = (err) => {
-          console.error('[chinwag] WebSocket error:', err?.message || 'unknown');
+          log.error('WebSocket error: ' + (err?.message || 'unknown'));
         };
       })
       .catch((err) => {
         connecting = false;
-        console.error('[chinwag]', err?.message || 'ws ticket fetch failed');
+        log.error(err?.message || 'ws ticket fetch failed');
         scheduleReconnect();
       });
   }
@@ -116,7 +122,7 @@ export function createWebSocketManager({ client, getApiUrl, teamId, agentId, sta
       try {
         state.ws.close();
       } catch (err) {
-        console.error('[chinwag] Failed to close WebSocket:', err.message);
+        log.error('Failed to close WebSocket: ' + err.message);
       }
       state.ws = null;
     }

@@ -2,9 +2,12 @@
 
 import * as z from 'zod/v4';
 import { refreshContext, offlinePrefix } from '../context.js';
+import { createLogger } from '../utils/logger.js';
 import { noTeam } from '../utils/responses.js';
 import { formatToolTag, formatWho } from '../utils/formatting.js';
 import type { AddToolFn, ToolDeps } from './types.js';
+
+const log = createLogger('tools');
 
 export function registerContextTool(
   addTool: AddToolFn,
@@ -42,7 +45,7 @@ export function registerContextTool(
               return;
             } catch (err: unknown) {
               const message = err instanceof Error ? err.message : 'unknown';
-              console.error(`[chinwag] Model report failed (attempt ${attempt + 1}/2):`, message);
+              log.warn(`Model report failed (attempt ${attempt + 1}/2): ${message}`);
               if (attempt === 0) await new Promise((r) => setTimeout(r, 1000));
             }
           }
