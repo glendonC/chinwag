@@ -51,18 +51,14 @@ export function useProjectData() {
   const surfacesSeen = contextData?.surfaces_seen || [];
   const usage = contextData?.usage || {};
 
-  const activeAgents = useMemo(
-    () => members.filter((member) => member.status === 'active'),
-    [members],
-  );
-  const offlineAgents = useMemo(
-    () => members.filter((member) => member.status === 'offline'),
-    [members],
-  );
-  const sortedAgents = useMemo(
-    () => activeAgents.concat(offlineAgents),
-    [activeAgents, offlineAgents],
-  );
+  // Trivial derivations — compute directly, no memo overhead
+  const activeAgents = members.filter((member) => member.status === 'active');
+  const offlineAgents = members.filter((member) => member.status === 'offline');
+  const sortedAgents = activeAgents.concat(offlineAgents);
+  const sessionEditCount = sumSessionEdits(allSessions);
+  const liveSessionCount = countLiveSessions(allSessions);
+
+  // Heavier derivations — build Maps/Sets/complex structures, worth memoizing
   const liveToolMix = useMemo(() => buildLiveToolMix(members), [members]);
   const usageEntries = useMemo(() => buildUsageEntries(usage), [usage]);
   const conflicts = useMemo(
@@ -71,10 +67,8 @@ export function useProjectData() {
   );
   const filesInPlay = useMemo(() => buildFilesInPlay(activeAgents, locks), [activeAgents, locks]);
   const filesTouched = useMemo(() => buildFilesTouched(allSessions), [allSessions]);
-  const memoryBreakdown = useMemo(() => buildMemoryBreakdown(memories), [memories]);
-  const sessionEditCount = useMemo(() => sumSessionEdits(allSessions), [allSessions]);
   const filesTouchedCount = filesTouched.length;
-  const liveSessionCount = useMemo(() => countLiveSessions(allSessions), [allSessions]);
+  const memoryBreakdown = useMemo(() => buildMemoryBreakdown(memories), [memories]);
   const toolSummaries = useMemo(
     () => buildProjectToolSummaries(members, toolsConfigured),
     [members, toolsConfigured],

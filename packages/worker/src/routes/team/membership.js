@@ -16,8 +16,13 @@ export async function handleTeamJoin(request, user, env, teamId) {
   let name = null;
   try {
     const body = await request.json();
-    name =
-      typeof body.name === 'string' ? body.name.slice(0, MAX_NAME_LENGTH).trim() || null : null;
+    if (typeof body.name === 'string') {
+      const trimmed = body.name.trim();
+      if (trimmed.length > MAX_NAME_LENGTH) {
+        return json({ error: `Team name must be ${MAX_NAME_LENGTH} characters or less` }, 400);
+      }
+      name = trimmed || null;
+    }
   } catch {
     /* body may be empty or non-JSON — name stays null */
   }

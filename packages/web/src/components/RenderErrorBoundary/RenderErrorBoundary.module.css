@@ -1,0 +1,59 @@
+/* ── RenderErrorBoundary — inline error fallback ── */
+
+.wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+  padding: 24px;
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  width: 100%;
+  max-width: 480px;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    135deg,
+    var(--danger-bg) 0%,
+    rgba(255, 107, 87, 0.03) 50%,
+    var(--warn-bg) 100%
+  );
+}
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--danger);
+}
+
+.text {
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.action {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+  color: var(--danger);
+  opacity: 0.72;
+  transition: opacity var(--motion-fast) ease;
+}
+
+.action:hover {
+  opacity: 1;
+}

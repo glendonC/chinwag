@@ -47,9 +47,12 @@ export function useMemoryManager({ config, teamId, bumpRefreshKey, flash }) {
       })
       .catch((err) => {
         console.error('[chinwag] Could not delete memory:', err?.message || err);
-        setDeleteMsg('Failed to delete. Press d to retry.');
-        // Keep deleteConfirm so user can retry with another 'd' press
-        setTimeout(() => setDeleteMsg(null), 5000);
+        flash('Could not delete — check connection and try again', {
+          tone: 'error',
+          autoClearMs: 5000,
+        });
+        setDeleteConfirm(false);
+        setDeleteMsg(null);
       });
   }
 

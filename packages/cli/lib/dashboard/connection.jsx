@@ -13,6 +13,7 @@ const POLL_FAST_MS = 5_000;
 const POLL_MEDIUM_MS = 15_000;
 const POLL_SLOW_MS = 30_000;
 const POLL_IDLE_MS = 60_000;
+const BACKOFF_MAX_MS = 60_000;
 const IDLE_TIER_1 = 6; // 30s idle -> medium poll
 const IDLE_TIER_2 = 12; // 1min idle -> slow poll
 const IDLE_TIER_3 = 60; // 5min idle -> idle poll
@@ -144,8 +145,12 @@ export function useDashboardConnection({ config, stdout }) {
 
     // ── Polling fallback ──────────────────────────
     function getPollInterval() {
-      if (consecutiveFailures.current >= OFFLINE_THRESHOLD) return POLL_SLOW_MS;
-      if (consecutiveFailures.current >= 3) return POLL_MEDIUM_MS;
+      const failures = consecutiveFailures.current;
+      if (failures >= 3) {
+        // Exponential backoff during error states: base * 2^(failures-3), capped at 60s
+        const base = failures >= OFFLINE_THRESHOLD ? POLL_SLOW_MS : POLL_MEDIUM_MS;
+        return Math.min(base * Math.pow(2, failures - 3), BACKOFF_MAX_MS);
+      }
       // Progressive backoff when context is unchanged (idle team)
       const idle = unchangedPolls.current;
       if (idle >= IDLE_TIER_3) return POLL_IDLE_MS;

@@ -56,12 +56,19 @@ export function useAgentLifecycle({ config, teamId, projectRoot, stdout, flash }
   const [preferredLaunchToolId, setPreferredLaunchToolId] = useState(null);
 
   // ── Process manager sync + duration ticker ───────────
+  const mountedRef = useRef(true);
   useEffect(() => {
+    mountedRef.current = true;
     setManagedAgents(getAgents());
-    const unsub = onUpdate(() => setManagedAgents(getAgents()));
+    const unsub = onUpdate(() => {
+      if (mountedRef.current) setManagedAgents(getAgents());
+    });
     // Tick every 10s to update duration display
-    const ticker = setInterval(() => setManagedAgents(getAgents()), DURATION_TICK_MS);
+    const ticker = setInterval(() => {
+      if (mountedRef.current) setManagedAgents(getAgents());
+    }, DURATION_TICK_MS);
     return () => {
+      mountedRef.current = false;
       unsub();
       clearInterval(ticker);
     };

@@ -40,6 +40,7 @@ export function saveMemory(
   // Transaction ensures insert + pruning + session update are atomic.
   // Without this, a crash after insert but before pruning could exceed
   // the memory cap, or a failed session update would lose the counter.
+  let evicted = 0;
   withTransaction(transact, () => {
     sql.exec(
       `INSERT INTO memories (id, text, tags, agent_id, handle, host_tool, agent_surface, agent_model, created_at, updated_at)
@@ -61,6 +62,7 @@ export function saveMemory(
       )`,
       MEMORY_MAX_COUNT,
     );
+    evicted = sql.exec('SELECT changes() as c').toArray()[0].c;
 
     // Record in active session
     sql.exec(
@@ -71,7 +73,9 @@ export function saveMemory(
   });
   recordMetric('memories_saved');
 
-  return { ok: true, id };
+  const result = { ok: true, id };
+  if (evicted > 0) result.evicted = evicted;
+  return result;
 }
 
 export function searchMemories(sql, query, tags, limit = 20) {
