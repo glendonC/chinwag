@@ -4,6 +4,7 @@
 import { normalizePath } from '../../lib/text-utils.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
 import { HEARTBEAT_ACTIVE_WINDOW_S } from '../../lib/constants.js';
+import { buildInClause } from '../../lib/validation.js';
 
 export function claimFiles(sql, resolvedAgentId, files, handle, runtimeOrTool) {
   const runtime = normalizeRuntimeMetadata(runtimeOrTool, resolvedAgentId);
@@ -73,9 +74,7 @@ export function releaseFiles(sql, resolvedAgentId, files) {
 }
 
 export function getLockedFiles(sql, connectedAgentIds = new Set()) {
-  const wsAlive = [...connectedAgentIds];
-  const wsPlaceholders = wsAlive.length ? wsAlive.map(() => '?').join(',') : "'__none__'";
-  const wsParams = wsAlive.length ? wsAlive : [];
+  const ws = buildInClause([...connectedAgentIds]);
 
   const locks = sql
     .exec(
@@ -84,10 +83,10 @@ export function getLockedFiles(sql, connectedAgentIds = new Set()) {
      FROM locks l
      JOIN members m ON m.agent_id = l.agent_id
      WHERE m.last_heartbeat > datetime('now', '-' || ? || ' seconds')
-        OR m.agent_id IN (${wsPlaceholders})
+        OR m.agent_id IN (${ws.sql})
      ORDER BY l.claimed_at DESC`,
       HEARTBEAT_ACTIVE_WINDOW_S,
-      ...wsParams,
+      ...ws.params,
     )
     .toArray();
 

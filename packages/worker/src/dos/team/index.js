@@ -47,6 +47,7 @@ import {
   CLEANUP_INTERVAL_MS,
   HEARTBEAT_BROADCAST_DEBOUNCE_MS,
 } from '../../lib/constants.js';
+import { buildInClause } from '../../lib/validation.js';
 
 export class TeamDO extends DurableObject {
   #schemaReady = false;
@@ -125,7 +126,8 @@ export class TeamDO extends DurableObject {
     let tags;
     try {
       tags = this.ctx.getTags(ws);
-    } catch {
+    } catch (err) {
+      console.error('[chinwag] TeamDO.webSocketMessage: failed to read tags', err?.message || err);
       return;
     }
     const agentId = tags.find((t) => !t.startsWith('role:'));
@@ -205,7 +207,11 @@ export class TeamDO extends DurableObject {
     let tags;
     try {
       tags = this.ctx.getTags(ws);
-    } catch {
+    } catch (err) {
+      console.error(
+        '[chinwag] TeamDO.webSocketClose: failed to read tags on closing socket',
+        err?.message || err,
+      );
       return;
     }
     const isAgent = tags.includes('role:agent');
@@ -226,8 +232,8 @@ export class TeamDO extends DurableObject {
     try {
       const tags = this.ctx.getTags(ws);
       agentId = tags.find((t) => !t.startsWith('role:')) || 'unknown';
-    } catch {
-      /* tags unavailable */
+    } catch (err) {
+      console.error('[chinwag] TeamDO.webSocketError: failed to read tags', err?.message || err);
     }
     console.log(
       JSON.stringify({
@@ -260,26 +266,16 @@ export class TeamDO extends DurableObject {
     const sockets = this.ctx.getWebSockets();
     if (!sockets.length) return;
     const data = JSON.stringify(event);
+    let failures = 0;
     for (const ws of sockets) {
       try {
         ws.send(data);
-      } catch (err) {
-        let wsAgent = 'unknown';
-        try {
-          const t = this.ctx.getTags(ws);
-          wsAgent = t.find((tag) => !tag.startsWith('role:')) || 'unknown';
-        } catch {
-          /* tags unavailable on dead socket */
-        }
-        console.log(
-          JSON.stringify({
-            event: 'ws_broadcast_error',
-            agent_id: wsAgent,
-            error: err?.message || String(err),
-            timestamp: new Date().toISOString(),
-          }),
-        );
+      } catch {
+        failures++;
       }
+    }
+    if (failures > 0) {
+      console.error(`[chinwag] broadcast to ${sockets.length} clients, ${failures} failed`);
     }
   }
 
@@ -299,25 +295,23 @@ export class TeamDO extends DurableObject {
     // Agents with live WebSocket connections must not be evicted.
     // Snapshot this AFTER clamping heartbeats so the eviction queries
     // below see a consistent view.
-    const wsAlive = [...this.#getConnectedAgentIds()];
-    const wsPlaceholders = wsAlive.length ? wsAlive.map(() => '?').join(',') : "'__none__'";
-    const wsParams = wsAlive.length ? wsAlive : [];
+    const ws = buildInClause([...this.#getConnectedAgentIds()]);
 
     this.sql.exec(
       `DELETE FROM activities WHERE agent_id IN (
         SELECT agent_id FROM members
         WHERE last_heartbeat < datetime('now', '-' || ? || ' seconds')
-          AND agent_id NOT IN (${wsPlaceholders})
+          AND agent_id NOT IN (${ws.sql})
       )`,
       HEARTBEAT_STALE_WINDOW_S,
-      ...wsParams,
+      ...ws.params,
     );
     this.sql.exec(
       `DELETE FROM members
        WHERE last_heartbeat < datetime('now', '-' || ? || ' seconds')
-         AND agent_id NOT IN (${wsPlaceholders})`,
+         AND agent_id NOT IN (${ws.sql})`,
       HEARTBEAT_STALE_WINDOW_S,
-      ...wsParams,
+      ...ws.params,
     );
     this.sql.exec(
       `DELETE FROM sessions WHERE started_at < datetime('now', '-' || ? || ' days')`,
@@ -330,10 +324,10 @@ export class TeamDO extends DurableObject {
       `DELETE FROM locks WHERE agent_id NOT IN (
         SELECT agent_id FROM members
         WHERE last_heartbeat > datetime('now', '-' || ? || ' seconds')
-          OR agent_id IN (${wsPlaceholders})
+          OR agent_id IN (${ws.sql})
       )`,
       HEARTBEAT_STALE_WINDOW_S,
-      ...wsParams,
+      ...ws.params,
     );
     // Auto-close orphaned sessions
     this.sql.exec(
@@ -342,10 +336,10 @@ export class TeamDO extends DurableObject {
        AND agent_id NOT IN (
          SELECT agent_id FROM members
          WHERE last_heartbeat > datetime('now', '-' || ? || ' seconds')
-           OR agent_id IN (${wsPlaceholders})
+           OR agent_id IN (${ws.sql})
        )`,
       HEARTBEAT_STALE_WINDOW_S,
-      ...wsParams,
+      ...ws.params,
     );
     // Prune stale telemetry
     this.sql.exec("DELETE FROM telemetry WHERE last_at < datetime('now', '-30 days')");
@@ -447,7 +441,7 @@ export class TeamDO extends DurableObject {
   async heartbeat(agentId, ownerId = null) {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
-    if (!resolved) return { error: 'Not a member of this team' };
+    if (!resolved) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
     const result = heartbeatFn(this.sql, resolved);
     if (!result.error) {
       const now = Date.now();
@@ -465,7 +459,7 @@ export class TeamDO extends DurableObject {
   async updateActivity(agentId, files, summary, ownerId = null) {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
-    if (!resolved) return { error: 'Not a member of this team' };
+    if (!resolved) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
     const result = updateActivityFn(this.sql, resolved, files, summary);
     if (!result.error) {
       this.#broadcastToWatchers({ type: 'activity', agent_id: resolved, files, summary });
@@ -476,7 +470,7 @@ export class TeamDO extends DurableObject {
   async checkConflicts(agentId, files, ownerId = null) {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
-    if (!resolved) return { error: 'Not a member of this team' };
+    if (!resolved) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
     return checkConflictsFn(
       this.sql,
       resolved,
@@ -489,7 +483,7 @@ export class TeamDO extends DurableObject {
   async reportFile(agentId, filePath, ownerId = null) {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
-    if (!resolved) return { error: 'Not a member of this team' };
+    if (!resolved) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
     const result = reportFileFn(this.sql, resolved, filePath);
     if (!result.error) {
       this.#broadcastToWatchers({ type: 'file', agent_id: resolved, file: filePath });
@@ -502,7 +496,7 @@ export class TeamDO extends DurableObject {
   async getContext(agentId, ownerId = null) {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
-    if (!resolved) return { error: 'Not a member of this team' };
+    if (!resolved) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
 
     // Always bump calling agent's heartbeat
     this.sql.exec(
@@ -547,34 +541,35 @@ export class TeamDO extends DurableObject {
       runtimeOrOwnerId && typeof runtimeOrOwnerId === 'object' ? runtimeOrOwnerId : null;
     const resolvedOwnerId = runtime ? ownerId : runtimeOrOwnerId;
     const resolved = this.#resolveOwnedAgentId(agentId, resolvedOwnerId);
-    if (!resolved) return { error: 'Not a member of this team' };
+    if (!resolved) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
     return startSessionFn(this.sql, resolved, handle, framework, runtime);
   }
 
   async endSession(agentId, sessionId, ownerId = null) {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
-    if (!resolved) return { error: 'Not a member of this team' };
+    if (!resolved) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
     return endSessionFn(this.sql, resolved, sessionId);
   }
 
   async recordEdit(agentId, filePath, ownerId = null) {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
-    if (!resolved) return { error: 'Not a member of this team' };
+    if (!resolved) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
     return recordEditFn(this.sql, resolved, filePath);
   }
 
   async getHistory(agentId, days, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#resolveOwnedAgentId(agentId, ownerId)) return { error: 'Not a member of this team' };
+    if (!this.#resolveOwnedAgentId(agentId, ownerId))
+      return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
     return getSessionHistory(this.sql, days);
   }
 
   async enrichModel(agentId, model, ownerId = null) {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
-    if (!resolved) return { error: 'Not a member of this team' };
+    if (!resolved) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
     return enrichSessionModelFn(this.sql, resolved, model, this.#boundRecordMetric);
   }
 
@@ -586,7 +581,7 @@ export class TeamDO extends DurableObject {
       runtimeOrOwnerId && typeof runtimeOrOwnerId === 'object' ? runtimeOrOwnerId : null;
     const resolvedOwnerId = runtime ? ownerId : runtimeOrOwnerId;
     const resolved = this.#resolveOwnedAgentId(agentId, resolvedOwnerId);
-    if (!resolved) return { error: 'Not a member of this team' };
+    if (!resolved) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
     const result = saveMemoryFn(
       this.sql,
       resolved,
@@ -604,21 +599,22 @@ export class TeamDO extends DurableObject {
 
   async searchMemories(agentId, query, tags, limit = 20, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#resolveOwnedAgentId(agentId, ownerId)) return { error: 'Not a member of this team' };
+    if (!this.#resolveOwnedAgentId(agentId, ownerId))
+      return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
     return searchMemoriesFn(this.sql, query, tags, limit);
   }
 
   async updateMemory(agentId, memoryId, text, tags, ownerId = null) {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
-    if (!resolved) return { error: 'Not a member of this team' };
+    if (!resolved) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
     return updateMemoryFn(this.sql, resolved, memoryId, text, tags);
   }
 
   async deleteMemory(agentId, memoryId, ownerId = null) {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
-    if (!resolved) return { error: 'Not a member of this team' };
+    if (!resolved) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
     return deleteMemoryFn(this.sql, memoryId);
   }
 
@@ -627,7 +623,7 @@ export class TeamDO extends DurableObject {
   async claimFiles(agentId, files, handle, runtimeOrTool, ownerId = null) {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
-    if (!resolved) return { error: 'Not a member of this team' };
+    if (!resolved) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
     const result = claimFilesFn(this.sql, resolved, files, handle, runtimeOrTool);
     if (!result.error) {
       this.#broadcastToWatchers({
@@ -643,7 +639,7 @@ export class TeamDO extends DurableObject {
   async releaseFiles(agentId, files, ownerId = null) {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
-    if (!resolved) return { error: 'Not a member of this team' };
+    if (!resolved) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
     const result = releaseFilesFn(this.sql, resolved, files);
     if (!result.error) {
       this.#broadcastToWatchers({
@@ -658,7 +654,8 @@ export class TeamDO extends DurableObject {
 
   async getLockedFiles(agentId, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#resolveOwnedAgentId(agentId, ownerId)) return { error: 'Not a member of this team' };
+    if (!this.#resolveOwnedAgentId(agentId, ownerId))
+      return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
     return getLockedFilesFn(this.sql, this.#getConnectedAgentIds());
   }
 
@@ -667,7 +664,7 @@ export class TeamDO extends DurableObject {
   async sendMessage(agentId, handle, runtimeOrTool, text, targetAgent, ownerId = null) {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
-    if (!resolved) return { error: 'Not a member of this team' };
+    if (!resolved) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
     const result = sendMessageFn(
       this.sql,
       resolved,
@@ -686,7 +683,7 @@ export class TeamDO extends DurableObject {
   async getMessages(agentId, since, ownerId = null) {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
-    if (!resolved) return { error: 'Not a member of this team' };
+    if (!resolved) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
     return getMessagesFn(this.sql, resolved, since);
   }
 
@@ -694,7 +691,8 @@ export class TeamDO extends DurableObject {
 
   async getSummary(agentId, ownerId = null) {
     this.#ensureSchema();
-    if (!this.#resolveOwnedAgentId(agentId, ownerId)) return { error: 'Not a member of this team' };
+    if (!this.#resolveOwnedAgentId(agentId, ownerId))
+      return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
     this.#maybeCleanup();
     return queryTeamSummary(this.sql);
   }

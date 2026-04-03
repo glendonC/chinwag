@@ -3,6 +3,7 @@
 
 import { normalizePath } from '../../lib/text-utils.js';
 import { HEARTBEAT_ACTIVE_WINDOW_S, ACTIVITY_MAX_FILES } from '../../lib/constants.js';
+import { buildInClause } from '../../lib/validation.js';
 
 export function updateActivity(sql, resolvedAgentId, files, summary) {
   const normalized = files.map(normalizePath);
@@ -34,8 +35,7 @@ export function checkConflicts(
 ) {
   // Active = recent heartbeat OR live WebSocket connection
   const wsAlive = [...connectedAgentIds];
-  const wsPlaceholders = wsAlive.length ? wsAlive.map(() => '?').join(',') : "'__none__'";
-  const wsParams = wsAlive.length ? wsAlive : [];
+  const ws = buildInClause(wsAlive);
 
   const others = sql
     .exec(
@@ -44,10 +44,10 @@ export function checkConflicts(
      LEFT JOIN activities a ON a.agent_id = m.agent_id
      WHERE m.agent_id != ?
        AND (m.last_heartbeat > datetime('now', '-' || ? || ' seconds')
-            OR m.agent_id IN (${wsPlaceholders}))`,
+            OR m.agent_id IN (${ws.sql}))`,
       resolvedAgentId,
       HEARTBEAT_ACTIVE_WINDOW_S,
-      ...wsParams,
+      ...ws.params,
     )
     .toArray();
 
@@ -59,7 +59,12 @@ export function checkConflicts(
     let theirFiles = [];
     try {
       theirFiles = JSON.parse(row.files);
-    } catch {
+    } catch (err) {
+      console.error(
+        '[chinwag] checkConflicts: malformed JSON in files for agent',
+        row.agent_id,
+        err?.message || err,
+      );
       continue;
     }
     const overlap = theirFiles.filter((f) => myFiles.has(f));
@@ -84,11 +89,11 @@ export function checkConflicts(
        JOIN members m ON m.agent_id = l.agent_id
        WHERE l.file_path IN (${placeholders}) AND l.agent_id != ?
          AND (m.last_heartbeat > datetime('now', '-' || ? || ' seconds')
-              OR m.agent_id IN (${wsPlaceholders}))`,
+              OR m.agent_id IN (${ws.sql}))`,
         ...fileList,
         resolvedAgentId,
         HEARTBEAT_ACTIVE_WINDOW_S,
-        ...wsParams,
+        ...ws.params,
       )
       .toArray();
     for (const lock of lockRows) {
@@ -126,8 +131,12 @@ export function reportFile(sql, resolvedAgentId, filePath) {
   if (existing.length > 0 && existing[0].files) {
     try {
       files = JSON.parse(existing[0].files);
-    } catch {
-      /* malformed JSON in stored files — reset to empty */
+    } catch (err) {
+      console.error(
+        '[chinwag] reportFile: malformed JSON in stored files for agent',
+        resolvedAgentId,
+        err?.message || err,
+      );
     }
   }
 

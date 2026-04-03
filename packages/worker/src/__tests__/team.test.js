@@ -24,7 +24,7 @@ describe('Membership', () => {
 
   it('heartbeat fails for non-member', async () => {
     const res = await team().heartbeat('cursor:nonexistent');
-    expect(res).toEqual({ error: 'Not a member of this team' });
+    expect(res).toEqual({ error: 'Not a member of this team', code: 'NOT_MEMBER' });
   });
 
   it('leave removes member', async () => {

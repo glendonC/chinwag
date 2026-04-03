@@ -291,7 +291,7 @@ export class DatabaseDO extends DurableObject {
     }
 
     if (this.#handleExists(handle)) {
-      return { error: 'Could not generate unique handle, please try again' };
+      return { error: 'Could not generate unique handle, please try again', code: 'INTERNAL' };
     }
 
     this.sql.exec(
@@ -323,7 +323,7 @@ export class DatabaseDO extends DurableObject {
         this.sql.exec("UPDATE users SET last_active = datetime('now') WHERE id = ?", id);
       }
     }
-    return user ? { ok: true, user } : { error: 'User not found' };
+    return user ? { ok: true, user } : { error: 'User not found', code: 'NOT_FOUND' };
   }
 
   async getUserByHandle(handle) {
@@ -335,21 +335,24 @@ export class DatabaseDO extends DurableObject {
       )
       .toArray();
     const user = rows[0] || null;
-    return user ? { ok: true, user } : { error: 'User not found' };
+    return user ? { ok: true, user } : { error: 'User not found', code: 'NOT_FOUND' };
   }
 
   async updateHandle(userId, newHandle) {
     this.#ensureSchema();
 
     if (!/^[a-zA-Z0-9_]{3,20}$/.test(newHandle)) {
-      return { error: 'Handle must be 3-20 characters, alphanumeric + underscores only' };
+      return {
+        error: 'Handle must be 3-20 characters, alphanumeric + underscores only',
+        code: 'VALIDATION',
+      };
     }
 
     const taken =
       this.sql.exec('SELECT 1 FROM users WHERE handle = ? AND id != ?', newHandle, userId).toArray()
         .length > 0;
     if (taken) {
-      return { error: 'Handle already taken' };
+      return { error: 'Handle already taken', code: 'CONFLICT' };
     }
 
     this.sql.exec('UPDATE users SET handle = ? WHERE id = ?', newHandle, userId);
@@ -360,7 +363,7 @@ export class DatabaseDO extends DurableObject {
     this.#ensureSchema();
 
     if (!COLORS.includes(color)) {
-      return { error: `Color must be one of: ${COLORS.join(', ')}` };
+      return { error: `Color must be one of: ${COLORS.join(', ')}`, code: 'VALIDATION' };
     }
 
     this.sql.exec('UPDATE users SET color = ? WHERE id = ?', color, userId);
@@ -403,7 +406,7 @@ export class DatabaseDO extends DurableObject {
       attempts++;
     }
     if (this.#handleExists(handle)) {
-      return { error: 'Could not generate unique handle' };
+      return { error: 'Could not generate unique handle', code: 'INTERNAL' };
     }
 
     this.sql.exec(
@@ -430,7 +433,7 @@ export class DatabaseDO extends DurableObject {
       .exec('SELECT id FROM users WHERE github_id = ? AND id != ?', String(githubId), userId)
       .toArray();
     if (existing.length > 0) {
-      return { error: 'This GitHub account is already linked to another user' };
+      return { error: 'This GitHub account is already linked to another user', code: 'CONFLICT' };
     }
 
     this.sql.exec(
@@ -479,7 +482,7 @@ export class DatabaseDO extends DurableObject {
         token,
       )
       .toArray();
-    if (rows.length === 0) return { error: 'Session not found' };
+    if (rows.length === 0) return { error: 'Session not found', code: 'NOT_FOUND' };
 
     // Slide the window — refresh expiry and last_used on access
     this.sql.exec(`UPDATE web_sessions SET last_used = datetime('now') WHERE token = ?`, token);
@@ -620,7 +623,7 @@ export class DatabaseDO extends DurableObject {
   async updateAgentProfile(userId, profile) {
     this.#ensureSchema();
     const user = this.sql.exec('SELECT id FROM users WHERE id = ?', userId).toArray();
-    if (user.length === 0) return { error: 'User not found' };
+    if (user.length === 0) return { error: 'User not found', code: 'NOT_FOUND' };
 
     this.sql.exec(
       `INSERT INTO agent_profiles (user_id, framework, languages, frameworks, tools, platforms, registered_at, last_active)

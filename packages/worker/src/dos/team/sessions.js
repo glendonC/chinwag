@@ -63,7 +63,8 @@ export function endSession(sql, resolvedAgentId, sessionId) {
     resolvedAgentId,
   );
   const changed = sql.exec('SELECT changes() as c').toArray();
-  if (changed[0].c === 0) return { error: 'Session not found or not owned by this agent' };
+  if (changed[0].c === 0)
+    return { error: 'Session not found or not owned by this agent', code: 'NOT_FOUND' };
   return { ok: true };
 }
 
@@ -84,8 +85,12 @@ export function recordEdit(sql, resolvedAgentId, filePath) {
   let files = [];
   try {
     files = JSON.parse(session.files_touched || '[]');
-  } catch {
-    /* malformed JSON in files_touched — reset to empty */
+  } catch (err) {
+    console.error(
+      '[chinwag] recordEdit: malformed JSON in session files_touched, session:',
+      session.id,
+      err?.message || err,
+    );
   }
   if (!files.includes(normalized)) {
     files.push(normalized);
@@ -121,7 +126,12 @@ export function getSessionHistory(sql, days) {
       files_touched: (() => {
         try {
           return JSON.parse(s.files_touched || '[]');
-        } catch {
+        } catch (err) {
+          console.error(
+            '[chinwag] getSessionHistory: malformed JSON in files_touched, handle:',
+            s.owner_handle,
+            err?.message || err,
+          );
           return [];
         }
       })(),

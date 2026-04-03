@@ -78,9 +78,21 @@ async function moderateWithAI(text, env) {
 
     const output = (response.response || '').trim().toLowerCase();
 
+    // Guard: empty or completely unexpected output — fail-safe (treat as flagged)
+    if (!output) {
+      console.error('[chinwag] AI moderation: empty response from model');
+      return { flagged: true, categories: [], degraded: true };
+    }
+
     // Llama Guard outputs "safe" or "unsafe\nS{category}"
     if (output.startsWith('safe')) {
       return { flagged: false };
+    }
+
+    if (!output.startsWith('unsafe')) {
+      // Unexpected format — neither "safe" nor "unsafe". Fail-safe.
+      console.error('[chinwag] AI moderation: unexpected output format:', output.slice(0, 100));
+      return { flagged: true, categories: [], degraded: true };
     }
 
     // Parse violated categories from output like "unsafe\ns10,s11"
@@ -91,9 +103,17 @@ async function moderateWithAI(text, env) {
       if (matches) categories.push(...matches.map((m) => m.toUpperCase()));
     }
 
+    // If "unsafe" but no categories parsed, still treat as flagged (fail-safe)
+    if (categories.length === 0) {
+      console.error(
+        '[chinwag] AI moderation: "unsafe" response but zero categories parsed:',
+        output.slice(0, 100),
+      );
+    }
+
     return { flagged: true, categories };
   } catch (err) {
-    console.error('AI moderation degraded:', err);
+    console.error('[chinwag] AI moderation degraded:', err);
     return { flagged: false, degraded: true };
   }
 }

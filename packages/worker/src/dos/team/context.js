@@ -5,6 +5,10 @@
 import { HEARTBEAT_ACTIVE_WINDOW_S } from '../../lib/constants.js';
 import { inferHostToolFromAgentId } from './runtime.js';
 
+function getErrorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 /** Read all telemetry metrics, grouped by type. */
 export function getTelemetryBreakdown(sql) {
   const toolMetrics = sql
@@ -92,8 +96,12 @@ export function queryTeamContext(sql, connectedIds) {
       let tags = [];
       try {
         tags = JSON.parse(m.tags || '[]');
-      } catch {
-        /* malformed JSON in tags — default to empty array */
+      } catch (err) {
+        console.error(
+          '[chinwag] queryTeamContext: malformed JSON in memory tags, id:',
+          m.id,
+          getErrorMessage(err),
+        );
       }
       return { ...m, tags };
     });
@@ -135,7 +143,12 @@ export function queryTeamContext(sql, connectedIds) {
             files: (() => {
               try {
                 return JSON.parse(m.files);
-              } catch {
+              } catch (err) {
+                console.error(
+                  '[chinwag] queryTeamContext: malformed JSON in member files, agent:',
+                  m.agent_id,
+                  getErrorMessage(err),
+                );
                 return [];
               }
             })(),
@@ -198,7 +211,12 @@ export function queryTeamContext(sql, connectedIds) {
         files_touched: (() => {
           try {
             return JSON.parse(s.files_touched || '[]');
-          } catch {
+          } catch (err) {
+            console.error(
+              '[chinwag] queryTeamContext: malformed JSON in session files_touched, agent:',
+              s.agent_id,
+              getErrorMessage(err),
+            );
             return [];
           }
         })(),
@@ -239,8 +257,11 @@ export function queryTeamSummary(sql) {
     let parsedFiles = [];
     try {
       parsedFiles = JSON.parse(row.files);
-    } catch {
-      /* malformed JSON in files — skip this row's files */
+    } catch (err) {
+      console.error(
+        '[chinwag] queryTeamSummary: malformed JSON in activity files',
+        getErrorMessage(err),
+      );
     }
     for (const f of parsedFiles) {
       fileCounts.set(f, (fileCounts.get(f) || 0) + 1);

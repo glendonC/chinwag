@@ -2,7 +2,8 @@
 // Each returns null on success or an error string/response on failure.
 
 import { json } from './http.js';
-import { getDB } from './env.js';
+import { getDB, getTeam } from './env.js';
+import { getAgentRuntime, teamErrorStatus } from './request-utils.js';
 
 /**
  * Sanitize an optional string value: type-check, truncate, trim, and convert
@@ -159,6 +160,22 @@ export function sqlChanges(sql) {
 }
 
 /**
+ * Build an SQL IN clause from an array of items.
+ * Returns a placeholder string and params array suitable for embedding in a query.
+ * When the array is empty, returns a literal that matches nothing (`'__none__'`),
+ * avoiding SQL syntax errors from `IN ()`.
+ *
+ * @param {any[]} items - Values to include in the IN clause
+ * @returns {{ sql: string, params: any[] }}
+ */
+export function buildInClause(items) {
+  if (!items || items.length === 0) {
+    return { sql: "'__none__'", params: [] };
+  }
+  return { sql: items.map(() => '?').join(','), params: items };
+}
+
+/**
  * Rate limit a public (unauthenticated) endpoint by client IP.
  * Uses CF-Connecting-IP for the key. Consumes on every request
  * (not just success) since public endpoints are read-only and
@@ -183,6 +200,51 @@ export async function withIpRateLimit(request, env, prefix, max, handler) {
   }
   await db.consumeRateLimit(key);
   return handler();
+}
+
+/**
+ * Higher-order wrapper for the common team route pattern:
+ * get DB + team stubs, extract agent runtime, rate-limit, call a team DO
+ * method, and map the result to an HTTP response.
+ *
+ * Eliminates the repeated 4-line preamble (getDB, getTeam, getAgentRuntime)
+ * and the withRateLimit + error-mapping boilerplate from team route handlers.
+ *
+ * @param {object} opts
+ * @param {Request} opts.request
+ * @param {object}  opts.user
+ * @param {object}  opts.env
+ * @param {string}  opts.teamId
+ * @param {string}  opts.rateLimitKey - e.g. 'memory', 'locks' (prefixed with user.id internally)
+ * @param {number}  opts.rateLimitMax
+ * @param {string}  opts.rateLimitMsg
+ * @param {number}  [opts.successStatus=200] - HTTP status on success
+ * @param {(team: any, agentId: string, runtime: any) => Promise<any>} opts.action
+ *   Called with the team DO stub, resolved agentId, and full runtime.
+ *   Should return a DO result object ({ ok, ... } or { error, code }).
+ * @returns {Promise<Response>}
+ */
+export async function withTeamRateLimit({
+  request,
+  user,
+  env,
+  teamId,
+  rateLimitKey,
+  rateLimitMax,
+  rateLimitMsg,
+  successStatus = 200,
+  action,
+}) {
+  const db = getDB(env);
+  const runtime = getAgentRuntime(request, user);
+  const agentId = runtime.agentId;
+  const team = getTeam(env, teamId);
+
+  return withRateLimit(db, `${rateLimitKey}:${user.id}`, rateLimitMax, rateLimitMsg, async () => {
+    const result = await action(team, agentId, runtime);
+    if (result.error) return json({ error: result.error }, teamErrorStatus(result));
+    return json(result, successStatus);
+  });
 }
 
 /** Test whether a string is a valid UUID v4 (the format produced by crypto.randomUUID()). */

@@ -72,7 +72,7 @@ describe('WebSocket message handling via activity updates', () => {
 
   it('heartbeat fails for non-member', async () => {
     const res = await team().heartbeat('cursor:unknown');
-    expect(res).toEqual({ error: 'Not a member of this team' });
+    expect(res).toEqual({ error: 'Not a member of this team', code: 'NOT_MEMBER' });
   });
 });
 

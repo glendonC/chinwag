@@ -83,8 +83,12 @@ export function searchMemories(sql, query, tags, limit = 20) {
       let tags = [];
       try {
         tags = JSON.parse(m.tags || '[]');
-      } catch {
-        /* malformed JSON in tags — default to empty array */
+      } catch (err) {
+        console.error(
+          '[chinwag] searchMemories: malformed JSON in memory tags, id:',
+          m.id,
+          err?.message || err,
+        );
       }
       return { ...m, tags };
     }),
@@ -93,7 +97,7 @@ export function searchMemories(sql, query, tags, limit = 20) {
 
 export function updateMemory(sql, resolvedAgentId, memoryId, text, tags) {
   const existing = sql.exec('SELECT id FROM memories WHERE id = ?', memoryId).toArray();
-  if (existing.length === 0) return { error: 'Memory not found' };
+  if (existing.length === 0) return { error: 'Memory not found', code: 'NOT_FOUND' };
 
   // Any team member can update — memories are team knowledge
   const sets = [];
@@ -117,6 +121,6 @@ export function deleteMemory(sql, memoryId) {
   // Any team member can delete — memories are team knowledge
   sql.exec('DELETE FROM memories WHERE id = ?', memoryId);
   const changed = sql.exec('SELECT changes() as c').toArray();
-  if (changed[0].c === 0) return { error: 'Memory not found' };
+  if (changed[0].c === 0) return { error: 'Memory not found', code: 'NOT_FOUND' };
   return { ok: true };
 }

@@ -9,6 +9,7 @@ import {
   requireString,
   validateTagsArray,
   withRateLimit,
+  withTeamRateLimit,
 } from '../../lib/validation.js';
 import {
   MAX_MEMORY_TEXT_LENGTH,
@@ -38,22 +39,18 @@ export async function handleTeamSaveMemory(request, user, env, teamId) {
   // Moderation: check tag content (tags are user-visible, persistent)
   if (tags.some((t) => isBlocked(t))) return json({ error: 'Content blocked' }, 400);
 
-  const db = getDB(env);
-  const runtime = getAgentRuntime(request, user);
-  const agentId = runtime.agentId;
-  const team = getTeam(env, teamId);
-
-  return withRateLimit(
-    db,
-    `memory:${user.id}`,
-    RATE_LIMIT_MEMORIES,
-    'Memory save limit reached (20/day). Try again tomorrow.',
-    async () => {
-      const result = await team.saveMemory(agentId, text, tags, user.handle, runtime, user.id);
-      if (result.error) return json({ error: result.error }, teamErrorStatus(result));
-      return json(result, 201);
-    },
-  );
+  return withTeamRateLimit({
+    request,
+    user,
+    env,
+    teamId,
+    rateLimitKey: 'memory',
+    rateLimitMax: RATE_LIMIT_MEMORIES,
+    rateLimitMsg: 'Memory save limit reached (20/day). Try again tomorrow.',
+    successStatus: 201,
+    action: (team, agentId, runtime) =>
+      team.saveMemory(agentId, text, tags, user.handle, runtime, user.id),
+  });
 }
 
 export async function handleTeamSearchMemory(request, user, env, teamId) {
@@ -118,21 +115,16 @@ export async function handleTeamUpdateMemory(request, user, env, teamId) {
     return json({ error: 'text or tags required' }, 400);
   }
 
-  const db = getDB(env);
-  const { agentId } = getAgentRuntime(request, user);
-  const team = getTeam(env, teamId);
-
-  return withRateLimit(
-    db,
-    `memory_update:${user.id}`,
-    RATE_LIMIT_MEMORY_UPDATES,
-    'Memory update limit reached (50/day). Try again tomorrow.',
-    async () => {
-      const result = await team.updateMemory(agentId, id, text, tags, user.id);
-      if (result.error) return json({ error: result.error }, teamErrorStatus(result));
-      return json(result);
-    },
-  );
+  return withTeamRateLimit({
+    request,
+    user,
+    env,
+    teamId,
+    rateLimitKey: 'memory_update',
+    rateLimitMax: RATE_LIMIT_MEMORY_UPDATES,
+    rateLimitMsg: 'Memory update limit reached (50/day). Try again tomorrow.',
+    action: (team, agentId) => team.updateMemory(agentId, id, text, tags, user.id),
+  });
 }
 
 export async function handleTeamDeleteMemory(request, user, env, teamId) {
@@ -143,19 +135,14 @@ export async function handleTeamDeleteMemory(request, user, env, teamId) {
   const id = requireString(body, 'id');
   if (!id) return json({ error: 'id is required' }, 400);
 
-  const db = getDB(env);
-  const { agentId } = getAgentRuntime(request, user);
-  const team = getTeam(env, teamId);
-
-  return withRateLimit(
-    db,
-    `memory_delete:${user.id}`,
-    RATE_LIMIT_MEMORY_DELETES,
-    'Memory delete limit reached (50/day). Try again tomorrow.',
-    async () => {
-      const result = await team.deleteMemory(agentId, id, user.id);
-      if (result.error) return json({ error: result.error }, teamErrorStatus(result));
-      return json(result);
-    },
-  );
+  return withTeamRateLimit({
+    request,
+    user,
+    env,
+    teamId,
+    rateLimitKey: 'memory_delete',
+    rateLimitMax: RATE_LIMIT_MEMORY_DELETES,
+    rateLimitMsg: 'Memory delete limit reached (50/day). Try again tomorrow.',
+    action: (team, agentId) => team.deleteMemory(agentId, id, user.id),
+  });
 }

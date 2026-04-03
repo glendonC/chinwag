@@ -3,7 +3,12 @@
 import { getDB, getTeam } from '../../lib/env.js';
 import { json, parseBody } from '../../lib/http.js';
 import { getAgentRuntime, teamErrorStatus } from '../../lib/request-utils.js';
-import { requireJson, validateFileArray, withRateLimit } from '../../lib/validation.js';
+import {
+  requireJson,
+  validateFileArray,
+  withRateLimit,
+  withTeamRateLimit,
+} from '../../lib/validation.js';
 import {
   LOCK_CLAIM_MAX_FILES,
   MAX_FILE_PATH_LENGTH,
@@ -19,22 +24,17 @@ export async function handleTeamClaimFiles(request, user, env, teamId) {
   const fileErr = validateFileArray(files, LOCK_CLAIM_MAX_FILES);
   if (fileErr) return json({ error: fileErr }, 400);
 
-  const db = getDB(env);
-  const runtime = getAgentRuntime(request, user);
-  const agentId = runtime.agentId;
-  const team = getTeam(env, teamId);
-
-  return withRateLimit(
-    db,
-    `locks:${user.id}`,
-    RATE_LIMIT_LOCKS,
-    'Lock claim limit reached (100/day). Try again tomorrow.',
-    async () => {
-      const result = await team.claimFiles(agentId, files, user.handle, runtime, user.id);
-      if (result.error) return json({ error: result.error }, teamErrorStatus(result));
-      return json(result);
-    },
-  );
+  return withTeamRateLimit({
+    request,
+    user,
+    env,
+    teamId,
+    rateLimitKey: 'locks',
+    rateLimitMax: RATE_LIMIT_LOCKS,
+    rateLimitMsg: 'Lock claim limit reached (100/day). Try again tomorrow.',
+    action: (team, agentId, runtime) =>
+      team.claimFiles(agentId, files, user.handle, runtime, user.id),
+  });
 }
 
 export async function handleTeamReleaseFiles(request, user, env, teamId) {
