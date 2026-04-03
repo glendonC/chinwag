@@ -1,6 +1,7 @@
 import { api, getApiUrl } from '../api.js';
 import { authActions } from './auth.js';
 import { teamActions } from './teams.js';
+import { setWsConnected } from './refresh.js';
 import { applyDelta } from '../../../../shared/dashboard-ws.js';
 
 const RECONCILE_INITIAL_MS = 30_000;
@@ -9,6 +10,7 @@ const RECONCILE_MAX_MS = 300_000; // 5 minutes
 let activeWs = null;
 let reconcileTimer = null;
 let reconcileDelay = RECONCILE_INITIAL_MS;
+let reconcileInFlight = false;
 /** Monotonic generation counter — prevents stale onclose handlers from
  *  restarting polling after a newer connection has replaced them. */
 let wsGeneration = 0;
@@ -37,6 +39,8 @@ export function closeWebSocket() {
     reconcileTimer = null;
   }
   reconcileDelay = RECONCILE_INITIAL_MS;
+  reconcileInFlight = false;
+  setWsConnected(false);
   if (activeWs) {
     // Bump generation so the closing socket's onclose handler becomes a no-op
     wsGeneration++;
@@ -88,9 +92,15 @@ export async function connectTeamWebSocket(teamId) {
 
   /** Schedule the next reconciliation poll with exponential backoff. */
   function scheduleReconcile(expectedGen) {
-    reconcileTimer = setTimeout(() => {
+    reconcileTimer = setTimeout(async () => {
       if (wsGeneration !== expectedGen) return;
-      pollingBridge.poll();
+      if (reconcileInFlight) return; // previous reconcile still running
+      reconcileInFlight = true;
+      try {
+        await pollingBridge.poll();
+      } finally {
+        reconcileInFlight = false;
+      }
       // Double the delay, capped at max
       reconcileDelay = Math.min(reconcileDelay * 2, RECONCILE_MAX_MS);
       scheduleReconcile(expectedGen);
@@ -111,6 +121,7 @@ export async function connectTeamWebSocket(teamId) {
         return;
       }
       // WebSocket connected — stop polling, start reconciliation with backoff
+      setWsConnected(true);
       pollingBridge.stopPollTimer();
       if (reconcileTimer) {
         clearTimeout(reconcileTimer);
@@ -161,6 +172,7 @@ export async function connectTeamWebSocket(teamId) {
       // replaced connection from interfering with its successor.
       if (wsGeneration !== gen) return;
       activeWs = null;
+      setWsConnected(false);
       if (reconcileTimer) {
         clearTimeout(reconcileTimer);
         reconcileTimer = null;

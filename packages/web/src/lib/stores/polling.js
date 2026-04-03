@@ -10,6 +10,9 @@ const SLOW_POLL_MS = 30000;
 
 let pollTimer = null;
 let consecutiveFailures = 0;
+/** Incremented on every WebSocket state update. If a poll started before
+ *  a WS update and finishes after, the poll result is stale — skip it. */
+let dataVersion = 0;
 
 const pollingStore = createStore((set, get) => ({
   dashboardData: null,
@@ -25,7 +28,10 @@ const pollingStore = createStore((set, get) => ({
 // Wire up the bridge so the WebSocket module can update polling state
 // without a circular import.
 setPollingBridge({
-  setState: pollingStore.setState,
+  setState: (...args) => {
+    dataVersion++;
+    pollingStore.setState(...args);
+  },
   getState: pollingStore.getState,
   stopPollTimer() {
     if (pollTimer) {
@@ -64,6 +70,7 @@ async function poll() {
         contextTeamId: null,
       });
     } else {
+      const versionBeforeFetch = dataVersion;
       pollingStore.setState((state) => {
         const sameTeam = state.contextTeamId === snapshotTeamId;
         return {
@@ -77,6 +84,8 @@ async function poll() {
       await teamActions.ensureJoined(snapshotTeamId);
       const data = await api('GET', `/teams/${snapshotTeamId}/context`, null, token);
       if (teamActions.getState().activeTeamId !== snapshotTeamId) return;
+      // Skip if WebSocket delivered newer data while this fetch was in flight
+      if (dataVersion !== versionBeforeFetch) return;
       pollingStore.setState({
         contextData: data,
         contextStatus: 'ready',
