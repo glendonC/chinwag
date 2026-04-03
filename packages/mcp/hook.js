@@ -9,13 +9,9 @@
 // Exit code 0 = allow, non-zero = block (for PreToolUse).
 
 import { basename } from 'path';
-import { loadConfig, configExists } from './dist/config.js';
-import { api } from './dist/api.js';
-import { findTeamFile, teamHandlers } from './dist/team.js';
-import { detectRuntimeIdentity } from './dist/identity.js';
-import { resolveAgentIdentity } from './dist/lifecycle.js';
 import { formatWho } from './dist/utils/formatting.js';
 import { formatTeamContextDisplay } from './dist/utils/display.js';
+import { bootstrap } from './dist/bootstrap.js';
 
 // --- Constants ---
 const STDIN_TIMEOUT_MS = 3000;
@@ -26,28 +22,19 @@ const subcommand = process.argv[2];
 async function main() {
   const input = await readStdin();
 
-  // Graceful degradation: no config or no team = allow everything
-  if (!configExists()) {
+  // Bootstrap: graceful degradation — exit(0) on missing config/token/team
+  const ctx = await bootstrap({
+    hostToolHint: 'claude-code',
+    defaultTransport: 'hook',
+    configMode: 'simple',
+    identityMode: 'resolve',
+    onMissing: 'exit-silent',
+  });
+  if (!ctx || !ctx.teamId) {
     process.exit(0);
     return;
   }
-  const config = loadConfig();
-  if (!config?.token) {
-    process.exit(0);
-    return;
-  }
-
-  const teamId = findTeamFile();
-  if (!teamId) {
-    process.exit(0);
-    return;
-  }
-
-  // Hooks are always Claude Code
-  const runtime = detectRuntimeIdentity('claude-code', { defaultTransport: 'hook' });
-  const { agentId, hasExactSession } = resolveAgentIdentity(config.token, 'claude-code');
-  const client = api(config, { agentId, runtimeIdentity: runtime });
-  const team = teamHandlers(client);
+  const { team, teamId, hasExactSession } = ctx;
 
   switch (subcommand) {
     case 'check-conflict':

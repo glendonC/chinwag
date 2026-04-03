@@ -16,15 +16,12 @@
 import { readFileSync } from 'fs';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { loadConfig, configExists } from './dist/config.js';
-import { api, getApiUrl } from './dist/api.js';
-import { findTeamFile, teamHandlers } from './dist/team.js';
-import { detectRuntimeIdentity } from './dist/identity.js';
-import { resolveAgentIdentity } from './dist/lifecycle.js';
+import { getApiUrl } from './dist/api.js';
 import { diffState } from './dist/diff-state.js';
 import { isProcessAlive, pingAgentTerminal } from '@chinwag/shared/session-registry.js';
 import { createChannelWebSocket } from './dist/channel-ws.js';
 import { createReconciler } from './dist/channel-reconcile.js';
+import { bootstrap } from './dist/bootstrap.js';
 
 const PARENT_WATCH_INTERVAL_MS = 5_000;
 
@@ -36,36 +33,24 @@ try {
 }
 
 async function main() {
-  if (!configExists()) {
-    console.error('[chinwag-channel] No config found.');
-    process.exit(1);
-    return;
-  }
-
-  const config = loadConfig();
-  if (!config?.token) {
-    console.error('[chinwag-channel] Invalid config — missing token.');
-    process.exit(1);
-    return;
-  }
-
-  const teamId = findTeamFile();
-  if (!teamId) {
-    console.error('[chinwag-channel] No .chinwag file — channel inactive.');
-    process.exit(0);
-    return;
-  }
-
-  const runtime = detectRuntimeIdentity('unknown', { defaultTransport: 'channel' });
+  // Bootstrap: exit(1) for missing config/token, exit(0) for missing team
+  const ctx = await bootstrap({
+    hostToolHint: 'unknown',
+    defaultTransport: 'channel',
+    configMode: 'simple',
+    identityMode: 'resolve',
+    onMissing: 'exit-mixed',
+    logPrefix: 'chinwag-channel',
+  });
+  const { runtime, agentId, client, team, teamId } = ctx;
   const toolName = runtime.hostTool;
+
+  // Channel capability check (not part of bootstrap — channel-specific logic)
   if (!runtime.capabilities.includes('channel')) {
     console.error(`[chinwag-channel] Parent host is ${toolName}; channel disabled.`);
     process.exit(0);
     return;
   }
-  const { agentId } = resolveAgentIdentity(config.token, toolName);
-  const client = api(config, { agentId, runtimeIdentity: runtime });
-  const team = teamHandlers(client);
   console.error(
     `[chinwag-channel] Runtime: ${toolName} via ${runtime.transport}, Agent ID: ${agentId}`,
   );

@@ -8,17 +8,10 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { readFileSync } from 'fs';
 import { basename } from 'path';
-import { loadConfig, configExists } from './dist/config.js';
-import { api, getApiUrl } from './dist/api.js';
+import { getApiUrl } from './dist/api.js';
 import { scanEnvironment } from './dist/profile.js';
-import { findTeamFile, teamHandlers } from './dist/team.js';
-import {
-  detectRuntimeIdentity,
-  generateSessionAgentId,
-  getConfiguredAgentId,
-} from './dist/identity.js';
 import { registerProcessSession, setupShutdownHandlers } from './dist/lifecycle.js';
-import { validateConfig, registerProfile } from './dist/auth.js';
+import { registerProfile } from './dist/auth.js';
 import { createWebSocketManager } from './dist/websocket.js';
 import { registerTools, registerResources } from './dist/tools/index.js';
 import { createAgentState } from './dist/state.js';
@@ -27,6 +20,7 @@ import {
   scanHostIntegrations,
   configureHostIntegration,
 } from '@chinwag/shared/integration-doctor.js';
+import { bootstrap } from './dist/bootstrap.js';
 
 let PKG = { version: '0.0.0' };
 try {
@@ -36,14 +30,16 @@ try {
 }
 
 async function main() {
-  // 1. Validate config (and refresh token if expired)
-  const { config } = await validateConfig({ configExists, loadConfig, api });
-
-  // 2. Resolve identity
-  const runtime = detectRuntimeIdentity('unknown', { defaultTransport: 'mcp' });
+  // 1. Bootstrap: validate config, resolve identity, create API client + team handlers
+  const ctx = await bootstrap({
+    hostToolHint: 'unknown',
+    defaultTransport: 'mcp',
+    configMode: 'full',
+    identityMode: 'session',
+    onMissing: 'exit-error',
+  });
+  const { runtime, agentId, client, team, teamId } = ctx;
   const toolName = runtime.hostTool;
-  const agentId = getConfiguredAgentId(runtime) || generateSessionAgentId(config.token, runtime);
-  const client = api(config, { agentId, runtimeIdentity: runtime });
   const runtimeLabel = runtime.agentSurface
     ? `${runtime.hostTool}/${runtime.agentSurface}`
     : runtime.hostTool;
@@ -51,7 +47,7 @@ async function main() {
     `[chinwag] Runtime: ${runtimeLabel} via ${runtime.transport}, Agent ID: ${agentId}`,
   );
 
-  // 3. Register session for terminal identification
+  // 2. Register session for terminal identification
   let parentTty = null;
   try {
     ({ tty: parentTty } = registerProcessSession(agentId, toolName));
@@ -63,13 +59,13 @@ async function main() {
     console.error('[chinwag]', err?.message || 'session registration failed');
   }
 
-  // 4. Register environment profile
+  // 3. Register environment profile
   const profile = scanEnvironment();
   await registerProfile(client, profile);
 
-  // 5. Initialize shared state (Proxy-guarded to prevent typo bugs)
+  // 4. Initialize shared state (Proxy-guarded to prevent typo bugs)
   const state = createAgentState({
-    teamId: findTeamFile(),
+    teamId,
     ws: null,
     sessionId: null,
     tty: parentTty,
@@ -80,10 +76,9 @@ async function main() {
     shuttingDown: false,
   });
 
-  const team = teamHandlers(client);
   const projectName = basename(process.cwd());
 
-  // 6. Join team and start WebSocket presence
+  // 5. Join team and start WebSocket presence
   let wsManager = null;
   if (state.teamId) {
     try {
@@ -112,7 +107,7 @@ async function main() {
     }
   }
 
-  // 7. Setup graceful shutdown
+  // 6. Setup graceful shutdown
   setupShutdownHandlers({
     agentId,
     state,
@@ -120,7 +115,7 @@ async function main() {
     onDisconnectWs: wsManager ? () => wsManager.disconnect() : undefined,
   });
 
-  // 8. Create and start MCP server
+  // 7. Create and start MCP server
   const server = new McpServer({
     name: 'chinwag',
     version: PKG.version,

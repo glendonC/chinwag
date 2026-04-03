@@ -9,19 +9,34 @@ import type { TeamHandlers } from './team.js';
 
 const log = createLogger('context');
 
-let cachedContext: TeamContext | null = null;
-let cachedContextAt = 0;
-let cachedContextTeam: string | null = null;
-let isOffline = false;
-let consecutiveErrors = 0;
 const CONTEXT_TTL_MS = 30_000;
 
-let lastPreambleState = '';
+/** All mutable state for the context cache. */
+export interface ContextCacheState {
+  cachedContext: TeamContext | null;
+  cachedContextAt: number;
+  cachedContextTeam: string | null;
+  isOffline: boolean;
+  consecutiveErrors: number;
+  lastPreambleState: string;
+  inflightRefresh: Promise<TeamContext | null> | null;
+}
 
-// Deduplicates concurrent refreshContext calls — if a fetch is already
-// in-flight for the same teamId, subsequent callers await the same promise
-// instead of firing duplicate API requests.
-let inflightRefresh: Promise<TeamContext | null> | null = null;
+/** Returns a fresh default state — useful for testing isolated instances. */
+export function createContextCache(): ContextCacheState {
+  return {
+    cachedContext: null,
+    cachedContextAt: 0,
+    cachedContextTeam: null,
+    isOffline: false,
+    consecutiveErrors: 0,
+    lastPreambleState: '',
+    inflightRefresh: null,
+  };
+}
+
+/** Module-level singleton — all exported functions operate on this. */
+const cache: ContextCacheState = createContextCache();
 
 export async function refreshContext(
   team: TeamHandlers,
@@ -29,15 +44,19 @@ export async function refreshContext(
 ): Promise<TeamContext | null> {
   if (!teamId) return null;
   const now = Date.now();
-  if (cachedContext && cachedContextTeam === teamId && now - cachedContextAt < CONTEXT_TTL_MS) {
-    return cachedContext;
+  if (
+    cache.cachedContext &&
+    cache.cachedContextTeam === teamId &&
+    now - cache.cachedContextAt < CONTEXT_TTL_MS
+  ) {
+    return cache.cachedContext;
   }
-  if (inflightRefresh) return inflightRefresh;
-  inflightRefresh = doRefresh(team, teamId, now);
+  if (cache.inflightRefresh) return cache.inflightRefresh;
+  cache.inflightRefresh = doRefresh(team, teamId, now);
   try {
-    return await inflightRefresh;
+    return await cache.inflightRefresh;
   } finally {
-    inflightRefresh = null;
+    cache.inflightRefresh = null;
   }
 }
 
@@ -47,53 +66,51 @@ async function doRefresh(
   now: number,
 ): Promise<TeamContext | null> {
   try {
-    cachedContext = await team.getTeamContext(teamId);
-    cachedContextAt = Date.now();
-    cachedContextTeam = teamId;
-    if (isOffline) {
-      isOffline = false;
-      consecutiveErrors = 0;
+    cache.cachedContext = await team.getTeamContext(teamId);
+    cache.cachedContextAt = Date.now();
+    cache.cachedContextTeam = teamId;
+    if (cache.isOffline) {
+      cache.isOffline = false;
+      cache.consecutiveErrors = 0;
       log.info('Back online');
     }
-    return cachedContext;
+    return cache.cachedContext;
   } catch (err: unknown) {
-    consecutiveErrors++;
+    cache.consecutiveErrors++;
     const message = getErrorMessage(err);
     // Log on first failure and every 10th to avoid flooding stderr
-    if (!isOffline || consecutiveErrors % 10 === 0) {
-      const cacheAge = cachedContext
-        ? `${Math.round((now - cachedContextAt) / 1000)}s old`
+    if (!cache.isOffline || cache.consecutiveErrors % 10 === 0) {
+      const cacheAge = cache.cachedContext
+        ? `${Math.round((now - cache.cachedContextAt) / 1000)}s old`
         : 'none';
       log.warn(
-        `API unreachable (${consecutiveErrors}x) -- cached context: ${cacheAge}: ${message}`,
+        `API unreachable (${cache.consecutiveErrors}x) -- cached context: ${cacheAge}: ${message}`,
         {
-          consecutiveErrors,
+          consecutiveErrors: cache.consecutiveErrors,
           cacheAge,
         },
       );
     }
-    isOffline = true;
-    return cachedContext; // null if never fetched — caller must handle
+    cache.isOffline = true;
+    return cache.cachedContext; // null if never fetched — caller must handle
   }
 }
 
 export function offlinePrefix(): string {
-  return isOffline ? '[offline -- using cached data] ' : '';
+  return cache.isOffline ? '[offline -- using cached data] ' : '';
 }
 
 export function getCachedContext(): TeamContext | null {
-  return cachedContext;
+  return cache.cachedContext;
 }
 
 export function clearContextCache(): void {
-  cachedContext = null;
-  cachedContextAt = 0;
-  cachedContextTeam = null;
+  Object.assign(cache, createContextCache());
 }
 
 export async function teamPreamble(team: TeamHandlers, teamId: string): Promise<string> {
   const ctx = await refreshContext(team, teamId);
-  if (!ctx) return isOffline ? '[offline] ' : '';
+  if (!ctx) return cache.isOffline ? '[offline] ' : '';
   const active = ctx.members?.filter((m) => m.status === 'active') || [];
   if (active.length === 0) return offlinePrefix();
 
@@ -112,8 +129,8 @@ export async function teamPreamble(team: TeamHandlers, teamId: string): Promise<
   if (msgCount > 0) extras.push(`${msgCount} message${msgCount > 1 ? 's' : ''}`);
 
   const currentState = `${summary}|${extras.join(',')}`;
-  if (currentState === lastPreambleState) return offlinePrefix();
-  lastPreambleState = currentState;
+  if (currentState === cache.lastPreambleState) return offlinePrefix();
+  cache.lastPreambleState = currentState;
 
   const extraStr = extras.length > 0 ? ` (${extras.join(', ')})` : '';
   return `${offlinePrefix()}[Team: ${summary}${extraStr}]\n\n`;

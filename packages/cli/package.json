@@ -7,7 +7,7 @@
     "chinwag": "./dist/cli.js"
   },
   "scripts": {
-    "build": "esbuild cli.jsx --bundle --platform=node --format=esm --banner:js='#!/usr/bin/env node' --outfile=dist/cli.js --external:ink --external:react --external:ink-text-input --external:node-pty --resolve-extensions=.ts,.tsx,.js,.jsx,.json",
+    "build": "esbuild cli.jsx --bundle --platform=node --format=esm --banner:js='#!/usr/bin/env node' --outfile=dist/cli.js --sourcemap --external:ink --external:react --external:ink-text-input --external:node-pty --resolve-extensions=.ts,.tsx,.js,.jsx,.json",
     "dev": "npm run build && node dist/cli.js",
     "start": "node dist/cli.js",
     "test": "vitest run",
