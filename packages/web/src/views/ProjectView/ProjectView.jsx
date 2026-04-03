@@ -10,10 +10,9 @@ import {
   SkeletonLine,
 } from '../../components/Skeleton/Skeleton.jsx';
 import KeyboardHint, { useKeyboardHint } from '../../components/KeyboardHint/KeyboardHint.jsx';
+import ProjectOverviewTab from './ProjectOverviewTab.jsx';
 import ProjectLiveTab from './ProjectLiveTab.jsx';
 import ProjectMemoryTab from './ProjectMemoryTab.jsx';
-import ProjectSessionsTab from './ProjectSessionsTab.jsx';
-import ProjectToolsTab from './ProjectToolsTab.jsx';
 import useProjectStatus from './useProjectStatus.js';
 import useProjectMembers from './useProjectMembers.js';
 import useProjectSessions from './useProjectSessions.js';
@@ -25,7 +24,7 @@ export default function ProjectView() {
   const { activeTeam, projectLabel, pollError, lastSynced, isLoading, isUnavailable } =
     useProjectStatus();
 
-  const { activeAgents, offlineAgents, sortedAgents, liveToolMix } = useProjectMembers();
+  const { members, activeAgents, offlineAgents, sortedAgents, liveToolMix } = useProjectMembers();
 
   const {
     allSessions,
@@ -36,33 +35,23 @@ export default function ProjectView() {
     liveSessionCount,
   } = useProjectSessions();
 
-  const {
-    locks,
-    usageEntries,
-    conflicts,
-    filesInPlay,
-    toolSummaries,
-    hostSummaries,
-    surfaceSummaries,
-    modelsSeen,
-  } = useProjectAnalytics();
+  const { locks, conflicts, filesInPlay, toolSummaries } = useProjectAnalytics();
 
   const { memories, memoryBreakdown, handleUpdateMemory, handleDeleteMemory } =
     useProjectMemories();
 
-  const [activeViz, setActiveViz] = useState('live');
+  const [activeViz, setActiveViz] = useState('overview');
   const hint = useKeyboardHint();
 
   const stats = [
+    { id: 'overview', label: 'Overview', value: '\u2014', tone: '' },
     {
-      id: 'live',
+      id: 'agents',
       label: 'Agents',
       value: activeAgents.length,
       tone: activeAgents.length > 0 ? 'accent' : '',
     },
     { id: 'memory', label: 'Memory', value: memories.length, tone: '' },
-    { id: 'sessions', label: 'Edits / 24h', value: sessionEditCount, tone: '' },
-    { id: 'tools', label: 'Tools', value: toolSummaries.length, tone: '' },
   ];
   const statIds = useMemo(() => stats.map((s) => s.id), [stats]);
   const statsRef = useRef(null);
@@ -95,7 +84,7 @@ export default function ProjectView() {
             {`Loading ${projectLabel}`}
           </ShimmerText>
         </header>
-        <SkeletonStatGrid count={4} />
+        <SkeletonStatGrid count={3} />
         <div style={{ marginTop: 40 }}>
           <SkeletonLine width="100%" height={32} />
         </div>
@@ -131,7 +120,7 @@ export default function ProjectView() {
         <button
           type="button"
           className={styles.conflictBanner}
-          onClick={() => setActiveViz('live')}
+          onClick={() => setActiveViz('agents')}
         >
           <span className={styles.conflictText}>
             {conflicts.length} {conflicts.length === 1 ? 'file' : 'files'} with overlapping edits
@@ -182,8 +171,23 @@ export default function ProjectView() {
       </section>
 
       <section className={styles.vizArea}>
-        {activeViz === 'live' && (
-          <div className={styles.vizPanel} role="tabpanel" id="panel-live">
+        {activeViz === 'overview' && (
+          <div className={styles.vizPanel} role="tabpanel" id="panel-overview">
+            <ProjectOverviewTab
+              members={members}
+              activeAgents={activeAgents}
+              conflicts={conflicts}
+              locks={locks}
+              sessionEditCount={sessionEditCount}
+              liveSessionCount={liveSessionCount}
+              filesTouchedCount={filesTouchedCount}
+              toolSummaries={toolSummaries}
+            />
+          </div>
+        )}
+
+        {activeViz === 'agents' && (
+          <div className={styles.vizPanel} role="tabpanel" id="panel-agents">
             <ProjectLiveTab
               sortedAgents={sortedAgents}
               offlineAgents={offlineAgents}
@@ -191,6 +195,7 @@ export default function ProjectView() {
               filesInPlay={filesInPlay}
               locks={locks}
               liveToolMix={liveToolMix}
+              sessions={sessions}
             />
           </div>
         )}
@@ -202,33 +207,6 @@ export default function ProjectView() {
               memoryBreakdown={memoryBreakdown}
               onUpdateMemory={handleUpdateMemory}
               onDeleteMemory={handleDeleteMemory}
-            />
-          </div>
-        )}
-
-        {activeViz === 'sessions' && (
-          <div className={styles.vizPanel} role="tabpanel" id="panel-sessions">
-            <ProjectSessionsTab
-              sessions={sessions}
-              sessionEditCount={sessionEditCount}
-              filesTouched={filesTouched}
-              filesTouchedCount={filesTouchedCount}
-              liveSessionCount={liveSessionCount}
-            />
-          </div>
-        )}
-
-        {activeViz === 'tools' && (
-          <div className={styles.vizPanel} role="tabpanel" id="panel-tools">
-            <ProjectToolsTab
-              toolSummaries={toolSummaries}
-              hostSummaries={hostSummaries}
-              surfaceSummaries={surfaceSummaries}
-              modelsSeen={modelsSeen}
-              conflicts={conflicts}
-              filesInPlay={filesInPlay}
-              locks={locks}
-              usageEntries={usageEntries}
             />
           </div>
         )}

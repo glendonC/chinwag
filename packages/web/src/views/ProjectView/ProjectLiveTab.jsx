@@ -1,6 +1,7 @@
 import ConflictBanner from '../../components/ConflictBanner/ConflictBanner.jsx';
 import AgentRow from '../../components/AgentRow/AgentRow.jsx';
 import LockRow from '../../components/LockRow/LockRow.jsx';
+import SessionRow from '../../components/SessionRow/SessionRow.jsx';
 import EmptyState from '../../components/EmptyState/EmptyState.jsx';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
 import { formatShare } from '../../lib/toolAnalytics.js';
@@ -14,6 +15,7 @@ export default function ProjectLiveTab({
   filesInPlay,
   locks,
   liveToolMix,
+  sessions = [],
 }) {
   const hasAgents = sortedAgents.length > 0;
   const hasFiles = filesInPlay.length > 0;
@@ -106,6 +108,26 @@ export default function ProjectLiveTab({
             </section>
           )}
         </div>
+      )}
+
+      {sessions.length > 0 && (
+        <section className={styles.block} style={{ marginTop: 32 }}>
+          <div className={styles.blockHeader}>
+            <h2 className={styles.blockTitle}>Recent sessions</h2>
+            <span className={styles.blockMeta}>{sessions.length}</span>
+          </div>
+          <div className={styles.sectionBody}>
+            {sessions.map((session, index) => (
+              <SessionRow
+                key={
+                  session.id ||
+                  `${session.owner_handle || session.handle}:${session.started_at || index}`
+                }
+                session={session}
+              />
+            ))}
+          </div>
+        </section>
       )}
     </div>
   );

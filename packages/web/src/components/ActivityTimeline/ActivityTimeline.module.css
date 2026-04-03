@@ -17,6 +17,7 @@
   align-items: flex-end;
   justify-content: center;
   min-height: 72px;
+  cursor: default;
 }
 
 .bar {
@@ -25,11 +26,22 @@
   min-height: 10px;
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--accent) 14%, transparent);
+  transition: background var(--motion-fast) ease;
 }
 
 .barCurrent {
   background: var(--accent);
 }
+
+.barHovered {
+  background: color-mix(in srgb, var(--accent) 44%, transparent);
+}
+
+.barCurrent.barHovered {
+  background: color-mix(in srgb, var(--accent) 85%, transparent);
+}
+
+/* ── Footer ── */
 
 .footer {
   display: flex;
@@ -46,23 +58,94 @@
   letter-spacing: var(--tracking-stat);
 }
 
-.legend {
+.rangeToggle {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: 2px;
 }
 
-.legendDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--success);
+.rangeOption {
+  padding: 3px 8px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease;
 }
 
-.legendText {
+.rangeOption:hover {
+  color: var(--muted);
+}
+
+.rangeActive {
+  background: var(--hover-bg);
+  color: var(--ink);
+}
+
+/* ── Center status ── */
+
+.footerCenter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 18px;
+}
+
+.statusText {
   font-size: var(--text-sm);
   color: var(--muted);
 }
+
+.statusCount {
+  font-family: var(--mono);
+  font-weight: 500;
+  color: var(--accent);
+}
+
+/* ── Hover tooltip ── */
+
+.tooltipText {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  animation: tooltipIn 0.15s var(--motion) both;
+}
+
+.tooltipValue {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.tooltipMeta {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.tooltipTime {
+  color: var(--soft);
+}
+
+.tooltipConflict {
+  color: var(--danger);
+}
+
+@keyframes tooltipIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+}
+
+/* ── Empty state ── */
 
 .empty {
   display: flex;
@@ -85,4 +168,16 @@
 .emptyLabel {
   font-size: var(--text-sm);
   color: var(--soft);
+}
+
+/* ── Motion ── */
+
+@media (prefers-reduced-motion: reduce) {
+  .bar {
+    transition: none;
+  }
+
+  .tooltipText {
+    animation: none;
+  }
 }

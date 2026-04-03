@@ -67,7 +67,7 @@
 
 .statsRow {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-xs);
 }
 
@@ -207,6 +207,71 @@
 
 .tagPillClear {
   color: var(--soft);
+}
+
+/* ── Overview: health + team ── */
+
+.issueList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.issueRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+}
+
+.issueCount {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--danger);
+  min-width: 1.2em;
+}
+
+.issueLabel {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.rosterList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.rosterRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.rosterDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-circle);
+  background: var(--hairline);
+  flex-shrink: 0;
+  transition: background var(--motion-fast) ease;
+}
+
+.rosterDot[data-online] {
+  background: var(--accent);
+}
+
+.rosterHandle {
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.rosterTools {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  opacity: 0.45;
 }
 
 /* ── Viz area ── */
@@ -362,12 +427,6 @@
 
 /* ── Responsive ── */
 
-@media (max-width: 980px) {
-  .statsRow {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 900px) {
   .panelGrid {
     grid-template-columns: 1fr;
@@ -375,6 +434,10 @@
 }
 
 @media (max-width: 600px) {
+  .statsRow {
+    grid-template-columns: 1fr;
+  }
+
   .summaryGrid {
     grid-template-columns: 1fr;
   }
