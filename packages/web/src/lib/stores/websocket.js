@@ -3,8 +3,12 @@ import { authActions } from './auth.js';
 import { teamActions } from './teams.js';
 import { applyDelta } from '../../../../shared/dashboard-ws.js';
 
+const RECONCILE_INITIAL_MS = 30_000;
+const RECONCILE_MAX_MS = 300_000; // 5 minutes
+
 let activeWs = null;
 let reconcileTimer = null;
+let reconcileDelay = RECONCILE_INITIAL_MS;
 /** Monotonic generation counter — prevents stale onclose handlers from
  *  restarting polling after a newer connection has replaced them. */
 let wsGeneration = 0;
@@ -26,14 +30,13 @@ export function setPollingBridge(bridge) {
   pollingBridge = bridge;
 }
 
-const RECONCILE_MS = 60_000;
-
 /** Close any active WebSocket and its reconciliation timer. */
 export function closeWebSocket() {
   if (reconcileTimer) {
-    clearInterval(reconcileTimer);
+    clearTimeout(reconcileTimer);
     reconcileTimer = null;
   }
+  reconcileDelay = RECONCILE_INITIAL_MS;
   if (activeWs) {
     // Bump generation so the closing socket's onclose handler becomes a no-op
     wsGeneration++;
@@ -83,6 +86,17 @@ export async function connectTeamWebSocket(teamId) {
   const agentId = `web-dashboard:${token.slice(0, 8)}`;
   const wsUrl = `${wsBase}/teams/${teamId}/ws?agentId=${encodeURIComponent(agentId)}&ticket=${encodeURIComponent(ticket)}`;
 
+  /** Schedule the next reconciliation poll with exponential backoff. */
+  function scheduleReconcile(expectedGen) {
+    reconcileTimer = setTimeout(() => {
+      if (wsGeneration !== expectedGen) return;
+      pollingBridge.poll();
+      // Double the delay, capped at max
+      reconcileDelay = Math.min(reconcileDelay * 2, RECONCILE_MAX_MS);
+      scheduleReconcile(expectedGen);
+    }, reconcileDelay);
+  }
+
   try {
     const ws = new WebSocket(wsUrl);
 
@@ -96,18 +110,27 @@ export async function connectTeamWebSocket(teamId) {
         ws.close();
         return;
       }
-      // WebSocket connected — stop polling, start reconciliation
+      // WebSocket connected — stop polling, start reconciliation with backoff
       pollingBridge.stopPollTimer();
       if (reconcileTimer) {
-        clearInterval(reconcileTimer);
+        clearTimeout(reconcileTimer);
         reconcileTimer = null;
       }
-      reconcileTimer = setInterval(pollingBridge.poll, RECONCILE_MS);
+      reconcileDelay = RECONCILE_INITIAL_MS;
+      scheduleReconcile(gen);
     };
 
     ws.onmessage = (evt) => {
       if (wsGeneration !== gen) return;
       if (teamActions.getState().activeTeamId !== teamId) return;
+      // Reset reconciliation backoff — fresh data means less need to poll soon,
+      // but restarting the timer ensures we reconcile relative to the last event.
+      reconcileDelay = RECONCILE_INITIAL_MS;
+      if (reconcileTimer) {
+        clearTimeout(reconcileTimer);
+        reconcileTimer = null;
+      }
+      scheduleReconcile(gen);
       try {
         const event = JSON.parse(evt.data);
         if (event.type === 'context') {
@@ -139,9 +162,10 @@ export async function connectTeamWebSocket(teamId) {
       if (wsGeneration !== gen) return;
       activeWs = null;
       if (reconcileTimer) {
-        clearInterval(reconcileTimer);
+        clearTimeout(reconcileTimer);
         reconcileTimer = null;
       }
+      reconcileDelay = RECONCILE_INITIAL_MS;
       // Fall back to polling if we're still on this team
       if (teamActions.getState().activeTeamId === teamId) {
         pollingBridge.restartPolling();
