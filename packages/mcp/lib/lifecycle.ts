@@ -1,6 +1,7 @@
 import {
   deleteSessionRecord,
   getCurrentTtyPath,
+  isProcessAlive,
   resolveSessionAgentId,
   SESSION_COMMAND_MARKER,
   type SessionRecordInput,
@@ -100,7 +101,53 @@ export interface McpState {
   modelReportInflight: string | null;
   lastActivity: number;
   heartbeatInterval?: ReturnType<typeof setInterval> | null;
-  _shuttingDown?: boolean;
+  shuttingDown: boolean;
+}
+
+// ── Shutdown ──
+
+const FORCE_EXIT_TIMEOUT_MS = 3_000;
+const PARENT_WATCH_INTERVAL_MS = 5_000;
+
+interface ShutdownOptions {
+  agentId: string;
+  state: McpState;
+  team: TeamHandlers;
+  onDisconnectWs?: () => void;
+}
+
+export function setupShutdownHandlers({ agentId, state, team, onDisconnectWs }: ShutdownOptions): {
+  parentWatch: ReturnType<typeof setInterval>;
+  cleanup: () => void;
+} {
+  let cleaned = false;
+
+  const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+    if (onDisconnectWs) onDisconnectWs();
+    clearInterval(parentWatch);
+    cleanupProcessSession(agentId, state, team).then(() => {
+      setTimeout(() => process.exit(0), 100);
+    });
+  };
+
+  process.on('SIGINT', cleanup);
+  process.on('SIGTERM', cleanup);
+  process.on('disconnect', cleanup);
+  process.stdin.on('end', cleanup);
+  process.stdin.on('close', cleanup);
+
+  // Watch for parent process exit (orphan detection)
+  const parentPid = process.ppid;
+  const parentWatch = setInterval(() => {
+    if (parentPid > 1 && !isProcessAlive(parentPid)) {
+      cleanup();
+    }
+  }, PARENT_WATCH_INTERVAL_MS);
+  parentWatch.unref?.();
+
+  return { parentWatch, cleanup };
 }
 
 interface CleanupOptions {
@@ -118,7 +165,7 @@ export async function cleanupProcessSession(
   const deleteRecord = options.deleteRecord || deleteSessionRecord;
   const clearTimer = options.clearIntervalFn || clearInterval;
 
-  state._shuttingDown = true;
+  state.shuttingDown = true;
   deleteRecord(agentId, options.homeDir ? { homeDir: options.homeDir } : {});
   if (state.heartbeatInterval) clearTimer(state.heartbeatInterval);
   if (state.ws)
