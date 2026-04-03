@@ -163,9 +163,8 @@ async function main() {
             heartbeatFailures = 0;
             console.error('[chinwag-channel] Rejoined team after eviction');
           } catch (rejoinErr) {
-            console.error(
-              `[chinwag-channel] Rejoin failed (attempt ${heartbeatFailures}): ${rejoinErr?.message || 'unknown'}`,
-            );
+            const msg = rejoinErr instanceof Error ? rejoinErr.message : String(rejoinErr);
+            console.error(`[chinwag-channel] Rejoin failed (attempt ${heartbeatFailures}): ${msg}`);
           }
         } else {
           const nextRetryMs =
