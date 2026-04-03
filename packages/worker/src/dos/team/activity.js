@@ -2,8 +2,8 @@
 // Each function takes `sql` as the first parameter.
 
 import { normalizePath } from '../../lib/text-utils.js';
-import { getErrorMessage } from '../../lib/errors.js';
 import { createLogger } from '../../lib/logger.js';
+import { safeParse } from '../../lib/safe-parse.js';
 import { HEARTBEAT_ACTIVE_WINDOW_S, ACTIVITY_MAX_FILES } from '../../lib/constants.js';
 import { buildInClause, withTransaction } from '../../lib/validation.js';
 
@@ -62,16 +62,8 @@ export function checkConflicts(
 
   for (const row of others) {
     if (!row.files) continue;
-    let theirFiles = [];
-    try {
-      theirFiles = JSON.parse(row.files);
-    } catch (err) {
-      log.warn('malformed JSON in files for agent', {
-        agentId: row.agent_id,
-        error: getErrorMessage(err),
-      });
-      continue;
-    }
+    const theirFiles = safeParse(row.files, `checkConflicts agent=${row.agent_id} files`, [], log);
+    if (theirFiles.length === 0) continue;
     const overlap = theirFiles.filter((f) => myFiles.has(f));
     if (overlap.length > 0) {
       conflicts.push({
@@ -134,14 +126,12 @@ export function reportFile(sql, resolvedAgentId, filePath, transact) {
 
   let files = [];
   if (existing.length > 0 && existing[0].files) {
-    try {
-      files = JSON.parse(existing[0].files);
-    } catch (err) {
-      log.warn('malformed JSON in stored files for agent', {
-        agentId: resolvedAgentId,
-        error: getErrorMessage(err),
-      });
-    }
+    files = safeParse(
+      existing[0].files,
+      `reportFile agent=${resolvedAgentId} stored files`,
+      [],
+      log,
+    );
   }
 
   if (!files.includes(normalized)) {

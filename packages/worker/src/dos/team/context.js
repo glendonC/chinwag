@@ -3,8 +3,8 @@
 // and getSummary (lightweight counts for cross-project overview).
 
 import { HEARTBEAT_ACTIVE_WINDOW_S } from '../../lib/constants.js';
-import { getErrorMessage } from '../../lib/errors.js';
 import { createLogger } from '../../lib/logger.js';
+import { safeParse } from '../../lib/safe-parse.js';
 import { inferHostToolFromAgentId } from './runtime.js';
 
 const log = createLogger('TeamDO.context');
@@ -80,15 +80,10 @@ export function queryTeamContext(sql, connectedIds) {
      LIMIT 20`,
     )
     .toArray()
-    .map((m) => {
-      let tags = [];
-      try {
-        tags = JSON.parse(m.tags || '[]');
-      } catch (err) {
-        log.warn('malformed JSON in memory tags', { memoryId: m.id, error: getErrorMessage(err) });
-      }
-      return { ...m, tags };
-    });
+    .map((m) => ({
+      ...m,
+      tags: safeParse(m.tags || '[]', `queryTeamContext memory=${m.id} tags`, [], log),
+    }));
 
   const recentSessions = sql
     .exec(
@@ -124,17 +119,7 @@ export function queryTeamContext(sql, connectedIds) {
       signal_tier: wsConnected ? 'websocket' : m.heartbeat_active ? 'http' : 'none',
       activity: m.files
         ? {
-            files: (() => {
-              try {
-                return JSON.parse(m.files);
-              } catch (err) {
-                log.warn('malformed JSON in member files', {
-                  agentId: m.agent_id,
-                  error: getErrorMessage(err),
-                });
-                return [];
-              }
-            })(),
+            files: safeParse(m.files, `queryTeamContext agent=${m.agent_id} member files`, [], log),
             summary: m.summary,
             updated_at: m.updated_at,
           }
@@ -191,17 +176,12 @@ export function queryTeamContext(sql, connectedIds) {
         agent_surface: s.agent_surface || null,
         transport: s.transport || null,
         agent_model: s.agent_model || null,
-        files_touched: (() => {
-          try {
-            return JSON.parse(s.files_touched || '[]');
-          } catch (err) {
-            log.warn('malformed JSON in session files_touched', {
-              agentId: s.agent_id,
-              error: getErrorMessage(err),
-            });
-            return [];
-          }
-        })(),
+        files_touched: safeParse(
+          s.files_touched || '[]',
+          `queryTeamContext session agent=${s.agent_id} files_touched`,
+          [],
+          log,
+        ),
       };
     }),
   };
@@ -236,12 +216,7 @@ export function queryTeamSummary(sql) {
   const fileCounts = new Map();
   for (const row of activities) {
     if (!row.files) continue;
-    let parsedFiles = [];
-    try {
-      parsedFiles = JSON.parse(row.files);
-    } catch (err) {
-      log.warn('malformed JSON in activity files', { error: getErrorMessage(err) });
-    }
+    const parsedFiles = safeParse(row.files, 'queryTeamSummary activity files', [], log);
     for (const f of parsedFiles) {
       fileCounts.set(f, (fileCounts.get(f) || 0) + 1);
     }

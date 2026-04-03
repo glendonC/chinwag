@@ -2,6 +2,7 @@ import { TOOL_CATALOG, CATEGORY_NAMES } from '../catalog.js';
 import { getDB, getLobby } from '../lib/env.js';
 import { json } from '../lib/http.js';
 import { auditLog } from '../lib/audit.js';
+import { safeParse } from '../lib/safe-parse.js';
 import { hashIp, withIpRateLimit } from '../lib/validation.js';
 import {
   RATE_LIMIT_ACCOUNTS_PER_IP,
@@ -20,11 +21,7 @@ function getDashboardUrl(env) {
 function evaluationToCatalogEntry(e) {
   let metadata = e.metadata || {};
   if (typeof metadata === 'string') {
-    try {
-      metadata = JSON.parse(metadata);
-    } catch {
-      metadata = {};
-    }
+    metadata = safeParse(metadata, `evaluationToCatalogEntry tool=${e.tool_id} metadata`, {});
   }
   return {
     id: e.tool_id,

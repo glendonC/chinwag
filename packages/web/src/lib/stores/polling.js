@@ -6,14 +6,28 @@ import { teamActions } from './teams.js';
 import { requestRefresh, setRefreshHandler } from './refresh.js';
 import { closeWebSocket, connectTeamWebSocket, setPollingBridge } from './websocket.js';
 
-let pollTimer = null;
-let consecutiveFailures = 0;
-/** Incremented on every WebSocket state update. If a poll started before
- *  a WS update and finishes after, the poll result is stale — skip it. */
-let dataVersion = 0;
-/** AbortController for the current poll cycle. Aborted on new polls,
- *  team switches, stop, and logout so stale fetches never land. */
-let pollAbortController = null;
+/**
+ * Internal mutable state for the polling subsystem.
+ * Encapsulated in a single object so it's easy to reset and test.
+ * `pollingBridge` is intentionally kept separate — it's a cross-module
+ * callback interface, not internal polling state.
+ */
+function createPollingState() {
+  return {
+    /** setInterval ID for the poll timer. */
+    pollTimer: null,
+    /** API failure counter — triggers slow mode at 3+. */
+    consecutiveFailures: 0,
+    /** Incremented on every WebSocket state update. If a poll started before
+     *  a WS update and finishes after, the poll result is stale — skip it. */
+    dataVersion: 0,
+    /** AbortController for the current poll cycle. Aborted on new polls,
+     *  team switches, stop, and logout so stale fetches never land. */
+    pollAbortController: null,
+  };
+}
+
+const pollState = createPollingState();
 
 const pollingStore = createStore((set, get) => ({
   dashboardData: null,
@@ -30,14 +44,14 @@ const pollingStore = createStore((set, get) => ({
 // without a circular import.
 setPollingBridge({
   setState: (...args) => {
-    dataVersion++;
+    pollState.dataVersion++;
     pollingStore.setState(...args);
   },
   getState: pollingStore.getState,
   stopPollTimer() {
-    if (pollTimer) {
-      clearInterval(pollTimer);
-      pollTimer = null;
+    if (pollState.pollTimer) {
+      clearInterval(pollState.pollTimer);
+      pollState.pollTimer = null;
     }
   },
   restartPolling,
@@ -46,9 +60,9 @@ setPollingBridge({
 
 /** Abort the current poll controller (if any) and return a fresh signal. */
 function resetAbortController() {
-  if (pollAbortController) pollAbortController.abort();
-  pollAbortController = new AbortController();
-  return pollAbortController.signal;
+  if (pollState.pollAbortController) pollState.pollAbortController.abort();
+  pollState.pollAbortController = new AbortController();
+  return pollState.pollAbortController.signal;
 }
 
 /** Single poll cycle. */
@@ -80,7 +94,7 @@ async function poll() {
         contextTeamId: null,
       });
     } else {
-      const versionBeforeFetch = dataVersion;
+      const versionBeforeFetch = pollState.dataVersion;
       pollingStore.setState((state) => {
         const sameTeam = state.contextTeamId === snapshotTeamId;
         return {
@@ -95,7 +109,7 @@ async function poll() {
       const data = await api('GET', `/teams/${snapshotTeamId}/context`, null, token, { signal });
       if (teamActions.getState().activeTeamId !== snapshotTeamId) return;
       // Skip if WebSocket delivered newer data while this fetch was in flight
-      if (dataVersion !== versionBeforeFetch) return;
+      if (pollState.dataVersion !== versionBeforeFetch) return;
       pollingStore.setState({
         contextData: data,
         contextStatus: 'ready',
@@ -107,8 +121,8 @@ async function poll() {
 
     pollingStore.setState({ pollError: null, pollErrorData: null, lastUpdate: new Date() });
 
-    if (consecutiveFailures > 0) {
-      consecutiveFailures = 0;
+    if (pollState.consecutiveFailures > 0) {
+      pollState.consecutiveFailures = 0;
       restartPolling();
     }
   } catch (err) {
@@ -124,7 +138,7 @@ async function poll() {
     if (snapshotTeamId === null && err?.data?.failed_teams?.length > 0) {
       await teamActions.loadTeams();
     }
-    consecutiveFailures++;
+    pollState.consecutiveFailures++;
     const pollError = formatError(err);
     const pollErrorData = err?.data || null;
     if (snapshotTeamId === null) {
@@ -149,7 +163,7 @@ async function poll() {
         };
       });
     }
-    if (consecutiveFailures >= 3) restartPolling();
+    if (pollState.consecutiveFailures >= 3) restartPolling();
   }
 }
 
@@ -157,19 +171,19 @@ setRefreshHandler(poll);
 
 function restartPolling() {
   stopPollTimer();
-  const delay = consecutiveFailures >= 3 ? SLOW_POLL_MS : POLL_MS;
-  pollTimer = setInterval(poll, delay);
+  const delay = pollState.consecutiveFailures >= 3 ? SLOW_POLL_MS : POLL_MS;
+  pollState.pollTimer = setInterval(poll, delay);
 }
 
 /** Stop only the HTTP poll timer (leaves WebSocket untouched). */
 function stopPollTimer() {
-  if (pollAbortController) {
-    pollAbortController.abort();
-    pollAbortController = null;
+  if (pollState.pollAbortController) {
+    pollState.pollAbortController.abort();
+    pollState.pollAbortController = null;
   }
-  if (pollTimer) {
-    clearInterval(pollTimer);
-    pollTimer = null;
+  if (pollState.pollTimer) {
+    clearInterval(pollState.pollTimer);
+    pollState.pollTimer = null;
   }
 }
 
@@ -191,13 +205,13 @@ export function startPolling() {
   const { activeTeamId } = teamActions.getState();
   if (activeTeamId) {
     // Project view — try WebSocket, polling runs as fallback until WS connects
-    const delay = consecutiveFailures >= 3 ? SLOW_POLL_MS : POLL_MS;
-    pollTimer = setInterval(poll, delay);
+    const delay = pollState.consecutiveFailures >= 3 ? SLOW_POLL_MS : POLL_MS;
+    pollState.pollTimer = setInterval(poll, delay);
     connectTeamWebSocket(activeTeamId);
   } else {
     // Overview — polling only (aggregates across all teams, no single-team WS)
-    const delay = consecutiveFailures >= 3 ? SLOW_POLL_MS : POLL_MS;
-    pollTimer = setInterval(poll, delay);
+    const delay = pollState.consecutiveFailures >= 3 ? SLOW_POLL_MS : POLL_MS;
+    pollState.pollTimer = setInterval(poll, delay);
   }
 }
 
@@ -210,11 +224,10 @@ export function stopPolling() {
 /** Reset all polling state (call on logout to prevent stale data on re-login). */
 export function resetPollingState() {
   stopPolling();
-  if (pollAbortController) {
-    pollAbortController.abort();
-    pollAbortController = null;
+  if (pollState.pollAbortController) {
+    pollState.pollAbortController.abort();
   }
-  consecutiveFailures = 0;
+  Object.assign(pollState, createPollingState());
   pollingStore.setState({
     dashboardData: null,
     dashboardStatus: 'idle',

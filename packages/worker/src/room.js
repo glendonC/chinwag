@@ -5,6 +5,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { getErrorMessage } from './lib/errors.js';
 import { createLogger } from './lib/logger.js';
+import { safeParse } from './lib/safe-parse.js';
 
 const log = createLogger('RoomDO');
 import { isBlocked } from './moderation.js';
@@ -101,12 +102,8 @@ export class RoomDO extends DurableObject {
     const session = this.sessions.get(ws);
     if (!session) return;
 
-    let data;
-    try {
-      data = JSON.parse(rawMessage);
-    } catch {
-      return;
-    }
+    const data = safeParse(rawMessage, `RoomDO.webSocketMessage room=${this.roomId}`, null, log);
+    if (!data) return;
 
     if (data.type === 'message') {
       const content = (data.content || '').trim();

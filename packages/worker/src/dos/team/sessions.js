@@ -2,8 +2,8 @@
 // Each function takes `sql` as the first parameter.
 
 import { normalizePath } from '../../lib/text-utils.js';
-import { getErrorMessage } from '../../lib/errors.js';
 import { createLogger } from '../../lib/logger.js';
+import { safeParse } from '../../lib/safe-parse.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
 import { HEARTBEAT_STALE_WINDOW_S, ACTIVITY_MAX_FILES } from '../../lib/constants.js';
 import { withTransaction } from '../../lib/validation.js';
@@ -92,15 +92,12 @@ export function recordEdit(sql, resolvedAgentId, filePath) {
   if (sessions.length === 0) return { ok: true, skipped: true }; // No active session — caller can log if needed
 
   const session = sessions[0];
-  let files = [];
-  try {
-    files = JSON.parse(session.files_touched || '[]');
-  } catch (err) {
-    log.warn('malformed JSON in session files_touched', {
-      sessionId: session.id,
-      error: getErrorMessage(err),
-    });
-  }
+  let files = safeParse(
+    session.files_touched || '[]',
+    `recordEdit session=${session.id} files_touched`,
+    [],
+    log,
+  );
   if (!files.includes(normalized)) {
     files.push(normalized);
     if (files.length > ACTIVITY_MAX_FILES) files = files.slice(-ACTIVITY_MAX_FILES);
@@ -132,17 +129,12 @@ export function getSessionHistory(sql, days) {
     ok: true,
     sessions: sessions.map((s) => ({
       ...s,
-      files_touched: (() => {
-        try {
-          return JSON.parse(s.files_touched || '[]');
-        } catch (err) {
-          log.warn('malformed JSON in files_touched', {
-            handle: s.owner_handle,
-            error: getErrorMessage(err),
-          });
-          return [];
-        }
-      })(),
+      files_touched: safeParse(
+        s.files_touched || '[]',
+        `getSessionHistory handle=${s.owner_handle} files_touched`,
+        [],
+        log,
+      ),
     })),
   };
 }
