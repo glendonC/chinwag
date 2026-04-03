@@ -164,22 +164,25 @@ function ToolsMode({ detected, integrationSummary, recommendations, cols, messag
 export function Customize({ config, user, navigate, refreshUser }) {
   const { stdout } = useStdout();
   const cols = stdout?.columns || 80;
-  const [mode, setMode] = useState('menu');
   const [handleInput, setHandleInput] = useState('');
-  const [cursor, setCursor] = useState(0);
   const colors = getColorList();
-  const [colorIdx, setColorIdx] = useState(() => {
+
+  // ── Navigation state (mode + cursors) ───────────────
+  const [nav, setNav] = useState(() => {
     const current = user?.color || config?.color;
     const idx = colors.indexOf(current);
-    return idx >= 0 ? idx : 0;
+    return { mode: 'menu', cursor: 0, colorIdx: idx >= 0 ? idx : 0 };
   });
-  const [message, setMessage] = useState(null);
-  const messageTimer = useRef(null);
+  const setMode = (m) => setNav((prev) => ({ ...prev, mode: m, cursor: 0 }));
+  const setCursor = (fn) => setNav((prev) => ({ ...prev, cursor: fn(prev.cursor) }));
+  const setColorIdx = (fn) => setNav((prev) => ({ ...prev, colorIdx: fn(prev.colorIdx) }));
 
-  // Tools state
-  const [integrationStatuses, setIntegrationStatuses] = useState([]);
-  const [catalog, setCatalog] = useState([]);
-  const [toolsLoading, setToolsLoading] = useState(false);
+  // ── Flash message state ─────────────────────────────
+  const [flash, setFlash] = useState(null);
+  const flashTimerRef = useRef(null);
+
+  // ── Tools state ─────────────────────────────────────
+  const [tools, setTools] = useState({ loading: false, catalog: [], statuses: [] });
 
   const menuItems = useMemo(
     () => [
@@ -193,22 +196,23 @@ export function Customize({ config, user, navigate, refreshUser }) {
 
   useEffect(() => {
     return () => {
-      if (messageTimer.current) clearTimeout(messageTimer.current);
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
     };
   }, []);
 
   function showFlash(text, type = 'success') {
-    if (messageTimer.current) clearTimeout(messageTimer.current);
-    setMessage({ type, text });
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    setFlash({ type, text });
     const duration = Math.max(FLASH_MIN_DURATION_MS, text.length * FLASH_MS_PER_CHAR);
-    messageTimer.current = setTimeout(() => setMessage(null), duration);
+    flashTimerRef.current = setTimeout(() => setFlash(null), duration);
   }
 
   function enterMode(action) {
     if (action === 'color') {
       const current = user?.color || config?.color;
       const idx = colors.indexOf(current);
-      setColorIdx(idx >= 0 ? idx : 0);
+      setNav((prev) => ({ ...prev, mode: 'color', cursor: 0, colorIdx: idx >= 0 ? idx : 0 }));
+      return;
     }
     if (action === 'tools') {
       loadTools();
@@ -221,23 +225,26 @@ export function Customize({ config, user, navigate, refreshUser }) {
   }
 
   function loadTools() {
-    setToolsLoading(true);
-    setIntegrationStatuses(scanIntegrationHealth(process.cwd()));
+    setTools((prev) => ({
+      ...prev,
+      loading: true,
+      statuses: scanIntegrationHealth(process.cwd()),
+    }));
 
     async function fetchCatalog() {
       try {
         const result = await api(config).get('/tools/directory?limit=200');
-        setCatalog((result.evaluations || []).map(evalToTool));
+        setTools((prev) => ({ ...prev, catalog: (result.evaluations || []).map(evalToTool) }));
       } catch (err) {
         console.error('[chinwag]', err?.message || err);
         try {
           const fallback = await api(config).get('/tools/catalog');
-          setCatalog(fallback.tools || []);
+          setTools((prev) => ({ ...prev, catalog: fallback.tools || [] }));
         } catch (err) {
           showFlash(`Could not fetch tool catalog: ${err.message}`, 'error');
         }
       }
-      setToolsLoading(false);
+      setTools((prev) => ({ ...prev, loading: false }));
     }
     fetchCatalog();
   }
@@ -276,15 +283,15 @@ export function Customize({ config, user, navigate, refreshUser }) {
     const result = addToolToProject(tool, process.cwd());
     if (result.ok) {
       showFlash(result.message);
-      setIntegrationStatuses(scanIntegrationHealth(process.cwd()));
+      setTools((prev) => ({ ...prev, statuses: scanIntegrationHealth(process.cwd()) }));
     } else {
       showFlash(result.message, 'error');
     }
   }
 
   // Compute recommendations for tools mode
-  const { detected, recommendations } = computeToolRecommendations(catalog, integrationStatuses);
-  const integrationSummary = summarizeIntegrationScan(integrationStatuses, { onlyDetected: true });
+  const { detected, recommendations } = computeToolRecommendations(tools.catalog, tools.statuses);
+  const integrationSummary = summarizeIntegrationScan(tools.statuses, { onlyDetected: true });
 
   async function submitHandle() {
     const newHandle = handleInput.trim().toLowerCase();
@@ -293,14 +300,14 @@ export function Customize({ config, user, navigate, refreshUser }) {
     try {
       const result = await api(config).put('/me/handle', { handle: newHandle });
       if (result.error) {
-        setMessage({ type: 'error', text: result.error });
+        setFlash({ type: 'error', text: result.error });
         return;
       }
       const cfg = loadConfig();
       cfg.handle = newHandle;
       saveConfig(cfg);
       await refreshUser();
-      setMessage({ type: 'success', text: `You're now ${newHandle}!` });
+      setFlash({ type: 'success', text: `You're now ${newHandle}!` });
       setMode('menu');
     } catch (err) {
       const msg =
@@ -309,7 +316,7 @@ export function Customize({ config, user, navigate, refreshUser }) {
           : err.status === 400
             ? 'Invalid handle. Use 3-20 alphanumeric characters.'
             : classifyError(err).detail || 'Could not update handle.';
-      setMessage({ type: 'error', text: msg });
+      setFlash({ type: 'error', text: msg });
     }
   }
 
@@ -320,26 +327,26 @@ export function Customize({ config, user, navigate, refreshUser }) {
       cfg.color = color;
       saveConfig(cfg);
       await refreshUser();
-      setMessage({ type: 'success', text: 'Color updated!' });
+      setFlash({ type: 'success', text: 'Color updated!' });
       setMode('menu');
     } catch (err) {
       const msg = classifyError(err).detail || 'Could not update color.';
-      setMessage({ type: 'error', text: msg });
+      setFlash({ type: 'error', text: msg });
     }
   }
 
   useInput((ch, key) => {
     if (key.escape) {
-      if (mode === 'menu') {
+      if (nav.mode === 'menu') {
         navigate('dashboard');
       } else {
         setMode('menu');
-        setMessage(null);
+        setFlash(null);
       }
       return;
     }
 
-    if (mode === 'menu') {
+    if (nav.mode === 'menu') {
       if (key.upArrow) {
         setCursor((prev) => Math.max(0, prev - 1));
         return;
@@ -349,7 +356,7 @@ export function Customize({ config, user, navigate, refreshUser }) {
         return;
       }
       if (key.return) {
-        const item = menuItems[cursor];
+        const item = menuItems[nav.cursor];
         if (item) enterMode(item.action);
         return;
       }
@@ -358,7 +365,7 @@ export function Customize({ config, user, navigate, refreshUser }) {
       return;
     }
 
-    if (mode === 'color') {
+    if (nav.mode === 'color') {
       if (key.upArrow) {
         setColorIdx((prev) => Math.max(0, prev - 1));
         return;
@@ -368,12 +375,12 @@ export function Customize({ config, user, navigate, refreshUser }) {
         return;
       }
       if (key.return) {
-        saveColor(colors[colorIdx]);
+        saveColor(colors[nav.colorIdx]);
         return;
       }
     }
 
-    if (mode === 'tools') {
+    if (nav.mode === 'tools') {
       const num = parseInt(ch, 10);
       if (num >= 1 && num <= recommendations.length) {
         addTool(recommendations[num - 1]);
@@ -386,25 +393,27 @@ export function Customize({ config, user, navigate, refreshUser }) {
   const color = user?.color || config?.color;
 
   // ── Handle mode ──────────────────────────────────────
-  if (mode === 'handle') {
+  if (nav.mode === 'handle') {
     return (
       <HandleMode
         handleInput={handleInput}
         setHandleInput={setHandleInput}
         submitHandle={submitHandle}
-        message={message}
+        message={flash}
       />
     );
   }
 
   // ── Color mode ───────────────────────────────────────
-  if (mode === 'color') {
-    return <ColorMode handle={handle} currentColor={color} colors={colors} colorIdx={colorIdx} />;
+  if (nav.mode === 'color') {
+    return (
+      <ColorMode handle={handle} currentColor={color} colors={colors} colorIdx={nav.colorIdx} />
+    );
   }
 
   // ── Tools mode ───────────────────────────────────────
-  if (mode === 'tools') {
-    if (toolsLoading) {
+  if (nav.mode === 'tools') {
+    if (tools.loading) {
       return (
         <Box flexDirection="column" padding={1}>
           <Text dimColor>Loading tools...</Text>
@@ -418,7 +427,7 @@ export function Customize({ config, user, navigate, refreshUser }) {
         integrationSummary={integrationSummary}
         recommendations={recommendations}
         cols={cols}
-        message={message}
+        message={flash}
       />
     );
   }
@@ -437,7 +446,7 @@ export function Customize({ config, user, navigate, refreshUser }) {
       <Text>{''}</Text>
 
       {menuItems.map((item, i) => {
-        const isSelected = i === cursor;
+        const isSelected = i === nav.cursor;
         return (
           <Text key={item.key}>
             <Text>{isSelected ? '▸' : ' '} </Text>
@@ -448,9 +457,9 @@ export function Customize({ config, user, navigate, refreshUser }) {
       })}
 
       <Text>{''}</Text>
-      {message && (
+      {flash && (
         <>
-          <Text color={message.type === 'error' ? 'red' : 'green'}>{message.text}</Text>
+          <Text color={flash.type === 'error' ? 'red' : 'green'}>{flash.text}</Text>
           <Text>{''}</Text>
         </>
       )}

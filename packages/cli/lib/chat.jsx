@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useReducer, useCallback } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import { getInkColor } from './colors.js';
@@ -13,19 +13,72 @@ const ERROR_DISPLAY_MS = 3000;
 const MAX_RECONNECT_DELAY_MS = 15000;
 const RECONNECT_BASE_MS = 1000;
 
+// ── WebSocket state machine ─────────────────────────
+export const WS_ACTIONS = {
+  CONNECTING: 'CONNECTING',
+  CONNECTED: 'CONNECTED',
+  DISCONNECTED: 'DISCONNECTED',
+  ERROR: 'ERROR',
+  CLOSED: 'CLOSED',
+  CLEAR_ERROR: 'CLEAR_ERROR',
+};
+
+export const WS_INITIAL_STATE = {
+  status: 'disconnected',
+  retryCount: 0,
+  error: null,
+  intentionalClose: false,
+};
+
+export function wsReducer(state, action) {
+  switch (action.type) {
+    case WS_ACTIONS.CONNECTING:
+      return { ...state, status: 'connecting', error: null };
+    case WS_ACTIONS.CONNECTED:
+      return { ...state, status: 'connected', retryCount: 0, error: null, intentionalClose: false };
+    case WS_ACTIONS.DISCONNECTED:
+      return state.intentionalClose
+        ? state
+        : { ...state, status: 'disconnected', retryCount: state.retryCount + 1 };
+    case WS_ACTIONS.ERROR:
+      return { ...state, status: 'error', error: action.error };
+    case WS_ACTIONS.CLOSED:
+      return { ...state, status: 'closed', intentionalClose: true };
+    case WS_ACTIONS.CLEAR_ERROR:
+      return { ...state, error: null };
+    default:
+      return state;
+  }
+}
+
 export function Chat({ config, user, navigate }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
-  const [connected, setConnected] = useState(false);
   const [roomCount, setRoomCount] = useState(0);
-  const [error, setError] = useState('');
+  const [displayError, setDisplayError] = useState('');
+
+  const [wsState, dispatch] = useReducer(wsReducer, WS_INITIAL_STATE);
   const wsRef = useRef(null);
-  const retryRef = useRef(0);
-  const retryTimerRef = useRef(null);
+  const reconnectTimerRef = useRef(null);
   const errorTimerRef = useRef(null);
-  const intentionalCloseRef = useRef(false);
+
+  const clearReconnectTimer = useCallback(() => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  }, []);
+
+  const clearErrorTimer = useCallback(() => {
+    if (errorTimerRef.current) {
+      clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = null;
+    }
+  }, []);
 
   function connect(shuffle = false) {
+    dispatch({ type: WS_ACTIONS.CONNECTING });
+
     const url = new URL(WS_URL);
     if (shuffle) url.searchParams.set('shuffle', '1');
 
@@ -34,9 +87,7 @@ export function Chat({ config, user, navigate }) {
     });
 
     ws.addEventListener('open', () => {
-      setConnected(true);
-      retryRef.current = 0;
-      intentionalCloseRef.current = false;
+      dispatch({ type: WS_ACTIONS.CONNECTED });
     });
 
     ws.addEventListener('message', (event) => {
@@ -85,39 +136,40 @@ export function Chat({ config, user, navigate }) {
     });
 
     ws.addEventListener('close', () => {
-      setConnected(false);
-      if (!intentionalCloseRef.current) {
-        scheduleReconnect();
-      }
+      dispatch({ type: WS_ACTIONS.DISCONNECTED });
     });
 
     ws.addEventListener('error', () => {
-      setConnected(false);
+      dispatch({ type: WS_ACTIONS.ERROR, error: 'Connection error' });
     });
 
     wsRef.current = ws;
   }
 
-  function scheduleReconnect() {
+  // Schedule reconnect when state transitions to disconnected with retryCount > 0
+  useEffect(() => {
+    if (wsState.status !== 'disconnected' || wsState.retryCount === 0 || wsState.intentionalClose) {
+      return;
+    }
     // Exponential backoff: 1s, 2s, 4s, 8s, max 15s
+    // retryCount was already incremented by the DISCONNECTED action
     const delay = Math.min(
-      RECONNECT_BASE_MS * Math.pow(2, retryRef.current),
+      RECONNECT_BASE_MS * Math.pow(2, wsState.retryCount - 1),
       MAX_RECONNECT_DELAY_MS,
     );
-    retryRef.current++;
-    retryTimerRef.current = setTimeout(() => {
-      if (!intentionalCloseRef.current) {
-        connect();
-      }
+    clearReconnectTimer();
+    reconnectTimerRef.current = setTimeout(() => {
+      connect();
     }, delay);
-  }
+    return clearReconnectTimer;
+  }, [wsState.status, wsState.retryCount, wsState.intentionalClose]);
 
   useEffect(() => {
     connect();
     return () => {
-      intentionalCloseRef.current = true;
-      clearTimeout(retryTimerRef.current);
-      clearTimeout(errorTimerRef.current);
+      dispatch({ type: WS_ACTIONS.CLOSED });
+      clearReconnectTimer();
+      clearErrorTimer();
       if (wsRef.current) {
         wsRef.current.close();
       }
@@ -125,15 +177,15 @@ export function Chat({ config, user, navigate }) {
   }, []);
 
   function showError(message) {
-    setError(message);
-    clearTimeout(errorTimerRef.current);
-    errorTimerRef.current = setTimeout(() => setError(''), ERROR_DISPLAY_MS);
+    setDisplayError(message);
+    clearErrorTimer();
+    errorTimerRef.current = setTimeout(() => setDisplayError(''), ERROR_DISPLAY_MS);
   }
 
   function send() {
     const msg = input.trim();
     if (!msg) return;
-    if (!wsRef.current) {
+    if (!wsRef.current || wsState.status !== 'connected') {
       showError('Disconnected. Reconnecting...');
       return;
     }
@@ -147,14 +199,13 @@ export function Chat({ config, user, navigate }) {
   }
 
   function shuffle() {
-    intentionalCloseRef.current = true;
-    clearTimeout(retryTimerRef.current);
+    dispatch({ type: WS_ACTIONS.CLOSED });
+    clearReconnectTimer();
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
     }
     setMessages([]);
-    setConnected(false);
     connect(true);
   }
 
@@ -179,7 +230,9 @@ export function Chat({ config, user, navigate }) {
         <Text bold>Global Chat</Text>
         <Text dimColor>{roomCount <= 1 ? 'just you here' : `${roomCount} devs here`}</Text>
       </Box>
-      {!connected && <Text color="red">Reconnecting...</Text>}
+      {wsState.status !== 'connected' &&
+        wsState.status !== 'connecting' &&
+        wsState.status !== 'closed' && <Text color="red">Reconnecting...</Text>}
       <Text>{''}</Text>
 
       <Box flexDirection="column" minHeight={10}>
@@ -205,7 +258,7 @@ export function Chat({ config, user, navigate }) {
       </Box>
 
       <Text>{''}</Text>
-      {error ? <Text color="red">{error}</Text> : null}
+      {displayError ? <Text color="red">{displayError}</Text> : null}
       <Box>
         <Text color={getInkColor(user?.color || 'white')}>
           {user?.handle || '?'}
