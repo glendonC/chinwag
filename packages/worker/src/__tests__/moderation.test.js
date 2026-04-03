@@ -145,9 +145,10 @@ describe('checkContent', () => {
     expect(result.reason).toBe('blocked_term');
   });
 
-  it('returns not blocked but degraded for clean text with no AI binding', async () => {
+  it('returns blocked as fail-safe when AI binding is unavailable', async () => {
     const result = await checkContent('hello world', {});
-    expect(result.blocked).toBe(false);
+    expect(result.blocked).toBe(true);
+    expect(result.reason).toBe('moderation_unavailable');
     expect(result.degraded).toBe(true);
   });
 
@@ -185,7 +186,7 @@ describe('checkContent', () => {
     expect(result.categories).toContain('S11');
   });
 
-  it('degrades gracefully when AI binding throws', async () => {
+  it('blocks as fail-safe when AI binding throws', async () => {
     const mockEnv = {
       AI: {
         run: async () => {
@@ -193,21 +194,24 @@ describe('checkContent', () => {
         },
       },
     };
-    // Clean text + AI throws = should pass (not crash) but signal degradation
+    // Clean text + AI throws = fail-safe blocks content
     const result = await checkContent('normal text here', mockEnv);
-    expect(result.blocked).toBe(false);
+    expect(result.blocked).toBe(true);
+    expect(result.reason).toBe('moderation_unavailable');
     expect(result.degraded).toBe(true);
   });
 
-  it('degrades gracefully when AI binding is undefined', async () => {
+  it('blocks as fail-safe when AI binding is undefined', async () => {
     const result = await checkContent('normal text here', {});
-    expect(result.blocked).toBe(false);
+    expect(result.blocked).toBe(true);
+    expect(result.reason).toBe('moderation_unavailable');
     expect(result.degraded).toBe(true);
   });
 
-  it('degrades gracefully when AI binding is null', async () => {
+  it('blocks as fail-safe when AI binding is null', async () => {
     const result = await checkContent('normal text here', { AI: null });
-    expect(result.blocked).toBe(false);
+    expect(result.blocked).toBe(true);
+    expect(result.reason).toBe('moderation_unavailable');
     expect(result.degraded).toBe(true);
   });
 

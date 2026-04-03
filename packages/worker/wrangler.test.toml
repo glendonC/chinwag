@@ -1,5 +1,6 @@
-# Test-only wrangler config — no AI binding, no real KV namespace.
-# Prevents remote proxy sessions that require CF auth in CI.
+# Test-only wrangler config — local KV, mock AI binding.
+# The AI binding provides a local mock so moderation's fail-safe
+# doesn't block all content in tests.
 name = "chinwag-api-test"
 main = "src/index.js"
 compatibility_date = "2024-12-01"
@@ -26,6 +27,9 @@ class_name = "RoomDO"
 [[durable_objects.bindings]]
 name = "TEAM"
 class_name = "TeamDO"
+
+[ai]
+binding = "AI"
 
 [[migrations]]
 tag = "v1"

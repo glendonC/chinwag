@@ -141,7 +141,7 @@ export async function checkContent(text, env) {
   }
 
   if (ai.degraded) {
-    return { blocked: false, degraded: true };
+    return { blocked: true, reason: 'moderation_unavailable', degraded: true };
   }
 
   return { blocked: false };

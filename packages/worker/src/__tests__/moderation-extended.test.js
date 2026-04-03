@@ -112,22 +112,22 @@ describe('checkContent — AI moderation layer', () => {
     expect(result.categories).toContain('S11');
   });
 
-  it('degrades gracefully when AI binding is unavailable', async () => {
+  it('blocks as fail-safe when AI binding is unavailable', async () => {
     const env = {}; // no AI binding
 
     const result = await checkContent('some text that is actually fine', env);
-    expect(result).toEqual({ blocked: false, degraded: true });
+    expect(result).toEqual({ blocked: true, reason: 'moderation_unavailable', degraded: true });
   });
 
-  it('degrades gracefully when AI throws an error', async () => {
+  it('blocks as fail-safe when AI throws an error', async () => {
     const mockAI = {
       run: vi.fn().mockRejectedValue(new Error('AI service down')),
     };
     const env = { AI: mockAI };
 
     const result = await checkContent('some text', env);
-    // Should not block — AI failure means graceful degradation
-    expect(result).toEqual({ blocked: false, degraded: true });
+    // AI failure means fail-safe: block the content
+    expect(result).toEqual({ blocked: true, reason: 'moderation_unavailable', degraded: true });
   });
 
   it('handles AI returning empty response', async () => {

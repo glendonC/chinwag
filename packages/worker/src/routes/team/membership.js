@@ -29,10 +29,14 @@ export async function handleTeamJoin(request, user, env, teamId) {
 
   if (name) {
     const modResult = await checkContent(name, env);
-    if (modResult.degraded) {
-      log.warn('content moderation degraded: AI layer unavailable, blocklist-only mode');
-    }
     if (modResult.blocked) {
+      if (modResult.reason === 'moderation_unavailable') {
+        log.warn('content moderation unavailable: blocking content as fail-safe');
+        return json(
+          { error: 'Content moderation is temporarily unavailable. Please try again.' },
+          503,
+        );
+      }
       return json({ error: 'Content blocked' }, 400);
     }
   }

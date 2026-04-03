@@ -20,6 +20,18 @@ import {
 
 const log = createLogger('routes.user');
 
+const DO_CALL_TIMEOUT_MS = 5000;
+
+function withTimeout(promise, ms) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error('DO call timed out')), ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
 export async function authenticate(request, env) {
   const auth = request.headers.get('Authorization');
   let token;
@@ -150,10 +162,14 @@ export async function handleUpdateHandle(request, user, env) {
   }
 
   const modResult = await checkContent(handle, env);
-  if (modResult.degraded) {
-    log.warn('content moderation degraded: AI layer unavailable, blocklist-only mode');
-  }
   if (modResult.blocked) {
+    if (modResult.reason === 'moderation_unavailable') {
+      log.warn('content moderation unavailable: blocking content as fail-safe');
+      return json(
+        { error: 'Content moderation is temporarily unavailable. Please try again.' },
+        503,
+      );
+    }
     return json({ error: 'Content blocked' }, 400);
   }
 
@@ -205,10 +221,14 @@ export async function handleSetStatus(request, user, env) {
   }
 
   const modResult = await checkContent(status, env);
-  if (modResult.degraded) {
-    log.warn('content moderation degraded: AI layer unavailable, blocklist-only mode');
-  }
   if (modResult.blocked) {
+    if (modResult.reason === 'moderation_unavailable') {
+      log.warn('content moderation unavailable: blocking content as fail-safe');
+      return json(
+        { error: 'Content moderation is temporarily unavailable. Please try again.' },
+        503,
+      );
+    }
     return json({ error: 'Status blocked by content filter. Please revise.' }, 400);
   }
 
@@ -277,7 +297,7 @@ export async function handleDashboardSummary(user, env) {
     capped.map(async (teamEntry) => {
       const team = getTeam(env, teamEntry.team_id);
       try {
-        const summary = await team.getSummary(user.id);
+        const summary = await withTimeout(team.getSummary(user.id), DO_CALL_TIMEOUT_MS);
         if (summary.error) {
           try {
             await db.removeUserTeam(user.id, teamEntry.team_id);
@@ -394,10 +414,14 @@ export async function handleCreateTeam(request, user, env) {
 
   if (name) {
     const modResult = await checkContent(name, env);
-    if (modResult.degraded) {
-      log.warn('content moderation degraded: AI layer unavailable, blocklist-only mode');
-    }
     if (modResult.blocked) {
+      if (modResult.reason === 'moderation_unavailable') {
+        log.warn('content moderation unavailable: blocking content as fail-safe');
+        return json(
+          { error: 'Content moderation is temporarily unavailable. Please try again.' },
+          503,
+        );
+      }
       return json({ error: 'Content blocked' }, 400);
     }
   }
