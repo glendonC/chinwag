@@ -22,21 +22,21 @@ chinwag takes security seriously. This document describes how to report vulnerab
 
 ### What chinwag trusts
 
-| Trust boundary | Reasoning |
-|---|---|
+| Trust boundary              | Reasoning                                                                                                                                 |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | Cloudflare's infrastructure | Workers runtime isolation, network DDoS protection, TLS termination, and Durable Object storage integrity are Cloudflare's responsibility |
-| The host operating system | CLI runs on the user's machine; OS-level compromise is out of scope |
-| Node.js runtime | CLI requires Node 22+; vulnerabilities in Node itself should be reported upstream |
+| The host operating system   | CLI runs on the user's machine; OS-level compromise is out of scope                                                                       |
+| Node.js runtime             | CLI requires Node 22+; vulnerabilities in Node itself should be reported upstream                                                         |
 
 ### What chinwag does NOT trust
 
-| Boundary | Implication |
-|---|---|
-| All network input | Every HTTP request and WebSocket message is treated as untrusted and validated server-side |
-| User-generated content | All text (memories, chat messages, status updates) passes through two-layer moderation before persistence or broadcast |
-| Authentication tokens | Bearer tokens are validated on every request via KV lookup; no session cookies, no client-side trust |
-| WebSocket messages | Validated for type, length (280 char max), and rate (10/min) on every frame |
-| Client-supplied identity | Handle and color are resolved server-side from the authenticated token, never accepted from the client payload |
+| Boundary                 | Implication                                                                                                            |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| All network input        | Every HTTP request and WebSocket message is treated as untrusted and validated server-side                             |
+| User-generated content   | All text (memories, chat messages, status updates) passes through two-layer moderation before persistence or broadcast |
+| Authentication tokens    | Bearer tokens are validated on every request via KV lookup; no session cookies, no client-side trust                   |
+| WebSocket messages       | Validated for type, length (280 char max), and rate (10/min) on every frame                                            |
+| Client-supplied identity | Handle and color are resolved server-side from the authenticated token, never accepted from the client payload         |
 
 ### In Scope
 
@@ -65,22 +65,22 @@ chinwag takes security seriously. This document describes how to report vulnerab
 
 chinwag is deployed as a single live service. Security fixes are applied to the current production deployment.
 
-| Component | Version | Supported |
-|---|---|---|
-| Worker API | Production (latest deploy) | Yes |
-| CLI (`npx chinwag`) | Latest published npm version | Yes |
-| Web (chinwag.dev) | Production (latest deploy) | Yes |
+| Component           | Version                      | Supported |
+| ------------------- | ---------------------------- | --------- |
+| Worker API          | Production (latest deploy)   | Yes       |
+| CLI (`npx chinwag`) | Latest published npm version | Yes       |
+| Web (chinwag.dev)   | Production (latest deploy)   | Yes       |
 
 Older CLI versions are not actively supported. Users running `npx chinwag` always get the latest version.
 
 ## Response Timeline
 
-| Stage | Target |
-|---|---|
-| Acknowledgment | Within 48 hours |
-| Initial triage and severity assessment | Within 7 days |
-| Fix development | Depends on severity (see below) |
-| Disclosure | Coordinated, typically within 90 days |
+| Stage                                  | Target                                |
+| -------------------------------------- | ------------------------------------- |
+| Acknowledgment                         | Within 48 hours                       |
+| Initial triage and severity assessment | Within 7 days                         |
+| Fix development                        | Depends on severity (see below)       |
+| Disclosure                             | Coordinated, typically within 90 days |
 
 **Severity-based fix targets:**
 
@@ -122,7 +122,7 @@ If at any point you are uncertain whether your research complies with this polic
 For context on how chinwag's security works under the hood:
 
 - **Transport:** All connections use TLS. The CLI connects via `wss://` (WebSocket Secure) and `https://`. Cloudflare terminates TLS at the edge.
-- **Authentication:** UUID bearer tokens, generated at account creation, stored in Cloudflare KV for fast lookup. One token per user, no refresh rotation currently.
+- **Authentication:** UUID bearer tokens, generated at account creation, stored in Cloudflare KV for fast lookup. One token per user, with optional refresh rotation. WebSocket connections use short-lived single-use tickets (30s TTL) issued via `POST /auth/ws-ticket` to keep bearer tokens out of URLs, which may be logged by proxies or intermediaries.
 - **Isolation:** Each Durable Object (DatabaseDO, TeamDO, RoomDO, LobbyDO) runs in its own single-threaded isolate. Cross-DO access is only possible through explicit stub calls, never shared memory.
 - **Content moderation:** Two-layer system: synchronous blocklist (regex, under 1 ms) followed by async AI moderation (Llama Guard 3 on Cloudflare Workers AI). Both layers run before content is persisted for chat and status.
 - **Rate limiting:** Account creation (3/IP/day), chat messages (10/min/user), new account chat cooldown (5 minutes).
@@ -133,4 +133,4 @@ We will credit security researchers who report valid vulnerabilities (unless the
 
 ---
 
-*This policy is adapted from recommendations by [disclose.io](https://disclose.io), the [CISA Vulnerability Disclosure Policy Template](https://www.cisa.gov/vulnerability-disclosure-policy-template), and standards set by [ISO/IEC 29147](https://www.iso.org/standard/72311.html). Last reviewed: March 2026.*
+_This policy is adapted from recommendations by [disclose.io](https://disclose.io), the [CISA Vulnerability Disclosure Policy Template](https://www.cisa.gov/vulnerability-disclosure-policy-template), and standards set by [ISO/IEC 29147](https://www.iso.org/standard/72311.html). Last reviewed: March 2026._

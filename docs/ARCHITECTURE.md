@@ -115,15 +115,15 @@ chinwag follows the Docker Desktop model: agents appear in the dashboard regardl
 
 ### Control mechanisms by tier
 
-| Mechanism | Managed (CLI) | Connected (IDE) |
-|-----------|--------------|-----------------|
-| Start/stop | Process control | N/A (IDE owns lifecycle) |
-| Pause/resume | Hook-based (Claude Code) | Advisory message |
-| Messaging | Enforced delivery | Via MCP context |
-| File locks | Full | Full |
-| Memory | Full | Full |
-| Conflict detection | Full | Full |
-| Dashboard visibility | Full | Full |
+| Mechanism            | Managed (CLI)            | Connected (IDE)          |
+| -------------------- | ------------------------ | ------------------------ |
+| Start/stop           | Process control          | N/A (IDE owns lifecycle) |
+| Pause/resume         | Hook-based (Claude Code) | Advisory message         |
+| Messaging            | Enforced delivery        | Via MCP context          |
+| File locks           | Full                     | Full                     |
+| Memory               | Full                     | Full                     |
+| Conflict detection   | Full                     | Full                     |
+| Dashboard visibility | Full                     | Full                     |
 
 The dashboard shows both tiers in one unified list. Managed agents get stop/restart controls. Connected agents show activity and coordination data. The user does not need to understand the distinction for coordination to work.
 
@@ -151,16 +151,16 @@ The `.chinwag` file is committed to the repo. When a teammate clones and runs `n
 
 ### Per-tool integration depth
 
-| Tool | Tier | Integration | How |
-|------|------|------------|-----|
-| **Claude Code** | Managed | Full: push alerts + enforced conflict prevention | Channels push real-time team state. PreToolUse hooks block conflicting edits. SessionStart hook injects team context. Process control when spawned via TUI. |
-| **Codex CLI** | Managed | Basic: tool-based + process control | MCP tools available. Process control when spawned via TUI. |
-| **Aider** | Managed | Basic: tool-based + process control | MCP tools available. Shares `.mcp.json`. Process control when spawned via TUI. |
-| **Cursor** | Connected | Good: pull-based awareness | MCP `instructions` field + tool descriptions guide the agent to check chinwag. Lifecycle owned by IDE. |
-| **Windsurf** | Connected | Good: pull-based awareness | MCP tools + instructions. Same integration model as Cursor. Lifecycle owned by IDE. |
-| **VS Code Copilot** | Connected | Good: pull-based awareness | MCP tools + instructions. Also covers Cline and Continue extensions. Lifecycle owned by IDE. |
-| **JetBrains** | Connected | Basic: tool-based | MCP tools via `.idea/mcp.json`. Lifecycle owned by IDE. |
-| **Amazon Q** | Connected | Basic: tool-based | MCP tools available. Shares `.mcp.json`. |
+| Tool                | Tier      | Integration                                      | How                                                                                                                                                         |
+| ------------------- | --------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Claude Code**     | Managed   | Full: push alerts + enforced conflict prevention | Channels push real-time team state. PreToolUse hooks block conflicting edits. SessionStart hook injects team context. Process control when spawned via TUI. |
+| **Codex CLI**       | Managed   | Basic: tool-based + process control              | MCP tools available. Process control when spawned via TUI.                                                                                                  |
+| **Aider**           | Managed   | Basic: tool-based + process control              | MCP tools available. Shares `.mcp.json`. Process control when spawned via TUI.                                                                              |
+| **Cursor**          | Connected | Good: pull-based awareness                       | MCP `instructions` field + tool descriptions guide the agent to check chinwag. Lifecycle owned by IDE.                                                      |
+| **Windsurf**        | Connected | Good: pull-based awareness                       | MCP tools + instructions. Same integration model as Cursor. Lifecycle owned by IDE.                                                                         |
+| **VS Code Copilot** | Connected | Good: pull-based awareness                       | MCP tools + instructions. Also covers Cline and Continue extensions. Lifecycle owned by IDE.                                                                |
+| **JetBrains**       | Connected | Basic: tool-based                                | MCP tools via `.idea/mcp.json`. Lifecycle owned by IDE.                                                                                                     |
+| **Amazon Q**        | Connected | Basic: tool-based                                | MCP tools available. Shares `.mcp.json`.                                                                                                                    |
 
 Claude Code gets the deepest integration because it supports hooks (enforceable interception before file edits), channels (server-initiated push), and is a CLI tool (process control). Other tools improve as their MCP implementations mature. Tool detection and MCP config writing are driven by a declarative shared registry (`packages/shared/tool-registry.js`), surfaced through the CLI (`packages/cli/lib/tools.js`); the broader discover catalog is maintained in the worker (`packages/worker/src/catalog.js`).
 
@@ -218,73 +218,81 @@ The monorepo has five packages:
 
 ### Worker (`packages/worker/src/`)
 
-| File | Responsibility |
-|---|---|
-| `index.js` | HTTP router. Matches request paths to handlers. Runs Bearer token auth on protected routes via KV lookup. Bridges HTTP/WebSocket to Durable Objects. Hosts the tool catalog (`GET /tools/catalog`). |
-| `db.js` | `DatabaseDO`: single instance holding all persistent data. Users, agent profiles, rate limits (`checkRateLimit`). SQLite storage. |
-| `dos/team/index.js` | `TeamDO`: one instance per team. Class shell, schema, cleanup, identity resolution, and composite queries (`getContext`, `getSummary`). |
-| `dos/team/membership.js` | Team join, leave, and heartbeat logic. |
-| `dos/team/activity.js` | Agent activity tracking, file conflict detection, single-file edit reporting. |
-| `dos/team/memory.js` | Shared project memory: save, search, update, delete. Free-form tags, 500-memory cap with LRU pruning. |
-| `dos/team/locks.js` | File lock claim, release, and query. |
-| `dos/team/sessions.js` | Session start, end, edit recording, and history queries. |
-| `dos/team/messages.js` | Inter-agent messaging: send and retrieve. |
-| `dos/team/runtime.js` | Runtime metadata normalization for agent identity tracking. |
-| `lobby.js` | `LobbyDO`: single instance managing chat room assignment and global presence. Tracks active rooms and their sizes. Heartbeat-based presence with 60s TTL. |
-| `room.js` | `RoomDO`: one instance per chat room. Holds WebSocket connections, broadcasts messages, maintains last 50 messages as history. |
-| `moderation.js` | Two-layer content filter. Layer 1: synchronous regex blocklist (under 1 ms). Layer 2: async AI moderation via Llama Guard 3. Used for chat and status text. |
+| File                     | Responsibility                                                                                                                                                                                      |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.js`               | HTTP router. Matches request paths to handlers. Runs Bearer token auth on protected routes via KV lookup. Bridges HTTP/WebSocket to Durable Objects. Hosts the tool catalog (`GET /tools/catalog`). |
+| `db.js`                  | `DatabaseDO`: single instance holding all persistent data. Users, agent profiles, rate limits (`checkRateLimit`). SQLite storage.                                                                   |
+| `dos/team/index.js`      | `TeamDO`: one instance per team. Class shell, schema, cleanup, identity resolution, and composite queries (`getContext`, `getSummary`).                                                             |
+| `dos/team/membership.js` | Team join, leave, and heartbeat logic.                                                                                                                                                              |
+| `dos/team/activity.js`   | Agent activity tracking, file conflict detection, single-file edit reporting.                                                                                                                       |
+| `dos/team/memory.js`     | Shared project memory: save, search, update, delete. Free-form tags, 500-memory cap with LRU pruning.                                                                                               |
+| `dos/team/locks.js`      | File lock claim, release, and query.                                                                                                                                                                |
+| `dos/team/sessions.js`   | Session start, end, edit recording, and history queries.                                                                                                                                            |
+| `dos/team/messages.js`   | Inter-agent messaging: send and retrieve.                                                                                                                                                           |
+| `dos/team/runtime.js`    | Runtime metadata normalization for agent identity tracking.                                                                                                                                         |
+| `lobby.js`               | `LobbyDO`: single instance managing chat room assignment and global presence. Tracks active rooms and their sizes. Heartbeat-based presence with 60s TTL.                                           |
+| `room.js`                | `RoomDO`: one instance per chat room. Holds WebSocket connections, broadcasts messages, maintains last 50 messages as history.                                                                      |
+| `moderation.js`          | Two-layer content filter. Layer 1: synchronous regex blocklist (under 1 ms). Layer 2: async AI moderation via Llama Guard 3. Used for chat and status text.                                         |
 
 ### MCP Server (`packages/mcp/`)
 
-| File | Responsibility |
-|---|---|
-| `index.js` | MCP server entry point. Loads config and profile, creates the stdio server, and delegates tool/resource registration. Pull-on-any-call preamble. |
-| `hook.js` | Claude Code hook handler. Three modes: `check-conflict` (PreToolUse: blocks conflicting edits), `report-edit` (PostToolUse: reports file edits + session tracking), `session-start` (SessionStart: injects team context with stuckness insights). |
-| `channel.js` | Claude Code channel server. Polls team context every 10s, diffs against previous state, pushes notifications for joins, leaves, file activity, conflicts, stuckness (15min threshold), and new memories. |
-| `lib/tools/index.js` | Tool registration orchestrator. Wires together all tool modules and registers them on the MCP server. |
-| `lib/tools/team.js` | `chinwag_join_team` tool implementation. |
-| `lib/tools/activity.js` | `chinwag_update_activity` tool implementation. |
-| `lib/tools/conflicts.js` | `chinwag_check_conflicts` tool implementation. |
-| `lib/tools/context.js` | `chinwag_get_team_context` tool implementation. |
-| `lib/tools/memory.js` | Memory tools: `chinwag_save_memory`, `chinwag_search_memory`, `chinwag_update_memory`, `chinwag_delete_memory`. |
-| `lib/tools/locks.js` | Lock tools: `chinwag_claim_files`, `chinwag_release_files`. |
-| `lib/tools/messaging.js` | `chinwag_send_message` tool implementation. |
-| `lib/tools/integrations.js` | Integration-related tool registration. |
-| `lib/api.js` | HTTP client with Bearer token auth, 10s fetch timeout, retry with exponential backoff on 5xx/network errors. |
-| `lib/team.js` | Team operation wrappers: delegates to backend API for join/leave, context, activity, memory, locks, messaging, and session/history endpoints. |
-| `lib/config.js` | Reads `~/.chinwag/config.json` and `.chinwag` team file. |
-| `lib/profile.js` | Auto-detects languages, frameworks, tools, and platforms from project files and environment variables. |
-| `lib/context.js` | Shared context cache with TTL. Serves as preamble source and offline fallback when the API is unreachable. |
-| `lib/diff-state.js` | State diffing for the channel server. Compares team context snapshots and returns human-readable event strings for meaningful changes. |
-| `lib/identity.js` | Re-exports agent identity helpers from shared package. |
-| `lib/lifecycle.js` | Session identity resolution and lifecycle management (start/end, terminal session tracking). |
-| `lib/utils/` | Shared formatting, display, and response helpers used across tools and hooks. |
+| File                        | Responsibility                                                                                                                                                                                                                                                                                                                                            |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.js`                  | MCP server entry point. Loads config and profile, creates the stdio server, and delegates tool/resource registration. Pull-on-any-call preamble.                                                                                                                                                                                                          |
+| `hook.js`                   | Claude Code hook handler. Three modes: `check-conflict` (PreToolUse: blocks conflicting edits), `report-edit` (PostToolUse: reports file edits + session tracking), `session-start` (SessionStart: injects team context with stuckness insights).                                                                                                         |
+| `channel.js`                | Claude Code channel server. Receives real-time delta events from TeamDO via WebSocket (watcher role), with 10s HTTP polling fallback when disconnected and 60s reconciliation safety net. Diffs state snapshots and pushes MCP notifications for joins, leaves, file activity, conflicts, stuckness (15min threshold), locks, messages, and new memories. |
+| `lib/channel-ws.js`         | WebSocket connection manager for channel. Connects as `role=watcher` to TeamDO, receives delta events, maintains local TeamContext via `applyDelta`. Ticket-based auth, exponential backoff reconnection.                                                                                                                                                 |
+| `lib/channel-reconcile.js`  | Periodic HTTP reconciliation. Fetches full context every 60s to catch drift; falls back to 10s polling when the WebSocket is disconnected.                                                                                                                                                                                                                |
+| `lib/tools/index.js`        | Tool registration orchestrator. Wires together all tool modules and registers them on the MCP server. Exports `withTeam` middleware for team-guarded tool handlers.                                                                                                                                                                                       |
+| `lib/tools/team.js`         | `chinwag_join_team` tool implementation.                                                                                                                                                                                                                                                                                                                  |
+| `lib/tools/activity.js`     | `chinwag_update_activity` tool implementation.                                                                                                                                                                                                                                                                                                            |
+| `lib/tools/conflicts.js`    | `chinwag_check_conflicts` tool implementation.                                                                                                                                                                                                                                                                                                            |
+| `lib/tools/context.js`      | `chinwag_get_team_context` tool implementation.                                                                                                                                                                                                                                                                                                           |
+| `lib/tools/memory.js`       | Memory tools: `chinwag_save_memory`, `chinwag_search_memory`, `chinwag_update_memory`, `chinwag_delete_memory`.                                                                                                                                                                                                                                           |
+| `lib/tools/locks.js`        | Lock tools: `chinwag_claim_files`, `chinwag_release_files`.                                                                                                                                                                                                                                                                                               |
+| `lib/tools/messaging.js`    | `chinwag_send_message` tool implementation.                                                                                                                                                                                                                                                                                                               |
+| `lib/tools/integrations.js` | Integration-related tool registration.                                                                                                                                                                                                                                                                                                                    |
+| `lib/api.js`                | HTTP client with Bearer token auth, 10s fetch timeout, retry with exponential backoff on 5xx/network errors.                                                                                                                                                                                                                                              |
+| `lib/team.js`               | Team operation wrappers: delegates to backend API for join/leave, context, activity, memory, locks, messaging, and session/history endpoints.                                                                                                                                                                                                             |
+| `lib/config.js`             | Reads `~/.chinwag/config.json` and `.chinwag` team file.                                                                                                                                                                                                                                                                                                  |
+| `lib/profile.js`            | Auto-detects languages, frameworks, tools, and platforms from project files and environment variables.                                                                                                                                                                                                                                                    |
+| `lib/context.js`            | Shared context cache with TTL. Serves as preamble source and offline fallback when the API is unreachable.                                                                                                                                                                                                                                                |
+| `lib/diff-state.js`         | State diffing for the channel server. Compares team context snapshots and returns human-readable event strings for meaningful changes.                                                                                                                                                                                                                    |
+| `lib/identity.js`           | Re-exports agent identity helpers from shared package.                                                                                                                                                                                                                                                                                                    |
+| `lib/lifecycle.js`          | Session identity resolution and lifecycle management (start/end, terminal session tracking).                                                                                                                                                                                                                                                              |
+| `lib/utils/`                | Shared formatting, display, and response helpers used across tools and hooks.                                                                                                                                                                                                                                                                             |
 
 ### CLI (`packages/cli/`)
 
-| File | Responsibility |
-|---|---|
-| `cli.jsx` | App shell with error boundary. Screen state machine: loading → welcome → {dashboard, chat, customize, discover}. Loads/validates config on startup. Also handles pre-TUI commands (`init`, `add`, `run`). |
-| `lib/dashboard.jsx` | Agent activity dashboard. Shows configured tools, active/offline agents (managed + connected), file conflicts, recent sessions, and team knowledge. 5s polling. Managed agent controls (stop/restart). |
-| `lib/process-manager.js` | Spawns CLI agents via node-pty, tracks PIDs, handles kill/restart. Provides lifecycle events for dashboard integration. |
-| `lib/discover.jsx` | Tool discovery screen. Shows your configured tools, recommends new tools from the catalog, browse by category, one-key add. |
-| `lib/init-command.js` | `chinwag init`: account setup, team creation/join, tool detection via registry, MCP config + hooks writing. |
-| `lib/add-command.js` | `chinwag add <tool>`: adds a specific tool's MCP config. Fetches discovery catalog from API. |
-| `lib/tools.js` | CLI re-export of the shared MCP tool registry. Discovery catalog lives in the worker API (`GET /tools/catalog`). |
-| `lib/chat.jsx` | Live chat. WebSocket connection with exponential backoff reconnect (1s→15s cap). |
-| `lib/customize.jsx` | Profile editor. Change handle, cycle through 12-color palette, set status. |
-| `lib/api.js` | HTTP client. Wraps fetch with Bearer token auth, 10s timeout, retry with exponential backoff on 5xx/network errors. |
-| `lib/colors.js` | Maps chinwag's 12 colors to ANSI terminal colors for Ink rendering. |
-| `lib/config.js` | Reads/writes `~/.chinwag/config.json`. Token, handle, color. |
+| File                     | Responsibility                                                                                                                                                                                                                                                      |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cli.jsx`                | App shell with error boundary. Screen state machine: loading → welcome → {dashboard, chat, customize, discover}. Loads/validates config on startup. Also handles pre-TUI commands (`init`, `add`, `run`).                                                           |
+| `lib/dashboard.jsx`      | Agent activity dashboard. Shows configured tools, active/offline agents (managed + connected), file conflicts, recent sessions, and team knowledge. Real-time updates via WebSocket with adaptive polling fallback (5s→60s). Managed agent controls (stop/restart). |
+| `lib/process-manager.js` | Spawns CLI agents via node-pty, tracks PIDs, handles kill/restart. Provides lifecycle events for dashboard integration.                                                                                                                                             |
+| `lib/discover.jsx`       | Tool discovery screen. Shows your configured tools, recommends new tools from the catalog, browse by category, one-key add.                                                                                                                                         |
+| `lib/init-command.js`    | `chinwag init`: account setup, team creation/join, tool detection via registry, MCP config + hooks writing.                                                                                                                                                         |
+| `lib/add-command.js`     | `chinwag add <tool>`: adds a specific tool's MCP config. Fetches discovery catalog from API.                                                                                                                                                                        |
+| `lib/tools.js`           | CLI re-export of the shared MCP tool registry. Discovery catalog lives in the worker API (`GET /tools/catalog`).                                                                                                                                                    |
+| `lib/chat.jsx`           | Live chat. WebSocket connection with exponential backoff reconnect (1s→15s cap).                                                                                                                                                                                    |
+| `lib/customize.jsx`      | Profile editor. Change handle, cycle through 12-color palette, set status.                                                                                                                                                                                          |
+| `lib/api.js`             | HTTP client. Wraps fetch with Bearer token auth, 10s timeout, retry with exponential backoff on 5xx/network errors.                                                                                                                                                 |
+| `lib/colors.js`          | Maps chinwag's 12 colors to ANSI terminal colors for Ink rendering.                                                                                                                                                                                                 |
+| `lib/config.js`          | Reads/writes `~/.chinwag/config.json`. Token, handle, color.                                                                                                                                                                                                        |
 
 ### Shared (`packages/shared/`)
 
-| File | Responsibility |
-|---|---|
-| `tool-registry.js` | Canonical source of truth for MCP-configurable tools: ids, names, detection, managed-launch metadata, availability checks, and discovery metadata. |
-| `agent-identity.js` | Tool detection, deterministic agent IDs, and per-session agent ID generation. |
-| `api-client.js` | Shared JSON API client factory used across surfaces. |
-| `session-registry.js` | Terminal/session record helpers used for exact session identity and terminal attention. |
+| File                    | Responsibility                                                                                                                                                                           |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tool-registry.ts`      | Canonical source of truth for MCP-configurable tools: ids, names, detection, managed-launch metadata, availability checks, and discovery metadata.                                       |
+| `agent-identity.ts`     | Tool detection, deterministic agent IDs, and per-session agent ID generation.                                                                                                            |
+| `api-client.ts`         | Shared JSON API client factory used across surfaces. Configurable timeout, retry, and backoff.                                                                                           |
+| `session-registry.ts`   | Terminal/session record helpers used for exact session identity and terminal attention.                                                                                                  |
+| `contracts.ts`          | Type definitions for the API contract between packages: `TeamContext`, `TeamMember`, `DashboardDeltaEvent`, and all delta event types.                                                   |
+| `dashboard-ws.ts`       | WebSocket delta event normalization and application. `applyDelta()` maintains a local `TeamContext` from server-pushed events. Used by CLI dashboard, web dashboard, and channel server. |
+| `integration-doctor.ts` | Detects and configures MCP/hooks across editors. Scans for host integrations, validates config, writes MCP and hook settings.                                                            |
+| `config.ts`             | Reads and validates `~/.chinwag/config.json`.                                                                                                                                            |
+| `team-utils.ts`         | Team ID validation and `.chinwag` file discovery.                                                                                                                                        |
+| `process-utils.ts`      | Process info helpers (parent PID, TTY path).                                                                                                                                             |
 
 ## Data Flow
 
@@ -379,6 +387,8 @@ Every protected endpoint follows the same flow in `index.js`:
 
 No middleware framework: it's a simple `if/else` chain with early returns.
 
+**WebSocket authentication** uses short-lived tickets to keep bearer tokens out of URLs (which get logged in proxies and access logs). The flow: client calls `POST /auth/ws-ticket` with Bearer auth → receives a single-use ticket (30s TTL, stored in KV) → opens WebSocket with `?ticket=...` in the URL → worker validates and deletes the ticket on first use. The TeamDO then verifies team membership before accepting the connection.
+
 ### Content Moderation
 
 Applies to chat messages and status text. Two layers:
@@ -394,20 +404,20 @@ Workers return structured JSON errors: `{error: "message"}` with appropriate HTT
 
 ## Technology Choices
 
-| Technology | Used For | Why This Over Alternatives |
-|---|---|---|
-| Cloudflare Workers | HTTP API, coordination backend | Edge compute, no cold starts, native WebSocket support, free tier |
-| Durable Objects (SQLite) | Persistent state, team coordination | Colocated state+compute, transactional, no external DB needed |
-| Cloudflare KV | Auth token lookups | Global low-latency reads, perfect for read-heavy/write-once data |
-| MCP (Model Context Protocol) | Agent integration | Industry standard (97M+ monthly SDK downloads), supported by Claude Code, Cursor, Windsurf, VS Code, Codex, Aider, JetBrains, Amazon Q, and growing |
-| Claude Code Hooks | Enforceable conflict prevention | System-level interception before file edits, cannot be bypassed by agent |
-| Claude Code Channels | Real-time push to agents | Server-initiated context injection into running sessions |
-| node-pty | Managed agent process control | Pseudo-terminal allocation for CLI agents, cross-platform, captures output |
-| Ink (React for terminals) | CLI dashboard rendering | Component model for terminal UIs, hooks, familiar React patterns |
-| esbuild | CLI bundling | Fast, zero-config ESM bundling |
-| React 19 + Zustand | Web dashboard | Same framework as CLI (Ink), monorepo coherence, best AI code generation, zustand for lightweight state |
-| CSS Modules | Dashboard styling | Scoped styles from Vite built-in support, works with existing CSS custom property design system |
-| Cloudflare Pages | Landing page + dashboard hosting | Static hosting with global CDN, same platform as backend |
+| Technology                   | Used For                            | Why This Over Alternatives                                                                                                                          |
+| ---------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cloudflare Workers           | HTTP API, coordination backend      | Edge compute, no cold starts, native WebSocket support, free tier                                                                                   |
+| Durable Objects (SQLite)     | Persistent state, team coordination | Colocated state+compute, transactional, no external DB needed                                                                                       |
+| Cloudflare KV                | Auth token lookups                  | Global low-latency reads, perfect for read-heavy/write-once data                                                                                    |
+| MCP (Model Context Protocol) | Agent integration                   | Industry standard (97M+ monthly SDK downloads), supported by Claude Code, Cursor, Windsurf, VS Code, Codex, Aider, JetBrains, Amazon Q, and growing |
+| Claude Code Hooks            | Enforceable conflict prevention     | System-level interception before file edits, cannot be bypassed by agent                                                                            |
+| Claude Code Channels         | Real-time push to agents            | Server-initiated context injection into running sessions                                                                                            |
+| node-pty                     | Managed agent process control       | Pseudo-terminal allocation for CLI agents, cross-platform, captures output                                                                          |
+| Ink (React for terminals)    | CLI dashboard rendering             | Component model for terminal UIs, hooks, familiar React patterns                                                                                    |
+| esbuild                      | CLI bundling                        | Fast, zero-config ESM bundling                                                                                                                      |
+| React 19 + Zustand           | Web dashboard                       | Same framework as CLI (Ink), monorepo coherence, best AI code generation, zustand for lightweight state                                             |
+| CSS Modules                  | Dashboard styling                   | Scoped styles from Vite built-in support, works with existing CSS custom property design system                                                     |
+| Cloudflare Pages             | Landing page + dashboard hosting    | Static hosting with global CDN, same platform as backend                                                                                            |
 
 ## Current state and future direction
 
@@ -424,4 +434,4 @@ For what's shipped and what's next, see [ROADMAP.md](ROADMAP.md). For product vi
 
 ---
 
-*This document follows the [ARCHITECTURE.md convention](https://matklad.github.io/2021/02/06/ARCHITECTURE.md.html). If a section becomes stale, fix it or flag it in an issue.*
+_This document follows the [ARCHITECTURE.md convention](https://matklad.github.io/2021/02/06/ARCHITECTURE.md.html). If a section becomes stale, fix it or flag it in an issue._

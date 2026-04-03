@@ -88,8 +88,8 @@ packages/
   mcp/          MCP server (the product: shared brain for agents)
     index.js      Server entry: stdio transport, config/profile bootstrap
     hook.js       Claude Code hook handler (check-conflict, report-edit, session-start)
-    channel.js    Claude Code channel server (real-time push via state diffing)
-    lib/          API client, team operations, config, profile detection
+    channel.js    Claude Code channel server (WebSocket push with HTTP fallback)
+    lib/          API client, team operations, config, profile detection, WebSocket managers
 
   cli/          Node.js terminal UI (Ink/React, optional)
     cli.jsx       Entry point, screen router, error boundary
@@ -104,11 +104,15 @@ packages/
       api.js            HTTP client with timeout + retry
     dist/         Build output (gitignored)
 
-  shared/       Shared infrastructure primitives
-    tool-registry.js   Canonical MCP-configurable tool definitions
-    agent-identity.js  Tool detection and agent/session ID helpers
-    api-client.js      Shared JSON API client factory
-    session-registry.js Terminal/session helpers used across surfaces
+  shared/       Shared infrastructure primitives (TypeScript)
+    contracts.ts        Type definitions: TeamContext, delta events, API contracts
+    tool-registry.ts    Canonical MCP-configurable tool definitions
+    agent-identity.ts   Tool detection and agent/session ID helpers
+    api-client.ts       Shared JSON API client factory
+    session-registry.ts Terminal/session helpers used across surfaces
+    dashboard-ws.ts     WebSocket delta normalization and state application
+    integration-doctor.ts  Host integration detection and configuration
+    config.ts, team-utils.ts, process-utils.ts
 
   worker/       Cloudflare Workers backend
     src/

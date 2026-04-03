@@ -62,7 +62,7 @@ Managed CLI agents with full lifecycle control, connected IDE agents with coordi
 The core works. Before adding surface area, make it bulletproof.
 
 - [ ] Test MCP integration with Cursor, Windsurf, VS Code Copilot, Codex CLI, Aider, JetBrains (verify behavior, document quirks)
-- [ ] Replace polling with push where possible (channel polls every 10s per agent, dashboard every 5s; evaluate WebSocket push from TeamDO)
+- [x] Replace polling with WebSocket push (channel and dashboard receive real-time delta events from TeamDO; HTTP polling retained as fallback and reconciliation safety net)
 - [ ] CORS origin checking (currently `*`; tighten when dashboard auth hardens)
 - [ ] Tool usage telemetry: record which tools users configure to prioritize integrations
 - [ ] Publish `chinwag` CLI and `chinwag-mcp` packages to npm
