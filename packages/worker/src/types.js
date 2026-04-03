@@ -261,7 +261,7 @@
  * @property {Array<{tool: string, joins: number}>} tools_configured
  * @property {Array<{host_tool: string, joins: number}>} hosts_configured
  * @property {Array<{agent_surface: string, joins: number}>} surfaces_seen
- * @property {Array<{model: string, count: number}>} models_seen
+ * @property {Array<{agent_model: string, count: number}>} models_seen
  * @property {Record<string, number>} usage
  */
 

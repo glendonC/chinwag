@@ -117,10 +117,12 @@ export default function ProjectToolsTab({
             </div>
             <div className={styles.distributionList}>
               {modelsSeen.map((m) => (
-                <div key={m.model} className={styles.distributionRow}>
+                <div key={m.agent_model} className={styles.distributionRow}>
                   <div className={styles.distributionCopy}>
-                    <span className={styles.simpleLabel}>{m.model}</span>
-                    <span className={styles.distributionMeta}>{m.count} session{m.count === 1 ? '' : 's'}</span>
+                    <span className={styles.simpleLabel}>{m.agent_model}</span>
+                    <span className={styles.distributionMeta}>
+                      {m.count} session{m.count === 1 ? '' : 's'}
+                    </span>
                   </div>
                 </div>
               ))}

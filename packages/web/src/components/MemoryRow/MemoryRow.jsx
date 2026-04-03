@@ -34,10 +34,10 @@ export default function MemoryRow({ memory, onUpdate, onDelete }) {
 
   const tags = memory.tags || [];
   const when = formatRelativeTime(memory.updated_at || memory.created_at);
-  const rawTool = memory.source_tool || memory.source_host_tool;
+  const rawTool = memory.host_tool;
   const toolMeta = rawTool && rawTool !== 'unknown' ? getToolMeta(rawTool) : null;
-  const handle = memory.source_handle || null;
-  const model = memory.source_model || null;
+  const handle = memory.handle || null;
+  const model = memory.agent_model || null;
   const accentColor = toolMeta?.color || 'var(--soft)';
 
   const startEdit = useCallback(() => {

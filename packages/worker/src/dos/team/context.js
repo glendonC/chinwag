@@ -43,7 +43,7 @@ export function getTelemetryBreakdown(sql) {
     )
     .toArray();
   const models_seen = modelMetrics.map((t) => ({
-    model: t.metric.replace('model:', ''),
+    agent_model: t.metric.replace('model:', ''),
     count: t.count,
   }));
 
