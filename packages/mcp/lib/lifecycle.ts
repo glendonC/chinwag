@@ -3,8 +3,9 @@ import {
   getCurrentTtyPath,
   resolveSessionAgentId,
   SESSION_COMMAND_MARKER,
+  type SessionRecordInput,
   writeSessionRecord,
-} from '../../shared/session-registry.js';
+} from '@chinwag/shared/session-registry.js';
 import { generateAgentId, getConfiguredAgentId } from './identity.js';
 import { createLogger } from './utils/logger.js';
 import type { TeamHandlers } from './team.js';
@@ -39,11 +40,12 @@ export function resolveAgentIdentity(
   }
 
   const resolveSession = options.resolveSessionAgentIdFn || resolveSessionAgentId;
-  const agentId = resolveSession({
-    tool: toolName,
-    fallbackAgentId,
-    ...options,
-  });
+  const agentId =
+    resolveSession({
+      tool: toolName,
+      fallbackAgentId,
+      ...options,
+    }) || fallbackAgentId;
 
   return {
     agentId,
@@ -52,14 +54,7 @@ export function resolveAgentIdentity(
   };
 }
 
-interface SessionRecord {
-  tty: string | null;
-  tool: string;
-  pid: number;
-  cwd: string;
-  createdAt: number;
-  commandMarker: string;
-}
+type SessionRecord = SessionRecordInput;
 
 interface RegisterSessionOptions {
   getCurrentTtyPathFn?: typeof getCurrentTtyPath;
@@ -101,6 +96,8 @@ export interface McpState {
   sessionId: string | null;
   tty: string | null;
   modelReported: string | null;
+  /** Model string currently being reported (in-flight deduplication). */
+  modelReportInflight: string | null;
   lastActivity: number;
   heartbeatInterval?: ReturnType<typeof setInterval> | null;
   _shuttingDown?: boolean;

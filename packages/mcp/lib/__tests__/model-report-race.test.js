@@ -40,7 +40,7 @@ describe('model report race condition', () => {
       reportModel: vi.fn(),
       getTeamContext: vi.fn().mockResolvedValue({ members: [] }),
     };
-    state = { teamId: 't_race', modelReported: null };
+    state = { teamId: 't_race', modelReported: null, modelReportInflight: null };
     refreshContext.mockResolvedValue({ members: [] });
     registerContextTool(collector.addTool, { team, state });
   });

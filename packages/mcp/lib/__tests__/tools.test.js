@@ -591,7 +591,7 @@ describe('context tool (unit)', () => {
     vi.clearAllMocks();
     collector = createToolCollector();
     team = createMockTeam();
-    state = { teamId: 't_ctx', modelReported: null };
+    state = { teamId: 't_ctx', modelReported: null, modelReportInflight: null };
     refreshContext.mockResolvedValue(null);
     registerContextTool(collector.addTool, { team, state });
   });

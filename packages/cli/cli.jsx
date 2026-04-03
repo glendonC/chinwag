@@ -26,6 +26,11 @@ try {
   console.error('[chinwag]', err?.message || err);
 }
 
+// Hand off to an MCP/hook/channel runtime module in the same process.
+// Same-process import is required because MCP uses stdin/stdout for JSON-RPC
+// and hooks need direct stdio access — child_process would add broken-pipe risk.
+// The never-resolving promise keeps the top-level await alive so the imported
+// module's signal handlers and event loops continue running.
 async function handOffToRuntime(modulePath, { stripSubcommand = false, transport = null } = {}) {
   if (transport) {
     process.env.CHINWAG_TRANSPORT = transport;
@@ -34,6 +39,7 @@ async function handOffToRuntime(modulePath, { stripSubcommand = false, transport
     process.argv = [process.argv[0], process.argv[1], ...process.argv.slice(3)];
   }
   await import(modulePath);
+  // Keep process alive — the imported module owns the event loop from here.
   await new Promise(() => {});
 }
 

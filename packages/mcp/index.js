@@ -74,6 +74,7 @@ async function main() {
     sessionId: null,
     tty: parentTty,
     modelReported: null,
+    modelReportInflight: null,
     lastActivity: Date.now(),
     heartbeatInterval: null,
     shuttingDown: false,

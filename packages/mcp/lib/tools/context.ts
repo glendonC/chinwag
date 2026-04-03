@@ -33,15 +33,23 @@ export function registerContextTool(
 
       // Deferred model enrichment -- fire-and-forget on first report.
       // Tracks which model was reported (not just a boolean) so a different
-      // model triggers a new report. Retries once on failure; clears
-      // modelReported so the next tool call will try again.
-      if (model && model !== state.modelReported && state.teamId) {
+      // model triggers a new report. Uses modelReportInflight to deduplicate
+      // concurrent calls. Retries once on failure; clears both flags so the
+      // next tool call will try again.
+      if (
+        model &&
+        model !== state.modelReported &&
+        model !== state.modelReportInflight &&
+        state.teamId
+      ) {
+        state.modelReportInflight = model;
         void (async () => {
           const teamId = state.teamId!;
           for (let attempt = 0; attempt < 2; attempt++) {
             try {
               await team.reportModel(teamId, model);
               state.modelReported = model;
+              state.modelReportInflight = null;
               return;
             } catch (err: unknown) {
               log.warn(`Model report failed (attempt ${attempt + 1}/2): ${getErrorMessage(err)}`);
@@ -50,6 +58,7 @@ export function registerContextTool(
           }
           // All retries exhausted — clear so next tool call retries
           state.modelReported = null;
+          state.modelReportInflight = null;
         })();
       }
       const ctx = await refreshContext(team, state.teamId);

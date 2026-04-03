@@ -20,13 +20,20 @@ function registerContextTool(addTool, { team, state }) {
     },
     async ({ model } = {}) => {
       if (!state.teamId) return noTeam();
-      if (model && model !== state.modelReported && state.teamId) {
+      if (
+        model &&
+        model !== state.modelReported &&
+        model !== state.modelReportInflight &&
+        state.teamId
+      ) {
+        state.modelReportInflight = model;
         void (async () => {
           const teamId = state.teamId;
           for (let attempt = 0; attempt < 2; attempt++) {
             try {
               await team.reportModel(teamId, model);
               state.modelReported = model;
+              state.modelReportInflight = null;
               return;
             } catch (err) {
               const message = err instanceof Error ? err.message : 'unknown';
@@ -35,6 +42,7 @@ function registerContextTool(addTool, { team, state }) {
             }
           }
           state.modelReported = null;
+          state.modelReportInflight = null;
         })();
       }
       const ctx = await refreshContext(team, state.teamId);
