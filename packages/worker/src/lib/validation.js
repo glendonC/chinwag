@@ -48,7 +48,16 @@ export function validateFileArray(files, max, opts) {
   if (files.length > max) {
     return `too many files (max ${max})`;
   }
-  if (files.some((f) => typeof f !== 'string' || f.length > 500)) {
+  if (
+    files.some(
+      (f) =>
+        typeof f !== 'string' ||
+        f.length > 500 ||
+        f.includes('\0') ||
+        f.startsWith('/') ||
+        f.includes('\\'),
+    )
+  ) {
     return 'invalid file path';
   }
   return null;

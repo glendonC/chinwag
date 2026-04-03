@@ -22,7 +22,9 @@
 export const HEARTBEAT_ACTIVE_WINDOW_S = 60;
 // "Stale" = no heartbeat for this long → evicted from team, locks released,
 // sessions auto-closed. Used in cleanup and orphan detection.
-export const HEARTBEAT_STALE_WINDOW_S = 300;
+// 15 minutes: long enough that debugging pauses or slow user input don't
+// evict agents, short enough that genuinely dead agents get cleaned up.
+export const HEARTBEAT_STALE_WINDOW_S = 900;
 
 // --- Retention ---
 export const SESSION_RETENTION_DAYS = 30;

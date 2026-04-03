@@ -3,6 +3,7 @@
 
 import { formatToolTag } from './utils/formatting.js';
 import { createLogger } from './utils/logger.js';
+import { getErrorMessage } from './utils/responses.js';
 import type { TeamContext } from './utils/display.js';
 import type { TeamHandlers } from './team.js';
 
@@ -17,6 +18,11 @@ const CONTEXT_TTL_MS = 30_000;
 
 let lastPreambleState = '';
 
+// Deduplicates concurrent refreshContext calls — if a fetch is already
+// in-flight for the same teamId, subsequent callers await the same promise
+// instead of firing duplicate API requests.
+let inflightRefresh: Promise<TeamContext | null> | null = null;
+
 export async function refreshContext(
   team: TeamHandlers,
   teamId: string,
@@ -26,6 +32,20 @@ export async function refreshContext(
   if (cachedContext && cachedContextTeam === teamId && now - cachedContextAt < CONTEXT_TTL_MS) {
     return cachedContext;
   }
+  if (inflightRefresh) return inflightRefresh;
+  inflightRefresh = doRefresh(team, teamId, now);
+  try {
+    return await inflightRefresh;
+  } finally {
+    inflightRefresh = null;
+  }
+}
+
+async function doRefresh(
+  team: TeamHandlers,
+  teamId: string,
+  now: number,
+): Promise<TeamContext | null> {
   try {
     cachedContext = await team.getTeamContext(teamId);
     cachedContextAt = Date.now();
@@ -38,7 +58,7 @@ export async function refreshContext(
     return cachedContext;
   } catch (err: unknown) {
     consecutiveErrors++;
-    const message = err instanceof Error ? err.message : 'unknown error';
+    const message = getErrorMessage(err);
     // Log on first failure and every 10th to avoid flooding stderr
     if (!isOffline || consecutiveErrors % 10 === 0) {
       const cacheAge = cachedContext

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { createLogger } from './utils/logger.js';
+import { getErrorMessage } from './utils/responses.js';
 
 const log = createLogger('profile');
 
@@ -86,8 +87,7 @@ export function scanEnvironment(cwd: string = process.cwd()): EnvironmentProfile
         if (allDeps[dep]) profile.tools.push(tag);
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'malformed package.json';
-      log.warn(message);
+      log.warn(getErrorMessage(err));
     }
   }
 

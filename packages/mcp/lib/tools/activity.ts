@@ -29,7 +29,9 @@ export function registerActivityTool(
         await team.updateActivity(state.teamId, files, summary);
         // Set terminal tab title to the agent's task -- stable identity
         if (state.tty && summary) {
-          const label = summary.length > 40 ? summary.slice(0, 39) + '\u2026' : summary;
+          const TITLE_MAX = 40;
+          const label =
+            summary.length > TITLE_MAX ? summary.slice(0, TITLE_MAX - 1) + '\u2026' : summary;
           setTerminalTitle(state.tty, `chinwag \u00B7 ${label}`);
         }
         const preamble = await teamPreamble(team, state.teamId);

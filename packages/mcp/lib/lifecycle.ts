@@ -9,6 +9,7 @@ import {
 } from '@chinwag/shared/session-registry.js';
 import { generateAgentId, getConfiguredAgentId } from './identity.js';
 import { createLogger } from './utils/logger.js';
+import { getErrorMessage } from './utils/responses.js';
 import type { TeamHandlers } from './team.js';
 
 const log = createLogger('lifecycle');
@@ -176,8 +177,7 @@ export async function cleanupProcessSession(
     try {
       state.ws.close();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'unknown error';
-      log.error('Failed to close WebSocket: ' + message);
+      log.error('Failed to close WebSocket: ' + getErrorMessage(err));
     }
 
   if (state.sessionId && state.teamId) {
