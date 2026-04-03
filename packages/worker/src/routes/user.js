@@ -1,6 +1,7 @@
 import { checkContent } from '../moderation.js';
 import { getDB, getLobby, getTeam } from '../lib/env.js';
 import { json, parseBody } from '../lib/http.js';
+import { createLogger } from '../lib/logger.js';
 import { getAgentRuntime, sanitizeTags } from '../lib/request-utils.js';
 import { requireJson, withRateLimit } from '../lib/validation.js';
 import { auditLog } from '../lib/audit.js';
@@ -14,6 +15,8 @@ import {
   MAX_DASHBOARD_TEAMS,
   MAX_NAME_LENGTH,
 } from '../lib/constants.js';
+
+const log = createLogger('routes.user');
 
 export async function authenticate(request, env) {
   const auth = request.headers.get('Authorization');
@@ -39,6 +42,9 @@ export async function authenticate(request, env) {
     }
     // Fallback: raw token in URL (backwards compat for old clients)
     token = url.searchParams.get('token');
+    if (token) {
+      log.warn('DEPRECATED: WebSocket auth via URL token param, use ticket-based auth');
+    }
   }
   if (!token) return null;
 
@@ -150,6 +156,9 @@ export async function handleUpdateHandle(request, user, env) {
   }
 
   const modResult = await checkContent(handle, env);
+  if (modResult.degraded) {
+    log.warn('content moderation degraded: AI layer unavailable, blocklist-only mode');
+  }
   if (modResult.blocked) {
     return json({ error: 'Content blocked' }, 400);
   }
@@ -194,6 +203,9 @@ export async function handleSetStatus(request, user, env) {
   }
 
   const modResult = await checkContent(status, env);
+  if (modResult.degraded) {
+    log.warn('content moderation degraded: AI layer unavailable, blocklist-only mode');
+  }
   if (modResult.blocked) {
     return json({ error: 'Status blocked by content filter. Please revise.' }, 400);
   }
@@ -262,7 +274,10 @@ export async function handleDashboardSummary(user, env) {
           try {
             await db.removeUserTeam(user.id, teamEntry.team_id);
           } catch (err) {
-            console.error(`[chinwag] Failed to reconcile stale team ${teamEntry.team_id}:`, err);
+            log.error('failed to reconcile stale team', {
+              teamId: teamEntry.team_id,
+              error: err?.message || String(err),
+            });
           }
           return {
             ok: false,
@@ -280,10 +295,10 @@ export async function handleDashboardSummary(user, env) {
           },
         };
       } catch (err) {
-        console.error(
-          `[chinwag] Failed to build dashboard summary for team ${teamEntry.team_id}:`,
-          err,
-        );
+        log.error('failed to build dashboard summary', {
+          teamId: teamEntry.team_id,
+          error: err?.message || String(err),
+        });
         return {
           ok: false,
           team_id: teamEntry.team_id,
@@ -371,6 +386,9 @@ export async function handleCreateTeam(request, user, env) {
 
   if (name) {
     const modResult = await checkContent(name, env);
+    if (modResult.degraded) {
+      log.warn('content moderation degraded: AI layer unavailable, blocklist-only mode');
+    }
     if (modResult.blocked) {
       return json({ error: 'Content blocked' }, 400);
     }
@@ -393,10 +411,11 @@ export async function handleCreateTeam(request, user, env) {
 
       const dbResult = await db.addUserTeam(user.id, teamId, name);
       if (dbResult.error) {
-        console.error(
-          `[chinwag] Failed to record created team ${teamId} for user ${user.id}:`,
-          dbResult.error,
-        );
+        log.error('failed to record created team', {
+          teamId,
+          userId: user.id,
+          error: dbResult.error,
+        });
         await team.leave(agentId, user.id).catch(() => {
           /* best-effort cleanup — team creation already failed */
         });

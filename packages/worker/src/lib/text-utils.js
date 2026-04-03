@@ -1,6 +1,10 @@
 // Pure text utilities used by TeamDO for path normalization, date formatting,
 // and safe JSON parsing of internal data.
 
+import { createLogger } from './logger.js';
+
+const log = createLogger('text-utils');
+
 /**
  * Strip leading ./ and trailing /, collapse //, remove .. segments.
  * Prevents path traversal outside the project root.
@@ -49,12 +53,11 @@ export function safeParseJSON(raw, fallback = [], context = 'unknown') {
   } catch (err) {
     if (!_loggedParseWarnings.has(context)) {
       _loggedParseWarnings.add(context);
-      console.error(
-        `[chinwag] Malformed JSON in ${context}:`,
-        /** @type {any} */ (err).message,
-        '— raw:',
-        raw.slice(0, 100),
-      );
+      log.warn('malformed JSON', {
+        context,
+        error: /** @type {any} */ (err).message,
+        raw: raw.slice(0, 100),
+      });
     }
     return fallback;
   }

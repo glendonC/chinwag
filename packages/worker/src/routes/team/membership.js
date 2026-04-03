@@ -3,10 +3,13 @@
 import { checkContent } from '../../moderation.js';
 import { getDB, getTeam } from '../../lib/env.js';
 import { json } from '../../lib/http.js';
+import { createLogger } from '../../lib/logger.js';
 import { getAgentRuntime, teamErrorStatus } from '../../lib/request-utils.js';
 import { withRateLimit } from '../../lib/validation.js';
 import { auditLog } from '../../lib/audit.js';
 import { RATE_LIMIT_JOINS, MAX_NAME_LENGTH } from '../../lib/constants.js';
+
+const log = createLogger('routes.membership');
 
 export async function handleTeamJoin(request, user, env, teamId) {
   let name = null;
@@ -20,6 +23,9 @@ export async function handleTeamJoin(request, user, env, teamId) {
 
   if (name) {
     const modResult = await checkContent(name, env);
+    if (modResult.degraded) {
+      log.warn('content moderation degraded: AI layer unavailable, blocklist-only mode');
+    }
     if (modResult.blocked) {
       return json({ error: 'Content blocked' }, 400);
     }
@@ -48,10 +54,7 @@ export async function handleTeamJoin(request, user, env, teamId) {
 
       const dbResult = await db.addUserTeam(user.id, teamId, name);
       if (dbResult.error) {
-        console.error(
-          `[chinwag] Failed to sync joined team ${teamId} for user ${user.id}:`,
-          dbResult.error,
-        );
+        log.error('failed to sync joined team', { teamId, userId: user.id, error: dbResult.error });
         // Roll back: leave the team since the DB record failed
         await team.leave(agentId, user.id).catch(() => {});
         auditLog('team.join', {
@@ -93,7 +96,7 @@ export async function handleTeamLeave(request, user, env, teamId) {
   const db = getDB(env);
   const dbResult = await db.removeUserTeam(user.id, teamId);
   if (dbResult.error) {
-    console.error(`[chinwag] Failed to remove team ${teamId} for user ${user.id}:`, dbResult.error);
+    log.error('failed to remove team', { teamId, userId: user.id, error: dbResult.error });
     // The agent already left the team DO -- the DB record is stale but not critical.
     // Return success but log the inconsistency.
   }
@@ -110,10 +113,7 @@ export async function handleTeamContext(request, user, env, teamId) {
   const db = getDB(env);
   const dbResult = await db.addUserTeam(user.id, teamId);
   if (dbResult.error) {
-    console.error(
-      `[chinwag] Failed to backfill team ${teamId} for user ${user.id}:`,
-      dbResult.error,
-    );
+    log.warn('failed to backfill team', { teamId, userId: user.id, error: dbResult.error });
     // Backfill failure is non-blocking — context was already retrieved successfully
   }
 

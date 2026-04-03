@@ -1,13 +1,13 @@
 // Schema DDL and migrations for TeamDO.
 // Called once per DO instance to ensure tables exist and reconcile legacy schemas.
 
-const LABEL = 'TeamDO';
+import { createLogger } from '../../lib/logger.js';
+
+const log = createLogger('TeamDO.schema');
 
 function logMigrationError(statement, error) {
   const message = error instanceof Error ? error.message : String(error);
-  console.error(
-    `[${LABEL}] migration failed: ${message} | SQL: ${statement.replace(/\s+/g, ' ').trim()}`,
-  );
+  log.error('migration failed', { error: message, sql: statement.replace(/\s+/g, ' ').trim() });
 }
 
 function getColumns(sql, table) {

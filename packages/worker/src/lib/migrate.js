@@ -4,6 +4,10 @@
 // column name") are expected and silenced. All other errors are logged with
 // enough context to debug remotely via `wrangler tail`.
 
+import { createLogger } from './logger.js';
+
+const log = createLogger('migrate');
+
 /**
  * Error messages that mean "this migration already ran" -- not real failures.
  * SQLite uses these exact phrases; we match case-insensitively for safety.
@@ -38,9 +42,11 @@ export function runMigration(sql, ddl, backfill, label) {
       return false; // Already applied — this is fine
     }
     // Real failure — log enough context to diagnose remotely
-    console.error(
-      `[${label}] migration failed: ${err.message} | SQL: ${ddl.replace(/\s+/g, ' ').trim()}`,
-    );
+    log.error('migration failed', {
+      label,
+      error: err.message,
+      sql: ddl.replace(/\s+/g, ' ').trim(),
+    });
     return false;
   }
 }

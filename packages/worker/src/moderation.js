@@ -3,6 +3,10 @@
 // Layer 1: Static blocklist — instant, zero-latency, catches obvious slurs.
 //          This is the fallback, not the strategy.
 // Layer 2: Llama Guard 3 on Cloudflare Workers AI — catches evasion, nuance, context.
+
+import { createLogger } from './lib/logger.js';
+
+const log = createLogger('moderation');
 //          Runs on CF edge (same network), no external API keys, customizable taxonomy.
 //          Outperforms OpenAI Moderation API on real-world benchmarks (ToxicChat).
 
@@ -66,7 +70,7 @@ export function isBlocked(text) {
 // Returns { flagged, categories, degraded? }.
 async function moderateWithAI(text, env) {
   if (!env.AI) {
-    console.error('AI moderation degraded: env.AI binding unavailable');
+    log.warn('AI moderation degraded: env.AI binding unavailable');
     return { flagged: false, degraded: true };
   }
 
@@ -80,7 +84,7 @@ async function moderateWithAI(text, env) {
 
     // Guard: empty or completely unexpected output — fail-safe (treat as flagged)
     if (!output) {
-      console.error('[chinwag] AI moderation: empty response from model');
+      log.error('AI moderation: empty response from model');
       return { flagged: true, categories: [], degraded: true };
     }
 
@@ -91,7 +95,7 @@ async function moderateWithAI(text, env) {
 
     if (!output.startsWith('unsafe')) {
       // Unexpected format — neither "safe" nor "unsafe". Fail-safe.
-      console.error('[chinwag] AI moderation: unexpected output format:', output.slice(0, 100));
+      log.error('AI moderation: unexpected output format', { output: output.slice(0, 100) });
       return { flagged: true, categories: [], degraded: true };
     }
 
@@ -105,15 +109,14 @@ async function moderateWithAI(text, env) {
 
     // If "unsafe" but no categories parsed, still treat as flagged (fail-safe)
     if (categories.length === 0) {
-      console.error(
-        '[chinwag] AI moderation: "unsafe" response but zero categories parsed:',
-        output.slice(0, 100),
-      );
+      log.error('AI moderation: unsafe response but zero categories parsed', {
+        output: output.slice(0, 100),
+      });
     }
 
     return { flagged: true, categories };
   } catch (err) {
-    console.error('[chinwag] AI moderation degraded:', err);
+    log.error('AI moderation degraded', { error: err?.message || String(err) });
     return { flagged: false, degraded: true };
   }
 }

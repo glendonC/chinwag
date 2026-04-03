@@ -3,6 +3,9 @@
 // Uses fetch() for WebSocket upgrades, RPC for Lobby communication.
 
 import { DurableObject } from 'cloudflare:workers';
+import { createLogger } from './lib/logger.js';
+
+const log = createLogger('RoomDO');
 import { isBlocked } from './moderation.js';
 import {
   CHAT_MAX_HISTORY,
@@ -192,7 +195,10 @@ export class RoomDO extends DurableObject {
       const lobby = this.env.LOBBY.get(this.env.LOBBY.idFromName('main'));
       await lobby.updateRoomCount(this.roomId || 'unknown', this.sessions.size);
     } catch (err) {
-      console.error('Failed to update lobby:', err);
+      log.error('failed to update lobby', {
+        roomId: this.roomId,
+        error: err?.message || String(err),
+      });
     }
   }
 }

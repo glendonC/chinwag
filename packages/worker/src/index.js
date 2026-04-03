@@ -4,6 +4,7 @@
 
 import { json } from './lib/http.js';
 import { buildRoutes, matchRoute } from './lib/router.js';
+import { createLogger, setLogLevel } from './lib/logger.js';
 import {
   handleInit,
   handleStats,
@@ -380,6 +381,11 @@ export default {
     const url = new URL(request.url);
     const method = request.method;
     const path = url.pathname;
+    const ref = crypto.randomUUID().slice(0, 8);
+
+    // Configure log level from environment
+    setLogLevel(env.LOG_LEVEL);
+    const log = createLogger('router');
 
     const origin = request.headers.get('Origin') || '';
     const corsHeaders = {
@@ -431,8 +437,8 @@ export default {
       }
       return new Response(response.body, { status: response.status, headers });
     } catch (/** @type {any} */ err) {
-      const ref = crypto.randomUUID().slice(0, 8);
-      console.error(`[chinwag] Request error (ref: ${ref}):`, {
+      log.error('request failed', {
+        ref,
         method,
         path,
         status: 500,

@@ -12,7 +12,10 @@
 // resolution, caching, and the thin RPC wrappers that tie it all together.
 
 import { DurableObject } from 'cloudflare:workers';
+import { createLogger } from '../../lib/logger.js';
 import { toSQLDateTime } from '../../lib/text-utils.js';
+
+const log = createLogger('TeamDO');
 import { ensureSchema } from './schema.js';
 import { queryTeamContext, queryTeamSummary } from './context.js';
 import { join, leave, heartbeat as heartbeatFn } from './membership.js';
@@ -119,7 +122,7 @@ export class TeamDO extends DurableObject {
       const ctx = await this.getContext(resolved);
       server.send(JSON.stringify({ type: 'context', data: ctx }));
     } catch (err) {
-      console.error('[chinwag] Failed to send initial context:', err);
+      log.error('failed to send initial context', { error: err?.message || String(err) });
       try {
         server.send(JSON.stringify({ type: 'error', message: 'Failed to load initial context' }));
       } catch {
@@ -136,19 +139,16 @@ export class TeamDO extends DurableObject {
     try {
       tags = this.ctx.getTags(ws);
     } catch (err) {
-      console.error('[chinwag] TeamDO.webSocketMessage: failed to read tags', err?.message || err);
+      log.error('webSocketMessage: failed to read tags', { error: err?.message || String(err) });
       return;
     }
     const agentId = tags.find((t) => !t.startsWith('role:'));
     if (!agentId) {
       // Unauthenticated or untagged WebSocket — log and ignore
-      console.log(
-        JSON.stringify({
-          event: 'ws_unauth_message',
-          message_preview: String(rawMessage).slice(0, 200),
-          timestamp: new Date().toISOString(),
-        }),
-      );
+      log.warn('untagged WebSocket message', {
+        event: 'ws_unauth_message',
+        messagePreview: String(rawMessage).slice(0, 200),
+      });
       return;
     }
 
@@ -206,15 +206,12 @@ export class TeamDO extends DurableObject {
         }
       }
     } catch (err) {
-      console.error(
-        JSON.stringify({
-          event: 'ws_message_error',
-          agent_id: agentId,
-          message_preview: String(rawMessage).slice(0, 200),
-          error: err?.message || String(err),
-          timestamp: new Date().toISOString(),
-        }),
-      );
+      log.error('WebSocket message processing failed', {
+        event: 'ws_message_error',
+        agentId,
+        messagePreview: String(rawMessage).slice(0, 200),
+        error: err?.message || String(err),
+      });
       try {
         ws.send(JSON.stringify({ type: 'error', message: 'Message processing failed' }));
       } catch {
@@ -228,10 +225,9 @@ export class TeamDO extends DurableObject {
     try {
       tags = this.ctx.getTags(ws);
     } catch (err) {
-      console.error(
-        '[chinwag] TeamDO.webSocketClose: failed to read tags on closing socket',
-        err?.message || err,
-      );
+      log.error('webSocketClose: failed to read tags on closing socket', {
+        error: err?.message || String(err),
+      });
       // Tags lost — cannot identify agent. This is rare (DO restart mid-close).
       // Stale locks/members will be cleaned up by #maybeCleanup's heartbeat eviction.
       return;
@@ -242,13 +238,26 @@ export class TeamDO extends DurableObject {
     if (isAgent && agentId) {
       this.#ensureSchema();
       // Release locks — agent is gone, don't block others
+      let locksReleased = true;
       try {
         releaseFilesFn(this.sql, agentId, null);
       } catch (err) {
-        console.error('[chinwag] webSocketClose: lock release failed for', agentId, err?.message);
+        locksReleased = false;
+        log.error('webSocketClose: lock release failed', {
+          agentId,
+          error: err?.message || String(err),
+        });
       }
+      // Always broadcast status_change (agent is offline regardless)
       this.#broadcastToWatchers({ type: 'status_change', agent_id: agentId, status: 'offline' });
-      this.#broadcastToWatchers({ type: 'lock_change', action: 'release_all', agent_id: agentId });
+      // Only broadcast lock release if it actually happened
+      if (locksReleased) {
+        this.#broadcastToWatchers({
+          type: 'lock_change',
+          action: 'release_all',
+          agent_id: agentId,
+        });
+      }
     }
   }
 
@@ -259,15 +268,9 @@ export class TeamDO extends DurableObject {
       const tags = this.ctx.getTags(ws);
       agentId = tags.find((t) => !t.startsWith('role:')) || 'unknown';
     } catch (err) {
-      console.error('[chinwag] TeamDO.webSocketError: failed to read tags', err?.message || err);
+      log.error('webSocketError: failed to read tags', { error: err?.message || String(err) });
     }
-    console.log(
-      JSON.stringify({
-        event: 'ws_error',
-        agent_id: agentId,
-        timestamp: new Date().toISOString(),
-      }),
-    );
+    log.warn('WebSocket error', { event: 'ws_error', agentId });
   }
 
   // ── Internal helpers ──
@@ -301,7 +304,7 @@ export class TeamDO extends DurableObject {
       }
     }
     if (failures > 0) {
-      console.error(`[chinwag] broadcast to ${sockets.length} clients, ${failures} failed`);
+      log.warn('broadcast partial failure', { totalClients: sockets.length, failures });
     }
   }
 
@@ -318,52 +321,90 @@ export class TeamDO extends DurableObject {
 
     withTransaction(this.#transact, () => {
       // Clamp future heartbeats (clock skew)
-      this.sql.exec(
-        "UPDATE members SET last_heartbeat = datetime('now') WHERE last_heartbeat > datetime('now')",
-      );
+      try {
+        this.sql.exec(
+          "UPDATE members SET last_heartbeat = datetime('now') WHERE last_heartbeat > datetime('now')",
+        );
+      } catch (err) {
+        log.error('cleanup: clamp future heartbeats failed', { error: err?.message });
+      }
 
-      this.sql.exec(
-        `DELETE FROM activities WHERE agent_id IN (
-          SELECT agent_id FROM members
-          WHERE last_heartbeat < datetime('now', '-' || ? || ' seconds')
-            AND agent_id NOT IN (${ws.sql})
-        )`,
-        HEARTBEAT_STALE_WINDOW_S,
-        ...ws.params,
-      );
-      this.sql.exec(
-        `DELETE FROM members
-         WHERE last_heartbeat < datetime('now', '-' || ? || ' seconds')
-           AND agent_id NOT IN (${ws.sql})`,
-        HEARTBEAT_STALE_WINDOW_S,
-        ...ws.params,
-      );
-      this.sql.exec(
-        `DELETE FROM sessions WHERE started_at < datetime('now', '-' || ? || ' days')`,
-        SESSION_RETENTION_DAYS,
-      );
-      this.sql.exec("DELETE FROM messages WHERE created_at < datetime('now', '-1 hour')");
-      this.sql.exec(
-        `DELETE FROM locks WHERE agent_id NOT IN (
-          SELECT agent_id FROM members
-          WHERE last_heartbeat > datetime('now', '-' || ? || ' seconds')
-            OR agent_id IN (${ws.sql})
-        )`,
-        HEARTBEAT_STALE_WINDOW_S,
-        ...ws.params,
-      );
-      this.sql.exec(
-        `UPDATE sessions SET ended_at = datetime('now')
-         WHERE ended_at IS NULL
-         AND agent_id NOT IN (
-           SELECT agent_id FROM members
-           WHERE last_heartbeat > datetime('now', '-' || ? || ' seconds')
-             OR agent_id IN (${ws.sql})
-         )`,
-        HEARTBEAT_STALE_WINDOW_S,
-        ...ws.params,
-      );
-      this.sql.exec("DELETE FROM telemetry WHERE last_at < datetime('now', '-30 days')");
+      try {
+        this.sql.exec(
+          `DELETE FROM activities WHERE agent_id IN (
+            SELECT agent_id FROM members
+            WHERE last_heartbeat < datetime('now', '-' || ? || ' seconds')
+              AND agent_id NOT IN (${ws.sql})
+          )`,
+          HEARTBEAT_STALE_WINDOW_S,
+          ...ws.params,
+        );
+      } catch (err) {
+        log.error('cleanup: delete stale activities failed', { error: err?.message });
+      }
+
+      try {
+        this.sql.exec(
+          `DELETE FROM members
+           WHERE last_heartbeat < datetime('now', '-' || ? || ' seconds')
+             AND agent_id NOT IN (${ws.sql})`,
+          HEARTBEAT_STALE_WINDOW_S,
+          ...ws.params,
+        );
+      } catch (err) {
+        log.error('cleanup: delete stale members failed', { error: err?.message });
+      }
+
+      try {
+        this.sql.exec(
+          `DELETE FROM sessions WHERE started_at < datetime('now', '-' || ? || ' days')`,
+          SESSION_RETENTION_DAYS,
+        );
+      } catch (err) {
+        log.error('cleanup: delete old sessions failed', { error: err?.message });
+      }
+
+      try {
+        this.sql.exec("DELETE FROM messages WHERE created_at < datetime('now', '-1 hour')");
+      } catch (err) {
+        log.error('cleanup: delete old messages failed', { error: err?.message });
+      }
+
+      try {
+        this.sql.exec(
+          `DELETE FROM locks WHERE agent_id NOT IN (
+            SELECT agent_id FROM members
+            WHERE last_heartbeat > datetime('now', '-' || ? || ' seconds')
+              OR agent_id IN (${ws.sql})
+          )`,
+          HEARTBEAT_STALE_WINDOW_S,
+          ...ws.params,
+        );
+      } catch (err) {
+        log.error('cleanup: delete orphaned locks failed', { error: err?.message });
+      }
+
+      try {
+        this.sql.exec(
+          `UPDATE sessions SET ended_at = datetime('now')
+           WHERE ended_at IS NULL
+           AND agent_id NOT IN (
+             SELECT agent_id FROM members
+             WHERE last_heartbeat > datetime('now', '-' || ? || ' seconds')
+               OR agent_id IN (${ws.sql})
+           )`,
+          HEARTBEAT_STALE_WINDOW_S,
+          ...ws.params,
+        );
+      } catch (err) {
+        log.error('cleanup: close orphaned sessions failed', { error: err?.message });
+      }
+
+      try {
+        this.sql.exec("DELETE FROM telemetry WHERE last_at < datetime('now', '-30 days')");
+      } catch (err) {
+        log.error('cleanup: delete old telemetry failed', { error: err?.message });
+      }
     });
   }
 

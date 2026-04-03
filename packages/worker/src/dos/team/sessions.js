@@ -2,9 +2,12 @@
 // Each function takes `sql` as the first parameter.
 
 import { normalizePath } from '../../lib/text-utils.js';
+import { createLogger } from '../../lib/logger.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
 import { HEARTBEAT_STALE_WINDOW_S, ACTIVITY_MAX_FILES } from '../../lib/constants.js';
 import { withTransaction } from '../../lib/validation.js';
+
+const log = createLogger('TeamDO.sessions');
 
 export function startSession(sql, resolvedAgentId, handle, framework, runtimeOrTool, transact) {
   const runtime = normalizeRuntimeMetadata(runtimeOrTool, resolvedAgentId);
@@ -92,11 +95,10 @@ export function recordEdit(sql, resolvedAgentId, filePath) {
   try {
     files = JSON.parse(session.files_touched || '[]');
   } catch (err) {
-    console.error(
-      '[chinwag] recordEdit: malformed JSON in session files_touched, session:',
-      session.id,
-      err?.message || err,
-    );
+    log.warn('malformed JSON in session files_touched', {
+      sessionId: session.id,
+      error: err?.message || String(err),
+    });
   }
   if (!files.includes(normalized)) {
     files.push(normalized);
@@ -133,11 +135,10 @@ export function getSessionHistory(sql, days) {
         try {
           return JSON.parse(s.files_touched || '[]');
         } catch (err) {
-          console.error(
-            '[chinwag] getSessionHistory: malformed JSON in files_touched, handle:',
-            s.owner_handle,
-            err?.message || err,
-          );
+          log.warn('malformed JSON in files_touched', {
+            handle: s.owner_handle,
+            error: err?.message || String(err),
+          });
           return [];
         }
       })(),

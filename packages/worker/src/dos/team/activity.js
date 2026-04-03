@@ -2,8 +2,11 @@
 // Each function takes `sql` as the first parameter.
 
 import { normalizePath } from '../../lib/text-utils.js';
+import { createLogger } from '../../lib/logger.js';
 import { HEARTBEAT_ACTIVE_WINDOW_S, ACTIVITY_MAX_FILES } from '../../lib/constants.js';
 import { buildInClause, withTransaction } from '../../lib/validation.js';
+
+const log = createLogger('TeamDO.activity');
 
 export function updateActivity(sql, resolvedAgentId, files, summary, transact) {
   const normalized = files.map(normalizePath);
@@ -62,11 +65,10 @@ export function checkConflicts(
     try {
       theirFiles = JSON.parse(row.files);
     } catch (err) {
-      console.error(
-        '[chinwag] checkConflicts: malformed JSON in files for agent',
-        row.agent_id,
-        err?.message || err,
-      );
+      log.warn('malformed JSON in files for agent', {
+        agentId: row.agent_id,
+        error: err?.message || String(err),
+      });
       continue;
     }
     const overlap = theirFiles.filter((f) => myFiles.has(f));
@@ -134,11 +136,10 @@ export function reportFile(sql, resolvedAgentId, filePath, transact) {
     try {
       files = JSON.parse(existing[0].files);
     } catch (err) {
-      console.error(
-        '[chinwag] reportFile: malformed JSON in stored files for agent',
-        resolvedAgentId,
-        err?.message || err,
-      );
+      log.warn('malformed JSON in stored files for agent', {
+        agentId: resolvedAgentId,
+        error: err?.message || String(err),
+      });
     }
   }
 

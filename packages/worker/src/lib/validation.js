@@ -2,7 +2,10 @@
 // Each returns null on success or an error string/response on failure.
 
 import { json } from './http.js';
+import { createLogger } from './logger.js';
 import { getDB, getTeam } from './env.js';
+
+const log = createLogger('validation');
 import { getAgentRuntime, teamErrorStatus } from './request-utils.js';
 
 /**
@@ -93,10 +96,10 @@ export async function withRateLimit(db, key, max, errorMsg, handler) {
   try {
     limit = await db.checkRateLimit(key, max);
   } catch (err) {
-    console.error(
-      `[chinwag] Rate limit check failed for ${key}:`,
-      /** @type {any} */ (err)?.message || err,
-    );
+    log.error('rate limit check failed', {
+      key,
+      error: /** @type {any} */ (err)?.message || String(err),
+    });
     return json({ error: 'Service temporarily unavailable' }, 503);
   }
   if (!limit.allowed) {
@@ -107,10 +110,10 @@ export async function withRateLimit(db, key, max, errorMsg, handler) {
     try {
       await db.consumeRateLimit(key);
     } catch (err) {
-      console.error(
-        `[chinwag] Rate limit consume failed for ${key}:`,
-        /** @type {any} */ (err)?.message || err,
-      );
+      log.error('rate limit consume failed', {
+        key,
+        error: /** @type {any} */ (err)?.message || String(err),
+      });
     }
   }
   return response;

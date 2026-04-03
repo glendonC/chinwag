@@ -1,9 +1,12 @@
 // Shared project memory — saveMemory, searchMemories, updateMemory, deleteMemory.
 // Each function takes `sql` as the first parameter.
 
+import { createLogger } from '../../lib/logger.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
 import { MEMORY_MAX_COUNT } from '../../lib/constants.js';
 import { withTransaction } from '../../lib/validation.js';
+
+const log = createLogger('TeamDO.memory');
 
 // Escape LIKE wildcards so user-supplied text is matched literally
 function escapeLike(s) {
@@ -100,13 +103,11 @@ export function searchMemories(sql, query, tags, limit = 20) {
       try {
         parsedTags = JSON.parse(m.tags || '[]');
       } catch (err) {
-        console.error(
-          '[chinwag] searchMemories: malformed JSON in memory tags, id:',
-          m.id,
-          'raw:',
-          String(m.tags).slice(0, 100),
-          err?.message || err,
-        );
+        log.warn('malformed JSON in memory tags', {
+          memoryId: m.id,
+          raw: String(m.tags).slice(0, 100),
+          error: err?.message || String(err),
+        });
         // Return raw string as single-element array so the data isn't lost
         parsedTags = m.tags ? [String(m.tags)] : [];
       }

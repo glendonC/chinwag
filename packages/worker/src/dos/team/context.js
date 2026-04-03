@@ -3,59 +3,50 @@
 // and getSummary (lightweight counts for cross-project overview).
 
 import { HEARTBEAT_ACTIVE_WINDOW_S } from '../../lib/constants.js';
+import { createLogger } from '../../lib/logger.js';
 import { inferHostToolFromAgentId } from './runtime.js';
+
+const log = createLogger('TeamDO.context');
 
 function getErrorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** Read all telemetry metrics, grouped by type. */
+/** Read all telemetry metrics in one scan, then partition by prefix in JS. */
 export function getTelemetryBreakdown(sql) {
-  const toolMetrics = sql
-    .exec(
-      "SELECT metric, count FROM telemetry WHERE metric LIKE 'tool:%' ORDER BY count DESC LIMIT 10",
-    )
-    .toArray();
-  const tools_configured = toolMetrics.map((t) => ({
-    tool: t.metric.replace('tool:', ''),
-    joins: t.count,
-  }));
+  const rows = sql.exec('SELECT metric, count FROM telemetry ORDER BY count DESC').toArray();
 
-  const hostMetrics = sql
-    .exec(
-      "SELECT metric, count FROM telemetry WHERE metric LIKE 'host:%' ORDER BY count DESC LIMIT 10",
-    )
-    .toArray();
-  const hosts_configured = hostMetrics.map((t) => ({
-    host_tool: t.metric.replace('host:', ''),
-    joins: t.count,
-  }));
-
-  const surfaceMetrics = sql
-    .exec(
-      "SELECT metric, count FROM telemetry WHERE metric LIKE 'surface:%' ORDER BY count DESC LIMIT 10",
-    )
-    .toArray();
-  const surfaces_seen = surfaceMetrics.map((t) => ({
-    agent_surface: t.metric.replace('surface:', ''),
-    joins: t.count,
-  }));
-
-  const modelMetrics = sql
-    .exec(
-      "SELECT metric, count FROM telemetry WHERE metric LIKE 'model:%' ORDER BY count DESC LIMIT 10",
-    )
-    .toArray();
-  const models_seen = modelMetrics.map((t) => ({
-    agent_model: t.metric.replace('model:', ''),
-    count: t.count,
-  }));
-
-  const keyMetrics = sql
-    .exec("SELECT metric, count FROM telemetry WHERE metric NOT LIKE 'tool:%'")
-    .toArray();
+  const tools_configured = [];
+  const hosts_configured = [];
+  const surfaces_seen = [];
+  const models_seen = [];
   const usage = {};
-  for (const m of keyMetrics) usage[m.metric] = m.count;
+
+  for (const row of rows) {
+    const m = row.metric;
+    if (m.startsWith('tool:')) {
+      if (tools_configured.length < 10) {
+        tools_configured.push({ tool: m.slice(5), joins: row.count });
+      }
+    } else {
+      // All non-tool metrics go into the usage map
+      usage[m] = row.count;
+
+      if (m.startsWith('host:')) {
+        if (hosts_configured.length < 10) {
+          hosts_configured.push({ host_tool: m.slice(5), joins: row.count });
+        }
+      } else if (m.startsWith('surface:')) {
+        if (surfaces_seen.length < 10) {
+          surfaces_seen.push({ agent_surface: m.slice(8), joins: row.count });
+        }
+      } else if (m.startsWith('model:')) {
+        if (models_seen.length < 10) {
+          models_seen.push({ agent_model: m.slice(6), count: row.count });
+        }
+      }
+    }
+  }
 
   return { tools_configured, hosts_configured, surfaces_seen, models_seen, usage };
 }
@@ -97,11 +88,7 @@ export function queryTeamContext(sql, connectedIds) {
       try {
         tags = JSON.parse(m.tags || '[]');
       } catch (err) {
-        console.error(
-          '[chinwag] queryTeamContext: malformed JSON in memory tags, id:',
-          m.id,
-          getErrorMessage(err),
-        );
+        log.warn('malformed JSON in memory tags', { memoryId: m.id, error: getErrorMessage(err) });
       }
       return { ...m, tags };
     });
@@ -144,11 +131,10 @@ export function queryTeamContext(sql, connectedIds) {
               try {
                 return JSON.parse(m.files);
               } catch (err) {
-                console.error(
-                  '[chinwag] queryTeamContext: malformed JSON in member files, agent:',
-                  m.agent_id,
-                  getErrorMessage(err),
-                );
+                log.warn('malformed JSON in member files', {
+                  agentId: m.agent_id,
+                  error: getErrorMessage(err),
+                });
                 return [];
               }
             })(),
@@ -212,11 +198,10 @@ export function queryTeamContext(sql, connectedIds) {
           try {
             return JSON.parse(s.files_touched || '[]');
           } catch (err) {
-            console.error(
-              '[chinwag] queryTeamContext: malformed JSON in session files_touched, agent:',
-              s.agent_id,
-              getErrorMessage(err),
-            );
+            log.warn('malformed JSON in session files_touched', {
+              agentId: s.agent_id,
+              error: getErrorMessage(err),
+            });
             return [];
           }
         })(),
@@ -258,10 +243,7 @@ export function queryTeamSummary(sql) {
     try {
       parsedFiles = JSON.parse(row.files);
     } catch (err) {
-      console.error(
-        '[chinwag] queryTeamSummary: malformed JSON in activity files',
-        getErrorMessage(err),
-      );
+      log.warn('malformed JSON in activity files', { error: getErrorMessage(err) });
     }
     for (const f of parsedFiles) {
       fileCounts.set(f, (fileCounts.get(f) || 0) + 1);
