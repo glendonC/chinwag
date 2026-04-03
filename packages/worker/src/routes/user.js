@@ -8,6 +8,7 @@ import {
   MAX_STATUS_LENGTH,
   MAX_FRAMEWORK_LENGTH,
   RATE_LIMIT_TEAMS,
+  RATE_LIMIT_TOKEN_REFRESH,
   RATE_LIMIT_WS_TICKETS,
   CHAT_COOLDOWN_MS,
   MAX_DASHBOARD_TEAMS,
@@ -92,18 +93,30 @@ export async function handleRefreshToken(request, env) {
     return json({ error: 'Invalid or expired refresh token' }, 401);
   }
 
-  // Invalidate the old refresh token (rotation)
-  await env.AUTH_KV.delete(`refresh:${refreshToken}`);
+  // Rate limit token refresh per user to prevent token rotation abuse
+  const db = getDB(env);
+  return withRateLimit(
+    db,
+    `token-refresh:${userId}`,
+    RATE_LIMIT_TOKEN_REFRESH,
+    'Token refresh limit reached. Try again later.',
+    async () => {
+      // Invalidate the old refresh token (rotation)
+      await env.AUTH_KV.delete(`refresh:${refreshToken}`);
 
-  // Issue new access token
-  const newToken = crypto.randomUUID();
-  await env.AUTH_KV.put(`token:${newToken}`, userId);
+      // Issue new access token
+      const newToken = crypto.randomUUID();
+      await env.AUTH_KV.put(`token:${newToken}`, userId);
 
-  // Issue new refresh token
-  const newRefreshToken = `rt_${crypto.randomUUID().replace(/-/g, '')}`;
-  await env.AUTH_KV.put(`refresh:${newRefreshToken}`, userId, { expirationTtl: 30 * 24 * 60 * 60 });
+      // Issue new refresh token
+      const newRefreshToken = `rt_${crypto.randomUUID().replace(/-/g, '')}`;
+      await env.AUTH_KV.put(`refresh:${newRefreshToken}`, userId, {
+        expirationTtl: 30 * 24 * 60 * 60,
+      });
 
-  return json({ ok: true, token: newToken, refresh_token: newRefreshToken });
+      return json({ ok: true, token: newToken, refresh_token: newRefreshToken });
+    },
+  );
 }
 
 export async function handleGetWsTicket(user, env) {

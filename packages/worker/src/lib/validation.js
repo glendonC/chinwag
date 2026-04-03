@@ -100,7 +100,7 @@ export async function withRateLimit(db, key, max, errorMsg, handler) {
     return json({ error: 'Service temporarily unavailable' }, 503);
   }
   if (!limit.allowed) {
-    return json({ error: errorMsg }, 429, { 'Retry-After': String(secondsUntilMidnightUTC()) });
+    return json({ error: errorMsg }, 429, { 'Retry-After': '3600' });
   }
   const response = await handler();
   if (response.status < 400) {
@@ -194,28 +194,31 @@ export function buildInClause(items) {
 
 /**
  * Rate limit a public (unauthenticated) endpoint by client IP.
- * Uses CF-Connecting-IP for the key. Consumes on every request
- * (not just success) since public endpoints are read-only and
- * we want to limit abuse regardless of response status.
+ * Uses CF-Connecting-IP (hashed for privacy) for the key. Atomically
+ * checks and consumes in one call to eliminate the race window between
+ * separate check/consume operations.
  *
  * @param {Request} request - Incoming request (for IP extraction)
  * @param {object} env - Worker env (for DB access)
  * @param {string} prefix - Rate limit key prefix (e.g. 'stats', 'catalog')
- * @param {number} max - Max requests per IP per day
+ * @param {number} max - Max requests per IP per 24h window
  * @param {function} handler - Async function to run if allowed; should return a Response
  * @returns {Promise<Response>}
  */
 export async function withIpRateLimit(request, env, prefix, max, handler) {
-  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-  const key = `pub:${prefix}:${ip}`;
+  const ip = request.headers.get('CF-Connecting-IP');
+  if (!ip) {
+    return json({ error: 'Unable to identify client' }, 400);
+  }
+  const hashedIp = await hashIp(ip);
+  const key = `pub:${prefix}:${hashedIp}`;
   const db = getDB(env);
-  const limit = await db.checkRateLimit(key, max);
-  if (!limit.allowed) {
-    return json({ error: 'Rate limit exceeded. Try again tomorrow.' }, 429, {
-      'Retry-After': String(secondsUntilMidnightUTC()),
+  const result = await db.checkAndConsume(key, max);
+  if (!result.allowed) {
+    return json({ error: 'Rate limit exceeded. Try again later.' }, 429, {
+      'Retry-After': '3600',
     });
   }
-  await db.consumeRateLimit(key);
   return handler();
 }
 
@@ -264,17 +267,23 @@ export async function withTeamRateLimit({
   });
 }
 
+/**
+ * Hash an IP address using SHA-256 so raw IPs are not stored in the database.
+ * Returns a hex-encoded hash truncated to 16 characters (64 bits — sufficient
+ * for rate-limit bucketing, not a security hash).
+ *
+ * @param {string} ip - Raw IP address
+ * @returns {Promise<string>} Truncated hex hash
+ */
+async function hashIp(ip) {
+  const data = new TextEncoder().encode(ip);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  const hex = [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return hex.slice(0, 16);
+}
+
 /** Test whether a string is a valid UUID v4 (the format produced by crypto.randomUUID()). */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function isUUID(value) {
   return typeof value === 'string' && UUID_RE.test(value);
-}
-
-/** Seconds remaining until the next UTC midnight. */
-function secondsUntilMidnightUTC() {
-  const now = new Date();
-  const midnight = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1),
-  );
-  return Math.ceil((midnight.getTime() - now.getTime()) / 1000);
 }

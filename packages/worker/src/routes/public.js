@@ -2,11 +2,20 @@ import { TOOL_CATALOG, CATEGORY_NAMES } from '../catalog.js';
 import { getDB, getLobby } from '../lib/env.js';
 import { json } from '../lib/http.js';
 import { auditLog } from '../lib/audit.js';
+import { withIpRateLimit } from '../lib/validation.js';
 import {
   RATE_LIMIT_ACCOUNTS_PER_IP,
   RATE_LIMIT_STATS_PER_IP,
   RATE_LIMIT_CATALOG_PER_IP,
 } from '../lib/constants.js';
+
+/** Hash an IP address for rate-limit keys (matches validation.js helper). */
+async function hashIp(ip) {
+  const data = new TextEncoder().encode(ip);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  const hex = [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return hex.slice(0, 16);
+}
 
 const GITHUB_AUTHORIZE_URL = 'https://github.com/login/oauth/authorize';
 const GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token';
@@ -31,20 +40,21 @@ function evaluationToCatalogEntry(e) {
 }
 
 export async function handleInit(request, env) {
-  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  const ip = request.headers.get('CF-Connecting-IP');
+  if (!ip) return json({ error: 'Unable to identify client' }, 400);
+  const hashedIp = await hashIp(ip);
   const db = getDB(env);
 
-  const limit = await db.checkRateLimit(ip, RATE_LIMIT_ACCOUNTS_PER_IP);
+  // Atomic check-and-consume eliminates the race window between check and consume
+  const limit = await db.checkAndConsume(hashedIp, RATE_LIMIT_ACCOUNTS_PER_IP);
   if (!limit.allowed) {
-    return json({ error: 'Too many accounts created today. Try again tomorrow.' }, 429);
+    return json({ error: 'Too many accounts created recently. Try again later.' }, 429);
   }
 
   const result = await db.createUser();
   if (result.error) {
     return json({ error: result.error }, 400);
   }
-
-  await db.consumeRateLimit(ip);
   await env.AUTH_KV.put(`token:${result.token}`, result.id);
 
   // Issue a refresh token alongside the access token
@@ -69,44 +79,31 @@ export async function handleInit(request, env) {
 }
 
 export async function handleStats(request, env) {
-  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-  const db = getDB(env);
-
-  const limit = await db.checkRateLimit(`pub:stats:${ip}`, RATE_LIMIT_STATS_PER_IP);
-  if (!limit.allowed) {
-    return json({ error: 'Rate limit exceeded. Try again later.' }, 429);
-  }
-  await db.consumeRateLimit(`pub:stats:${ip}`);
-
-  const [lobbyStats, dbStats] = await Promise.all([getLobby(env).getStats(), db.getStats()]);
-  // Strip ok flags from sub-results, return a single merged response
-  const { ok: _ok1, ...lobby } = lobbyStats;
-  const { ok: _ok2, ...dbData } = dbStats;
-  return json({ ok: true, ...dbData, ...lobby });
+  return withIpRateLimit(request, env, 'stats', RATE_LIMIT_STATS_PER_IP, async () => {
+    const [lobbyStats, dbStats] = await Promise.all([
+      getLobby(env).getStats(),
+      getDB(env).getStats(),
+    ]);
+    const { ok: _ok1, ...lobby } = lobbyStats;
+    const { ok: _ok2, ...dbData } = dbStats;
+    return json({ ok: true, ...dbData, ...lobby });
+  });
 }
 
 export async function handleToolCatalog(request, env) {
-  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-  const db = getDB(env);
+  return withIpRateLimit(request, env, 'catalog', RATE_LIMIT_CATALOG_PER_IP, async () => {
+    const result = await getDB(env).listEvaluations({});
 
-  const limit = await db.checkRateLimit(`pub:catalog:${ip}`, RATE_LIMIT_CATALOG_PER_IP);
-  if (!limit.allowed) {
-    return json({ error: 'Rate limit exceeded. Try again later.' }, 429);
-  }
-  await db.consumeRateLimit(`pub:catalog:${ip}`);
+    let tools;
+    if (result.evaluations && result.evaluations.length > 0) {
+      tools = result.evaluations.map(evaluationToCatalogEntry);
+    } else {
+      tools = TOOL_CATALOG;
+    }
 
-  const result = await db.listEvaluations({});
-
-  let tools;
-  if (result.evaluations && result.evaluations.length > 0) {
-    tools = result.evaluations.map(evaluationToCatalogEntry);
-  } else {
-    // Fallback to static catalog if no evaluations in DB yet
-    tools = TOOL_CATALOG;
-  }
-
-  return json({ tools, categories: CATEGORY_NAMES }, 200, {
-    'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+    return json({ tools, categories: CATEGORY_NAMES }, 200, {
+      'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+    });
   });
 }
 
@@ -193,8 +190,12 @@ export async function handleGithubCallback(request, env) {
   const ghLookup = await db.getUserByGithubId(githubId);
   let userId;
   if (!ghLookup.ok) {
-    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-    const limit = await db.checkRateLimit(ip, RATE_LIMIT_ACCOUNTS_PER_IP);
+    const ip = request.headers.get('CF-Connecting-IP');
+    if (!ip) {
+      return Response.redirect(`${getDashboardUrl(env)}#error=rate_limited`, 302);
+    }
+    const hashedCallbackIp = await hashIp(ip);
+    const limit = await db.checkAndConsume(hashedCallbackIp, RATE_LIMIT_ACCOUNTS_PER_IP);
     if (!limit.allowed) {
       return Response.redirect(`${getDashboardUrl(env)}#error=rate_limited`, 302);
     }
@@ -203,8 +204,6 @@ export async function handleGithubCallback(request, env) {
     if (created.error) {
       return Response.redirect(`${getDashboardUrl(env)}#error=account_failed`, 302);
     }
-
-    await db.consumeRateLimit(ip);
     // Store the CLI token in KV (so the user could use it from CLI later)
     await env.AUTH_KV.put(`token:${created.token}`, created.id);
     userId = created.id;

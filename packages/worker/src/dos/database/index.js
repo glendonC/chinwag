@@ -266,8 +266,9 @@ export class DatabaseDO extends DurableObject {
       'DatabaseDO',
     );
 
-    // Prune stale rate limit rows and expired sessions
-    this.sql.exec("DELETE FROM account_limits WHERE date < date('now', '-7 days')");
+    // Prune stale rate limit rows (handles both old daily 'YYYY-MM-DD' and
+    // new hourly 'YYYY-MM-DDTHH' bucket formats) and expired sessions
+    this.sql.exec("DELETE FROM account_limits WHERE date < date('now', '-2 days')");
     this.sql.exec("DELETE FROM web_sessions WHERE expires_at < datetime('now') OR revoked = 1");
 
     this.#schemaReady = true;
@@ -510,30 +511,72 @@ export class DatabaseDO extends DurableObject {
   }
 
   // ── Rate limiting ──
+  // Uses hourly buckets with a 24-hour sliding window. Each bucket stores
+  // the count for one hour (key = "YYYY-MM-DDTHH"). To check the limit,
+  // we SUM all buckets from the last 24 hours. This prevents the midnight-
+  // reset exploit where a user could double their quota around UTC midnight.
 
-  async checkRateLimit(key, maxPerDay = 3) {
+  async checkRateLimit(key, maxPerWindow = 3) {
     this.#ensureSchema();
-    const today = utcDate();
+    const windowStart = hourBucket(Date.now() - 24 * 60 * 60 * 1000);
 
     const rows = this.sql
-      .exec('SELECT count FROM account_limits WHERE ip = ? AND date = ?', key, today)
+      .exec(
+        'SELECT COALESCE(SUM(count), 0) as total FROM account_limits WHERE ip = ? AND date >= ?',
+        key,
+        windowStart,
+      )
       .toArray();
 
-    const count = rows[0]?.count || 0;
-    return { ok: true, allowed: count < maxPerDay, count };
+    const count = rows[0]?.total || 0;
+    return { ok: true, allowed: count < maxPerWindow, count };
   }
 
   async consumeRateLimit(key) {
     this.#ensureSchema();
-    const today = utcDate();
+    const bucket = hourBucket(Date.now());
 
     this.sql.exec(
       `INSERT INTO account_limits (ip, date, count) VALUES (?, ?, 1)
        ON CONFLICT(ip, date) DO UPDATE SET count = count + 1`,
       key,
-      today,
+      bucket,
     );
     return { ok: true };
+  }
+
+  /**
+   * Atomic check-and-consume: checks the limit and increments in one call.
+   * Eliminates the race window between separate check and consume calls.
+   * Use for public/unauthenticated endpoints where every request should count.
+   */
+  async checkAndConsume(key, maxPerWindow = 3) {
+    this.#ensureSchema();
+    const now = Date.now();
+    const windowStart = hourBucket(now - 24 * 60 * 60 * 1000);
+    const bucket = hourBucket(now);
+
+    const rows = this.sql
+      .exec(
+        'SELECT COALESCE(SUM(count), 0) as total FROM account_limits WHERE ip = ? AND date >= ?',
+        key,
+        windowStart,
+      )
+      .toArray();
+
+    const count = rows[0]?.total || 0;
+    if (count >= maxPerWindow) {
+      return { ok: true, allowed: false, count };
+    }
+
+    this.sql.exec(
+      `INSERT INTO account_limits (ip, date, count) VALUES (?, ?, 1)
+       ON CONFLICT(ip, date) DO UPDATE SET count = count + 1`,
+      key,
+      bucket,
+    );
+
+    return { ok: true, allowed: true, count: count + 1 };
   }
 
   // ── Stats ──
@@ -659,6 +702,7 @@ export class DatabaseDO extends DurableObject {
   }
 }
 
-function utcDate() {
-  return new Date().toISOString().slice(0, 10);
+/** Return the hourly bucket key for a given timestamp (e.g. "2026-04-02T14"). */
+function hourBucket(ms) {
+  return new Date(ms).toISOString().slice(0, 13);
 }

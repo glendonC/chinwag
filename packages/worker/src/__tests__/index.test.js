@@ -169,10 +169,15 @@ describe('GET /stats', () => {
 
   it('rate limits by IP', async () => {
     const ip = `stats-rl-${Date.now()}-${Math.random()}`;
-    // Exhaust the 1000/day limit by consuming directly via DB
+    // Exhaust the 200/day limit by sending real requests through the handler
+    // (which hashes the IP internally). Use checkAndConsume to pre-fill.
     const db = env.DATABASE.get(env.DATABASE.idFromName('main'));
-    for (let i = 0; i < 1000; i++) {
-      await db.consumeRateLimit(`pub:stats:${ip}`);
+    const data = new TextEncoder().encode(ip);
+    const hash = await crypto.subtle.digest('SHA-256', data);
+    const hex = [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');
+    const hashedIp = hex.slice(0, 16);
+    for (let i = 0; i < 200; i++) {
+      await db.consumeRateLimit(`pub:stats:${hashedIp}`);
     }
 
     const res = await SELF.fetch('http://localhost/stats', {
@@ -200,8 +205,12 @@ describe('GET /tools/catalog', () => {
   it('rate limits by IP', async () => {
     const ip = `catalog-rl-${Date.now()}-${Math.random()}`;
     const db = env.DATABASE.get(env.DATABASE.idFromName('main'));
-    for (let i = 0; i < 500; i++) {
-      await db.consumeRateLimit(`pub:catalog:${ip}`);
+    const data = new TextEncoder().encode(ip);
+    const hash = await crypto.subtle.digest('SHA-256', data);
+    const hex = [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');
+    const hashedIp = hex.slice(0, 16);
+    for (let i = 0; i < 200; i++) {
+      await db.consumeRateLimit(`pub:catalog:${hashedIp}`);
     }
 
     const res = await SELF.fetch('http://localhost/tools/catalog', {
@@ -883,7 +892,9 @@ describe('Team lock endpoints', () => {
 
 describe('GET /tools/catalog', () => {
   it('returns tool catalog without auth', async () => {
-    const res = await SELF.fetch('http://localhost/tools/catalog');
+    const res = await SELF.fetch('http://localhost/tools/catalog', {
+      headers: { 'CF-Connecting-IP': `catalog-basic-${Date.now()}-${Math.random()}` },
+    });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.tools).toBeDefined();
@@ -892,7 +903,9 @@ describe('GET /tools/catalog', () => {
   });
 
   it('returns cache control header', async () => {
-    const res = await SELF.fetch('http://localhost/tools/catalog');
+    const res = await SELF.fetch('http://localhost/tools/catalog', {
+      headers: { 'CF-Connecting-IP': `catalog-cc-${Date.now()}-${Math.random()}` },
+    });
     const cc = res.headers.get('Cache-Control');
     expect(cc).toContain('max-age=3600');
   });

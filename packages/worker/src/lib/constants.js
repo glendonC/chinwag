@@ -64,9 +64,9 @@ export const RATE_LIMIT_ACCOUNTS_PER_IP = 3;
 export const RATE_LIMIT_EVALUATIONS = 5;
 export const RATE_LIMIT_WS_TICKETS = 100;
 
-// --- Rate limits (per IP per day, public/unauthenticated endpoints) ---
-export const RATE_LIMIT_STATS_PER_IP = 1000;
-export const RATE_LIMIT_CATALOG_PER_IP = 500;
+// --- Rate limits (per IP per 24h window, public/unauthenticated endpoints) ---
+export const RATE_LIMIT_STATS_PER_IP = 200;
+export const RATE_LIMIT_CATALOG_PER_IP = 200;
 export const RATE_LIMIT_BATCH_EVALUATE_PER_IP = 20;
 
 // --- Chat room tuning ---
