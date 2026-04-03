@@ -57,25 +57,25 @@ async function startFakeApiServer() {
       return json(response, 200, { ticket: 'test-ticket' });
     }
 
-    if (method === 'POST' && url.pathname === '/teams/t_integration/join') {
+    if (method === 'POST' && url.pathname === '/teams/t_abcdef0123456789/join') {
       state.joined = true;
       return json(response, 200, { ok: true });
     }
 
-    if (method === 'POST' && url.pathname === '/teams/t_integration/heartbeat') {
+    if (method === 'POST' && url.pathname === '/teams/t_abcdef0123456789/heartbeat') {
       return json(response, 200, { ok: true });
     }
 
-    if (method === 'POST' && url.pathname === '/teams/t_integration/sessions') {
+    if (method === 'POST' && url.pathname === '/teams/t_abcdef0123456789/sessions') {
       state.sessionId = 'sess_stdio_1';
       return json(response, 201, { ok: true, session_id: state.sessionId });
     }
 
-    if (method === 'POST' && url.pathname === '/teams/t_integration/sessionend') {
+    if (method === 'POST' && url.pathname === '/teams/t_abcdef0123456789/sessionend') {
       return json(response, 200, { ok: true });
     }
 
-    if (method === 'PUT' && url.pathname === '/teams/t_integration/activity') {
+    if (method === 'PUT' && url.pathname === '/teams/t_abcdef0123456789/activity') {
       state.activity = {
         files: body.files || [],
         summary: body.summary || '',
@@ -83,7 +83,7 @@ async function startFakeApiServer() {
       return json(response, 200, { ok: true });
     }
 
-    if (method === 'POST' && url.pathname === '/teams/t_integration/conflicts') {
+    if (method === 'POST' && url.pathname === '/teams/t_abcdef0123456789/conflicts') {
       const requestedFiles = body.files || [];
       const hasOverlap = requestedFiles.includes('src/auth.js');
       return json(response, 200, {
@@ -101,7 +101,7 @@ async function startFakeApiServer() {
       });
     }
 
-    if (method === 'POST' && url.pathname === '/teams/t_integration/memory') {
+    if (method === 'POST' && url.pathname === '/teams/t_abcdef0123456789/memory') {
       const now = new Date().toISOString();
       const id = `11111111-1111-4111-8111-${String(state.memories.length + 1).padStart(12, '0')}`;
       state.memories.unshift({
@@ -116,7 +116,7 @@ async function startFakeApiServer() {
       return json(response, 200, { ok: true, id });
     }
 
-    if (method === 'GET' && url.pathname === '/teams/t_integration/memory') {
+    if (method === 'GET' && url.pathname === '/teams/t_abcdef0123456789/memory') {
       const query = url.searchParams.get('q');
       const memories = query
         ? state.memories.filter((memory) => memory.text.toLowerCase().includes(query.toLowerCase()))
@@ -124,7 +124,7 @@ async function startFakeApiServer() {
       return json(response, 200, { memories });
     }
 
-    if (method === 'PUT' && url.pathname === '/teams/t_integration/memory') {
+    if (method === 'PUT' && url.pathname === '/teams/t_abcdef0123456789/memory') {
       const memory = state.memories.find((entry) => entry.id === body.id);
       if (!memory) return json(response, 404, { error: 'Memory not found' });
       if (body.text !== undefined) memory.text = body.text;
@@ -133,14 +133,14 @@ async function startFakeApiServer() {
       return json(response, 200, { ok: true });
     }
 
-    if (method === 'DELETE' && url.pathname === '/teams/t_integration/memory') {
+    if (method === 'DELETE' && url.pathname === '/teams/t_abcdef0123456789/memory') {
       const index = state.memories.findIndex((entry) => entry.id === body.id);
       if (index === -1) return json(response, 404, { error: 'Memory not found' });
       state.memories.splice(index, 1);
       return json(response, 200, { ok: true });
     }
 
-    if (method === 'GET' && url.pathname === '/teams/t_integration/context') {
+    if (method === 'GET' && url.pathname === '/teams/t_abcdef0123456789/context') {
       return json(response, 200, {
         members: [
           {
@@ -242,9 +242,9 @@ describe('mcp stdio integration', () => {
 
       const joinResult = await client.callTool({
         name: 'chinwag_join_team',
-        arguments: { team_id: 't_integration' },
+        arguments: { team_id: 't_abcdef0123456789' },
       });
-      expect(textFromResult(joinResult)).toContain('Joined team t_integration');
+      expect(textFromResult(joinResult)).toContain('Joined team t_abcdef0123456789');
       expect(fakeApi.state.joined).toBe(true);
 
       const activityResult = await client.callTool({

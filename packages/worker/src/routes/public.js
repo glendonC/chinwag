@@ -18,7 +18,14 @@ function getDashboardUrl(env) {
 }
 
 function evaluationToCatalogEntry(e) {
-  const metadata = typeof e.metadata === 'string' ? JSON.parse(e.metadata) : e.metadata || {};
+  let metadata = e.metadata || {};
+  if (typeof metadata === 'string') {
+    try {
+      metadata = JSON.parse(metadata);
+    } catch {
+      metadata = {};
+    }
+  }
   return {
     id: e.tool_id,
     name: e.name,

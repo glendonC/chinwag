@@ -74,12 +74,9 @@ export async function authenticate(request, env) {
 }
 
 export async function handleRefreshToken(request, env) {
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return json({ error: 'refresh_token is required' }, 400);
-  }
+  const body = await parseBody(request);
+  const parseErr = requireJson(body);
+  if (parseErr) return parseErr;
 
   const refreshToken = body?.refresh_token;
   if (!refreshToken || typeof refreshToken !== 'string') {
@@ -167,6 +164,21 @@ export async function handleUpdateHandle(request, user, env) {
   return json(result);
 }
 
+const VALID_COLORS = new Set([
+  'red',
+  'cyan',
+  'yellow',
+  'green',
+  'magenta',
+  'blue',
+  'orange',
+  'lime',
+  'pink',
+  'sky',
+  'lavender',
+  'white',
+]);
+
 export async function handleUpdateColor(request, user, env) {
   const body = await parseBody(request);
   const parseErr = requireJson(body);
@@ -175,6 +187,9 @@ export async function handleUpdateColor(request, user, env) {
   const { color } = body;
   if (!color || typeof color !== 'string') {
     return json({ error: 'Color is required' }, 400);
+  }
+  if (!VALID_COLORS.has(color)) {
+    return json({ error: `Invalid color. Must be one of: ${[...VALID_COLORS].join(', ')}` }, 400);
   }
 
   const result = await getDB(env).updateColor(user.id, color);

@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-vi.mock('../../dist/diff-state.js', () => ({
+vi.mock('../diff-state.js', () => ({
   diffState: vi.fn().mockReturnValue([]),
 }));
 
-import { diffState } from '../../dist/diff-state.js';
+import { diffState } from '../diff-state.js';
 import { createReconciler } from '../channel-reconcile.js';
 
 describe('createReconciler', () => {

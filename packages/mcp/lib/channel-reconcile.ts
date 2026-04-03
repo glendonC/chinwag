@@ -7,7 +7,7 @@
 //
 // CRITICAL: Never console.log — stdio transport.
 
-import { diffState } from '../dist/diff-state.js';
+import { diffState } from './diff-state.js';
 import type { TeamContext } from './utils/display.js';
 import type { TeamHandlers } from './team.js';
 import { getErrorMessage } from './utils/responses.js';
