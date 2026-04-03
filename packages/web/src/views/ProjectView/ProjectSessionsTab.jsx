@@ -25,7 +25,10 @@ export default function ProjectSessionsTab({
         <div className={styles.sectionBody}>
           {sessions.map((session, index) => (
             <SessionRow
-              key={session.id || `${session.handle}:${session.started_at || index}`}
+              key={
+                session.id ||
+                `${session.owner_handle || session.handle}:${session.started_at || index}`
+              }
               session={session}
             />
           ))}

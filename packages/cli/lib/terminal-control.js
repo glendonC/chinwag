@@ -3,6 +3,8 @@ import { useEffect } from 'react';
 const ENTER_ALT_SCREEN = '\x1b[?1049h';
 const EXIT_ALT_SCREEN = '\x1b[?1049l';
 const CLEAR_SCREEN = '\x1b[2J\x1b[H';
+const ESC = String.fromCharCode(27);
+const BELL = String.fromCharCode(7);
 
 function canControlTerminal() {
   return Boolean(process.stdout?.isTTY);
@@ -16,7 +18,9 @@ export function getTerminalUiCapabilities() {
   let colorDepth = 1;
   try {
     colorDepth = process.stdout?.getColorDepth?.() || 1;
-  } catch (err) { console.error('[chinwag]', err?.message || err); }
+  } catch (err) {
+    console.error('[chinwag]', err?.message || err);
+  }
 
   const hasNamedTerminal = Boolean(term && term !== 'dumb' && term !== 'unknown');
   const hasBasicColor = forceColor || (!noColor && hasNamedTerminal && colorDepth >= 4);
@@ -41,8 +45,8 @@ function writeEscape(sequence) {
 
 function sanitizeTitle(title) {
   return String(title || 'chinwag')
-    .replace(/\x1b/g, '')
-    .replace(/\x07/g, '')
+    .replaceAll(ESC, '')
+    .replaceAll(BELL, '')
     .trim();
 }
 

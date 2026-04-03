@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { detectTerminalEnvironment, buildTerminalCommand, readPidFile, cleanPidFile, isProcessAlive } from '../terminal-spawner.js';
+import {
+  detectTerminalEnvironment,
+  buildTerminalCommand,
+  readPidFile,
+  cleanPidFile,
+  isProcessAlive,
+} from '../terminal-spawner.js';
 import { writeFileSync, mkdirSync, existsSync, unlinkSync, rmSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
@@ -113,7 +119,11 @@ describe('pidfile operations', () => {
   });
 
   afterEach(() => {
-    try { unlinkSync(pidPath); } catch {}
+    try {
+      unlinkSync(pidPath);
+    } catch {
+      /* cleanup best effort */
+    }
   });
 
   it('reads a valid pidfile', () => {

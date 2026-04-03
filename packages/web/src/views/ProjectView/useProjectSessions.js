@@ -14,7 +14,7 @@ export default function useProjectSessions() {
   const contextData = usePollingStore((s) => s.contextData);
 
   const allSessions = useMemo(
-    () => selectRecentSessions(contextData?.recentSessions || []),
+    () => selectRecentSessions(contextData?.recentSessions || contextData?.sessions || []),
     [contextData],
   );
   const sessions = allSessions.slice(0, 8);

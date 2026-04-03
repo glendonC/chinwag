@@ -22,8 +22,10 @@ export function SessionsPanel({
   return (
     <Box flexDirection="column" paddingX={1} paddingTop={1}>
       <Text>
-        <Text color="cyan" bold>Sessions</Text>
-        <Text dimColor>  {totalCount} active</Text>
+        <Text color="cyan" bold>
+          Sessions
+        </Text>
+        <Text dimColor> {totalCount} active</Text>
       </Text>
       {liveAgents.map((agent, idx) => {
         const absoluteIdx = windowStart + idx;
@@ -33,12 +35,15 @@ export function SessionsPanel({
         return (
           <Box key={agent.agent_id || agent.id} flexDirection="column">
             <Text>
-              <Text color={isSelected ? 'cyan' : 'green'}>  {isSelected ? getAnimatedGlyph('selected') : getAnimatedGlyph('running')} </Text>
+              <Text color={isSelected ? 'cyan' : 'green'}>
+                {' '}
+                {isSelected ? getAnimatedGlyph('selected') : getAnimatedGlyph('running')}{' '}
+              </Text>
               <Text bold>{agent._display}</Text>
-              {sessionTag ? <Text dimColor>  #{sessionTag}</Text> : null}
-              {agent._duration ? <Text dimColor>  {agent._duration}</Text> : null}
+              {sessionTag ? <Text dimColor> #{sessionTag}</Text> : null}
+              {agent._duration ? <Text dimColor> {agent._duration}</Text> : null}
             </Text>
-            {intent ? <Text dimColor>    {intent}</Text> : null}
+            {intent ? <Text dimColor> {intent}</Text> : null}
           </Box>
         );
       })}
@@ -59,12 +64,14 @@ export function KnowledgePanel({
   return (
     <Box flexDirection="column" paddingX={1} paddingTop={1}>
       <Text>
-        <Text color="magenta" bold>Knowledge</Text>
-        <Text dimColor>  {memories.length} saved</Text>
-        {memorySearch ? <Text color="yellow">  "{memorySearch}"</Text> : null}
+        <Text color="magenta" bold>
+          Knowledge
+        </Text>
+        <Text dimColor> {memories.length} saved</Text>
+        {memorySearch ? <Text color="yellow"> &quot;{memorySearch}&quot;</Text> : null}
       </Text>
       {filteredMemories.length === 0 ? (
-        <Text dimColor>  No matches for "{memorySearch}".</Text>
+        <Text dimColor> No matches for &quot;{memorySearch}&quot;.</Text>
       ) : (
         <>
           {knowledgeVisible.map((mem, idx) => {
@@ -73,23 +80,21 @@ export function KnowledgePanel({
             const isSelected = absoluteIdx === memorySelectedIdx;
             return (
               <Text key={mem.id || idx}>
-                {isSelected
-                  ? <Text color="cyan">  {getAnimatedGlyph('selected')} </Text>
-                  : <Text>{'  '}</Text>}
-                {tagStr && <Text dimColor>{tagStr}  </Text>}
-                <Text>{mem.text}</Text>
-                {isSelected && mem.source_handle && (
-                  <Text dimColor>  — {mem.source_handle}</Text>
+                {isSelected ? (
+                  <Text color="cyan"> {getAnimatedGlyph('selected')} </Text>
+                ) : (
+                  <Text>{'  '}</Text>
                 )}
+                {tagStr && <Text dimColor>{tagStr} </Text>}
+                <Text>{mem.text}</Text>
+                {isSelected && mem.source_handle && <Text dimColor> — {mem.source_handle}</Text>}
               </Text>
             );
           })}
         </>
       )}
-      {deleteConfirm && (
-        <Text color="red">  Press [d] again to confirm, [Esc] to cancel</Text>
-      )}
-      {deleteMsg && <Text dimColor>  {deleteMsg}</Text>}
+      {deleteConfirm && <Text color="red"> Press [d] again to confirm, [Esc] to cancel</Text>}
+      {deleteMsg && <Text dimColor> {deleteMsg}</Text>}
     </Box>
   );
 }

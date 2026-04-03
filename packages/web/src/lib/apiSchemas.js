@@ -91,8 +91,9 @@ const messageSchema = z
 
 const sessionSchema = z
   .object({
-    agent_id: z.string(),
-    handle: z.string(),
+    agent_id: z.string().optional(),
+    owner_handle: z.string().optional(),
+    handle: z.string().optional(),
     framework: z.string().optional(),
     host_tool: z.string().default('unknown'),
     agent_surface: z.string().nullable().optional(),
@@ -106,7 +107,13 @@ const sessionSchema = z
     memories_saved: z.number().default(0),
     duration_minutes: z.number().nullable().optional(),
   })
-  .passthrough();
+  .passthrough()
+  .transform((session) => ({
+    ...session,
+    agent_id: session.agent_id || '',
+    owner_handle: session.owner_handle || session.handle || 'Agent',
+    handle: session.handle || session.owner_handle || 'Agent',
+  }));
 
 const conflictSchema = z
   .object({
@@ -174,6 +181,7 @@ export const teamContextSchema = z
     memories: z.array(memorySchema).default([]),
     locks: z.array(lockSchema).default([]),
     messages: z.array(messageSchema).default([]),
+    recentSessions: z.array(sessionSchema).default([]),
     sessions: z.array(sessionSchema).default([]),
     conflicts: z.array(conflictSchema).default([]),
     hosts_configured: z.array(hostMetricSchema).default([]),
@@ -181,7 +189,11 @@ export const teamContextSchema = z
     models_seen: z.array(modelMetricSchema).default([]),
     usage: z.record(z.number()).default({}),
   })
-  .passthrough();
+  .passthrough()
+  .transform((context) => ({
+    ...context,
+    recentSessions: context.recentSessions.length > 0 ? context.recentSessions : context.sessions,
+  }));
 
 // ── Dashboard summary response ──────────────────────
 
@@ -240,6 +252,7 @@ export function createEmptyTeamContext() {
     memories: [],
     locks: [],
     messages: [],
+    recentSessions: [],
     sessions: [],
     conflicts: [],
     hosts_configured: [],

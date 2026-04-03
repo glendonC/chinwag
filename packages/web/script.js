@@ -1,11 +1,13 @@
 import { createHeaderUi } from './header-ui.js';
 import { createHeroAtmosphere, clamp } from './hero-atmosphere.js';
 
-const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+const prefersReducedMotion =
+  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 const sectionLinks = Array.from(document.querySelectorAll('[data-section-link]'));
 const observedSections = Array.from(document.querySelectorAll('main section[id]'));
 const journeySections = Array.from(document.querySelectorAll('[data-journey-stage]'));
 const revealNodes = Array.from(document.querySelectorAll('.reveal'));
+const IntersectionObserverCtor = window.IntersectionObserver;
 
 const sectionNavMap = {
   overview: 'overview',
@@ -88,9 +90,9 @@ function createScrollJourney({ sections }) {
 
     sectionConfigs.forEach(({ node }) => {
       const rect = node.getBoundingClientRect();
-      const center = rect.top + (rect.height / 2);
+      const center = rect.top + rect.height / 2;
       const distance = Math.abs(center - viewportAnchor);
-      const presence = clamp(1 - (distance / (viewportHeight * 0.95)), 0, 1);
+      const presence = clamp(1 - distance / (viewportHeight * 0.95), 0, 1);
 
       node.style.setProperty('--section-presence', presence.toFixed(4));
 
@@ -139,37 +141,43 @@ sectionLinks.forEach((link) => {
   });
 });
 
-if (observedSections.length) {
-  const sectionObserver = new IntersectionObserver((entries) => {
-    const visible = entries
-      .filter((entry) => entry.isIntersecting)
-      .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+if (IntersectionObserverCtor && observedSections.length) {
+  const sectionObserver = new IntersectionObserverCtor(
+    (entries) => {
+      const visible = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
 
-    if (visible) {
-      setActiveSection(visible.target.id);
-    }
-  }, {
-    rootMargin: '-24% 0px -55% 0px',
-    threshold: [0.18, 0.38, 0.6],
-  });
+      if (visible) {
+        setActiveSection(visible.target.id);
+      }
+    },
+    {
+      rootMargin: '-24% 0px -55% 0px',
+      threshold: [0.18, 0.38, 0.6],
+    },
+  );
 
   observedSections.forEach((section) => sectionObserver.observe(section));
 }
 
-if (revealNodes.length) {
-  const revealObserver = new IntersectionObserver((entries, observer) => {
-    entries.forEach((entry) => {
-      if (!entry.isIntersecting) {
-        return;
-      }
+if (IntersectionObserverCtor && revealNodes.length) {
+  const revealObserver = new IntersectionObserverCtor(
+    (entries, observer) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) {
+          return;
+        }
 
-      entry.target.classList.add('is-visible');
-      observer.unobserve(entry.target);
-    });
-  }, {
-    rootMargin: '0px 0px -12% 0px',
-    threshold: 0.12,
-  });
+        entry.target.classList.add('is-visible');
+        observer.unobserve(entry.target);
+      });
+    },
+    {
+      rootMargin: '0px 0px -12% 0px',
+      threshold: 0.12,
+    },
+  );
 
   revealNodes.forEach((node) => revealObserver.observe(node));
 }
@@ -179,15 +187,22 @@ const animatedSections = [
   document.getElementById('trust-viz'),
 ];
 
-const staggerObserver = new IntersectionObserver((entries, observer) => {
-  entries.forEach((entry) => {
-    if (!entry.isIntersecting) return;
-    entry.target.classList.add('is-animated');
-    observer.unobserve(entry.target);
-  });
-}, { rootMargin: '0px 0px -8% 0px', threshold: 0.15 });
+if (IntersectionObserverCtor) {
+  const staggerObserver = new IntersectionObserverCtor(
+    (entries, observer) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('is-animated');
+        observer.unobserve(entry.target);
+      });
+    },
+    { rootMargin: '0px 0px -8% 0px', threshold: 0.15 },
+  );
 
-animatedSections.forEach((el) => { if (el) staggerObserver.observe(el); });
+  animatedSections.forEach((el) => {
+    if (el) staggerObserver.observe(el);
+  });
+}
 
 headerUi.initialize();
 heroAtmosphere.initialize();

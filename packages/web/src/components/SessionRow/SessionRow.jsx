@@ -7,6 +7,7 @@ export default function SessionRow({ session }) {
   const isLive = !session.ended_at;
   const editCount = session.edit_count || 0;
   const fileCount = session.files_touched?.length || 0;
+  const ownerLabel = session.owner_handle || session.handle || 'Agent';
   const tool =
     session.framework && session.framework !== 'unknown'
       ? session.framework
@@ -21,7 +22,7 @@ export default function SessionRow({ session }) {
     <div className={styles.row}>
       <div className={styles.identity}>
         {toolIcon ? <ToolIcon tool={toolIcon} size={16} monochrome={true} /> : null}
-        <span className={styles.tool}>{session.handle || 'Agent'}</span>
+        <span className={styles.tool}>{ownerLabel}</span>
       </div>
       {isLive && <span className={styles.live}>live</span>}
       <span className={styles.meta}>{parts.join(' \u00b7 ')}</span>
