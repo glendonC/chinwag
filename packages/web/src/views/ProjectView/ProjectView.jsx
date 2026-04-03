@@ -1,71 +1,90 @@
-import { useCallback, useState, useMemo } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { forceRefresh } from '../../lib/stores/polling.js';
-import { teamActions } from '../../lib/stores/teams.js';
-import { useTabKeyboard } from '../../lib/useTabKeyboard.js';
 import ActivityTimeline from '../../components/ActivityTimeline/ActivityTimeline.jsx';
 import StatusState from '../../components/StatusState/StatusState.jsx';
 import ViewHeader from '../../components/ViewHeader/ViewHeader.jsx';
-import { ShimmerText, SkeletonStatGrid, SkeletonRows, SkeletonLine } from '../../components/Skeleton/Skeleton.jsx';
+import {
+  ShimmerText,
+  SkeletonStatGrid,
+  SkeletonRows,
+  SkeletonLine,
+} from '../../components/Skeleton/Skeleton.jsx';
 import KeyboardHint, { useKeyboardHint } from '../../components/KeyboardHint/KeyboardHint.jsx';
 import ProjectLiveTab from './ProjectLiveTab.jsx';
 import ProjectMemoryTab from './ProjectMemoryTab.jsx';
 import ProjectSessionsTab from './ProjectSessionsTab.jsx';
 import ProjectToolsTab from './ProjectToolsTab.jsx';
-import { useProjectData } from './useProjectData.js';
+import useProjectStatus from './useProjectStatus.js';
+import useProjectMembers from './useProjectMembers.js';
+import useProjectSessions from './useProjectSessions.js';
+import useProjectAnalytics from './useProjectAnalytics.js';
+import useProjectMemories from './useProjectMemories.js';
 import styles from './ProjectView.module.css';
 
 export default function ProjectView() {
+  const { activeTeam, projectLabel, pollError, lastSynced, isLoading, isUnavailable } =
+    useProjectStatus();
+
+  const { activeAgents, offlineAgents, sortedAgents, liveToolMix } = useProjectMembers();
+
   const {
-    activeTeamId,
-    pollError,
-    activeTeam,
-    projectLabel,
-    memories,
     allSessions,
     sessions,
+    filesTouched,
+    filesTouchedCount,
+    sessionEditCount,
+    liveSessionCount,
+  } = useProjectSessions();
+
+  const {
     locks,
-    activeAgents,
-    offlineAgents,
-    sortedAgents,
-    liveToolMix,
     usageEntries,
     conflicts,
     filesInPlay,
-    filesTouched,
-    memoryBreakdown,
-    sessionEditCount,
-    filesTouchedCount,
-    liveSessionCount,
     toolSummaries,
     hostSummaries,
     surfaceSummaries,
     modelsSeen,
-    lastSynced,
-    isLoading,
-    isUnavailable,
-  } = useProjectData();
+  } = useProjectAnalytics();
+
+  const { memories, memoryBreakdown, handleUpdateMemory, handleDeleteMemory } =
+    useProjectMemories();
 
   const [activeViz, setActiveViz] = useState('live');
   const hint = useKeyboardHint();
 
-  const handleUpdateMemory = useCallback(async (id, text, tags) => {
-    if (!activeTeamId) return;
-    await teamActions.updateMemory(activeTeamId, id, text, tags);
-  }, [activeTeamId]);
-
-  const handleDeleteMemory = useCallback(async (id) => {
-    if (!activeTeamId) return;
-    await teamActions.deleteMemory(activeTeamId, id);
-  }, [activeTeamId]);
-
   const stats = [
-    { id: 'live', label: 'Agents', value: activeAgents.length, tone: activeAgents.length > 0 ? 'accent' : '' },
+    {
+      id: 'live',
+      label: 'Agents',
+      value: activeAgents.length,
+      tone: activeAgents.length > 0 ? 'accent' : '',
+    },
     { id: 'memory', label: 'Memory', value: memories.length, tone: '' },
     { id: 'sessions', label: 'Edits / 24h', value: sessionEditCount, tone: '' },
     { id: 'tools', label: 'Tools', value: toolSummaries.length, tone: '' },
   ];
   const statIds = useMemo(() => stats.map((s) => s.id), [stats]);
-  const statsRef = useTabKeyboard(statIds, setActiveViz);
+  const statsRef = useRef(null);
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const tag = e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
+      e.preventDefault();
+      setActiveViz((prev) => {
+        const cur = statIds.indexOf(prev);
+        const next =
+          e.key === 'ArrowRight'
+            ? statIds[(cur + 1) % statIds.length]
+            : statIds[(cur - 1 + statIds.length) % statIds.length];
+        statsRef.current?.querySelector(`[data-tab="${next}"]`)?.focus();
+        return next;
+      });
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [statIds]);
 
   if (isLoading) {
     return (
@@ -139,13 +158,18 @@ export default function ProjectView() {
               tabIndex={activeViz === s.id ? 0 : -1}
               className={`${styles.statButton} ${activeViz === s.id ? styles.statActive : ''}`}
               style={{ '--stat-index': i }}
-              onClick={(e) => { e.currentTarget.focus(); setActiveViz(s.id); }}
+              onClick={(e) => {
+                e.currentTarget.focus();
+                setActiveViz(s.id);
+              }}
             >
               <span className={styles.statLabel}>
                 {s.label}
                 {activeViz === s.id && <KeyboardHint {...hint} />}
               </span>
-              <span className={`${styles.statValue} ${s.tone === 'accent' ? styles.statAccent : ''}`}>
+              <span
+                className={`${styles.statValue} ${s.tone === 'accent' ? styles.statAccent : ''}`}
+              >
                 {s.value}
               </span>
             </button>
