@@ -37,7 +37,7 @@ export function useProjectData() {
   );
   const sessions = allSessions.slice(0, 8);
   const locks = contextData?.locks || [];
-  const toolsConfigured = contextData?.hosts_configured || [];
+  const toolsConfigured = contextData?.tools_configured || [];
   const hostsConfigured = contextData?.hosts_configured || [];
   const surfacesSeen = contextData?.surfaces_seen || [];
   const usage = contextData?.usage || {};

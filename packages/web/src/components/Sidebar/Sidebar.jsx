@@ -38,18 +38,36 @@ export default function Sidebar({ activeNav, onNavigate }) {
 
   return (
     <>
-      <button className={styles.mobileToggle} onClick={() => setMobileOpen(!mobileOpen)} aria-label="Toggle sidebar">
+      <button
+        className={styles.mobileToggle}
+        onClick={() => setMobileOpen(!mobileOpen)}
+        aria-label="Toggle sidebar"
+      >
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
           {mobileOpen ? (
-            <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <path
+              d="M5 5l10 10M15 5l-10 10"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
           ) : (
-            <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <path
+              d="M3 5h14M3 10h14M3 15h14"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
           )}
         </svg>
       </button>
 
       {mobileOpen && (
-        <div className={styles.mobileBackdrop} onClick={() => setMobileOpen(false)} role="presentation" />
+        <div
+          className={styles.mobileBackdrop}
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
       )}
 
       <aside className={`${styles.sidebar} ${mobileOpen ? styles.sidebarOpen : ''}`}>
@@ -69,10 +87,42 @@ export default function Sidebar({ activeNav, onNavigate }) {
             aria-current={overviewActive ? 'page' : undefined}
           >
             <svg className={styles.navIcon} width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-              <rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-              <rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-              <rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+              <rect
+                x="1"
+                y="1"
+                width="6"
+                height="6"
+                rx="1.5"
+                stroke="currentColor"
+                strokeWidth="1.2"
+              />
+              <rect
+                x="9"
+                y="1"
+                width="6"
+                height="6"
+                rx="1.5"
+                stroke="currentColor"
+                strokeWidth="1.2"
+              />
+              <rect
+                x="1"
+                y="9"
+                width="6"
+                height="6"
+                rx="1.5"
+                stroke="currentColor"
+                strokeWidth="1.2"
+              />
+              <rect
+                x="9"
+                y="9"
+                width="6"
+                height="6"
+                rx="1.5"
+                stroke="currentColor"
+                strokeWidth="1.2"
+              />
             </svg>
             <span className={styles.navLabel}>Overview</span>
           </button>
@@ -83,7 +133,12 @@ export default function Sidebar({ activeNav, onNavigate }) {
             aria-current={toolsActive ? 'page' : undefined}
           >
             <svg className={styles.navIcon} width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M3 3.5h10M3 8h7.5M3 12.5h5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+              <path
+                d="M3 3.5h10M3 8h7.5M3 12.5h5"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+              />
               <circle cx="11.5" cy="8" r="1.5" stroke="currentColor" strokeWidth="1.2" />
               <circle cx="8" cy="12.5" r="1.5" stroke="currentColor" strokeWidth="1.2" />
             </svg>
@@ -97,7 +152,12 @@ export default function Sidebar({ activeNav, onNavigate }) {
           >
             <svg className={styles.navIcon} width="16" height="16" viewBox="0 0 16 16" fill="none">
               <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.2" />
-              <path d="M8 1v2M8 13v2M1 8h2M13 8h2M2.9 2.9l1.4 1.4M11.7 11.7l1.4 1.4M13.1 2.9l-1.4 1.4M4.3 11.7l-1.4 1.4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+              <path
+                d="M8 1v2M8 13v2M1 8h2M13 8h2M2.9 2.9l1.4 1.4M11.7 11.7l1.4 1.4M13.1 2.9l-1.4 1.4M4.3 11.7l-1.4 1.4"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+              />
             </svg>
             <span className={styles.navLabel}>Settings</span>
           </button>

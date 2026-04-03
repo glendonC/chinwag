@@ -44,11 +44,12 @@ async function loadSidebar({ teams = [], activeTeamId = null } = {}) {
   mockSelectTeam = vi.fn();
 
   vi.doMock('../../lib/stores/teams.js', () => ({
-    useTeamStore: (selector) => selector({
-      teams: mockTeams,
-      activeTeamId: mockActiveTeamId,
-      selectTeam: mockSelectTeam,
-    }),
+    useTeamStore: (selector) =>
+      selector({
+        teams: mockTeams,
+        activeTeamId: mockActiveTeamId,
+        selectTeam: mockSelectTeam,
+      }),
   }));
 
   vi.doMock('../../lib/projectGradient.js', () => ({
@@ -86,7 +87,7 @@ describe('Sidebar', () => {
     const { container, unmount } = renderComponent(Sidebar, { activeNav: 'settings', onNavigate });
 
     const overviewBtn = [...container.querySelectorAll('button')].find(
-      (b) => b.textContent.trim() === 'Overview'
+      (b) => b.textContent.trim() === 'Overview',
     );
     act(() => {
       overviewBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -104,7 +105,7 @@ describe('Sidebar', () => {
     const { container, unmount } = renderComponent(Sidebar, { activeNav: null, onNavigate });
 
     const toolsBtn = [...container.querySelectorAll('button')].find(
-      (b) => b.textContent.trim() === 'Tools'
+      (b) => b.textContent.trim() === 'Tools',
     );
     act(() => {
       toolsBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -122,7 +123,7 @@ describe('Sidebar', () => {
     const { container, unmount } = renderComponent(Sidebar, { activeNav: null, onNavigate });
 
     const settingsBtn = [...container.querySelectorAll('button')].find(
-      (b) => b.textContent.trim() === 'Settings'
+      (b) => b.textContent.trim() === 'Settings',
     );
     act(() => {
       settingsBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -167,8 +168,8 @@ describe('Sidebar', () => {
     const onNavigate = vi.fn();
     const { container, unmount } = renderComponent(Sidebar, { activeNav: null, onNavigate });
 
-    const projectBtn = [...container.querySelectorAll('button')].find(
-      (b) => b.textContent.includes('My Project')
+    const projectBtn = [...container.querySelectorAll('button')].find((b) =>
+      b.textContent.includes('My Project'),
     );
     act(() => {
       projectBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -204,7 +205,7 @@ describe('Sidebar', () => {
     });
 
     // Backdrop should appear when mobile is open
-    const backdrop = container.querySelector('[role="presentation"]');
+    const backdrop = container.querySelector('[aria-hidden="true"]');
     expect(backdrop).not.toBeNull();
 
     // Close by clicking backdrop
@@ -213,7 +214,7 @@ describe('Sidebar', () => {
     });
 
     // Backdrop should be gone
-    expect(container.querySelector('[role="presentation"]')).toBeNull();
+    expect(container.querySelector('[aria-hidden="true"]')).toBeNull();
 
     unmount();
   });
@@ -224,7 +225,7 @@ describe('Sidebar', () => {
     const { container, unmount } = renderComponent(Sidebar, { activeNav: null, onNavigate });
 
     const overviewBtn = [...container.querySelectorAll('button')].find(
-      (b) => b.textContent.trim() === 'Overview'
+      (b) => b.textContent.trim() === 'Overview',
     );
     expect(overviewBtn.getAttribute('aria-current')).toBe('page');
 
@@ -237,7 +238,7 @@ describe('Sidebar', () => {
     const { container, unmount } = renderComponent(Sidebar, { activeNav: 'settings', onNavigate });
 
     const settingsBtn = [...container.querySelectorAll('button')].find(
-      (b) => b.textContent.trim() === 'Settings'
+      (b) => b.textContent.trim() === 'Settings',
     );
     expect(settingsBtn.getAttribute('aria-current')).toBe('page');
 
