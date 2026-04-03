@@ -1,2 +1,10 @@
 # Compiled TypeScript output (built by `npm run build` to dist/)
 dist/
+
+# Stale compiled .js next to .ts source (legacy build output location)
+lib/**/*.js
+!lib/__tests__/**/*.js
+!lib/auth.js
+!lib/state.js
+!lib/websocket.js
+!lib/utils/paths.js
