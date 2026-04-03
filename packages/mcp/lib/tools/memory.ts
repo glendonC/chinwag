@@ -35,7 +35,7 @@ export function registerMemoryTools(
         return {
           content: [{ type: 'text' as const, text: `${preamble}Memory saved${tagStr}: ${text}` }],
         };
-      } catch (err: any) {
+      } catch (err: unknown) {
         return errorResult(err);
       }
     },
@@ -86,7 +86,7 @@ export function registerMemoryTools(
             },
           ],
         };
-      } catch (err: any) {
+      } catch (err: unknown) {
         return errorResult(err);
       }
     },
@@ -123,7 +123,7 @@ export function registerMemoryTools(
           return `${m.text}${tagStr} (id: ${m.id}, by ${m.source_handle})`;
         });
         return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
-      } catch (err: any) {
+      } catch (err: unknown) {
         return errorResult(err);
       }
     },
@@ -153,7 +153,7 @@ export function registerMemoryTools(
           };
         }
         return { content: [{ type: 'text' as const, text: `Memory ${id} deleted.` }] };
-      } catch (err: any) {
+      } catch (err: unknown) {
         return errorResult(err);
       }
     },

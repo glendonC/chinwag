@@ -33,7 +33,7 @@ export function registerLockTools(
           }
         }
         return { content: [{ type: 'text' as const, text: `${preamble}${lines.join('\n')}` }] };
-      } catch (err: any) {
+      } catch (err: unknown) {
         return errorResult(err);
       }
     },
@@ -58,7 +58,7 @@ export function registerLockTools(
         await team.releaseFiles(state.teamId, files);
         const msg = files ? `Released: ${files.join(', ')}` : 'All locks released.';
         return { content: [{ type: 'text' as const, text: msg }] };
-      } catch (err: any) {
+      } catch (err: unknown) {
         return errorResult(err);
       }
     },

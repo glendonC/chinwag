@@ -37,16 +37,18 @@ export function registerTeamTool(
         state.heartbeatInterval = setInterval(async () => {
           try {
             await team.heartbeat(state.teamId!);
-          } catch (err: any) {
-            if (err.message?.includes('Not a member')) {
+          } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            if (message.includes('Not a member')) {
               try {
                 await team.joinTeam(state.teamId!, basename(process.cwd()));
                 console.error('[chinwag] Rejoined team after eviction');
-              } catch (joinErr: any) {
-                console.error('[chinwag] Rejoin failed:', joinErr.message);
+              } catch (joinErr: unknown) {
+                const joinMessage = joinErr instanceof Error ? joinErr.message : String(joinErr);
+                console.error('[chinwag] Rejoin failed:', joinMessage);
               }
             } else {
-              console.error('[chinwag] Heartbeat failed:', err.message);
+              console.error('[chinwag] Heartbeat failed:', message);
             }
           }
         }, 30_000);
@@ -58,8 +60,9 @@ export function registerTeamTool(
             state.sessionId = session.session_id;
             sessionStarted = true;
           }
-        } catch (err: any) {
-          console.error('[chinwag] Failed to start session after join:', err.message);
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error('[chinwag] Failed to start session after join:', message);
         }
 
         if (previousTeamId && previousTeamId !== team_id) {
@@ -77,7 +80,7 @@ export function registerTeamTool(
           ? `Joined team ${team_id}. Session started.`
           : `Joined team ${team_id}. Team membership is active, but session start failed.`;
         return { content: [{ type: 'text' as const, text }] };
-      } catch (err: any) {
+      } catch (err: unknown) {
         return errorResult(err);
       }
     },

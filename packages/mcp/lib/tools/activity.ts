@@ -36,7 +36,7 @@ export function registerActivityTool(
         return {
           content: [{ type: 'text' as const, text: `${preamble}Activity updated: ${summary}` }],
         };
-      } catch (err: any) {
+      } catch (err: unknown) {
         return errorResult(err);
       }
     },

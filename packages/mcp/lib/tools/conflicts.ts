@@ -7,6 +7,13 @@ import { formatConflictsList } from '../utils/display.js';
 import { formatWho } from '../utils/formatting.js';
 import type { AddToolFn, ToolDeps } from './types.js';
 
+/**
+ * Local normalizePath for offline conflict comparison — intentionally different from
+ * lib/utils/paths.js. This version does NOT resolve '..' segments because during
+ * offline fallback we compare raw paths without filesystem context. Using
+ * path.posix.normalize() would incorrectly resolve relative segments, potentially
+ * causing false negatives in overlap detection.
+ */
 function normalizePath(filePath: string): string {
   return filePath.replace(/^\.\//, '').replace(/\/+/g, '/').replace(/\/$/, '');
 }
@@ -36,8 +43,10 @@ export function registerConflictsTool(
           };
         }
         return { content: [{ type: 'text' as const, text: `${preamble}${lines.join('\n')}` }] };
-      } catch (err: any) {
-        if (err.status === 401) return errorResult(err);
+      } catch (err: unknown) {
+        const status =
+          err instanceof Error && 'status' in err ? (err as { status: number }).status : undefined;
+        if (status === 401) return errorResult(err);
         // Offline fallback: check cached context for potential conflicts
         const cached = getCachedContext();
         if (cached?.members) {

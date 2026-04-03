@@ -28,12 +28,13 @@ export function noTeam(): McpToolResult {
 /**
  * Error response from a caught exception.
  * Returns a user-friendly message for 401 auth errors.
+ * Accepts unknown to support `catch (err: unknown)` in callers.
  */
-export function errorResult(err: HttpError): McpToolResult {
+export function errorResult(err: unknown): McpToolResult {
+  const status = err instanceof Error && 'status' in err ? (err as HttpError).status : undefined;
+  const message = err instanceof Error ? err.message : String(err);
   const msg =
-    err.status === 401
-      ? 'Authentication expired. Please restart your editor to reconnect.'
-      : err.message;
+    status === 401 ? 'Authentication expired. Please restart your editor to reconnect.' : message;
   return { content: [{ type: 'text', text: msg }], isError: true };
 }
 

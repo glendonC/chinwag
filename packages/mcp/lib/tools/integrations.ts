@@ -33,9 +33,10 @@ export function registerIntegrationTools(
             },
           ],
         };
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
         return {
-          content: [{ type: 'text' as const, text: `Failed to scan integrations: ${err.message}` }],
+          content: [{ type: 'text' as const, text: `Failed to scan integrations: ${message}` }],
           isError: true,
         };
       }
@@ -82,11 +83,10 @@ export function registerIntegrationTools(
           }
         }
         return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
         return {
-          content: [
-            { type: 'text' as const, text: `Failed to configure integration: ${err.message}` },
-          ],
+          content: [{ type: 'text' as const, text: `Failed to configure integration: ${message}` }],
           isError: true,
         };
       }

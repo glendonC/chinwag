@@ -28,7 +28,7 @@ export function registerMessagingTool(
         await team.sendMessage(state.teamId, text, target);
         const dest = target ? `to ${target}` : 'to team';
         return { content: [{ type: 'text' as const, text: `Message sent ${dest}: ${text}` }] };
-      } catch (err: any) {
+      } catch (err: unknown) {
         return errorResult(err);
       }
     },
