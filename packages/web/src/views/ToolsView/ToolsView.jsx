@@ -20,12 +20,8 @@ import StatCard from '../../components/StatCard/StatCard.jsx';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
 import ViewHeader from '../../components/ViewHeader/ViewHeader.jsx';
 import DirectoryRow from './DirectoryRow.jsx';
+import { summarizeList } from '../../lib/summarize.js';
 import styles from './ToolsView.module.css';
-
-function summarizeProjects(projects) {
-  if (projects.length <= 2) return projects.join(', ');
-  return `${projects.slice(0, 2).join(', ')} +${projects.length - 2}`;
-}
 
 const VERDICT_OPTIONS = [
   { value: 'all', label: 'All' },
@@ -204,7 +200,7 @@ export default function ToolsView() {
                     <ToolIcon tool={tool.tool} size={18} />
                     <div className={styles.rowCopy}>
                       <span className={styles.rowLabel}>{getToolMeta(tool.tool).label}</span>
-                      <span className={styles.rowMeta}>{summarizeProjects(tool.projects)}</span>
+                      <span className={styles.rowMeta}>{summarizeList(tool.projects)}</span>
                     </div>
                   </div>
                   <span className={styles.rowValue}>{tool.value} joins</span>
@@ -233,7 +229,7 @@ export default function ToolsView() {
                       <ToolIcon tool={host.host_tool} size={18} />
                       <div className={styles.rowCopy}>
                         <span className={styles.rowLabel}>{getToolMeta(host.host_tool).label}</span>
-                        <span className={styles.rowMeta}>{summarizeProjects(host.projects)}</span>
+                        <span className={styles.rowMeta}>{summarizeList(host.projects)}</span>
                       </div>
                     </div>
                     <div className={styles.signalValueBlock}>
@@ -264,9 +260,7 @@ export default function ToolsView() {
                         <span className={styles.rowLabel}>
                           {getToolMeta(surface.agent_surface).label}
                         </span>
-                        <span className={styles.rowMeta}>
-                          {summarizeProjects(surface.projects)}
-                        </span>
+                        <span className={styles.rowMeta}>{summarizeList(surface.projects)}</span>
                       </div>
                     </div>
                     <div className={styles.signalValueBlock}>

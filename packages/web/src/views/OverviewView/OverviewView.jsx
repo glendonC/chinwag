@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState } from 'react';
 import { usePollingStore, forceRefresh } from '../../lib/stores/polling.js';
 import { useAuthStore } from '../../lib/stores/auth.js';
 import { useTeamStore } from '../../lib/stores/teams.js';
@@ -18,18 +18,12 @@ import {
   SkeletonRows,
 } from '../../components/Skeleton/Skeleton.jsx';
 import { arcPath, CX, CY, R, SW, GAP, DEG } from '../../lib/svgArcs.js';
+import { summarizeList } from '../../lib/summarize.js';
 import styles from './OverviewView.module.css';
 
 function summarizeNames(items) {
   const names = items.map((item) => item?.team_name || item?.team_id).filter(Boolean);
-  if (names.length <= 2) return names.join(', ');
-  return `${names.slice(0, 2).join(', ')} +${names.length - 2}`;
-}
-
-function summarizeProjects(projects) {
-  if (!projects?.length) return '';
-  if (projects.length <= 2) return projects.join(', ');
-  return `${projects.slice(0, 2).join(', ')} +${projects.length - 2}`;
+  return summarizeList(names);
 }
 
 export default function OverviewView() {
@@ -489,7 +483,7 @@ export default function OverviewView() {
                                   {Math.round(entry.share * 100)}%
                                 </span>
                                 <span className={styles.signalProjects}>
-                                  {summarizeProjects(entry.projects)}
+                                  {summarizeList(entry.projects)}
                                 </span>
                               </div>
                             );
@@ -522,7 +516,7 @@ export default function OverviewView() {
                                   {Math.round(entry.share * 100)}%
                                 </span>
                                 <span className={styles.signalProjects}>
-                                  {summarizeProjects(entry.projects)}
+                                  {summarizeList(entry.projects)}
                                 </span>
                               </div>
                             );
