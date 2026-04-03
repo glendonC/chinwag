@@ -87,6 +87,31 @@
   padding: 14px 56px 0;
 }
 
+/* ── Sidebar fallback ── */
+.sidebarFallback {
+  width: var(--sidebar-width, 216px);
+  padding: 18px 0 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.sidebarFallbackIcon {
+  margin-bottom: 14px;
+}
+
+.sidebarFallbackBtn {
+  background: none;
+  border: none;
+  color: var(--muted, #888);
+  font-family: var(--mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
 /* Mobile */
 @media (max-width: 768px) {
   .layout {

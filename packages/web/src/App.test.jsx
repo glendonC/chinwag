@@ -305,7 +305,7 @@ async function loadAppModule(options = {}) {
     forceRefresh,
   }));
 
-  const [{ default: App }] = await Promise.all([import('./App.jsx')]);
+  const [{ default: App }] = await Promise.all([import('./App.js')]);
 
   return {
     App,

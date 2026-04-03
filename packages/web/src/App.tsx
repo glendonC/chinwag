@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore, authActions } from './lib/stores/auth.js';
 import { useTeamStore, teamActions } from './lib/stores/teams.js';
@@ -10,60 +10,45 @@ import {
   forceRefresh,
 } from './lib/stores/polling.js';
 import { formatRelativeTime } from './lib/relativeTime.js';
-import { useRoute, parseLocation } from './lib/router.js';
+import { useRoute, parseLocation, type Route } from './lib/router.js';
 
-import ConnectView from './views/ConnectView/ConnectView.jsx';
-import OverviewView from './views/OverviewView/OverviewView.jsx';
-import ProjectView from './views/ProjectView/ProjectView.jsx';
-import SettingsView from './views/SettingsView/SettingsView.jsx';
-import ToolsView from './views/ToolsView/ToolsView.jsx';
-import Sidebar from './components/Sidebar/Sidebar.jsx';
-import Banner from './components/Banner/Banner.jsx';
-import RenderErrorBoundary from './components/RenderErrorBoundary/RenderErrorBoundary.jsx';
+import ConnectView from './views/ConnectView/ConnectView.js';
+import OverviewView from './views/OverviewView/OverviewView.js';
+import ProjectView from './views/ProjectView/ProjectView.js';
+import SettingsView from './views/SettingsView/SettingsView.js';
+import ToolsView from './views/ToolsView/ToolsView.js';
+import Sidebar from './components/Sidebar/Sidebar.js';
+import Banner from './components/Banner/Banner.js';
+import RenderErrorBoundary from './components/RenderErrorBoundary/RenderErrorBoundary.js';
 
 import styles from './App.module.css';
 
+type BootState = 'loading' | 'ready' | 'unauthenticated';
+
+interface SidebarFallbackProps {
+  reset: () => void;
+}
+
 /** Sidebar-specific fallback used by the shared error boundary. */
-function SidebarFallback({ reset }) {
+function SidebarFallback({ reset }: SidebarFallbackProps): ReactNode {
   return (
-    <aside
-      style={{
-        width: 'var(--sidebar-width, 216px)',
-        padding: '18px 0 24px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-      }}
-    >
-      <svg width="36" height="36" viewBox="0 0 32 32" style={{ marginBottom: '14px' }}>
+    <aside className={styles.sidebarFallback}>
+      <svg width="36" height="36" viewBox="0 0 32 32" className={styles.sidebarFallbackIcon}>
         <path fill="#d49aae" d="M4 24 20 24 24 20 8 20z" />
         <path fill="#a896d4" d="M6 18 22 18 26 14 10 14z" />
         <path fill="#8ec0a4" d="M8 12 24 12 28 8 12 8z" />
       </svg>
-      <button
-        onClick={reset}
-        style={{
-          background: 'none',
-          border: 'none',
-          color: 'var(--muted, #888)',
-          fontFamily: 'var(--mono, monospace)',
-          fontSize: '10px',
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          cursor: 'pointer',
-          padding: '4px 8px',
-        }}
-      >
+      <button onClick={reset} className={styles.sidebarFallbackBtn}>
         Reload sidebar
       </button>
     </aside>
   );
 }
 
-export default function App() {
-  const [bootCompleted, setBootCompleted] = useState(false);
-  const [bootError, setBootError] = useState(null);
-  const [dismissedError, setDismissedError] = useState(null);
+export default function App(): ReactNode {
+  const [bootCompleted, setBootCompleted] = useState<boolean>(false);
+  const [bootError, setBootError] = useState<string | null>(null);
+  const [dismissedError, setDismissedError] = useState<string | null>(null);
   const route = useRoute();
 
   const { token, user } = useAuthStore(
@@ -106,7 +91,11 @@ export default function App() {
   const lastSynced = formatRelativeTime(lastUpdate);
 
   // Derive boot state — no effect sync needed
-  const bootState = !bootCompleted ? 'loading' : isAuthenticated ? 'ready' : 'unauthenticated';
+  const bootState: BootState = !bootCompleted
+    ? 'loading'
+    : isAuthenticated
+      ? 'ready'
+      : 'unauthenticated';
 
   // Reset polling data when auth drops (external store action, not setState)
   useEffect(() => {
@@ -120,7 +109,7 @@ export default function App() {
   }, [activeTeamId, bootState, isAuthenticated]);
 
   useEffect(() => {
-    async function boot() {
+    async function boot(): Promise<void> {
       setBootError(null);
       let t = authActions.readTokenFromHash();
       // Clean up non-token hash params (e.g. github_linked=1)
@@ -141,7 +130,7 @@ export default function App() {
           teamActions.selectTeam(initial.teamId);
         }
       } catch (err) {
-        setBootError(err.message || 'Authentication failed');
+        setBootError((err as Error).message || 'Authentication failed');
       }
       setBootCompleted(true);
     }
@@ -159,7 +148,7 @@ export default function App() {
     }
   }, [route.view, route.teamId, activeTeamId, bootCompleted, isAuthenticated]);
 
-  const activeView =
+  const activeView: Route['view'] =
     route.view === 'project' && !route.teamId
       ? activeTeamId
         ? 'project'
