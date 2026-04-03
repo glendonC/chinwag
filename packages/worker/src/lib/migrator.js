@@ -6,6 +6,7 @@
 // leave the schema in a broken state.
 
 import { createLogger } from './logger.js';
+import { getErrorMessage } from './errors.js';
 
 const log = createLogger('migrator');
 
@@ -59,7 +60,7 @@ export function runMigrations(sql, transact, migrations) {
     } catch (err) {
       log.error('migration failed', {
         name: migration.name,
-        error: err?.message || String(err),
+        error: getErrorMessage(err),
       });
       // Stop on first failure — don't skip and run later migrations
       // that might depend on this one

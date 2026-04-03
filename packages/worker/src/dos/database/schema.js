@@ -2,6 +2,7 @@
 // Called once per DO instance to ensure tables exist and run migrations.
 
 import { runMigrations } from '../../lib/migrator.js';
+import { getErrorMessage } from '../../lib/errors.js';
 
 // ── Migrations ──
 
@@ -91,24 +92,24 @@ const migrations = [
       try {
         sql.exec('ALTER TABLE user_teams ADD COLUMN team_name TEXT');
       } catch (err) {
-        if (!err.message?.toLowerCase().includes('duplicate column name')) throw err;
+        if (!getErrorMessage(err).toLowerCase().includes('duplicate column name')) throw err;
       }
 
       // GitHub OAuth columns
       try {
         sql.exec('ALTER TABLE users ADD COLUMN github_id TEXT');
       } catch (err) {
-        if (!err.message?.toLowerCase().includes('duplicate column name')) throw err;
+        if (!getErrorMessage(err).toLowerCase().includes('duplicate column name')) throw err;
       }
       try {
         sql.exec('ALTER TABLE users ADD COLUMN github_login TEXT');
       } catch (err) {
-        if (!err.message?.toLowerCase().includes('duplicate column name')) throw err;
+        if (!getErrorMessage(err).toLowerCase().includes('duplicate column name')) throw err;
       }
       try {
         sql.exec('ALTER TABLE users ADD COLUMN avatar_url TEXT');
       } catch (err) {
-        if (!err.message?.toLowerCase().includes('duplicate column name')) throw err;
+        if (!getErrorMessage(err).toLowerCase().includes('duplicate column name')) throw err;
       }
       sql.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_github_id ON users(github_id)');
     },

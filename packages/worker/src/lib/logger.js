@@ -18,8 +18,9 @@ const LEVEL_RANK = { debug: 0, info: 1, warn: 2, error: 3 };
  * @param {string} level
  */
 export function setLogLevel(level) {
-  if (level && LEVEL_RANK[level] !== undefined) {
-    globalLogLevel = level;
+  const normalized = typeof level === 'string' ? level.toLowerCase() : '';
+  if (normalized && LEVEL_RANK[normalized] !== undefined) {
+    globalLogLevel = /** @type {'debug' | 'info' | 'warn' | 'error'} */ (normalized);
   }
 }
 

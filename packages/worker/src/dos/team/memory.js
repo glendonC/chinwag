@@ -1,6 +1,7 @@
 // Shared project memory — saveMemory, searchMemories, updateMemory, deleteMemory.
 // Each function takes `sql` as the first parameter.
 
+import { getErrorMessage } from '../../lib/errors.js';
 import { createLogger } from '../../lib/logger.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
 import { MEMORY_MAX_COUNT } from '../../lib/constants.js';
@@ -106,7 +107,7 @@ export function searchMemories(sql, query, tags, limit = 20) {
         log.warn('malformed JSON in memory tags', {
           memoryId: m.id,
           raw: String(m.tags).slice(0, 100),
-          error: err?.message || String(err),
+          error: getErrorMessage(err),
         });
         // Return raw string as single-element array so the data isn't lost
         parsedTags = m.tags ? [String(m.tags)] : [];

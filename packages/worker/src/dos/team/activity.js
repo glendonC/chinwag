@@ -2,6 +2,7 @@
 // Each function takes `sql` as the first parameter.
 
 import { normalizePath } from '../../lib/text-utils.js';
+import { getErrorMessage } from '../../lib/errors.js';
 import { createLogger } from '../../lib/logger.js';
 import { HEARTBEAT_ACTIVE_WINDOW_S, ACTIVITY_MAX_FILES } from '../../lib/constants.js';
 import { buildInClause, withTransaction } from '../../lib/validation.js';
@@ -67,7 +68,7 @@ export function checkConflicts(
     } catch (err) {
       log.warn('malformed JSON in files for agent', {
         agentId: row.agent_id,
-        error: err?.message || String(err),
+        error: getErrorMessage(err),
       });
       continue;
     }
@@ -138,7 +139,7 @@ export function reportFile(sql, resolvedAgentId, filePath, transact) {
     } catch (err) {
       log.warn('malformed JSON in stored files for agent', {
         agentId: resolvedAgentId,
-        error: err?.message || String(err),
+        error: getErrorMessage(err),
       });
     }
   }

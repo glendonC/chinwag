@@ -1,5 +1,6 @@
 import { checkContent } from '../moderation.js';
 import { getDB, getLobby, getTeam } from '../lib/env.js';
+import { getErrorMessage } from '../lib/errors.js';
 import { json, parseBody } from '../lib/http.js';
 import { createLogger } from '../lib/logger.js';
 import { getAgentRuntime, sanitizeTags } from '../lib/request-utils.js';
@@ -276,7 +277,7 @@ export async function handleDashboardSummary(user, env) {
           } catch (err) {
             log.error('failed to reconcile stale team', {
               teamId: teamEntry.team_id,
-              error: err?.message || String(err),
+              error: getErrorMessage(err),
             });
           }
           return {
@@ -297,7 +298,7 @@ export async function handleDashboardSummary(user, env) {
       } catch (err) {
         log.error('failed to build dashboard summary', {
           teamId: teamEntry.team_id,
-          error: err?.message || String(err),
+          error: getErrorMessage(err),
         });
         return {
           ok: false,

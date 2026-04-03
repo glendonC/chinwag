@@ -5,6 +5,7 @@
 // Layer 2: Llama Guard 3 on Cloudflare Workers AI — catches evasion, nuance, context.
 
 import { createLogger } from './lib/logger.js';
+import { getErrorMessage } from './lib/errors.js';
 
 const log = createLogger('moderation');
 //          Runs on CF edge (same network), no external API keys, customizable taxonomy.
@@ -116,7 +117,7 @@ async function moderateWithAI(text, env) {
 
     return { flagged: true, categories };
   } catch (err) {
-    log.error('AI moderation degraded', { error: err?.message || String(err) });
+    log.error('AI moderation degraded', { error: getErrorMessage(err) });
     return { flagged: false, degraded: true };
   }
 }

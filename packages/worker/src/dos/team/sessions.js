@@ -2,6 +2,7 @@
 // Each function takes `sql` as the first parameter.
 
 import { normalizePath } from '../../lib/text-utils.js';
+import { getErrorMessage } from '../../lib/errors.js';
 import { createLogger } from '../../lib/logger.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
 import { HEARTBEAT_STALE_WINDOW_S, ACTIVITY_MAX_FILES } from '../../lib/constants.js';
@@ -97,7 +98,7 @@ export function recordEdit(sql, resolvedAgentId, filePath) {
   } catch (err) {
     log.warn('malformed JSON in session files_touched', {
       sessionId: session.id,
-      error: err?.message || String(err),
+      error: getErrorMessage(err),
     });
   }
   if (!files.includes(normalized)) {
@@ -137,7 +138,7 @@ export function getSessionHistory(sql, days) {
         } catch (err) {
           log.warn('malformed JSON in files_touched', {
             handle: s.owner_handle,
-            error: err?.message || String(err),
+            error: getErrorMessage(err),
           });
           return [];
         }
