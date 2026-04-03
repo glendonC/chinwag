@@ -1,38 +1,35 @@
 import { useState } from 'react';
 import { useTeamStore } from '../../lib/stores/teams.js';
+import { navigate } from '../../lib/router.js';
 import { projectGradient } from '../../lib/projectGradient.js';
 import styles from './Sidebar.module.css';
 
-export default function Sidebar({ activeNav, onNavigate }) {
+export default function Sidebar({ activeView }) {
   const teams = useTeamStore((s) => s.teams);
   const activeTeamId = useTeamStore((s) => s.activeTeamId);
-  const selectTeam = useTeamStore((s) => s.selectTeam);
-  const overviewActive = activeNav === null && activeTeamId === null;
-  const toolsActive = activeNav === 'tools';
-  const settingsActive = activeNav === 'settings';
+  const overviewActive = activeView === 'overview';
+  const toolsActive = activeView === 'tools';
+  const settingsActive = activeView === 'settings';
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
   function goOverview() {
-    selectTeam(null);
-    onNavigate(null);
+    navigate('overview');
     setMobileOpen(false);
   }
 
   function goTeam(teamId) {
-    selectTeam(teamId);
-    onNavigate(null);
+    navigate('project', teamId);
     setMobileOpen(false);
   }
 
   function goSettings() {
-    onNavigate('settings');
+    navigate('settings');
     setMobileOpen(false);
   }
 
   function goTools() {
-    selectTeam(null);
-    onNavigate('tools');
+    navigate('tools');
     setMobileOpen(false);
   }
 
@@ -171,9 +168,11 @@ export default function Sidebar({ activeNav, onNavigate }) {
                 <button
                   key={team.team_id}
                   type="button"
-                  className={`${styles.navItem} ${styles.navItemProject} ${activeTeamId === team.team_id && !activeNav ? styles.navItemActive : ''}`}
+                  className={`${styles.navItem} ${styles.navItemProject} ${activeTeamId === team.team_id && activeView === 'project' ? styles.navItemActive : ''}`}
                   onClick={() => goTeam(team.team_id)}
-                  aria-current={activeTeamId === team.team_id && !activeNav ? 'page' : undefined}
+                  aria-current={
+                    activeTeamId === team.team_id && activeView === 'project' ? 'page' : undefined
+                  }
                 >
                   <span
                     className={styles.projectSquircle}

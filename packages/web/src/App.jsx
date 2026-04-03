@@ -10,6 +10,7 @@ import {
   forceRefresh,
 } from './lib/stores/polling.js';
 import { formatRelativeTime } from './lib/relativeTime.js';
+import { useRoute, parseLocation } from './lib/router.js';
 
 import ConnectView from './views/ConnectView/ConnectView.jsx';
 import OverviewView from './views/OverviewView/OverviewView.jsx';
@@ -63,7 +64,7 @@ export default function App() {
   const [bootCompleted, setBootCompleted] = useState(false);
   const [bootError, setBootError] = useState(null);
   const [dismissedError, setDismissedError] = useState(null);
-  const [activeNav, setActiveNav] = useState(null);
+  const route = useRoute();
 
   const { token, user } = useAuthStore(
     useShallow((s) => ({
@@ -134,6 +135,11 @@ export default function App() {
       try {
         await authActions.authenticate(t);
         await teamActions.loadTeams();
+        // If URL specifies a project, select that team on boot
+        const initial = parseLocation();
+        if (initial.view === 'project' && initial.teamId) {
+          teamActions.selectTeam(initial.teamId);
+        }
       } catch (err) {
         setBootError(err.message || 'Authentication failed');
       }
@@ -142,6 +148,23 @@ export default function App() {
     boot();
     return () => stopPolling();
   }, []);
+
+  // Sync team store with URL: if URL says project/:id, select that team
+  useEffect(() => {
+    if (!bootCompleted || !isAuthenticated) return;
+    if (route.view === 'project' && route.teamId && route.teamId !== activeTeamId) {
+      teamActions.selectTeam(route.teamId);
+    } else if (route.view !== 'project' && activeTeamId !== null) {
+      teamActions.selectTeam(null);
+    }
+  }, [route.view, route.teamId, activeTeamId, bootCompleted, isAuthenticated]);
+
+  const activeView =
+    route.view === 'project' && !route.teamId
+      ? activeTeamId
+        ? 'project'
+        : 'overview'
+      : route.view;
 
   if (bootState === 'loading') {
     return (
@@ -162,12 +185,10 @@ export default function App() {
     return <ConnectView error={bootError} />;
   }
 
-  const activeView = activeNav || (activeTeamId !== null ? 'project' : 'overview');
-
   return (
     <div className={styles.layout}>
       <RenderErrorBoundary label="Sidebar" fallback={SidebarFallback}>
-        <Sidebar activeNav={activeNav} onNavigate={setActiveNav} />
+        <Sidebar activeView={activeView} />
       </RenderErrorBoundary>
 
       <div className={styles.main}>

@@ -34,22 +34,25 @@ function renderComponent(Component, props) {
 
 let mockTeams = [];
 let mockActiveTeamId = null;
-let mockSelectTeam = vi.fn();
+let mockNavigate = vi.fn();
 
 async function loadSidebar({ teams = [], activeTeamId = null } = {}) {
   vi.resetModules();
 
   mockTeams = teams;
   mockActiveTeamId = activeTeamId;
-  mockSelectTeam = vi.fn();
+  mockNavigate = vi.fn();
 
   vi.doMock('../../lib/stores/teams.js', () => ({
     useTeamStore: (selector) =>
       selector({
         teams: mockTeams,
         activeTeamId: mockActiveTeamId,
-        selectTeam: mockSelectTeam,
       }),
+  }));
+
+  vi.doMock('../../lib/router.js', () => ({
+    navigate: (...args) => mockNavigate(...args),
   }));
 
   vi.doMock('../../lib/projectGradient.js', () => ({
@@ -68,8 +71,7 @@ afterEach(() => {
 describe('Sidebar', () => {
   it('renders overview, tools, and settings nav items', async () => {
     const Sidebar = await loadSidebar();
-    const onNavigate = vi.fn();
-    const { container, unmount } = renderComponent(Sidebar, { activeNav: null, onNavigate });
+    const { container, unmount } = renderComponent(Sidebar, { activeView: 'overview' });
 
     const buttons = container.querySelectorAll('button');
     const labels = [...buttons].map((b) => b.textContent.trim());
@@ -81,10 +83,9 @@ describe('Sidebar', () => {
     unmount();
   });
 
-  it('calls onNavigate with null when overview is clicked', async () => {
+  it('navigates to overview when overview is clicked', async () => {
     const Sidebar = await loadSidebar();
-    const onNavigate = vi.fn();
-    const { container, unmount } = renderComponent(Sidebar, { activeNav: 'settings', onNavigate });
+    const { container, unmount } = renderComponent(Sidebar, { activeView: 'settings' });
 
     const overviewBtn = [...container.querySelectorAll('button')].find(
       (b) => b.textContent.trim() === 'Overview',
@@ -93,16 +94,14 @@ describe('Sidebar', () => {
       overviewBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(onNavigate).toHaveBeenCalledWith(null);
-    expect(mockSelectTeam).toHaveBeenCalledWith(null);
+    expect(mockNavigate).toHaveBeenCalledWith('overview');
 
     unmount();
   });
 
-  it('calls onNavigate with "tools" when tools is clicked', async () => {
+  it('navigates to tools when tools is clicked', async () => {
     const Sidebar = await loadSidebar();
-    const onNavigate = vi.fn();
-    const { container, unmount } = renderComponent(Sidebar, { activeNav: null, onNavigate });
+    const { container, unmount } = renderComponent(Sidebar, { activeView: 'overview' });
 
     const toolsBtn = [...container.querySelectorAll('button')].find(
       (b) => b.textContent.trim() === 'Tools',
@@ -111,16 +110,14 @@ describe('Sidebar', () => {
       toolsBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(onNavigate).toHaveBeenCalledWith('tools');
-    expect(mockSelectTeam).toHaveBeenCalledWith(null);
+    expect(mockNavigate).toHaveBeenCalledWith('tools');
 
     unmount();
   });
 
-  it('calls onNavigate with "settings" when settings is clicked', async () => {
+  it('navigates to settings when settings is clicked', async () => {
     const Sidebar = await loadSidebar();
-    const onNavigate = vi.fn();
-    const { container, unmount } = renderComponent(Sidebar, { activeNav: null, onNavigate });
+    const { container, unmount } = renderComponent(Sidebar, { activeView: 'overview' });
 
     const settingsBtn = [...container.querySelectorAll('button')].find(
       (b) => b.textContent.trim() === 'Settings',
@@ -129,7 +126,7 @@ describe('Sidebar', () => {
       settingsBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(onNavigate).toHaveBeenCalledWith('settings');
+    expect(mockNavigate).toHaveBeenCalledWith('settings');
 
     unmount();
   });
@@ -141,8 +138,7 @@ describe('Sidebar', () => {
         { team_id: 't_2', team_name: 'Project Beta' },
       ],
     });
-    const onNavigate = vi.fn();
-    const { container, unmount } = renderComponent(Sidebar, { activeNav: null, onNavigate });
+    const { container, unmount } = renderComponent(Sidebar, { activeView: 'overview' });
 
     const text = container.textContent;
     expect(text).toContain('Project Alpha');
@@ -153,20 +149,18 @@ describe('Sidebar', () => {
 
   it('shows empty message when no teams exist', async () => {
     const Sidebar = await loadSidebar({ teams: [] });
-    const onNavigate = vi.fn();
-    const { container, unmount } = renderComponent(Sidebar, { activeNav: null, onNavigate });
+    const { container, unmount } = renderComponent(Sidebar, { activeView: 'overview' });
 
     expect(container.textContent).toContain('No projects yet');
 
     unmount();
   });
 
-  it('selects a team when project button is clicked', async () => {
+  it('navigates to project when project button is clicked', async () => {
     const Sidebar = await loadSidebar({
       teams: [{ team_id: 't_abc', team_name: 'My Project' }],
     });
-    const onNavigate = vi.fn();
-    const { container, unmount } = renderComponent(Sidebar, { activeNav: null, onNavigate });
+    const { container, unmount } = renderComponent(Sidebar, { activeView: 'overview' });
 
     const projectBtn = [...container.querySelectorAll('button')].find((b) =>
       b.textContent.includes('My Project'),
@@ -175,16 +169,14 @@ describe('Sidebar', () => {
       projectBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(mockSelectTeam).toHaveBeenCalledWith('t_abc');
-    expect(onNavigate).toHaveBeenCalledWith(null);
+    expect(mockNavigate).toHaveBeenCalledWith('project', 't_abc');
 
     unmount();
   });
 
   it('renders mobile toggle button', async () => {
     const Sidebar = await loadSidebar();
-    const onNavigate = vi.fn();
-    const { container, unmount } = renderComponent(Sidebar, { activeNav: null, onNavigate });
+    const { container, unmount } = renderComponent(Sidebar, { activeView: 'overview' });
 
     const toggleBtn = container.querySelector('[aria-label="Toggle sidebar"]');
     expect(toggleBtn).not.toBeNull();
@@ -194,8 +186,7 @@ describe('Sidebar', () => {
 
   it('toggles mobile sidebar open/closed', async () => {
     const Sidebar = await loadSidebar();
-    const onNavigate = vi.fn();
-    const { container, unmount } = renderComponent(Sidebar, { activeNav: null, onNavigate });
+    const { container, unmount } = renderComponent(Sidebar, { activeView: 'overview' });
 
     const toggleBtn = container.querySelector('[aria-label="Toggle sidebar"]');
 
@@ -219,10 +210,9 @@ describe('Sidebar', () => {
     unmount();
   });
 
-  it('marks overview as active when activeNav is null and no team selected', async () => {
+  it('marks overview as active when activeView is "overview"', async () => {
     const Sidebar = await loadSidebar({ activeTeamId: null });
-    const onNavigate = vi.fn();
-    const { container, unmount } = renderComponent(Sidebar, { activeNav: null, onNavigate });
+    const { container, unmount } = renderComponent(Sidebar, { activeView: 'overview' });
 
     const overviewBtn = [...container.querySelectorAll('button')].find(
       (b) => b.textContent.trim() === 'Overview',
@@ -232,10 +222,9 @@ describe('Sidebar', () => {
     unmount();
   });
 
-  it('marks settings as active when activeNav is "settings"', async () => {
+  it('marks settings as active when activeView is "settings"', async () => {
     const Sidebar = await loadSidebar();
-    const onNavigate = vi.fn();
-    const { container, unmount } = renderComponent(Sidebar, { activeNav: 'settings', onNavigate });
+    const { container, unmount } = renderComponent(Sidebar, { activeView: 'settings' });
 
     const settingsBtn = [...container.querySelectorAll('button')].find(
       (b) => b.textContent.trim() === 'Settings',
