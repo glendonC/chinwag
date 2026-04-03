@@ -52,6 +52,7 @@ async function loadMemoryModule(apiOverrides = {}) {
 
   vi.doMock('react', () => ({
     useState: mockUseState,
+    useRef: (initial) => ({ current: initial }),
   }));
 
   const mod = await import('../dashboard/memory.js');

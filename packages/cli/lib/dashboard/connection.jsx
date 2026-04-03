@@ -101,6 +101,31 @@ export function useDashboardConnection({ config, stdout }) {
     let wsConnectTimeout = null;
     let destroyed = false;
 
+    // ── Tracked timer registry ──────────────────────
+    const timers = new Set();
+    function setTrackedTimeout(fn, ms) {
+      const id = setTimeout(fn, ms);
+      timers.add(id);
+      return id;
+    }
+    function clearTrackedTimeout(id) {
+      if (id != null) {
+        clearTimeout(id);
+        timers.delete(id);
+      }
+    }
+    function setTrackedInterval(fn, ms) {
+      const id = setInterval(fn, ms);
+      timers.add(id);
+      return id;
+    }
+    function clearTrackedInterval(id) {
+      if (id != null) {
+        clearInterval(id);
+        timers.delete(id);
+      }
+    }
+
     async function fetchContextOnce() {
       if (!joined.current) {
         try {
@@ -162,7 +187,7 @@ export function useDashboardConnection({ config, stdout }) {
     function startPolling() {
       if (destroyed || pollInterval) return;
       function schedulePoll() {
-        pollInterval = setTimeout(async () => {
+        pollInterval = setTrackedTimeout(async () => {
           if (destroyed) return;
           try {
             await fetchContextOnce();
@@ -177,7 +202,7 @@ export function useDashboardConnection({ config, stdout }) {
 
     function stopPolling() {
       if (pollInterval) {
-        clearTimeout(pollInterval);
+        clearTrackedTimeout(pollInterval);
         pollInterval = null;
       }
     }
@@ -211,7 +236,7 @@ export function useDashboardConnection({ config, stdout }) {
         const ws = new WebSocket(wsUrl);
 
         // Timeout: if still CONNECTING after 10s, close and fall back to polling
-        wsConnectTimeout = setTimeout(() => {
+        wsConnectTimeout = setTrackedTimeout(() => {
           if (ws.readyState === WebSocket.CONNECTING) {
             ws.close();
             startPolling();
@@ -220,7 +245,7 @@ export function useDashboardConnection({ config, stdout }) {
 
         ws.onopen = () => {
           if (wsConnectTimeout) {
-            clearTimeout(wsConnectTimeout);
+            clearTrackedTimeout(wsConnectTimeout);
             wsConnectTimeout = null;
           }
           if (destroyed) {
@@ -231,8 +256,8 @@ export function useDashboardConnection({ config, stdout }) {
           setConnState('connected');
           setConnDetail(null);
           // Full reconciliation every 60s to correct drift
-          if (reconcileInterval) clearInterval(reconcileInterval);
-          reconcileInterval = setInterval(async () => {
+          if (reconcileInterval) clearTrackedInterval(reconcileInterval);
+          reconcileInterval = setTrackedInterval(async () => {
             try {
               await fetchContextOnce();
             } catch (err) {
@@ -259,7 +284,7 @@ export function useDashboardConnection({ config, stdout }) {
           if (destroyed) return;
           wsRef.current = null;
           if (reconcileInterval) {
-            clearInterval(reconcileInterval);
+            clearTrackedInterval(reconcileInterval);
             reconcileInterval = null;
           }
           startPolling();
@@ -280,12 +305,11 @@ export function useDashboardConnection({ config, stdout }) {
 
     return () => {
       destroyed = true;
-      stopPolling();
-      if (wsConnectTimeout) {
-        clearTimeout(wsConnectTimeout);
-        wsConnectTimeout = null;
+      for (const id of timers) {
+        clearTimeout(id);
+        clearInterval(id);
       }
-      if (reconcileInterval) clearInterval(reconcileInterval);
+      timers.clear();
       if (wsRef.current) {
         try {
           wsRef.current.close();

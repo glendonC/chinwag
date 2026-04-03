@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { api } from '../api.js';
 import { isAgentAddressable, getAgentTargetLabel } from './agent-display.js';
 
@@ -20,6 +20,7 @@ export function useComposer({
   const [composeTarget, setComposeTarget] = useState(null);
   const [composeTargetLabel, setComposeTargetLabel] = useState(null);
   const [commandSelectedIdx, setCommandSelectedIdx] = useState(0);
+  const sendingRef = useRef(false);
 
   const isComposing = Boolean(composeMode);
 
@@ -68,6 +69,8 @@ export function useComposer({
       return Promise.reject();
     }
     if (!teamId || !text.trim()) return Promise.reject();
+    if (sendingRef.current) return Promise.resolve();
+    sendingRef.current = true;
     return api(config)
       .post(`/teams/${teamId}/messages`, { text: text.trim(), target: target || undefined })
       .then(() => {
@@ -81,6 +84,9 @@ export function useComposer({
           autoClearMs: 5000,
         });
         throw err; // re-throw so caller can restore compose state
+      })
+      .finally(() => {
+        sendingRef.current = false;
       });
   }
 
@@ -124,6 +130,7 @@ export function useComposer({
     beginMemorySearch,
     beginMemoryAdd,
     sendMessage,
+    isSending: sendingRef.current,
     onComposeSubmit,
   };
 }
