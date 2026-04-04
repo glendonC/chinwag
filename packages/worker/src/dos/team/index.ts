@@ -636,7 +636,7 @@ export class TeamDO extends DurableObject<Env> {
     ownerId: string | null = null,
   ): Promise<ReturnType<typeof claimFilesFn> | DOError> {
     return this.#withMember(agentId, ownerId, (resolved) => {
-      const result = claimFilesFn(this.sql, resolved, files, handle, runtimeOrTool);
+      const result = claimFilesFn(this.sql, resolved, files, handle, runtimeOrTool, ownerId!);
       if (!isDOError(result)) {
         this.#broadcastToWatchers({
           type: 'lock_change',
@@ -655,7 +655,7 @@ export class TeamDO extends DurableObject<Env> {
     ownerId: string | null = null,
   ): Promise<{ ok: true } | DOError> {
     return this.#withMember(agentId, ownerId, (resolved) => {
-      const result = releaseFilesFn(this.sql, resolved, files);
+      const result = releaseFilesFn(this.sql, resolved, files, ownerId);
       if (!isDOError(result)) {
         this.#broadcastToWatchers({
           type: 'lock_change',

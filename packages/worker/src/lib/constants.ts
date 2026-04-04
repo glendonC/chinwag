@@ -134,5 +134,6 @@ export const MAX_DASHBOARD_TEAMS = 25;
 export const MEMORY_SEARCH_DEFAULT_LIMIT = 20;
 export const MEMORY_SEARCH_MAX_LIMIT = 50;
 export const MEMORY_SEARCH_MAX_TAGS = 10;
+export const MEMORY_SEARCH_MAX_QUERY_LENGTH = 200;
 export const HISTORY_DEFAULT_DAYS = 7;
 export const HISTORY_MAX_DAYS = 30;

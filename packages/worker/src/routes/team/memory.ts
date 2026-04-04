@@ -1,7 +1,7 @@
 // Team memory routes — save, search, update, delete memory.
 
 import type { Env, User } from '../../types.js';
-import { isBlocked } from '../../moderation.js';
+import { checkContent, isBlocked } from '../../moderation.js';
 import { getTeam } from '../../lib/env.js';
 import { json, parseBody } from '../../lib/http.js';
 import { createLogger } from '../../lib/logger.js';
@@ -21,6 +21,7 @@ import {
   MEMORY_SEARCH_DEFAULT_LIMIT,
   MEMORY_SEARCH_MAX_LIMIT,
   MEMORY_SEARCH_MAX_TAGS,
+  MEMORY_SEARCH_MAX_QUERY_LENGTH,
 } from '../../lib/constants.js';
 
 const log = createLogger('routes.memory');
@@ -40,12 +41,23 @@ export async function handleTeamSaveMemory(
   if (!text) return json({ error: 'text is required' }, 400);
   if (text.length > MAX_MEMORY_TEXT_LENGTH)
     return json({ error: `text must be ${MAX_MEMORY_TEXT_LENGTH} characters or less` }, 400);
-  if (isBlocked(text)) return json({ error: 'Content blocked' }, 400);
+
+  const modResult = await checkContent(text, env);
+  if (modResult.blocked) {
+    if (modResult.reason === 'moderation_unavailable') {
+      log.warn('content moderation unavailable: blocking memory save as fail-safe');
+      return json(
+        { error: 'Content moderation is temporarily unavailable. Please try again.' },
+        503,
+      );
+    }
+    return json({ error: 'Content blocked' }, 400);
+  }
 
   const tagsResult = validateTagsArray(b.tags, MAX_TAGS_PER_MEMORY);
   if (tagsResult.error) return json({ error: tagsResult.error }, 400);
   const tags = tagsResult.tags!;
-  // Moderation: check tag content (tags are user-visible, persistent)
+  // Moderation: check tag content (tags are short, blocklist is sufficient)
   if (tags.some((t) => isBlocked(t))) return json({ error: 'Content blocked' }, 400);
 
   return withTeamRateLimit({
@@ -69,7 +81,14 @@ export async function handleTeamSearchMemory(
   teamId: string,
 ): Promise<Response> {
   const url = new URL(request.url);
-  const query = url.searchParams.get('q') || null;
+  const rawQuery = url.searchParams.get('q') || null;
+  if (rawQuery && rawQuery.length > MEMORY_SEARCH_MAX_QUERY_LENGTH) {
+    return json(
+      { error: `search query must be ${MEMORY_SEARCH_MAX_QUERY_LENGTH} characters or less` },
+      400,
+    );
+  }
+  const query = rawQuery;
   const parsedLimit = parseInt(
     url.searchParams.get('limit') || String(MEMORY_SEARCH_DEFAULT_LIMIT),
     10,
@@ -123,8 +142,20 @@ export async function handleTeamUpdateMemory(
       return json({ error: `text must be ${MAX_MEMORY_TEXT_LENGTH} characters or less` }, 400);
     text = parsed;
   }
-  // Moderation: sync blocklist on updated text (same pattern as save)
-  if (text !== undefined && isBlocked(text)) return json({ error: 'Content blocked' }, 400);
+  // Moderation: full AI check on updated text (same pattern as save)
+  if (text !== undefined) {
+    const modResult = await checkContent(text, env);
+    if (modResult.blocked) {
+      if (modResult.reason === 'moderation_unavailable') {
+        log.warn('content moderation unavailable: blocking memory update as fail-safe');
+        return json(
+          { error: 'Content moderation is temporarily unavailable. Please try again.' },
+          503,
+        );
+      }
+      return json({ error: 'Content blocked' }, 400);
+    }
+  }
 
   let tags: string[] | undefined;
   if (b.tags !== undefined) {

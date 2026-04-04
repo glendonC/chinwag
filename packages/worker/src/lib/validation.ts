@@ -87,10 +87,9 @@ export function validateTagsArray(
 
 /**
  * Wrap a handler with rate limit check + consume pattern.
- * Checks the rate limit before running the handler. Only consumes
- * the rate limit if the handler returns a response with status < 400
- * (i.e., on success). This matches the existing route behavior where
- * failed operations do not count against the limit.
+ * Checks the rate limit before running the handler and always consumes
+ * the rate limit regardless of handler outcome. This prevents attackers
+ * from flooding with invalid requests without hitting limits.
  */
 export async function withRateLimit(
   db: DurableObjectStub,
@@ -112,18 +111,18 @@ export async function withRateLimit(
   if (!limit.allowed) {
     return json({ error: errorMsg }, 429, { 'Retry-After': '3600' });
   }
-  const response = await handler();
-  if (response.status < 400) {
-    try {
-      await (db as any).consumeRateLimit(key);
-    } catch (err) {
-      log.error('rate limit consume failed', {
-        key,
-        error: (err as Error)?.message || String(err),
-      });
-    }
+  // Consume immediately -- every request that passes the check costs a token,
+  // regardless of whether the handler succeeds or returns an error status.
+  // This prevents attackers from flooding with invalid requests for free.
+  try {
+    await (db as any).consumeRateLimit(key);
+  } catch (err) {
+    log.error('rate limit consume failed', {
+      key,
+      error: (err as Error)?.message || String(err),
+    });
   }
-  return response;
+  return handler();
 }
 
 /**

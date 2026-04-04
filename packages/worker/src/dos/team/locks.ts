@@ -1,11 +1,30 @@
 // Advisory file locking -- claimFiles, releaseFiles, getLockedFiles.
 // Each function takes `sql` as the first parameter.
 
-import type { LockClaim, BlockedLock, LockEntry } from '../../types.js';
+import type { LockClaim, BlockedLock, LockEntry, DOResult, DOError } from '../../types.js';
 import { normalizePath } from '../../lib/text-utils.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
 import { HEARTBEAT_ACTIVE_WINDOW_S } from '../../lib/constants.js';
 import { buildInClause, sqlChanges } from '../../lib/validation.js';
+
+/**
+ * Verify that `resolvedAgentId` is owned by `ownerId` in the members table.
+ * Defense-in-depth: callers should already go through #withMember, but this
+ * ensures ownership even if the function is called directly.
+ */
+function verifyOwnership(
+  sql: SqlStorage,
+  resolvedAgentId: string,
+  ownerId: string,
+): DOError | null {
+  const row = sql
+    .exec('SELECT owner_id FROM members WHERE agent_id = ?', resolvedAgentId)
+    .toArray()[0] as { owner_id: string } | undefined;
+  if (!row || row.owner_id !== ownerId) {
+    return { error: 'Agent not owned by caller', code: 'NOT_OWNER' };
+  }
+  return null;
+}
 
 export function claimFiles(
   sql: SqlStorage,
@@ -13,7 +32,10 @@ export function claimFiles(
   files: string[],
   handle: string,
   runtimeOrTool: string | Record<string, unknown> | null | undefined,
-): LockClaim {
+  ownerId: string,
+): DOResult<LockClaim> {
+  const ownerErr = verifyOwnership(sql, resolvedAgentId, ownerId);
+  if (ownerErr) return ownerErr;
   const runtime = normalizeRuntimeMetadata(runtimeOrTool, resolvedAgentId);
   const normalized = files.map(normalizePath);
   const claimed: string[] = [];
@@ -71,7 +93,14 @@ export function releaseFiles(
   sql: SqlStorage,
   resolvedAgentId: string,
   files: string[] | null | undefined,
-): { ok: true } {
+  ownerId?: string | null,
+): DOResult<{ ok: true }> {
+  // Ownership check is optional: webSocketClose releases locks without an ownerId
+  // (the agent is already authenticated via WS tags). RPC callers pass ownerId.
+  if (ownerId) {
+    const ownerErr = verifyOwnership(sql, resolvedAgentId, ownerId);
+    if (ownerErr) return ownerErr;
+  }
   if (!files || files.length === 0) {
     // Release all locks for this agent
     sql.exec('DELETE FROM locks WHERE agent_id = ?', resolvedAgentId);

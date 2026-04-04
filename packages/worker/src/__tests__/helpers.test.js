@@ -620,7 +620,7 @@ describe('withRateLimit', () => {
     expect(consumed).toBe(true);
   });
 
-  it('does not consume rate limit on handler failure (status >= 400)', async () => {
+  it('consumes rate limit on handler failure (status >= 400)', async () => {
     let consumed = false;
     const mockDb = {
       checkRateLimit: async () => ({ allowed: true, count: 0 }),
@@ -633,10 +633,10 @@ describe('withRateLimit', () => {
 
     const response = await withRateLimit(mockDb, 'test-key', 5, 'limit', handler);
     expect(response.status).toBe(400);
-    expect(consumed).toBe(false);
+    expect(consumed).toBe(true);
   });
 
-  it('does not consume rate limit on 500 error', async () => {
+  it('consumes rate limit on 500 error', async () => {
     let consumed = false;
     const mockDb = {
       checkRateLimit: async () => ({ allowed: true, count: 0 }),
@@ -648,7 +648,7 @@ describe('withRateLimit', () => {
 
     const response = await withRateLimit(mockDb, 'test-key', 5, 'limit', handler);
     expect(response.status).toBe(500);
-    expect(consumed).toBe(false);
+    expect(consumed).toBe(true);
   });
 
   it('different rate limit keys do not interfere', async () => {

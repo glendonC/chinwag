@@ -1,7 +1,7 @@
 // Team activity routes — activity reporting, conflicts, file reporting, sessions, history.
 
 import type { Env, User } from '../../types.js';
-import { isBlocked } from '../../moderation.js';
+import { checkContent } from '../../moderation.js';
 import { getDB, getTeam } from '../../lib/env.js';
 import { json, parseBody } from '../../lib/http.js';
 import { getAgentRuntime, teamErrorStatus } from '../../lib/request-utils.js';
@@ -41,7 +41,20 @@ export async function handleTeamActivity(
   if (typeof summary !== 'string') return json({ error: 'summary must be a string' }, 400);
   if (summary.length > MAX_SUMMARY_LENGTH)
     return json({ error: `summary must be ${MAX_SUMMARY_LENGTH} characters or less` }, 400);
-  if (summary && isBlocked(summary)) return json({ error: 'Content blocked' }, 400);
+
+  if (summary) {
+    const modResult = await checkContent(summary, env);
+    if (modResult.blocked) {
+      if (modResult.reason === 'moderation_unavailable') {
+        log.warn('content moderation unavailable: blocking activity as fail-safe');
+        return json(
+          { error: 'Content moderation is temporarily unavailable. Please try again.' },
+          503,
+        );
+      }
+      return json({ error: 'Content blocked' }, 400);
+    }
+  }
 
   const { agentId } = getAgentRuntime(request, user);
   const team = getTeam(env, teamId);

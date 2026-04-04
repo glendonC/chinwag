@@ -1,7 +1,7 @@
 // Team message routes — send and get messages.
 
 import type { Env, User } from '../../types.js';
-import { isBlocked } from '../../moderation.js';
+import { checkContent } from '../../moderation.js';
 import { getDB, getTeam } from '../../lib/env.js';
 import { json, parseBody } from '../../lib/http.js';
 import { createLogger } from '../../lib/logger.js';
@@ -24,7 +24,19 @@ export async function handleTeamSendMessage(
   const b = body as Record<string, unknown>;
   const text = requireString(b, 'text', MAX_MESSAGE_LENGTH);
   if (!text) return json({ error: 'text is required' }, 400);
-  if (isBlocked(text)) return json({ error: 'Content blocked' }, 400);
+
+  const modResult = await checkContent(text, env);
+  if (modResult.blocked) {
+    if (modResult.reason === 'moderation_unavailable') {
+      log.warn('content moderation unavailable: blocking message as fail-safe');
+      return json(
+        { error: 'Content moderation is temporarily unavailable. Please try again.' },
+        503,
+      );
+    }
+    return json({ error: 'Content blocked' }, 400);
+  }
+
   const { target } = b;
   if (target !== undefined && typeof target !== 'string')
     return json({ error: 'target must be a string' }, 400);
