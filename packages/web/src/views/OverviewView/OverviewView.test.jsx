@@ -54,6 +54,7 @@ async function loadOverviewView({
 
   vi.doMock('../../lib/stores/auth.js', () => ({
     useAuthStore: (selector) => selector(authState),
+    authActions: { subscribe: () => () => {}, getState: () => authState },
   }));
 
   vi.doMock('../../lib/stores/teams.js', () => ({

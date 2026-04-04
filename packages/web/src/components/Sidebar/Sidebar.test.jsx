@@ -69,7 +69,7 @@ afterEach(() => {
 });
 
 describe('Sidebar', () => {
-  it('renders overview, tools, and settings nav items', async () => {
+  it('renders overview and settings nav items', async () => {
     const Sidebar = await loadSidebar();
     const { container, unmount } = renderComponent(Sidebar, { activeView: 'overview' });
 
@@ -77,8 +77,9 @@ describe('Sidebar', () => {
     const labels = [...buttons].map((b) => b.textContent.trim());
 
     expect(labels).toContain('Overview');
-    expect(labels).toContain('Tools');
     expect(labels).toContain('Settings');
+    // Tools nav was consolidated into Overview's Tools stat-tab
+    expect(labels).not.toContain('Tools');
 
     unmount();
   });
@@ -95,22 +96,6 @@ describe('Sidebar', () => {
     });
 
     expect(mockNavigate).toHaveBeenCalledWith('overview');
-
-    unmount();
-  });
-
-  it('navigates to tools when tools is clicked', async () => {
-    const Sidebar = await loadSidebar();
-    const { container, unmount } = renderComponent(Sidebar, { activeView: 'overview' });
-
-    const toolsBtn = [...container.querySelectorAll('button')].find(
-      (b) => b.textContent.trim() === 'Tools',
-    );
-    act(() => {
-      toolsBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-
-    expect(mockNavigate).toHaveBeenCalledWith('tools');
 
     unmount();
   });
@@ -230,18 +215,6 @@ describe('Sidebar', () => {
       (b) => b.textContent.trim() === 'Settings',
     );
     expect(settingsBtn.getAttribute('aria-current')).toBe('page');
-
-    unmount();
-  });
-
-  it('marks tools as active when activeView is "tools"', async () => {
-    const Sidebar = await loadSidebar();
-    const { container, unmount } = renderComponent(Sidebar, { activeView: 'tools' });
-
-    const toolsBtn = [...container.querySelectorAll('button')].find(
-      (b) => b.textContent.trim() === 'Tools',
-    );
-    expect(toolsBtn.getAttribute('aria-current')).toBe('page');
 
     unmount();
   });

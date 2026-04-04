@@ -432,11 +432,267 @@
   min-width: 64px;
 }
 
+/* ── Spatial navigation ── */
+
+.spatialContainer {
+  overflow: hidden;
+}
+
+.spatialTrack {
+  display: flex;
+  transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.spatialShowDirectory {
+  transform: translateX(-100%);
+}
+
+.spatialScreen {
+  min-width: 100%;
+  flex-shrink: 0;
+}
+
+/* ── Directory navigation affordance ── */
+
+.directoryNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  width: 100%;
+  max-width: 520px;
+  padding: 24px 0;
+  margin-top: 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: opacity 0.15s ease;
+}
+
+.directoryNav:hover {
+  opacity: 0.7;
+}
+
+.directoryNavContent {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.directoryNavTitle {
+  font-family: var(--display);
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 300;
+  letter-spacing: -0.06em;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.directoryNavMeta {
+  font-family: var(--mono);
+  font-size: var(--text-10);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+}
+
+.directoryNavArrow {
+  font-family: var(--display);
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  font-weight: 200;
+  color: var(--soft);
+  transition:
+    transform 0.2s ease,
+    color 0.15s ease;
+}
+
+.directoryNav:hover .directoryNavArrow {
+  transform: translateX(4px);
+  color: var(--ink);
+}
+
+/* ── Directory back button ── */
+
+.directoryBack {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  margin-bottom: 28px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--text-11);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+  transition: color 0.15s ease;
+}
+
+.directoryBack:hover {
+  color: var(--ink);
+}
+
+/* ── Directory view ── */
+
+.directoryView {
+  animation: dashboardViewFadeIn 0.2s var(--motion) both;
+  animation-delay: 0.1s;
+}
+
+.dirSectionHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.dirSectionTitle {
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+
+.dirSectionMeta {
+  font-size: var(--text-11);
+  font-family: var(--mono);
+  color: var(--muted);
+}
+
+/* ── Directory controls ── */
+
+.dirControls {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 26px;
+  flex-wrap: wrap;
+}
+
+.dirFilterRow {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.dirFilterBtn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.dirFilterBtn:hover {
+  color: var(--ink);
+}
+
+.dirFilterBtnActive {
+  color: var(--accent);
+}
+
+.dirFilterDivider {
+  width: 1px;
+  height: 14px;
+  background: var(--faint);
+}
+
+.dirSearchInput {
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-xs);
+  padding: 6px 12px;
+  font-family: var(--sans);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  width: 200px;
+  outline: none;
+  transition: border-color var(--motion-fast) ease;
+}
+
+.dirSearchInput::placeholder {
+  color: var(--soft);
+}
+
+.dirSearchInput:focus {
+  border-color: var(--accent);
+}
+
+/* ── Directory table header ── */
+
+.dirHeader {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.4fr) 90px 50px minmax(90px, 0.8fr) 80px minmax(
+      120px,
+      1.6fr
+    );
+  gap: var(--space-md);
+  padding: 0 0 10px;
+  align-items: baseline;
+}
+
+.dirHeader > span {
+  font-family: var(--mono);
+  font-size: var(--text-10);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-table);
+  color: var(--soft);
+}
+
+/* ── Directory list ── */
+
+.dirList {
+  display: flex;
+  flex-direction: column;
+}
+
+.dirShowMore {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  margin-top: var(--space-xs);
+  background: none;
+  border: 1px dashed var(--ghost);
+  border-radius: var(--radius-md);
+  font-family: var(--mono);
+  font-size: var(--text-12);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.dirShowMore:hover {
+  background: var(--hover-bg);
+  border-color: var(--soft);
+  color: var(--ink);
+}
+
 /* ── Responsive ── */
+
+@media (prefers-reduced-motion: reduce) {
+  .spatialTrack {
+    transition: none;
+  }
+}
 
 @media (max-width: 980px) {
   .statsRow {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .dirHeader {
+    display: none;
   }
 }
 
@@ -457,5 +713,13 @@
   .th:last-child,
   .td:last-child {
     display: none;
+  }
+
+  .dirControls {
+    flex-direction: column;
+  }
+
+  .dirSearchInput {
+    width: 100%;
   }
 }

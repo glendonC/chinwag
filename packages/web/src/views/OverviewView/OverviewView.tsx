@@ -37,9 +37,11 @@ function summarizeNames(items: Array<{ team_id?: string; team_name?: string }>):
   return summarizeList(names);
 }
 
-interface Props {}
+interface Props {
+  initialTab?: 'tools';
+}
 
-export default function OverviewView(_props: Props) {
+export default function OverviewView({ initialTab }: Props) {
   const { dashboardData, dashboardStatus, pollError, pollErrorData, lastUpdate } = usePollingStore(
     useShallow((s) => ({
       dashboardData: s.dashboardData,
@@ -50,6 +52,7 @@ export default function OverviewView(_props: Props) {
     })),
   );
   const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const { teams, teamsError, selectTeam } = useTeamStore(
     useShallow((s) => ({
       teams: s.teams,
@@ -67,7 +70,7 @@ export default function OverviewView(_props: Props) {
     setActiveTab: setActiveViz,
     hint,
     ref: statsRef,
-  } = useTabs(OVERVIEW_TABS);
+  } = useTabs(OVERVIEW_TABS, initialTab);
   const [search, setSearch] = useState<string>('');
   const userColor = getColorHex(user?.color ?? '') || '#121317';
   const knownTeamCount = teams.length;
@@ -173,7 +176,7 @@ export default function OverviewView(_props: Props) {
       value: totalActive,
       tone: totalActive > 0 ? 'accent' : '',
     },
-    { id: 'tools', label: 'Stack', value: uniqueTools, tone: '' },
+    { id: 'tools', label: 'Tools', value: uniqueTools, tone: '' },
     { id: 'memories', label: 'Memories', value: totalMemories, tone: '' },
   ];
 
@@ -256,6 +259,7 @@ export default function OverviewView(_props: Props) {
             hostShare={hostShare}
             surfaceShare={surfaceShare}
             summaries={summaries}
+            token={token}
           />
         )}
         {activeViz === 'memories' && (

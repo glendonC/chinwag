@@ -9,8 +9,10 @@ interface UseTabsResult<T extends string> {
   ref: RefObject<HTMLDivElement | null>;
 }
 
-export function useTabs<T extends string>(tabIds: readonly T[]): UseTabsResult<T> {
-  const [activeTab, setActiveTab] = useState<T>(tabIds[0]);
+export function useTabs<T extends string>(tabIds: readonly T[], initial?: T): UseTabsResult<T> {
+  const [activeTab, setActiveTab] = useState<T>(
+    initial && tabIds.includes(initial) ? initial : tabIds[0],
+  );
   const hint = useKeyboardHint();
   const ref = useTabKeyboard(
     [...tabIds] as string[],

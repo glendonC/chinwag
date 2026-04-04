@@ -487,7 +487,7 @@ describe('App boot and view switching', () => {
     stopPolling();
   });
 
-  it('switches to the tools view through the sidebar controls', async () => {
+  it('renders overview view when navigating to tools route', async () => {
     const { App, stopPolling, react, createRoot } = await loadAppModule({
       storedToken: 'tok_tools',
       teams: [{ team_id: 't_one' }, { team_id: 't_two' }],
@@ -497,13 +497,14 @@ describe('App boot and view switching', () => {
     await flushEffects();
     expect(container.querySelector('[data-testid="overview-view"]')).not.toBeNull();
 
+    // Navigating to 'tools' now shows the overview view (tools consolidated into overview)
     await act(async () => {
       container
         .querySelector('[data-testid="show-tools"]')
         ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(container.querySelector('[data-testid="tools-view"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="overview-view"]')).not.toBeNull();
 
     unmount();
     stopPolling();

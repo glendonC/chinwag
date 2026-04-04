@@ -47,6 +47,24 @@ async function loadToolsPanel() {
     DEG: 360,
   }));
 
+  // Mock useToolCatalog — ToolsPanel now calls this internally
+  vi.doMock('../../lib/useToolCatalog.js', () => ({
+    useToolCatalog: () => ({
+      catalog: [],
+      categories: {},
+      evaluations: [],
+      loading: false,
+      error: null,
+    }),
+  }));
+
+  // Mock DirectoryRow — it imports from ToolsView
+  vi.doMock('../ToolsView/DirectoryRow.js', () => ({
+    default: function MockDirectoryRow() {
+      return <div data-testid="directory-row" />;
+    },
+  }));
+
   const mod = await import('./ToolsPanel.js');
   return mod.default;
 }
@@ -57,7 +75,7 @@ afterEach(() => {
 });
 
 describe('ToolsPanel', () => {
-  it('shows empty hint when no arcs exist', async () => {
+  it('shows empty hint when no arcs and no evaluations exist', async () => {
     const ToolsPanel = await loadToolsPanel();
     const { container, unmount } = renderComponent(ToolsPanel, {
       arcs: [],
@@ -66,6 +84,7 @@ describe('ToolsPanel', () => {
       hostShare: [],
       surfaceShare: [],
       summaries: [],
+      token: null,
     });
 
     expect(container.textContent).toContain('No tools connected yet');
@@ -116,11 +135,12 @@ describe('ToolsPanel', () => {
           hosts_configured: [{ host_tool: 'cursor', joins: 5 }],
         },
       ],
+      token: null,
     });
 
     // Ring chart should be present
     expect(container.querySelector('svg')).not.toBeNull();
-    expect(container.textContent).toContain('STACK');
+    expect(container.textContent).toContain('TOOLS');
     expect(container.textContent).toContain('2'); // uniqueTools
 
     // Legend rows
@@ -128,6 +148,9 @@ describe('ToolsPanel', () => {
     expect(container.textContent).toContain('10 sessions');
     expect(container.textContent).toContain('40%');
     expect(container.textContent).toContain('6 sessions');
+
+    // Directory navigation affordance
+    expect(container.textContent).toContain('Directory');
 
     unmount();
   });
@@ -154,6 +177,7 @@ describe('ToolsPanel', () => {
       hostShare: [{ host_tool: 'cursor', share: 1, value: 5, projects: ['Alpha'] }],
       surfaceShare: [{ agent_surface: 'claude-code', share: 0.5, value: 3, projects: ['Alpha'] }],
       summaries: [],
+      token: null,
     });
 
     expect(container.textContent).toContain('Hosts');
@@ -165,8 +189,6 @@ describe('ToolsPanel', () => {
   });
 
   it('shows empty hints for host and surface when those arrays are empty but arcs exist', async () => {
-    // When hostShare is empty but surfaceShare has data (or vice versa),
-    // the signal grid still shows; each section handles its own empty state
     const ToolsPanel = await loadToolsPanel();
     const { container, unmount } = renderComponent(ToolsPanel, {
       arcs: [
@@ -188,6 +210,7 @@ describe('ToolsPanel', () => {
       hostShare: [],
       surfaceShare: [{ agent_surface: 'claude-code', share: 1, value: 5, projects: ['x'] }],
       summaries: [],
+      token: null,
     });
 
     expect(container.textContent).toContain('No host telemetry yet');
@@ -217,6 +240,7 @@ describe('ToolsPanel', () => {
       hostShare: [],
       surfaceShare: [],
       summaries: [],
+      token: null,
     });
 
     expect(container.textContent).toContain('1 session');
