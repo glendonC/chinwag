@@ -1,4 +1,5 @@
-import React, { useEffect, useCallback, useMemo } from 'react';
+import React, { Component, useEffect, useCallback, useMemo } from 'react';
+import type { ReactNode, ErrorInfo } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
 import { HintRow } from './ui.jsx';
 import { useDashboardConnection } from './connection.jsx';
@@ -69,6 +70,50 @@ export function Dashboard({
   );
 }
 
+// ── Dashboard error boundary (defense-in-depth) ───
+// The outer ErrorBoundary in cli.tsx catches everything, but this one
+// gives dashboard-specific context and offers a restart hint.
+
+interface DashboardErrorBoundaryState {
+  error: Error | null;
+}
+
+class DashboardErrorBoundary extends Component<
+  { children: ReactNode },
+  DashboardErrorBoundaryState
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): DashboardErrorBoundaryState {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+    process.stderr.write(`[chinwag] Dashboard crash: ${error.message}\n`);
+    if (error.stack) {
+      process.stderr.write(`[chinwag] ${error.stack}\n`);
+    }
+    if (errorInfo.componentStack) {
+      process.stderr.write(`[chinwag] Component stack:${errorInfo.componentStack}\n`);
+    }
+  }
+
+  render(): ReactNode {
+    if (this.state.error) {
+      return (
+        <Box flexDirection="column" padding={1}>
+          <Text color="red">Dashboard crashed: {this.state.error.message}</Text>
+          <Text dimColor>Press Ctrl+C to exit, then restart chinwag.</Text>
+        </Box>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 interface DashboardProvidersProps {
   config: ChinwagConfig | null;
   navigate: (to: string) => void;
@@ -122,30 +167,32 @@ function DashboardProviders({
 
   // ── Flat provider tree ────────────────────────────
   return (
-    <ConnectionProvider connection={connection}>
-      <DataProvider
-        agents={agentsHook}
-        memory={memoryHook}
-        context={context}
-        detectedTools={detectedTools}
-        teamName={teamName}
-        cols={cols}
-        composeMode={composer.composeMode}
-        viewportRows={viewportRows}
-      >
-        <DashboardViewComponent
-          config={config}
-          navigate={navigate}
+    <DashboardErrorBoundary>
+      <ConnectionProvider connection={connection}>
+        <DataProvider
+          agents={agentsHook}
+          memory={memoryHook}
+          context={context}
+          detectedTools={detectedTools}
+          teamName={teamName}
+          cols={cols}
+          composeMode={composer.composeMode}
           viewportRows={viewportRows}
-          setFooterHints={setFooterHints}
-          connection={connection}
-          memoryHook={memoryHook}
-          agentsHook={agentsHook}
-          integrations={integrations}
-          composer={composer}
-        />
-      </DataProvider>
-    </ConnectionProvider>
+        >
+          <DashboardViewComponent
+            config={config}
+            navigate={navigate}
+            viewportRows={viewportRows}
+            setFooterHints={setFooterHints}
+            connection={connection}
+            memoryHook={memoryHook}
+            agentsHook={agentsHook}
+            integrations={integrations}
+            composer={composer}
+          />
+        </DataProvider>
+      </ConnectionProvider>
+    </DashboardErrorBoundary>
   );
 }
 
