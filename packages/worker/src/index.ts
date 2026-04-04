@@ -32,7 +32,7 @@ import {
   handleUnlinkGithub,
   handleGetWsTicket,
   handleUpdateHandle,
-} from './routes/user.js';
+} from './routes/user/index.js';
 import {
   handleListDirectory,
   handleGetDirectoryEntry,

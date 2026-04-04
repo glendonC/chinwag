@@ -10,7 +10,12 @@ import type {
   Memory,
   SessionInfo,
 } from '../../types.js';
-import { HEARTBEAT_ACTIVE_WINDOW_S } from '../../lib/constants.js';
+import {
+  HEARTBEAT_ACTIVE_WINDOW_S,
+  CONTEXT_MEMBERS_LIMIT,
+  CONTEXT_LOCKS_LIMIT,
+  METRIC_KEYS,
+} from '../../lib/constants.js';
 import { createLogger } from '../../lib/logger.js';
 import { safeParse } from '../../lib/safe-parse.js';
 import { inferHostToolFromAgentId } from './runtime.js';
@@ -27,7 +32,9 @@ interface TelemetryBreakdown {
 
 /** Read all telemetry metrics in one scan, then partition by prefix in JS. */
 export function getTelemetryBreakdown(sql: SqlStorage): TelemetryBreakdown {
-  const rows = sql.exec('SELECT metric, count FROM telemetry ORDER BY count DESC').toArray();
+  const rows = sql
+    .exec('SELECT metric, count FROM telemetry ORDER BY count DESC LIMIT 10000')
+    .toArray();
 
   const tools_configured: Array<{ tool: string; joins: number }> = [];
   const hosts_configured: Array<{ host_tool: string; joins: number }> = [];
@@ -38,25 +45,34 @@ export function getTelemetryBreakdown(sql: SqlStorage): TelemetryBreakdown {
   for (const row of rows) {
     const r = row as { metric: string; count: number };
     const m = r.metric;
-    if (m.startsWith('tool:')) {
+    if (m.startsWith(METRIC_KEYS.TOOL_PREFIX)) {
       if (tools_configured.length < 10) {
-        tools_configured.push({ tool: m.slice(5), joins: r.count });
+        tools_configured.push({ tool: m.slice(METRIC_KEYS.TOOL_PREFIX.length), joins: r.count });
       }
     } else {
       // All non-tool metrics go into the usage map
       usage[m] = r.count;
 
-      if (m.startsWith('host:')) {
+      if (m.startsWith(METRIC_KEYS.HOST_PREFIX)) {
         if (hosts_configured.length < 10) {
-          hosts_configured.push({ host_tool: m.slice(5), joins: r.count });
+          hosts_configured.push({
+            host_tool: m.slice(METRIC_KEYS.HOST_PREFIX.length),
+            joins: r.count,
+          });
         }
-      } else if (m.startsWith('surface:')) {
+      } else if (m.startsWith(METRIC_KEYS.SURFACE_PREFIX)) {
         if (surfaces_seen.length < 10) {
-          surfaces_seen.push({ agent_surface: m.slice(8), joins: r.count });
+          surfaces_seen.push({
+            agent_surface: m.slice(METRIC_KEYS.SURFACE_PREFIX.length),
+            joins: r.count,
+          });
         }
-      } else if (m.startsWith('model:')) {
+      } else if (m.startsWith(METRIC_KEYS.MODEL_PREFIX)) {
         if (models_seen.length < 10) {
-          models_seen.push({ agent_model: m.slice(6), count: r.count });
+          models_seen.push({
+            agent_model: m.slice(METRIC_KEYS.MODEL_PREFIX.length),
+            count: r.count,
+          });
         }
       }
     }
@@ -84,8 +100,10 @@ export function queryTeamContext(
               THEN 1 ELSE 0 END as heartbeat_active
      FROM members m
      LEFT JOIN activities a ON a.agent_id = m.agent_id
-     LEFT JOIN sessions s ON s.agent_id = m.agent_id AND s.ended_at IS NULL`,
+     LEFT JOIN sessions s ON s.agent_id = m.agent_id AND s.ended_at IS NULL
+     LIMIT ?`,
       HEARTBEAT_ACTIVE_WINDOW_S,
+      CONTEXT_MEMBERS_LIMIT,
     )
     .toArray();
 
@@ -190,8 +208,10 @@ export function queryTeamContext(
             ROUND((julianday('now') - julianday(l.claimed_at)) * 1440) as minutes_held
      FROM locks l
      JOIN members m ON m.agent_id = l.agent_id
-     WHERE m.last_heartbeat > datetime('now', '-' || ? || ' seconds')`,
+     WHERE m.last_heartbeat > datetime('now', '-' || ? || ' seconds')
+     LIMIT ?`,
       HEARTBEAT_ACTIVE_WINDOW_S,
+      CONTEXT_LOCKS_LIMIT,
     )
     .toArray() as unknown as ContextLockEntry[];
 
@@ -245,8 +265,10 @@ export function queryTeamSummary(sql: SqlStorage): TeamSummary & TelemetryBreakd
     .exec(
       `SELECT a.files FROM activities a
      JOIN members m ON m.agent_id = a.agent_id
-     WHERE m.last_heartbeat > datetime('now', '-' || ? || ' seconds')`,
+     WHERE m.last_heartbeat > datetime('now', '-' || ? || ' seconds')
+     LIMIT ?`,
       HEARTBEAT_ACTIVE_WINDOW_S,
+      CONTEXT_MEMBERS_LIMIT,
     )
     .toArray();
 

@@ -234,6 +234,30 @@ const migrations: Migration[] = [
       );
     },
   },
+  {
+    name: '003_additional_indexes',
+    up(sql) {
+      // Compound index for active session lookups (context queries filter on agent_id + ended_at)
+      // Note: idx_sessions_agent was created in 001 but we recreate with IF NOT EXISTS for safety
+      sql.exec('CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_id, ended_at)');
+      // File-level conflict detection in locks
+      sql.exec('CREATE INDEX IF NOT EXISTS idx_locks_file_path ON locks(file_path)');
+      // Activity queries filter/sort by agent_id + updated_at
+      sql.exec(
+        'CREATE INDEX IF NOT EXISTS idx_activities_agent_updated ON activities(agent_id, updated_at)',
+      );
+      // Memory pruning and search order by created_at
+      sql.exec('CREATE INDEX IF NOT EXISTS idx_memories_created ON memories(created_at)');
+      // Member heartbeat checks (stale eviction, active window filtering)
+      sql.exec('CREATE INDEX IF NOT EXISTS idx_members_heartbeat ON members(last_heartbeat)');
+      // Member ownership lookups (leave, identity resolution)
+      sql.exec('CREATE INDEX IF NOT EXISTS idx_members_owner ON members(owner_id)');
+      // Messages target_agent + created_at for per-agent inbox queries
+      sql.exec(
+        'CREATE INDEX IF NOT EXISTS idx_messages_target_created ON messages(target_agent, created_at)',
+      );
+    },
+  },
 ];
 
 export function ensureSchema(

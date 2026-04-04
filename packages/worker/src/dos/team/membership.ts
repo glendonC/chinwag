@@ -3,6 +3,7 @@
 
 import type { DOResult } from '../../types.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
+import { METRIC_KEYS } from '../../lib/constants.js';
 import { sqlChanges, withTransaction } from '../../lib/validation.js';
 
 /**
@@ -46,10 +47,10 @@ export function join(
     return { error: 'Agent ID already claimed by another user', code: 'AGENT_CLAIMED' };
   }
 
-  recordMetric('joins');
-  recordMetric(`host:${runtime.hostTool}`);
-  if (runtime.agentSurface) recordMetric(`surface:${runtime.agentSurface}`);
-  if (runtime.transport) recordMetric(`transport:${runtime.transport}`);
+  recordMetric(METRIC_KEYS.JOINS);
+  recordMetric(`${METRIC_KEYS.HOST_PREFIX}${runtime.hostTool}`);
+  if (runtime.agentSurface) recordMetric(`${METRIC_KEYS.SURFACE_PREFIX}${runtime.agentSurface}`);
+  if (runtime.transport) recordMetric(`${METRIC_KEYS.TRANSPORT_PREFIX}${runtime.transport}`);
   return { ok: true };
 }
 

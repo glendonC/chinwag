@@ -6,7 +6,7 @@ import { normalizePath } from '../../lib/text-utils.js';
 import { createLogger } from '../../lib/logger.js';
 import { safeParse } from '../../lib/safe-parse.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
-import { HEARTBEAT_STALE_WINDOW_S, ACTIVITY_MAX_FILES } from '../../lib/constants.js';
+import { HEARTBEAT_STALE_WINDOW_S, ACTIVITY_MAX_FILES, METRIC_KEYS } from '../../lib/constants.js';
 import { sqlChanges, withTransaction } from '../../lib/validation.js';
 
 const log = createLogger('TeamDO.sessions');
@@ -76,7 +76,7 @@ export function enrichSessionModel(
       resolvedAgentId,
     );
   });
-  recordMetric(`model:${model}`);
+  recordMetric(`${METRIC_KEYS.MODEL_PREFIX}${model}`);
   return { ok: true };
 }
 

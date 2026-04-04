@@ -5,7 +5,7 @@ import type { DOResult, Memory } from '../../types.js';
 import { createLogger } from '../../lib/logger.js';
 import { safeParse } from '../../lib/safe-parse.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
-import { MEMORY_MAX_COUNT } from '../../lib/constants.js';
+import { MEMORY_MAX_COUNT, METRIC_KEYS } from '../../lib/constants.js';
 import { sqlChanges, withTransaction } from '../../lib/validation.js';
 
 const log = createLogger('TeamDO.memory');
@@ -81,7 +81,7 @@ export function saveMemory(
       resolvedAgentId,
     );
   });
-  recordMetric('memories_saved');
+  recordMetric(METRIC_KEYS.MEMORIES_SAVED);
 
   const result: SaveMemoryResult = { ok: true, id };
   if (evicted > 0) result.evicted = evicted;

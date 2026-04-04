@@ -3,6 +3,7 @@
 // Each function takes `sql` as the first parameter.
 
 import type { AgentMessage } from '../../types.js';
+import { METRIC_KEYS } from '../../lib/constants.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
 
 export function sendMessage(
@@ -27,7 +28,7 @@ export function sendMessage(
     targetAgent || null,
     text,
   );
-  recordMetric('messages_sent');
+  recordMetric(METRIC_KEYS.MESSAGES_SENT);
   return { ok: true, id };
 }
 

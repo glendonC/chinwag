@@ -124,6 +124,23 @@ export const VALID_COLORS = [
 ] as const;
 export const VALID_COLORS_SET = new Set<string>(VALID_COLORS);
 
+// --- Telemetry metric keys ---
+// Single source of truth for metric names used in telemetry recording and
+// breakdown queries. Prefixed keys are concatenated with a dynamic value
+// (e.g., METRIC_KEYS.HOST_PREFIX + 'cursor').
+export const METRIC_KEYS = {
+  JOINS: 'joins',
+  HOST_PREFIX: 'host:',
+  SURFACE_PREFIX: 'surface:',
+  TRANSPORT_PREFIX: 'transport:',
+  MODEL_PREFIX: 'model:',
+  TOOL_PREFIX: 'tool:',
+  MESSAGES_SENT: 'messages_sent',
+  MEMORIES_SAVED: 'memories_saved',
+  CONFLICT_CHECKS: 'conflict_checks',
+  CONFLICTS_FOUND: 'conflicts_found',
+} as const;
+
 // --- Misc ---
 export const CHAT_COOLDOWN_MS = 5 * 60 * 1000;
 export const MAX_BODY_SIZE = 50_000;

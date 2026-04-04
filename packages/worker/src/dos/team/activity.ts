@@ -5,7 +5,7 @@ import type { DOResult } from '../../types.js';
 import { normalizePath } from '../../lib/text-utils.js';
 import { createLogger } from '../../lib/logger.js';
 import { safeParse } from '../../lib/safe-parse.js';
-import { HEARTBEAT_ACTIVE_WINDOW_S, ACTIVITY_MAX_FILES } from '../../lib/constants.js';
+import { HEARTBEAT_ACTIVE_WINDOW_S, ACTIVITY_MAX_FILES, METRIC_KEYS } from '../../lib/constants.js';
 import { buildInClause, withTransaction } from '../../lib/validation.js';
 
 const log = createLogger('TeamDO.activity');
@@ -137,10 +137,10 @@ export function checkConflicts(
     }
   }
 
-  recordMetric('conflict_checks');
+  recordMetric(METRIC_KEYS.CONFLICT_CHECKS);
   // Record conflicts in active session for the requesting agent
   if (conflicts.length > 0 || lockedFiles.length > 0) {
-    recordMetric('conflicts_found');
+    recordMetric(METRIC_KEYS.CONFLICTS_FOUND);
     sql.exec(
       `UPDATE sessions SET conflicts_hit = conflicts_hit + 1
        WHERE agent_id = ? AND ended_at IS NULL`,
