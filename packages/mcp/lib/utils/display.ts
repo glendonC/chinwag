@@ -42,6 +42,7 @@ export interface TeamContext {
 }
 
 export interface MessageInfo {
+  id?: string;
   from_handle: string;
   from_tool?: string;
   text: string;

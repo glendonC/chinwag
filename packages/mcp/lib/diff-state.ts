@@ -140,12 +140,19 @@ export function diffState(
     }
   }
 
-  // New messages
+  // New messages — dedup by id when available, otherwise by a defensive composite
+  // key that coerces null/undefined fields to empty strings to avoid inconsistent keys.
   const prevMsgIds = new Set(
-    (prev.messages || []).map((m) => `${m.created_at || ''}|${m.from_handle}|${m.text || ''}`),
+    (prev.messages || []).map(
+      (m) =>
+        m.id ||
+        `${String(m.created_at ?? '')}|${String(m.from_handle ?? '')}|${String(m.text ?? '')}`,
+    ),
   );
   for (const msg of curr.messages || []) {
-    const key = `${msg.created_at || ''}|${msg.from_handle}|${msg.text || ''}`;
+    const key =
+      msg.id ||
+      `${String(msg.created_at ?? '')}|${String(msg.from_handle ?? '')}|${String(msg.text ?? '')}`;
     if (!prevMsgIds.has(key)) {
       events.push(`Message from ${formatWho(msg.from_handle, msg.from_tool)}: ${msg.text}`);
     }

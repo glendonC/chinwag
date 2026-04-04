@@ -275,6 +275,65 @@ describe('diffState', () => {
       const msgEvents = events.filter((e) => e.includes('Message from'));
       expect(msgEvents).toHaveLength(0);
     });
+
+    it('deduplicates by id when present', () => {
+      const prev = {
+        members: [],
+        messages: [{ id: 'msg_1', from_handle: 'alice', text: 'Hi', created_at: '2025-01-01' }],
+      };
+      const curr = {
+        members: [],
+        messages: [{ id: 'msg_1', from_handle: 'alice', text: 'Hi', created_at: '2025-01-01' }],
+      };
+      const events = diffState(prev, curr, new Map());
+      expect(events.filter((e) => e.includes('Message from'))).toHaveLength(0);
+    });
+
+    it('detects new message by different id even with same text', () => {
+      const prev = {
+        members: [],
+        messages: [{ id: 'msg_1', from_handle: 'alice', text: 'Hi' }],
+      };
+      const curr = {
+        members: [],
+        messages: [
+          { id: 'msg_1', from_handle: 'alice', text: 'Hi' },
+          { id: 'msg_2', from_handle: 'alice', text: 'Hi' },
+        ],
+      };
+      const events = diffState(prev, curr, new Map());
+      expect(events.filter((e) => e.includes('Message from'))).toHaveLength(1);
+    });
+
+    it('handles null/undefined fields in composite dedup key', () => {
+      const prev = {
+        members: [],
+        messages: [{ from_handle: undefined, text: null, created_at: undefined }],
+      };
+      const curr = {
+        members: [],
+        messages: [{ from_handle: undefined, text: null, created_at: undefined }],
+      };
+      const events = diffState(prev, curr, new Map());
+      // Should not crash and should not re-emit (same composite key)
+      expect(events.filter((e) => e.includes('Message from'))).toHaveLength(0);
+    });
+
+    it('distinguishes messages with different null patterns', () => {
+      const prev = {
+        members: [],
+        messages: [{ from_handle: 'alice', text: undefined }],
+      };
+      const curr = {
+        members: [],
+        messages: [
+          { from_handle: 'alice', text: undefined },
+          { from_handle: 'alice', text: 'Hello' },
+        ],
+      };
+      const events = diffState(prev, curr, new Map());
+      expect(events.filter((e) => e.includes('Message from'))).toHaveLength(1);
+    });
   });
 
   // --- No diff when states are identical ---
