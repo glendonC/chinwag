@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 /**
  * MemoryRow component tests.
  *
- * The component uses a state machine with 4 modes: view, editing, confirming-delete, saving.
+ * The component uses a useReducer-based state machine with 4 modes:
+ * view, editing, confirming-delete, saving.
+ *
  * Due to a pre-existing React 19 dual-instance issue with the monorepo test setup
  * (also affects App.test.jsx, OverviewView.test.jsx, ProjectView.test.jsx),
  * we test the state machine logic and validation through the validateTags utility,
@@ -24,7 +26,7 @@ import { describe, expect, it } from 'vitest';
 describe('MemoryRow state machine', () => {
   it('defines 4 modes: view, editing, confirming-delete, saving', () => {
     // This documents the state machine contract.
-    // The component initializes in 'view' mode.
+    // The component initializes in 'view' mode via useReducer.
     const validModes = ['view', 'editing', 'confirming-delete', 'saving'];
     expect(validModes).toHaveLength(4);
   });

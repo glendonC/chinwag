@@ -25,7 +25,13 @@ export function parseLocation(): Route {
   const segments = path.split('/').filter(Boolean);
 
   if (segments[0] === 'project' && segments[1]) {
-    return { view: 'project', teamId: segments[1] };
+    const teamId = segments[1].trim();
+    // Validate teamId is a non-empty, reasonable identifier
+    if (teamId.length > 0 && /^[\w-]+$/.test(teamId)) {
+      return { view: 'project', teamId };
+    }
+    // Invalid teamId — fall through to overview
+    return { view: 'overview', teamId: null };
   }
   if (segments[0] === 'tools') return { view: 'tools', teamId: null };
   if (segments[0] === 'settings') return { view: 'settings', teamId: null };

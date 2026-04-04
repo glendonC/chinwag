@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useReducer, useCallback } from 'react';
 import type { Memory } from '../../lib/apiSchemas.js';
 import { formatRelativeTime } from '../../lib/relativeTime.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
@@ -7,7 +7,100 @@ import { getErrorMessage } from '../../lib/errorHelpers.js';
 import ToolIcon from '../ToolIcon/ToolIcon.jsx';
 import styles from './MemoryRow.module.css';
 
+// ---------------------------------------------------------------------------
+// State machine
+// ---------------------------------------------------------------------------
+
 type Mode = 'view' | 'editing' | 'confirming-delete' | 'saving';
+
+interface RowState {
+  mode: Mode;
+  editText: string;
+  editTags: string;
+  error: string | null;
+}
+
+type RowAction =
+  | { type: 'START_EDIT'; text: string; tags: string }
+  | { type: 'CANCEL_EDIT' }
+  | { type: 'SET_TEXT'; value: string }
+  | { type: 'SET_TAGS'; value: string }
+  | { type: 'SET_ERROR'; error: string }
+  | { type: 'REQUEST_DELETE' }
+  | { type: 'CANCEL_DELETE' }
+  | { type: 'START_SAVE' }
+  | { type: 'SAVE_SUCCESS' }
+  | { type: 'SAVE_ERROR'; error: string }
+  | { type: 'DELETE_SUCCESS' }
+  | { type: 'DELETE_ERROR'; error: string };
+
+function rowReducer(state: RowState, action: RowAction): RowState {
+  switch (action.type) {
+    case 'START_EDIT':
+      if (state.mode !== 'view') return state;
+      return { mode: 'editing', editText: action.text, editTags: action.tags, error: null };
+
+    case 'CANCEL_EDIT':
+      if (state.mode !== 'editing') return state;
+      return { ...state, mode: 'view', error: null };
+
+    case 'SET_TEXT':
+      if (state.mode !== 'editing') return state;
+      return { ...state, editText: action.value };
+
+    case 'SET_TAGS':
+      if (state.mode !== 'editing') return state;
+      return { ...state, editTags: action.value };
+
+    case 'SET_ERROR':
+      if (state.mode !== 'editing') return state;
+      return { ...state, error: action.error };
+
+    case 'REQUEST_DELETE':
+      if (state.mode !== 'view') return state;
+      return { ...state, mode: 'confirming-delete' };
+
+    case 'CANCEL_DELETE':
+      if (state.mode !== 'confirming-delete') return state;
+      return { ...state, mode: 'view' };
+
+    case 'START_SAVE':
+      if (state.mode !== 'editing' && state.mode !== 'confirming-delete') return state;
+      return { ...state, mode: 'saving', error: null };
+
+    case 'SAVE_SUCCESS':
+      if (state.mode !== 'saving') return state;
+      return { ...state, mode: 'view' };
+
+    case 'SAVE_ERROR':
+      if (state.mode !== 'saving') return state;
+      return { ...state, mode: 'editing', error: action.error };
+
+    case 'DELETE_SUCCESS':
+      // Component will unmount — keep current state
+      return state;
+
+    case 'DELETE_ERROR':
+      if (state.mode !== 'saving') return state;
+      return { ...state, mode: 'view', error: action.error };
+
+    default:
+      return state;
+  }
+}
+
+function initState(memory: Memory): RowState {
+  return {
+    mode: 'view',
+    editText: memory.text,
+    editTags: (memory.tags || []).join(', '),
+    error: null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 interface Props {
   memory: Memory;
@@ -16,10 +109,8 @@ interface Props {
 }
 
 export default function MemoryRow({ memory, onUpdate, onDelete }: Props) {
-  const [mode, setMode] = useState<Mode>('view');
-  const [editText, setEditText] = useState(memory.text);
-  const [editTags, setEditTags] = useState((memory.tags || []).join(', '));
-  const [error, setError] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(rowReducer, memory, initState);
+  const { mode, editText, editTags, error } = state;
 
   const saving = mode === 'saving';
   const isEditing = mode === 'editing' || mode === 'saving';
@@ -34,28 +125,20 @@ export default function MemoryRow({ memory, onUpdate, onDelete }: Props) {
   const accentColor = toolMeta?.color || 'var(--soft)';
 
   const startEdit = useCallback(() => {
-    if (mode !== 'view') return;
-    setEditText(memory.text);
-    setEditTags((memory.tags || []).join(', '));
-    setError(null);
-    setMode('editing');
-  }, [mode, memory.text, memory.tags]);
+    dispatch({ type: 'START_EDIT', text: memory.text, tags: (memory.tags || []).join(', ') });
+  }, [memory.text, memory.tags]);
 
   const cancelEdit = useCallback(() => {
-    if (mode !== 'editing') return;
-    setError(null);
-    setMode('view');
-  }, [mode]);
+    dispatch({ type: 'CANCEL_EDIT' });
+  }, []);
 
   const requestDelete = useCallback(() => {
-    if (mode !== 'view') return;
-    setMode('confirming-delete');
-  }, [mode]);
+    dispatch({ type: 'REQUEST_DELETE' });
+  }, []);
 
   const cancelDelete = useCallback(() => {
-    if (mode !== 'confirming-delete') return;
-    setMode('view');
-  }, [mode]);
+    dispatch({ type: 'CANCEL_DELETE' });
+  }, []);
 
   const save = useCallback(async () => {
     if (mode !== 'editing') return;
@@ -63,42 +146,39 @@ export default function MemoryRow({ memory, onUpdate, onDelete }: Props) {
 
     const { tags: newTags, error: tagError } = validateTags(editTags);
     if (tagError) {
-      setError(tagError);
+      dispatch({ type: 'SET_ERROR', error: tagError });
       return;
     }
 
     const textChanged = editText !== memory.text;
     const tagsChanged = JSON.stringify(newTags) !== JSON.stringify(memory.tags || []);
     if (!textChanged && !tagsChanged) {
-      setMode('view');
+      dispatch({ type: 'CANCEL_EDIT' });
       return;
     }
 
-    setMode('saving');
-    setError(null);
+    dispatch({ type: 'START_SAVE' });
     try {
       await onUpdate?.(
         memory.id,
         textChanged ? editText.trim() : undefined,
         tagsChanged ? newTags : undefined,
       );
-      setMode('view');
+      dispatch({ type: 'SAVE_SUCCESS' });
     } catch (err) {
-      setError(getErrorMessage(err, 'Update failed'));
-      setMode('editing');
+      dispatch({ type: 'SAVE_ERROR', error: getErrorMessage(err, 'Update failed') });
     }
   }, [mode, editText, editTags, memory.id, memory.text, memory.tags, onUpdate]);
 
   const confirmDeleteAction = useCallback(async () => {
     if (mode !== 'confirming-delete') return;
-    setMode('saving');
-    setError(null);
+    dispatch({ type: 'START_SAVE' });
     try {
       await onDelete?.(memory.id);
-      // Component will unmount on success — no state update needed
+      dispatch({ type: 'DELETE_SUCCESS' });
+      // Component will unmount on success — no meaningful state update needed
     } catch (err) {
-      setError(getErrorMessage(err, 'Delete failed'));
-      setMode('view');
+      dispatch({ type: 'DELETE_ERROR', error: getErrorMessage(err, 'Delete failed') });
     }
   }, [mode, memory.id, onDelete]);
 
@@ -125,14 +205,14 @@ export default function MemoryRow({ memory, onUpdate, onDelete }: Props) {
               className={styles.editTagsInput}
               type="text"
               value={editTags}
-              onChange={(e) => setEditTags(e.target.value)}
+              onChange={(e) => dispatch({ type: 'SET_TAGS', value: e.target.value })}
               placeholder="Tags (comma-separated)"
               disabled={saving}
             />
             <textarea
               className={styles.editTextarea}
               value={editText}
-              onChange={(e) => setEditText(e.target.value)}
+              onChange={(e) => dispatch({ type: 'SET_TEXT', value: e.target.value })}
               maxLength={2000}
               rows={3}
               disabled={saving}
