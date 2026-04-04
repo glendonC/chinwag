@@ -17,25 +17,14 @@ export default function Sidebar({ activeView }: Props) {
 
   const [mobileOpen, setMobileOpen] = useState<boolean>(false);
 
-  function goOverview(): void {
-    navigate('overview');
+  const go = (view: Route['view'], teamId?: string) => () => {
+    if (teamId !== undefined) {
+      navigate(view, teamId);
+    } else {
+      navigate(view);
+    }
     setMobileOpen(false);
-  }
-
-  function goTeam(teamId: string): void {
-    navigate('project', teamId);
-    setMobileOpen(false);
-  }
-
-  function goSettings(): void {
-    navigate('settings');
-    setMobileOpen(false);
-  }
-
-  function goTools(): void {
-    navigate('tools');
-    setMobileOpen(false);
-  }
+  };
 
   return (
     <>
@@ -72,7 +61,12 @@ export default function Sidebar({ activeView }: Props) {
       )}
 
       <aside className={`${styles.sidebar} ${mobileOpen ? styles.sidebarOpen : ''}`}>
-        <button type="button" className={styles.sidebarLogo} onClick={goOverview} aria-label="Home">
+        <button
+          type="button"
+          className={styles.sidebarLogo}
+          onClick={go('overview')}
+          aria-label="Home"
+        >
           <svg width="36" height="36" viewBox="0 0 32 32" className={styles.logoSvg}>
             <path fill="#d49aae" d="M4 24 20 24 24 20 8 20z" />
             <path fill="#a896d4" d="M6 18 22 18 26 14 10 14z" />
@@ -84,7 +78,7 @@ export default function Sidebar({ activeView }: Props) {
           <button
             type="button"
             className={`${styles.navItem} ${overviewActive ? styles.navItemActive : ''}`}
-            onClick={goOverview}
+            onClick={go('overview')}
             aria-current={overviewActive ? 'page' : undefined}
           >
             <svg className={styles.navIcon} width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -130,7 +124,7 @@ export default function Sidebar({ activeView }: Props) {
           <button
             type="button"
             className={`${styles.navItem} ${toolsActive ? styles.navItemActive : ''}`}
-            onClick={goTools}
+            onClick={go('tools')}
             aria-current={toolsActive ? 'page' : undefined}
           >
             <svg className={styles.navIcon} width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -148,7 +142,7 @@ export default function Sidebar({ activeView }: Props) {
           <button
             type="button"
             className={`${styles.navItem} ${settingsActive ? styles.navItemActive : ''}`}
-            onClick={goSettings}
+            onClick={go('settings')}
             aria-current={settingsActive ? 'page' : undefined}
           >
             <svg className={styles.navIcon} width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -173,7 +167,7 @@ export default function Sidebar({ activeView }: Props) {
                   key={team.team_id}
                   type="button"
                   className={`${styles.navItem} ${styles.navItemProject} ${activeTeamId === team.team_id && activeView === 'project' ? styles.navItemActive : ''}`}
-                  onClick={() => goTeam(team.team_id)}
+                  onClick={go('project', team.team_id)}
                   aria-current={
                     activeTeamId === team.team_id && activeView === 'project' ? 'page' : undefined
                   }

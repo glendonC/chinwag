@@ -19,8 +19,8 @@ interface FileConflict {
 type SessionWithId = Session & { id?: string };
 
 interface ProjectLiveTabProps {
-  sortedAgents: (Member & { session_minutes?: number | null })[];
-  offlineAgents: (Member & { session_minutes?: number | null })[];
+  sortedAgents: Member[];
+  offlineAgents: Member[];
   conflicts: FileConflict[];
   filesInPlay: string[];
   locks: Lock[];

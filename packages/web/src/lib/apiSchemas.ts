@@ -4,93 +4,83 @@
 // of crashing with an opaque TypeError deep in a component.
 //
 // Philosophy: permissive parsing (coerce/default where safe), strict
-// on structural fields the UI actually destructures. Fields the UI
-// doesn't touch are passed through unchanged.
+// on structural fields the UI actually destructures. Additional fields
+// the API may return are declared as explicit optional properties.
 
 import { z } from 'zod';
 
 // ── Shared primitives ───────────────────────────────
 
-const hostMetricSchema = z
-  .object({
-    host_tool: z.string(),
-    joins: z.number().default(0),
-  })
-  .passthrough();
+const hostMetricSchema = z.object({
+  host_tool: z.string(),
+  joins: z.number().default(0),
+});
 
-const surfaceMetricSchema = z
-  .object({
-    agent_surface: z.string(),
-    joins: z.number().default(0),
-  })
-  .passthrough();
+const surfaceMetricSchema = z.object({
+  agent_surface: z.string(),
+  joins: z.number().default(0),
+});
 
-const modelMetricSchema = z
-  .object({
-    agent_model: z.string(),
-    count: z.number().default(0),
-  })
-  .passthrough();
+const modelMetricSchema = z.object({
+  agent_model: z.string(),
+  count: z.number().default(0),
+});
 
-const memberSchema = z
-  .object({
-    agent_id: z.string(),
-    handle: z.string(),
-    status: z.string().default('unknown'),
-    host_tool: z.string().default('unknown'),
-    agent_surface: z.string().optional(),
-    transport: z.string().nullable().optional(),
-    agent_model: z.string().nullable().optional(),
-    activity: z
-      .object({
-        files: z.array(z.string()).default([]),
-        summary: z.string().optional(),
-        updated_at: z.string().optional(),
-      })
-      .nullable()
-      .optional(),
-  })
-  .passthrough();
+const memberSchema = z.object({
+  agent_id: z.string(),
+  handle: z.string(),
+  status: z.string().default('unknown'),
+  host_tool: z.string().default('unknown'),
+  agent_surface: z.string().optional(),
+  transport: z.string().nullable().optional(),
+  agent_model: z.string().nullable().optional(),
+  activity: z
+    .object({
+      files: z.array(z.string()).default([]),
+      summary: z.string().optional(),
+      updated_at: z.string().optional(),
+    })
+    .nullable()
+    .optional(),
+  color: z.string().nullable().optional(),
+  session_minutes: z.number().nullable().optional(),
+});
 
-const memorySchema = z
-  .object({
-    id: z.string(),
-    text: z.string(),
-    tags: z.array(z.string()).default([]),
-    handle: z.string().nullable().optional(),
-    host_tool: z.string().nullable().optional(),
-    agent_surface: z.string().nullable().optional(),
-    agent_model: z.string().nullable().optional(),
-    created_at: z.string().optional(),
-    updated_at: z.string().optional(),
-  })
-  .passthrough();
+const memorySchema = z.object({
+  id: z.string(),
+  text: z.string(),
+  tags: z.array(z.string()).default([]),
+  handle: z.string().nullable().optional(),
+  host_tool: z.string().nullable().optional(),
+  agent_surface: z.string().nullable().optional(),
+  agent_model: z.string().nullable().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+});
 
-const lockSchema = z
-  .object({
-    file_path: z.string(),
-    agent_id: z.string().optional(),
-    handle: z.string().nullable().optional(),
-    host_tool: z.string().nullable().optional(),
-    agent_surface: z.string().nullable().optional(),
-    minutes_held: z.number().nullable().optional(),
-  })
-  .passthrough();
+const lockSchema = z.object({
+  file_path: z.string(),
+  agent_id: z.string().optional(),
+  handle: z.string().nullable().optional(),
+  host_tool: z.string().nullable().optional(),
+  agent_surface: z.string().nullable().optional(),
+  minutes_held: z.number().nullable().optional(),
+});
 
-const messageSchema = z
-  .object({
-    id: z.string().optional(),
-    agent_id: z.string().nullable().optional(),
-    handle: z.string(),
-    host_tool: z.string().nullable().optional(),
-    agent_surface: z.string().nullable().optional(),
-    text: z.string(),
-    created_at: z.string().optional(),
-  })
-  .passthrough();
+const messageSchema = z.object({
+  id: z.string().optional(),
+  agent_id: z.string().nullable().optional(),
+  handle: z.string(),
+  host_tool: z.string().nullable().optional(),
+  agent_surface: z.string().nullable().optional(),
+  text: z.string(),
+  created_at: z.string().optional(),
+  target: z.string().nullable().optional(),
+});
 
 const sessionSchema = z
   .object({
+    id: z.string().optional(),
     agent_id: z.string().optional(),
     owner_handle: z.string().optional(),
     handle: z.string().optional(),
@@ -107,7 +97,6 @@ const sessionSchema = z
     memories_saved: z.number().default(0),
     duration_minutes: z.number().nullable().optional(),
   })
-  .passthrough()
   .transform((session) => ({
     ...session,
     agent_id: session.agent_id || '',
@@ -115,63 +104,51 @@ const sessionSchema = z
     handle: session.handle || session.owner_handle || 'Agent',
   }));
 
-const conflictSchema = z
-  .object({
-    file: z.string(),
-    agents: z.array(z.string()).default([]),
-  })
-  .passthrough();
+const conflictSchema = z.object({
+  file: z.string(),
+  agents: z.array(z.string()).default([]),
+});
 
-const teamSchema = z
-  .object({
-    team_id: z.string(),
-    team_name: z.string().optional(),
-    joined_at: z.string().optional(),
-  })
-  .passthrough();
+const teamSchema = z.object({
+  team_id: z.string(),
+  team_name: z.string().optional(),
+  joined_at: z.string().optional(),
+});
 
-const userSchema = z
-  .object({
-    handle: z.string(),
-    color: z.string(),
-    created_at: z.string().optional(),
-    github_id: z.string().nullable().optional(),
-    github_login: z.string().nullable().optional(),
-    avatar_url: z.string().nullable().optional(),
-  })
-  .passthrough();
+const userSchema = z.object({
+  handle: z.string(),
+  color: z.string(),
+  created_at: z.string().optional(),
+  github_id: z.string().nullable().optional(),
+  github_login: z.string().nullable().optional(),
+  avatar_url: z.string().nullable().optional(),
+});
 
-const wsTicketSchema = z
-  .object({
-    ticket: z.string(),
-    expires_at: z.string().optional(),
-  })
-  .passthrough();
+const wsTicketSchema = z.object({
+  ticket: z.string(),
+  expires_at: z.string().optional(),
+});
 
-const toolCatalogEntrySchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    category: z.string().optional(),
-    description: z.string().optional(),
-    featured: z.boolean().optional(),
-    installCmd: z.string().nullable().optional(),
-    mcp_support: z.boolean().optional(),
-  })
-  .passthrough();
+const toolCatalogEntrySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  category: z.string().optional(),
+  description: z.string().optional(),
+  featured: z.boolean().optional(),
+  installCmd: z.string().nullable().optional(),
+  mcp_support: z.boolean().optional(),
+});
 
-const toolDirectoryEvaluationSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    category: z.string().optional(),
-    verdict: z.string().optional(),
-    tagline: z.string().optional(),
-    integration_tier: z.string().optional(),
-    mcp_support: z.union([z.boolean(), z.string()]).optional(),
-    metadata: z.record(z.unknown()).optional(),
-  })
-  .passthrough();
+const toolDirectoryEvaluationSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  category: z.string().optional(),
+  verdict: z.string().optional(),
+  tagline: z.string().optional(),
+  integration_tier: z.string().optional(),
+  mcp_support: z.union([z.boolean(), z.string()]).optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
 
 // ── Inferred types from schemas ────────────────────
 
@@ -207,7 +184,6 @@ export const teamContextSchema = z
     models_seen: z.array(modelMetricSchema).default([]),
     usage: z.record(z.number()).default({}),
   })
-  .passthrough()
   .transform((context) => ({
     ...context,
     recentSessions: context.recentSessions.length > 0 ? context.recentSessions : context.sessions,
@@ -217,47 +193,37 @@ export type TeamContext = z.infer<typeof teamContextSchema>;
 
 // ── Dashboard summary response ──────────────────────
 
-const teamSummarySchema = z
-  .object({
-    team_id: z.string(),
-    team_name: z.string().optional(),
-    active_agents: z.number().default(0),
-    memory_count: z.number().default(0),
-    conflict_count: z.number().default(0),
-    total_members: z.number().default(0),
-    live_sessions: z.number().default(0),
-    recent_sessions_24h: z.number().default(0),
-    hosts_configured: z.array(hostMetricSchema).default([]),
-    surfaces_seen: z.array(surfaceMetricSchema).default([]),
-    models_seen: z.array(modelMetricSchema).default([]),
-    usage: z.record(z.number()).default({}),
-  })
-  .passthrough();
+const teamSummarySchema = z.object({
+  team_id: z.string(),
+  team_name: z.string().optional(),
+  active_agents: z.number().default(0),
+  memory_count: z.number().default(0),
+  conflict_count: z.number().default(0),
+  total_members: z.number().default(0),
+  live_sessions: z.number().default(0),
+  recent_sessions_24h: z.number().default(0),
+  hosts_configured: z.array(hostMetricSchema).default([]),
+  surfaces_seen: z.array(surfaceMetricSchema).default([]),
+  models_seen: z.array(modelMetricSchema).default([]),
+  usage: z.record(z.number()).default({}),
+});
 
 export type TeamSummary = z.infer<typeof teamSummarySchema>;
 
-export const dashboardSummarySchema = z
-  .object({
-    teams: z.array(teamSummarySchema).default([]),
-    degraded: z.boolean().default(false),
-    failed_teams: z
-      .array(
-        z
-          .object({ team_id: z.string().optional(), team_name: z.string().optional() })
-          .passthrough(),
-      )
-      .default([]),
-    truncated: z.boolean().default(false),
-  })
-  .passthrough();
+export const dashboardSummarySchema = z.object({
+  teams: z.array(teamSummarySchema).default([]),
+  degraded: z.boolean().default(false),
+  failed_teams: z
+    .array(z.object({ team_id: z.string().optional(), team_name: z.string().optional() }))
+    .default([]),
+  truncated: z.boolean().default(false),
+});
 
 export type DashboardSummary = z.infer<typeof dashboardSummarySchema>;
 
-export const userTeamsSchema = z
-  .object({
-    teams: z.array(teamSchema).default([]),
-  })
-  .passthrough();
+export const userTeamsSchema = z.object({
+  teams: z.array(teamSchema).default([]),
+});
 
 export type UserTeams = z.infer<typeof userTeamsSchema>;
 
@@ -267,21 +233,17 @@ export type UserProfile = z.infer<typeof userProfileSchema>;
 export const webSocketTicketSchema = wsTicketSchema;
 export type WebSocketTicket = z.infer<typeof webSocketTicketSchema>;
 
-export const toolCatalogSchema = z
-  .object({
-    tools: z.array(toolCatalogEntrySchema).default([]),
-    categories: z.record(z.string()).default({}),
-  })
-  .passthrough();
+export const toolCatalogSchema = z.object({
+  tools: z.array(toolCatalogEntrySchema).default([]),
+  categories: z.record(z.string()).default({}),
+});
 
 export type ToolCatalog = z.infer<typeof toolCatalogSchema>;
 
-export const toolDirectorySchema = z
-  .object({
-    evaluations: z.array(toolDirectoryEvaluationSchema).default([]),
-    categories: z.record(z.string()).default({}),
-  })
-  .passthrough();
+export const toolDirectorySchema = z.object({
+  evaluations: z.array(toolDirectoryEvaluationSchema).default([]),
+  categories: z.record(z.string()).default({}),
+});
 
 export type ToolDirectory = z.infer<typeof toolDirectorySchema>;
 

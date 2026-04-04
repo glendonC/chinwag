@@ -4,7 +4,7 @@ import ToolIcon from '../ToolIcon/ToolIcon.jsx';
 import styles from './AgentRow.module.css';
 
 interface Props {
-  agent: Member & { session_minutes?: number | null };
+  agent: Member;
 }
 
 export default function AgentRow({ agent }: Props) {

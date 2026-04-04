@@ -5,8 +5,8 @@ import { useAuthStore } from '../../lib/stores/auth.js';
 import { useTeamStore } from '../../lib/stores/teams.js';
 import { getColorHex } from '../../lib/utils.js';
 import { formatRelativeTime } from '../../lib/relativeTime.js';
-import { useTabKeyboard } from '../../lib/useTabKeyboard.js';
-import KeyboardHint, { useKeyboardHint } from '../../components/KeyboardHint/KeyboardHint.jsx';
+import KeyboardHint from '../../components/KeyboardHint/KeyboardHint.jsx';
+import { useTabs } from '../../hooks/useTabs.js';
 import EmptyState from '../../components/EmptyState/EmptyState.jsx';
 import StatusState from '../../components/StatusState/StatusState.jsx';
 import {
@@ -22,8 +22,11 @@ import ToolsPanel from './ToolsPanel.jsx';
 import MemoriesPanel from './MemoriesPanel.jsx';
 import styles from './OverviewView.module.css';
 
+const OVERVIEW_TABS = ['projects', 'agents', 'tools', 'memories'] as const;
+type OverviewTab = (typeof OVERVIEW_TABS)[number];
+
 interface StatEntry {
-  id: string;
+  id: OverviewTab;
   label: string;
   value: number;
   tone: string;
@@ -59,8 +62,12 @@ export default function OverviewView(_props: Props) {
     () => dashboardData?.failed_teams ?? pollErrorData?.failed_teams ?? [],
     [dashboardData?.failed_teams, pollErrorData?.failed_teams],
   );
-  const [activeViz, setActiveViz] = useState<string>('projects');
-  const hint = useKeyboardHint();
+  const {
+    activeTab: activeViz,
+    setActiveTab: setActiveViz,
+    hint,
+    ref: statsRef,
+  } = useTabs(OVERVIEW_TABS);
   const [search, setSearch] = useState<string>('');
   const userColor = getColorHex(user?.color ?? '') || '#121317';
   const knownTeamCount = teams.length;
@@ -84,8 +91,6 @@ export default function OverviewView(_props: Props) {
     const q = search.trim().toLowerCase();
     return summaries.filter((t) => (t.team_name || t.team_id).toLowerCase().includes(q));
   }, [summaries, search]);
-  const statIds = useMemo(() => ['projects', 'agents', 'tools', 'memories'], []);
-  const statsRef = useTabKeyboard(statIds, setActiveViz);
 
   const isLoading = !dashboardData && (dashboardStatus === 'idle' || dashboardStatus === 'loading');
   const isUnavailable =

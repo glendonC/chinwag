@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react';
+import { type CSSProperties } from 'react';
 import { forceRefresh } from '../../lib/stores/polling.js';
 import ActivityTimeline from '../../components/ActivityTimeline/ActivityTimeline.jsx';
 import StatusState from '../../components/StatusState/StatusState.jsx';
@@ -9,8 +9,8 @@ import {
   SkeletonRows,
   SkeletonLine,
 } from '../../components/Skeleton/Skeleton.jsx';
-import KeyboardHint, { useKeyboardHint } from '../../components/KeyboardHint/KeyboardHint.jsx';
-import { useTabKeyboard } from '../../lib/useTabKeyboard.js';
+import KeyboardHint from '../../components/KeyboardHint/KeyboardHint.jsx';
+import { useTabs } from '../../hooks/useTabs.js';
 import ProjectOverviewTab from './ProjectOverviewTab.jsx';
 import ProjectLiveTab from './ProjectLiveTab.jsx';
 import ProjectMemoryTab from './ProjectMemoryTab.jsx';
@@ -21,8 +21,11 @@ import useProjectAnalytics from './useProjectAnalytics.js';
 import useProjectMemories from './useProjectMemories.js';
 import styles from './ProjectView.module.css';
 
+const PROJECT_TABS = ['overview', 'agents', 'memory'] as const;
+type ProjectTab = (typeof PROJECT_TABS)[number];
+
 interface StatEntry {
-  id: string;
+  id: ProjectTab;
   label: string;
   value: string | number;
   tone: string;
@@ -44,11 +47,12 @@ export default function ProjectView(_props: Props) {
   const { memories, memoryBreakdown, handleUpdateMemory, handleDeleteMemory } =
     useProjectMemories();
 
-  const [activeViz, setActiveViz] = useState<string>('overview');
-  const hint = useKeyboardHint();
-
-  const statIds = useMemo(() => ['overview', 'agents', 'memory'], []);
-  const statsRef = useTabKeyboard(statIds, setActiveViz);
+  const {
+    activeTab: activeViz,
+    setActiveTab: setActiveViz,
+    hint,
+    ref: statsRef,
+  } = useTabs(PROJECT_TABS);
 
   const stats: StatEntry[] = [
     { id: 'overview', label: 'Overview', value: '\u2014', tone: '' },

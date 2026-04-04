@@ -201,12 +201,26 @@ export default function App(): ReactNode {
         )}
 
         <div className={styles.content}>
-          <RenderErrorBoundary label="App">
-            {activeView === 'overview' && <OverviewView />}
-            {activeView === 'project' && <ProjectView />}
-            {activeView === 'tools' && <ToolsView />}
-            {activeView === 'settings' && <SettingsView />}
-          </RenderErrorBoundary>
+          {activeView === 'overview' && (
+            <RenderErrorBoundary label="OverviewView" resetKey={activeView}>
+              <OverviewView />
+            </RenderErrorBoundary>
+          )}
+          {activeView === 'project' && (
+            <RenderErrorBoundary label="ProjectView" resetKey={`project-${activeTeamId}`}>
+              <ProjectView />
+            </RenderErrorBoundary>
+          )}
+          {activeView === 'tools' && (
+            <RenderErrorBoundary label="ToolsView" resetKey={activeView}>
+              <ToolsView />
+            </RenderErrorBoundary>
+          )}
+          {activeView === 'settings' && (
+            <RenderErrorBoundary label="SettingsView" resetKey={activeView}>
+              <SettingsView />
+            </RenderErrorBoundary>
+          )}
         </div>
       </div>
     </div>
