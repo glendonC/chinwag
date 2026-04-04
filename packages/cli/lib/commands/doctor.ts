@@ -5,12 +5,20 @@ import {
   scanHostIntegrations,
   summarizeIntegrationScan,
 } from '@chinwag/shared/integration-doctor.js';
+import type { IntegrationScanResult } from '@chinwag/shared/integration-doctor.js';
 
 const ok = chalk.green('✔');
 const warn = chalk.yellow('!');
 const dim = chalk.dim;
 
-function parseDoctorArgs(argv = []) {
+interface ParsedDoctorArgs {
+  action: 'scan' | 'fix';
+  hostId: string | null;
+  fixAll: boolean;
+  onlyDetected: boolean;
+}
+
+export function parseDoctorArgs(argv: string[] = []): ParsedDoctorArgs {
   const args = [...argv];
   const fixAll = args.includes('--fix');
   const onlyDetected = !args.includes('--all');
@@ -32,7 +40,15 @@ function parseDoctorArgs(argv = []) {
   };
 }
 
-function selectRepairTargets(scanResults, { hostId = null, fixAll = false } = {}) {
+interface SelectRepairTargetsOptions {
+  hostId?: string | null;
+  fixAll?: boolean;
+}
+
+export function selectRepairTargets(
+  scanResults: IntegrationScanResult[],
+  { hostId = null, fixAll = false }: SelectRepairTargetsOptions = {},
+): string[] {
   if (hostId) return [hostId];
   if (!fixAll) return [];
   return scanResults
@@ -40,7 +56,7 @@ function selectRepairTargets(scanResults, { hostId = null, fixAll = false } = {}
     .map((item) => item.id);
 }
 
-export async function runDoctor(argv = []) {
+export async function runDoctor(argv: string[] = []): Promise<void> {
   const cwd = process.cwd();
   const parsed = parseDoctorArgs(argv);
   const initialScan = scanHostIntegrations(cwd);
@@ -52,7 +68,7 @@ export async function runDoctor(argv = []) {
   console.log(
     formatIntegrationScanResults(initialScan, { onlyDetected: parsed.onlyDetected })
       .split('\n')
-      .map((line) => `  ${line}`)
+      .map((line: string) => `  ${line}`)
       .join('\n'),
   );
   console.log('');
@@ -71,14 +87,14 @@ export async function runDoctor(argv = []) {
     return;
   }
 
-  const repaired = [];
-  const failed = [];
+  const repaired: string[] = [];
+  const failed: Array<{ hostId: string; error: string }> = [];
   for (const hostId of targets) {
     const result = configureHostIntegration(cwd, hostId);
     if (result.error) {
       failed.push({ hostId, error: result.error });
     } else {
-      repaired.push(result.name);
+      repaired.push(result.name || hostId);
     }
   }
 
@@ -100,5 +116,3 @@ export async function runDoctor(argv = []) {
   }
   console.log('');
 }
-
-export { parseDoctorArgs, selectRepairTargets };

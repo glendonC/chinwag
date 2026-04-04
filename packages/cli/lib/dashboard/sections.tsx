@@ -2,13 +2,23 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import { getAnimatedGlyph } from './ui.jsx';
 import { truncateText } from './utils.js';
+import type { CombinedAgentRow, MemoryEntry } from './view.js';
 
-function shortSessionId(agentId) {
+function shortSessionId(agentId: string | null | undefined): string {
   if (!agentId) return '';
   const parts = agentId.split(':');
   if (parts.length >= 3) return parts[2].slice(0, 4);
   if (parts.length >= 2) return parts[1].slice(0, 4);
   return '';
+}
+
+interface SessionsPanelProps {
+  liveAgents: CombinedAgentRow[];
+  totalCount?: number;
+  windowStart?: number;
+  selectedIdx: number;
+  getAgentIntent: (agent: CombinedAgentRow) => string | null;
+  cols: number;
 }
 
 export function SessionsPanel({
@@ -18,7 +28,7 @@ export function SessionsPanel({
   selectedIdx,
   getAgentIntent,
   cols,
-}) {
+}: SessionsPanelProps): React.ReactNode {
   return (
     <Box flexDirection="column" paddingX={1} paddingTop={1}>
       <Text>
@@ -51,6 +61,17 @@ export function SessionsPanel({
   );
 }
 
+interface KnowledgePanelProps {
+  memories: MemoryEntry[];
+  filteredMemories: MemoryEntry[];
+  knowledgeVisible: MemoryEntry[];
+  windowStart?: number;
+  memorySearch: string;
+  memorySelectedIdx: number;
+  deleteConfirm: boolean;
+  deleteMsg: string | null;
+}
+
 export function KnowledgePanel({
   memories,
   filteredMemories,
@@ -60,7 +81,7 @@ export function KnowledgePanel({
   memorySelectedIdx,
   deleteConfirm,
   deleteMsg,
-}) {
+}: KnowledgePanelProps): React.ReactNode {
   return (
     <Box flexDirection="column" paddingX={1} paddingTop={1}>
       <Text>

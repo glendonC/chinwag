@@ -5,10 +5,36 @@ import { api } from './api.js';
 import { addToolToProject } from './utils/tool-actions.js';
 import { computeToolRecommendations } from './utils/tool-recommendations.js';
 import { DetectedToolsList, RecommendationsList, CategoryBrowser } from './tool-display.jsx';
+import type { ChinwagConfig } from './config.js';
+import type { IntegrationScanResult } from '@chinwag/shared/integration-doctor.js';
 
 const LOADING_TIMEOUT_MS = 15000;
 
-function evalToTool(e) {
+interface CatalogToolLike {
+  id: string;
+  name: string;
+  description: string;
+  category?: string;
+  mcpCompatible?: boolean;
+  website?: string;
+  installCmd?: string | null;
+  featured?: boolean;
+  verdict?: string;
+  confidence?: string;
+}
+
+interface EvalEntry {
+  id: string;
+  name: string;
+  tagline: string;
+  category?: string;
+  mcp_support?: boolean;
+  metadata?: { website?: string; install_command?: string; featured?: boolean };
+  verdict?: string;
+  confidence?: string;
+}
+
+function evalToTool(e: EvalEntry): CatalogToolLike {
   const meta = e.metadata || {};
   return {
     id: e.id,
@@ -24,42 +50,53 @@ function evalToTool(e) {
   };
 }
 
-export function Discover({ config, navigate }) {
+interface DiscoverProps {
+  config: ChinwagConfig | null;
+  navigate: (to: string) => void;
+}
+
+export function Discover({ config, navigate }: DiscoverProps): React.ReactNode {
   const { stdout } = useStdout();
   const cols = stdout?.columns || 80;
-  const [integrationStatuses, setIntegrationStatuses] = useState(() =>
+  const [integrationStatuses, setIntegrationStatuses] = useState<IntegrationScanResult[]>(() =>
     scanIntegrationHealth(process.cwd()),
   );
-  const [catalog, setCatalog] = useState([]);
-  const [categories, setCategories] = useState({});
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [message, setMessage] = useState(null);
+  const [catalog, setCatalog] = useState<CatalogToolLike[]>([]);
+  const [categories, setCategories] = useState<Record<string, string>>({});
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingTimedOut, setLoadingTimedOut] = useState(false);
-  const messageTimer = useRef(null);
-  const loadingTimer = useRef(null);
+  const messageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     // Fetch catalog from API (single source of truth)
-    async function fetchCatalog() {
+    async function fetchCatalog(): Promise<void> {
       try {
-        const result = await api(config).get('/tools/directory?limit=200');
+        const result = (await api(config).get('/tools/directory?limit=200')) as {
+          evaluations?: EvalEntry[];
+          categories?: Record<string, string>;
+        };
         if (cancelled) return;
         setCatalog((result.evaluations || []).map(evalToTool));
         setCategories(result.categories || {});
-      } catch (err) {
-        console.error('[chinwag]', err?.message || err);
+      } catch (err: unknown) {
+        console.error('[chinwag]', (err as Error)?.message || err);
         // Fallback to old catalog endpoint if directory isn't deployed yet
         try {
-          const fallback = await api(config).get('/tools/catalog');
+          const fallback = (await api(config).get('/tools/catalog')) as {
+            tools?: CatalogToolLike[];
+            categories?: Record<string, string>;
+          };
           if (cancelled) return;
           setCatalog(fallback.tools || []);
           setCategories(fallback.categories || {});
-        } catch (err) {
+        } catch (err2: unknown) {
           if (cancelled) return;
-          setMessage(`Could not fetch tool catalog: ${err.message}`);
+          setMessage(`Could not fetch tool catalog: ${(err2 as Error).message}`);
         }
       }
       if (cancelled) return;
@@ -84,7 +121,7 @@ export function Discover({ config, navigate }) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function refreshIntegrations() {
+  function refreshIntegrations(): void {
     setIntegrationStatuses(scanIntegrationHealth(process.cwd()));
   }
 
@@ -95,13 +132,13 @@ export function Discover({ config, navigate }) {
   }, []);
 
   const { detected, detectedIds, detectedCategories, recommendations } = computeToolRecommendations(
-    catalog,
+    catalog as import('@chinwag/shared/contracts.js').ToolCatalogEntry[],
     integrationStatuses,
   );
   const integrationSummary = summarizeIntegrationScan(integrationStatuses, { onlyDetected: true });
 
   // Group catalog by category -- skip detected tools AND categories the user already covers
-  const categoryGroups = {};
+  const categoryGroups: Record<string, CatalogToolLike[]> = {};
   for (const tool of catalog) {
     if (detectedIds.has(tool.id)) continue;
     const cat = tool.category || 'other';
@@ -112,20 +149,20 @@ export function Discover({ config, navigate }) {
 
   const categoryKeys = Object.keys(categoryGroups);
 
-  function showMessage(text) {
+  function showMessage(text: string): void {
     if (messageTimer.current) clearTimeout(messageTimer.current);
     setMessage(text);
     const duration = Math.max(3000, text.length * 40);
     messageTimer.current = setTimeout(() => setMessage(null), duration);
   }
 
-  function addTool(tool) {
+  function addTool(tool: CatalogToolLike): void {
     const result = addToolToProject(tool, process.cwd());
     showMessage(result.message);
     if (result.ok) refreshIntegrations();
   }
 
-  useInput((ch, key) => {
+  useInput((ch: string, key) => {
     if (key.escape) {
       // Layered escape: close category first, then exit screen
       if (selectedCategory) {

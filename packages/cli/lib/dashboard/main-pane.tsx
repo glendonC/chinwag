@@ -2,10 +2,30 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import TextInput from 'ink-text-input';
 import { HintRow, NoticeLine } from './ui.jsx';
+import type { HintItem } from './ui.jsx';
 import { KnowledgePanel, SessionsPanel } from './sections.jsx';
 import { SPINNER, truncateText } from './utils.js';
 import { getAgentIntent, getAgentDisplayLabel, getIntentColor } from './agent-display.js';
 import { detectTerminalEnvironment } from '../terminal-spawner.js';
+import type { CombinedAgentRow, MemoryEntry } from './view.js';
+import type { DashboardState, DashboardNotice, DashboardView } from './reducer.js';
+import type { UseAgentLifecycleReturn } from './agents.js';
+import type { UseComposerReturn } from './composer.js';
+import type { UseMemoryManagerReturn } from './memory.js';
+import type { IntegrationScanResult } from '@chinwag/shared/integration-doctor.js';
+
+interface CommandSuggestion {
+  name: string;
+  description?: string;
+}
+
+interface InputBarsProps {
+  composer: UseComposerReturn;
+  memory: UseMemoryManagerReturn;
+  commandSuggestions: CommandSuggestion[];
+  onComposeSubmit: () => void;
+  onMemorySubmit: () => void;
+}
 
 /**
  * Renders the input bars for compose modes (command, targeted, memory-search, memory-add).
@@ -16,7 +36,7 @@ export function InputBars({
   commandSuggestions,
   onComposeSubmit,
   onMemorySubmit,
-}) {
+}: InputBarsProps): React.ReactNode {
   return (
     <>
       {composer.composeMode === 'command' &&
@@ -28,7 +48,7 @@ export function InputBars({
                 <Text color="cyan">{'> '}</Text>
                 <TextInput
                   value={composer.composeText}
-                  onChange={(v) => {
+                  onChange={(v: string) => {
                     composer.setComposeText(v);
                     composer.setCommandSelectedIdx(0);
                   }}
@@ -95,6 +115,16 @@ export function InputBars({
   );
 }
 
+interface CommandBarProps {
+  composer: UseComposerReturn;
+  memory: UseMemoryManagerReturn;
+  notice: DashboardNotice | null;
+  view: DashboardView;
+  commandSuggestions: CommandSuggestion[];
+  onComposeSubmit: () => void;
+  onMemorySubmit: () => void;
+}
+
 /**
  * Renders the command bar with input bars, notice line, and hint row.
  */
@@ -106,7 +136,7 @@ export function CommandBar({
   commandSuggestions,
   onComposeSubmit,
   onMemorySubmit,
-}) {
+}: CommandBarProps): React.ReactNode {
   const isMemoryView = view === 'memory';
   const isSessionsView = view === 'sessions';
 
@@ -154,6 +184,31 @@ export function CommandBar({
   );
 }
 
+interface MainPaneConnectionProps {
+  connState: string;
+  connDetail: string | null;
+  spinnerFrame: number;
+  cols: number;
+  projectDisplayName: string | null | undefined;
+}
+
+interface MainPaneProps {
+  state: DashboardState;
+  connection: MainPaneConnectionProps;
+  allVisibleAgents: CombinedAgentRow[];
+  liveAgents: CombinedAgentRow[];
+  visibleSessionRows: { items: CombinedAgentRow[]; start: number };
+  liveAgentNameCounts: Map<string, number>;
+  agents: UseAgentLifecycleReturn;
+  integrationIssues: IntegrationScanResult[];
+  composer: UseComposerReturn;
+  memory: UseMemoryManagerReturn;
+  contextHints: HintItem[];
+  commandSuggestions: CommandSuggestion[];
+  onComposeSubmit: () => void;
+  onMemorySubmit: () => void;
+}
+
 /**
  * Renders the home view main pane with agents table, tool issues, tool picker, and compose overlay.
  */
@@ -172,7 +227,7 @@ export function MainPane({
   commandSuggestions,
   onComposeSubmit,
   onMemorySubmit,
-}) {
+}: MainPaneProps): React.ReactNode {
   const { selectedIdx, mainFocus, notice } = state;
   const { connState, connDetail, spinnerFrame, cols, projectDisplayName } = connection;
   const activeAgents = liveAgents.filter((a) => !a._dead);
@@ -274,15 +329,15 @@ export function MainPane({
       {!agents.toolPickerOpen &&
         !composer.isComposing &&
         agents.unavailableCliAgents.map((tool) => {
-          const state = agents.getManagedToolState(tool.id);
-          if (!state.recoveryCommand) return null;
+          const toolState = agents.getManagedToolState(tool.id);
+          if (!toolState.recoveryCommand) return null;
           return (
             <Box key={tool.id} marginTop={1}>
               <Text>
                 <Text color="yellow" bold>
                   {tool.name}
                 </Text>
-                <Text color="yellow"> {state.detail || 'needs setup'}</Text>
+                <Text color="yellow"> {toolState.detail || 'needs setup'}</Text>
                 <Text dimColor> </Text>
                 <Text color="cyan" bold>
                   [f]
@@ -366,6 +421,18 @@ export function MainPane({
   );
 }
 
+interface MemoryViewProps {
+  memories: MemoryEntry[];
+  filteredMemories: MemoryEntry[];
+  visibleKnowledgeRows: { items: MemoryEntry[]; start: number };
+  memory: UseMemoryManagerReturn;
+  composer: UseComposerReturn;
+  state: DashboardState;
+  commandSuggestions: CommandSuggestion[];
+  onComposeSubmit: () => void;
+  onMemorySubmit: () => void;
+}
+
 /**
  * Renders the memory view.
  */
@@ -379,7 +446,7 @@ export function MemoryView({
   commandSuggestions,
   onComposeSubmit,
   onMemorySubmit,
-}) {
+}: MemoryViewProps): React.ReactNode {
   const { notice } = state;
   return (
     <Box flexDirection="column">
@@ -414,6 +481,18 @@ export function MemoryView({
   );
 }
 
+interface SessionsViewProps {
+  liveAgents: CombinedAgentRow[];
+  visibleSessionRows: { items: CombinedAgentRow[]; start: number };
+  state: DashboardState;
+  cols: number;
+  composer: UseComposerReturn;
+  memory: UseMemoryManagerReturn;
+  commandSuggestions: CommandSuggestion[];
+  onComposeSubmit: () => void;
+  onMemorySubmit: () => void;
+}
+
 /**
  * Renders the sessions view.
  */
@@ -427,7 +506,7 @@ export function SessionsView({
   commandSuggestions,
   onComposeSubmit,
   onMemorySubmit,
-}) {
+}: SessionsViewProps): React.ReactNode {
   const { selectedIdx, notice } = state;
   return (
     <Box flexDirection="column">

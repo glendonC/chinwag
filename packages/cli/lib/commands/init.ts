@@ -9,12 +9,13 @@ import chalk from 'chalk';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { basename, join } from 'path';
 import { configExists, loadConfig, saveConfig } from '../config.js';
+import type { ChinwagConfig } from '../config.js';
 import { api, initAccount } from '../api.js';
 import { detectTools, configureTool } from '../mcp-config.js';
 import { classifyError } from '../utils/errors.js';
 
 // Map chinwag color names to chalk methods
-const CHALK_COLORS = {
+const CHALK_COLORS: Record<string, string> = {
   red: 'red',
   cyan: 'cyan',
   yellow: 'yellow',
@@ -29,45 +30,46 @@ const CHALK_COLORS = {
   white: 'white',
 };
 
-function colorize(text, colorName) {
+function colorize(text: string, colorName: string): string {
   const fn = CHALK_COLORS[colorName] || 'white';
-  return chalk[fn](text);
+  return (chalk as unknown as Record<string, (s: string) => string>)[fn](text);
 }
 
 const dim = chalk.dim;
 const ok = chalk.green('✔');
 const bullet = chalk.dim('●');
 
-function printSplash() {
+function printSplash(): void {
   console.log('');
   console.log(`  ${chalk.cyan.bold('chinwag')}`);
   console.log(`  ${dim('the control layer for agentic development')}`);
 }
 
-export async function runInit() {
+export async function runInit(): Promise<void> {
   const cwd = process.cwd();
 
   printSplash();
   console.log('');
 
   // Step 1: Account
-  let config;
-  let handle, color, accountVerb;
+  let config: ChinwagConfig;
+  let handle: string, color: string, accountVerb: string | null;
   if (configExists()) {
-    config = loadConfig();
+    config = loadConfig() as ChinwagConfig;
     try {
-      const me = await api(config).get('/me');
+      const me = (await api(config).get('/me')) as { handle: string; color: string };
       handle = me.handle;
       color = me.color;
       accountVerb = null; // existing, verified
-    } catch (err) {
-      if (err.status === 401 || err.status === 403) {
+    } catch (err: unknown) {
+      const typedErr = err as { status?: number; message?: string };
+      if (typedErr.status === 401 || typedErr.status === 403) {
         config = await createAccount();
-        handle = config.handle;
-        color = config.color;
+        handle = config.handle!;
+        color = config.color!;
         accountVerb = 'created';
       } else {
-        console.log(`  ${chalk.red('✖')} Could not reach server: ${err.message}`);
+        console.log(`  ${chalk.red('✖')} Could not reach server: ${typedErr.message}`);
         console.log(`  ${dim('Check your internet connection and try again.')}`);
         console.log('');
         return;
@@ -75,8 +77,8 @@ export async function runInit() {
     }
   } else {
     config = await createAccount();
-    handle = config.handle;
-    color = config.color;
+    handle = config.handle!;
+    color = config.color!;
     accountVerb = 'created';
   }
 
@@ -88,8 +90,8 @@ export async function runInit() {
 
   // Step 2: Team
   const chinwagFile = join(cwd, '.chinwag');
-  let teamId;
-  let teamName, teamVerb;
+  let teamId: string;
+  let teamName: string, teamVerb: string;
   if (existsSync(chinwagFile)) {
     try {
       const data = JSON.parse(readFileSync(chinwagFile, 'utf-8'));
@@ -97,15 +99,16 @@ export async function runInit() {
       await client.post(`/teams/${teamId}/join`, { name: basename(cwd) });
       teamName = data.name || teamId;
       teamVerb = 'joined';
-    } catch (err) {
-      const classified = classifyError(err);
+    } catch (err: unknown) {
+      const typedErr = err as { status?: number; message?: string };
+      const classified = classifyError(typedErr);
       const hint =
-        err.status === 404
+        typedErr.status === 404
           ? 'Team not found — the .chinwag file may be stale. Delete it and re-run init.'
-          : err.status === 403
+          : typedErr.status === 403
             ? 'Access denied. Ask a team member to verify your access.'
             : classified.detail || 'Check your connection and try again.';
-      console.log(`  ${chalk.red('✖')} Failed to join team: ${err.message}`);
+      console.log(`  ${chalk.red('✖')} Failed to join team: ${typedErr.message}`);
       console.log(`    ${chalk.dim(hint)}`);
       console.log('');
       return;
@@ -113,7 +116,7 @@ export async function runInit() {
   } else {
     try {
       const projectName = basename(cwd);
-      const result = await client.post('/teams', { name: projectName });
+      const result = (await client.post('/teams', { name: projectName })) as { team_id: string };
       teamId = result.team_id;
       await client.post(`/teams/${teamId}/join`, { name: projectName });
       writeFileSync(
@@ -122,13 +125,14 @@ export async function runInit() {
       );
       teamName = projectName;
       teamVerb = 'created';
-    } catch (err) {
-      const classified = classifyError(err);
+    } catch (err: unknown) {
+      const typedErr = err as { status?: number; message?: string };
+      const classified = classifyError(typedErr);
       const hint =
-        err.status === 429
+        typedErr.status === 429
           ? 'Rate limit reached. Try again tomorrow.'
           : classified.detail || 'Check your connection and try again.';
-      console.log(`  ${chalk.red('✖')} Failed to create team: ${err.message}`);
+      console.log(`  ${chalk.red('✖')} Failed to create team: ${typedErr.message}`);
       console.log(`    ${chalk.dim(hint)}`);
       console.log('');
       return;
@@ -141,7 +145,7 @@ export async function runInit() {
   const detected = detectTools(cwd);
 
   // Step 4: Configure detected integrations through the shared doctor path
-  const configured = [];
+  const configured: Array<{ name: string; detail: string }> = [];
 
   for (const tool of detected) {
     const result = configureTool(cwd, tool.id);
@@ -149,11 +153,11 @@ export async function runInit() {
       console.log(`  ${chalk.red('✖')} Could not configure ${tool.name}: ${result.error}`);
       continue;
     }
-    configured.push({ name: result.name, detail: dim(result.detail) });
+    configured.push({ name: result.name || tool.name, detail: dim(result.detail || '') });
   }
 
   if (configured.length > 0) {
-    console.log(`  ${ok} Configured ${chalk.bold(configured.length)} tools`);
+    console.log(`  ${ok} Configured ${chalk.bold(String(configured.length))} tools`);
     const maxName = Math.max(...configured.map((c) => c.name.length));
     for (const { name, detail } of configured) {
       console.log(`      ${bullet} ${name.padEnd(maxName + 1)} ${detail}`);
@@ -182,9 +186,9 @@ export async function runInit() {
   console.log('');
 }
 
-async function createAccount() {
-  const result = await initAccount();
-  const config = { token: result.token, handle: result.handle, color: result.color };
+async function createAccount(): Promise<ChinwagConfig> {
+  const result = (await initAccount()) as { token: string; handle: string; color: string };
+  const config: ChinwagConfig = { token: result.token, handle: result.handle, color: result.color };
   saveConfig(config);
   return config;
 }

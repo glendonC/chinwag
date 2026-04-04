@@ -1,25 +1,46 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { saveConfig } from './config.js';
+import type { ChinwagConfig } from './config.js';
 import { initAccount } from './api.js';
 import { getInkColor } from './colors.js';
 import { classifyInitError } from './utils/errors.js';
 
-export function Welcome({ onComplete }) {
-  const [state, setState] = useState('loading');
-  const [account, setAccount] = useState(null);
-  const [error, setError] = useState(null);
+interface AccountResult {
+  token: string;
+  handle: string;
+  color: string;
+}
+
+interface AccountError {
+  message: string;
+  status?: number;
+}
+
+interface UserInfo {
+  handle: string;
+  color: string;
+}
+
+interface WelcomeProps {
+  onComplete: (config: ChinwagConfig, user: UserInfo) => void;
+}
+
+export function Welcome({ onComplete }: WelcomeProps): React.ReactNode {
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [account, setAccount] = useState<AccountResult | null>(null);
+  const [error, setError] = useState<AccountError | null>(null);
 
   const [retryKey, setRetryKey] = useState(0);
   const [logoStep, setLogoStep] = useState(0);
 
   useEffect(() => {
-    async function setup() {
+    async function setup(): Promise<void> {
       setState('loading');
       setError(null);
       try {
-        const result = await initAccount();
-        const config = {
+        const result = (await initAccount()) as AccountResult;
+        const config: ChinwagConfig = {
           token: result.token,
           handle: result.handle,
           color: result.color,
@@ -27,8 +48,11 @@ export function Welcome({ onComplete }) {
         saveConfig(config);
         setAccount(result);
         setState('ready');
-      } catch (err) {
-        setError({ message: err.message || 'Failed to connect to server', status: err.status });
+      } catch (err: unknown) {
+        setError({
+          message: (err as Error).message || 'Failed to connect to server',
+          status: (err as { status?: number }).status,
+        });
         setState('error');
       }
     }
@@ -47,7 +71,7 @@ export function Welcome({ onComplete }) {
     };
   }, [state]);
 
-  useInput((input, key) => {
+  useInput((input: string, key) => {
     if (state === 'error' && input === 'r') {
       setRetryKey((k) => k + 1);
       return;
@@ -56,12 +80,12 @@ export function Welcome({ onComplete }) {
     if (state !== 'ready') return;
 
     if (key.return) {
-      const config = {
-        token: account.token,
-        handle: account.handle,
-        color: account.color,
+      const config: ChinwagConfig = {
+        token: account!.token,
+        handle: account!.handle,
+        color: account!.color,
       };
-      onComplete(config, { handle: account.handle, color: account.color });
+      onComplete(config, { handle: account!.handle, color: account!.color });
     }
   });
 
@@ -74,7 +98,7 @@ export function Welcome({ onComplete }) {
   }
 
   if (state === 'error') {
-    const { title, hint } = classifyInitError(error);
+    const { title, hint } = classifyInitError(error!);
     return (
       <Box flexDirection="column" padding={1}>
         <Text color="red" bold>
@@ -118,8 +142,8 @@ export function Welcome({ onComplete }) {
       <Box paddingTop={1}>
         <Text>
           <Text dimColor>You are </Text>
-          <Text color={getInkColor(account.color)} bold>
-            {account.handle}
+          <Text color={getInkColor(account!.color)} bold>
+            {account!.handle}
           </Text>
         </Text>
       </Box>

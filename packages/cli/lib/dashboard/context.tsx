@@ -8,11 +8,20 @@ import React, {
   useCallback,
   useState,
 } from 'react';
+import type { Dispatch, ReactNode } from 'react';
 import { basename } from 'path';
 import { buildCombinedAgentRows, buildDashboardView } from './view.js';
+import type { CombinedAgentRow, MemoryEntry, TeamContext } from './view.js';
 import { isAgentAddressable } from './agent-display.js';
 import { getVisibleWindow } from './utils.js';
 import { dashboardReducer, createInitialState, clampSelection } from './reducer.js';
+import type { DashboardState, DashboardAction, DashboardNotice, NoticeTone } from './reducer.js';
+import type { UseAgentLifecycleReturn } from './agents.js';
+import type { UseMemoryManagerReturn } from './memory.js';
+import type { UseComposerReturn, ComposeMode } from './composer.js';
+import type { UseIntegrationDoctorReturn } from './integrations.js';
+import type { UseDashboardConnectionReturn } from './connection.jsx';
+import type { HostIntegration } from '@chinwag/shared/integration-model.js';
 
 // ── Constants ───────────────────────────────────────
 const RECENTLY_FINISHED_LIMIT = 3;
@@ -20,41 +29,80 @@ const MIN_VIEWPORT_ROWS = 4;
 const VIEWPORT_CHROME_ROWS = 11;
 const COMMAND_SUGGESTION_LIMIT = 5;
 
+// ── Context value types ────────────────────────────
+
+interface ViewContextValue {
+  state: DashboardState;
+  dispatch: Dispatch<DashboardAction>;
+  notice: DashboardNotice | null;
+  flash: (msg: string, opts?: { tone?: NoticeTone; autoClearMs?: number }) => void;
+}
+
+interface AgentContextValue extends UseAgentLifecycleReturn {
+  combinedAgents: CombinedAgentRow[];
+  liveAgents: CombinedAgentRow[];
+  allVisibleAgents: CombinedAgentRow[];
+  selectedAgent: CombinedAgentRow | null;
+  mainSelectedAgent: CombinedAgentRow | null;
+  hasLiveAgents: boolean;
+  liveAgentNameCounts: Map<string, number>;
+  visibleSessionRows: { items: CombinedAgentRow[]; start: number };
+  conflicts: Array<[string, string[]]>;
+  getToolName: (id: string) => string | null;
+}
+
+interface MemoryContextValue extends UseMemoryManagerReturn {
+  memories: MemoryEntry[];
+  filteredMemories: MemoryEntry[];
+  visibleMemories: MemoryEntry[];
+  visibleKnowledgeRows: { items: MemoryEntry[]; start: number };
+  hasMemories: boolean;
+}
+
+interface CommandPaletteContextValue {
+  commandSuggestions: CommandSuggestion[];
+}
+
+interface CommandSuggestion {
+  name: string;
+  description: string;
+}
+
 // ── Contexts ────────────────────────────────────────
 
-const ViewContext = createContext(null);
-const ConnectionContext = createContext(null);
-const AgentContext = createContext(null);
-const MemoryContext = createContext(null);
-const CommandPaletteContext = createContext(null);
+const ViewContext = createContext<ViewContextValue | null>(null);
+const ConnectionContext = createContext<UseDashboardConnectionReturn | null>(null);
+const AgentContext = createContext<AgentContextValue | null>(null);
+const MemoryContext = createContext<MemoryContextValue | null>(null);
+const CommandPaletteContext = createContext<CommandPaletteContextValue | null>(null);
 
 // ── Hooks ───────────────────────────────────────────
 
-export function useView() {
+export function useView(): ViewContextValue {
   const ctx = useContext(ViewContext);
   if (!ctx) throw new Error('useView must be used within ViewProvider');
   return ctx;
 }
 
-export function useConnection() {
+export function useConnection(): UseDashboardConnectionReturn {
   const ctx = useContext(ConnectionContext);
   if (!ctx) throw new Error('useConnection must be used within ConnectionProvider');
   return ctx;
 }
 
-export function useAgents() {
+export function useAgents(): AgentContextValue {
   const ctx = useContext(AgentContext);
   if (!ctx) throw new Error('useAgents must be used within AgentProvider');
   return ctx;
 }
 
-export function useMemory() {
+export function useMemory(): MemoryContextValue {
   const ctx = useContext(MemoryContext);
   if (!ctx) throw new Error('useMemory must be used within MemoryProvider');
   return ctx;
 }
 
-export function useCommandPalette() {
+export function useCommandPalette(): CommandPaletteContextValue {
   const ctx = useContext(CommandPaletteContext);
   if (!ctx) throw new Error('useCommandPalette must be used within CommandPaletteProvider');
   return ctx;
@@ -62,21 +110,28 @@ export function useCommandPalette() {
 
 // ── Providers ───────────────────────────────────────
 
+interface ViewProviderProps {
+  children: ReactNode;
+}
+
 /**
  * View state: owns the dashboard reducer (view, selectedIdx, mainFocus,
  * focusedAgent, showDiagnostics, heroInput) plus the flash notification.
  * Every component that previously received these as props can now
  * `useView()` instead.
  */
-export function ViewProvider({ children }) {
+export function ViewProvider({ children }: ViewProviderProps): React.ReactNode {
   const [state, dispatch] = useReducer(dashboardReducer, undefined, createInitialState);
 
   // ── Flash notification ───────────────────────────
-  const [notice, setNotice] = useState(null);
-  const noticeTimer = useRef(null);
+  const [notice, setNotice] = useState<DashboardNotice | null>(null);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const flash = useCallback(function flash(msg, opts = {}) {
-    const tone = typeof opts === 'object' ? opts.tone || 'info' : 'info';
+  const flash = useCallback(function flash(
+    msg: string,
+    opts: { tone?: NoticeTone; autoClearMs?: number } = {},
+  ) {
+    const tone: NoticeTone = typeof opts === 'object' ? opts.tone || 'info' : 'info';
     const autoClearMs = typeof opts === 'object' ? opts.autoClearMs : null;
     if (noticeTimer.current) {
       clearTimeout(noticeTimer.current);
@@ -103,12 +158,30 @@ export function ViewProvider({ children }) {
   return <ViewContext.Provider value={value}>{children}</ViewContext.Provider>;
 }
 
+interface ConnectionProviderProps {
+  connection: UseDashboardConnectionReturn;
+  children: ReactNode;
+}
+
 /**
  * Connection state: teamId, teamName, projectRoot, connState, etc.
  * Thin wrapper — the useDashboardConnection hook does the real work.
  */
-export function ConnectionProvider({ connection, children }) {
+export function ConnectionProvider({
+  connection,
+  children,
+}: ConnectionProviderProps): React.ReactNode {
   return <ConnectionContext.Provider value={connection}>{children}</ConnectionContext.Provider>;
+}
+
+interface AgentProviderProps {
+  agents: UseAgentLifecycleReturn;
+  context: TeamContext | null;
+  detectedTools: HostIntegration[];
+  teamName: string | null;
+  cols: number;
+  viewportRows: number;
+  children: ReactNode;
 }
 
 /**
@@ -127,7 +200,7 @@ export function AgentProvider({
   cols,
   viewportRows,
   children,
-}) {
+}: AgentProviderProps): React.ReactNode {
   const { state, dispatch } = useView();
   const { selectedIdx, mainFocus } = state;
 
@@ -135,7 +208,7 @@ export function AgentProvider({
   const dashboardView = useMemo(
     () =>
       buildDashboardView({
-        context,
+        context: context ?? undefined,
         detectedTools,
         memoryFilter: null,
         memorySearch: '',
@@ -149,7 +222,7 @@ export function AgentProvider({
   const combinedAgents = useMemo(
     () =>
       buildCombinedAgentRows({
-        managedAgents: agents.managedAgents,
+        managedAgents: agents.managedAgents as unknown as import('./view.js').ManagedAgent[],
         connectedAgents: dashboardView.visibleAgents,
         getToolName: dashboardView.getToolName,
       }),
@@ -185,7 +258,7 @@ export function AgentProvider({
         const label = agent._display || agent.toolName || agent.tool || 'agent';
         counts.set(label, (counts.get(label) || 0) + 1);
         return counts;
-      }, new Map()),
+      }, new Map<string, number>()),
     [liveAgents],
   );
 
@@ -234,6 +307,17 @@ export function AgentProvider({
   return <AgentContext.Provider value={value}>{children}</AgentContext.Provider>;
 }
 
+interface MemoryProviderProps {
+  memory: UseMemoryManagerReturn;
+  context: TeamContext | null;
+  detectedTools: HostIntegration[];
+  teamName: string | null;
+  cols: number;
+  composeMode: ComposeMode;
+  viewportRows: number;
+  children: ReactNode;
+}
+
 /**
  * Memory context: raw memory hook + derived memory data.
  * Owns: memories, filteredMemories, visibleMemories, visibleKnowledgeRows,
@@ -248,14 +332,14 @@ export function MemoryProvider({
   composeMode,
   viewportRows,
   children,
-}) {
+}: MemoryProviderProps): React.ReactNode {
   const memorySearch = composeMode === 'memory-search' ? memory.memorySearch : '';
 
   // Build dashboard view data scoped to memory filtering
   const dashboardView = useMemo(
     () =>
       buildDashboardView({
-        context,
+        context: context ?? undefined,
         detectedTools,
         memoryFilter: null,
         memorySearch,
@@ -298,6 +382,16 @@ export function MemoryProvider({
   return <MemoryContext.Provider value={value}>{children}</MemoryContext.Provider>;
 }
 
+interface CommandPaletteProviderProps {
+  composer: UseComposerReturn;
+  agents: UseAgentLifecycleReturn;
+  integrations: UseIntegrationDoctorReturn;
+  hasMemories: boolean;
+  hasLiveAgents: boolean;
+  selectedAgent: CombinedAgentRow | null;
+  children: ReactNode;
+}
+
 /**
  * Command palette context: command suggestions derived from agent/memory/integration state.
  * Owns: commandEntries, commandSuggestions filtering.
@@ -310,7 +404,7 @@ export function CommandPaletteProvider({
   hasLiveAgents,
   selectedAgent,
   children,
-}) {
+}: CommandPaletteProviderProps): React.ReactNode {
   // Command palette entries
   const commandEntries = useMemo(
     () => [

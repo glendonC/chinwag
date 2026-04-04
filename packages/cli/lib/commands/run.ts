@@ -1,4 +1,11 @@
-import { attachTerminal, getOutput, resizePty, spawnAgent, waitForExit } from '../process-manager.js';
+import {
+  attachTerminal,
+  getOutput,
+  resizePty,
+  spawnAgent,
+  waitForExit,
+} from '../process-manager.js';
+import type { AttachTerminalResult } from '../process-manager.js';
 import { configExists, loadConfig } from '../config.js';
 import {
   checkManagedAgentToolAvailability,
@@ -6,6 +13,7 @@ import {
   getManagedAgentTool,
   listManagedAgentTools,
 } from '../managed-agents.js';
+import type { ManagedTool } from '../managed-agents.js';
 import {
   getSavedLauncherPreference,
   resolvePreferredManagedTool,
@@ -13,11 +21,11 @@ import {
 } from '../launcher-preferences.js';
 import { getProjectContext } from '../project.js';
 
-function printUsage() {
+function printUsage(): void {
   process.stderr.write('Usage: chinwag run [--tool <tool-id>] "task description"\n');
 }
 
-function printAvailableTools(tools) {
+function printAvailableTools(tools: ManagedTool[]): void {
   if (!tools.length) return;
   process.stderr.write('Available managed tools:\n');
   for (const tool of tools) {
@@ -25,10 +33,15 @@ function printAvailableTools(tools) {
   }
 }
 
-function parseArgs(argv) {
+interface ParsedArgs {
+  toolId: string | null;
+  task: string;
+}
+
+function parseArgs(argv: string[]): ParsedArgs {
   const args = [...argv];
-  let toolId = null;
-  const taskParts = [];
+  let toolId: string | null = null;
+  const taskParts: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -46,7 +59,7 @@ function parseArgs(argv) {
   };
 }
 
-function writeBufferedOutput(id) {
+function writeBufferedOutput(id: number): void {
   const lines = getOutput(id, 200);
   if (!lines.length) return;
   const text = lines.join('\n');
@@ -56,9 +69,9 @@ function writeBufferedOutput(id) {
   }
 }
 
-function bridgeStdin(terminal) {
-  const onData = (chunk) => terminal.write(chunk.toString('utf-8'));
-  const cleanupFns = [];
+function bridgeStdin(terminal: AttachTerminalResult): () => void {
+  const onData = (chunk: Buffer): void => terminal.write(chunk.toString('utf-8'));
+  const cleanupFns: Array<() => void> = [];
 
   if (process.stdin.isTTY) {
     process.stdin.setRawMode(true);
@@ -73,12 +86,14 @@ function bridgeStdin(terminal) {
     for (const cleanup of cleanupFns.reverse()) {
       try {
         cleanup();
-      } catch (err) { console.error('[chinwag]', err?.message || err); }
+      } catch (err: unknown) {
+        console.error('[chinwag]', (err as Error)?.message || err);
+      }
     }
   };
 }
 
-export async function runManagedAgentCommand(argv = []) {
+export async function runManagedAgentCommand(argv: string[] = []): Promise<number> {
   const { toolId, task } = parseArgs(argv);
   if (!task) {
     printUsage();
@@ -101,8 +116,8 @@ export async function runManagedAgentCommand(argv = []) {
     process.stderr.write('No .chinwag file found. Run `npx chinwag init` in this project first.\n');
     return 1;
   }
-  if (project.error) {
-    process.stderr.write(`${project.error}\n`);
+  if ((project as unknown as { error?: string }).error) {
+    process.stderr.write(`${(project as unknown as { error: string }).error}\n`);
     return 1;
   }
 
@@ -112,17 +127,17 @@ export async function runManagedAgentCommand(argv = []) {
     return 1;
   }
 
-  let tool = null;
+  let tool: ManagedTool | null = null;
   const preferredToolId = getSavedLauncherPreference(project.teamId);
   if (toolId) {
-    tool = getManagedAgentTool(toolId);
-    if (!tool || !availableTools.some(item => item.id === tool.id)) {
+    tool = getManagedAgentTool(toolId) as ManagedTool | null;
+    if (!tool || !availableTools.some((item) => item.id === tool!.id)) {
       process.stderr.write(`Managed tool not available: ${toolId}\n`);
       printAvailableTools(availableTools);
       return 1;
     }
   } else {
-    tool = resolvePreferredManagedTool(availableTools, preferredToolId);
+    tool = resolvePreferredManagedTool(availableTools, preferredToolId) as ManagedTool | null;
     if (!tool) {
       process.stderr.write('Multiple managed tools are available. Choose one with `--tool`.\n');
       printAvailableTools(availableTools);
@@ -164,7 +179,8 @@ export async function runManagedAgentCommand(argv = []) {
   }
 
   const cleanupInput = bridgeStdin(terminal);
-  const onResize = () => resizePty(result.id, process.stdout.columns || 120, process.stdout.rows || 30);
+  const onResize = (): void =>
+    resizePty(result.id, process.stdout.columns || 120, process.stdout.rows || 30);
   if (process.stdout.isTTY) {
     process.stdout.on('resize', onResize);
   }

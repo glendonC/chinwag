@@ -1,17 +1,31 @@
 /**
  * Shared presentation components for tool/integration lists.
  *
- * Used by both customize.jsx and discover.jsx to render detected tools,
+ * Used by both customize.tsx and discover.tsx to render detected tools,
  * recommendations, and category browsers without duplicating layout logic.
  */
 
 import React from 'react';
 import { Box, Text } from 'ink';
+import type { IntegrationScanResult } from '@chinwag/shared/integration-doctor.js';
+
+interface IntegrationSummary {
+  text: string;
+  tone: string;
+}
+
+interface DetectedToolsListProps {
+  detected: IntegrationScanResult[];
+  integrationSummary: IntegrationSummary | null;
+}
 
 /**
  * Render a list of detected/installed tools with status indicators.
  */
-export function DetectedToolsList({ detected, integrationSummary }) {
+export function DetectedToolsList({
+  detected,
+  integrationSummary,
+}: DetectedToolsListProps): React.ReactNode {
   if (detected.length === 0) {
     return (
       <Box marginBottom={1}>
@@ -26,9 +40,10 @@ export function DetectedToolsList({ detected, integrationSummary }) {
     <>
       <Box flexDirection="column" marginBottom={1}>
         {detected.map((tool) => {
-          let detail = tool.mcpConfig;
-          if (tool.hooks) detail += ' + hooks';
-          if (tool.channel) detail += ' + channel';
+          let detail = (tool as IntegrationScanResult & { mcpConfig?: string }).mcpConfig || '';
+          if ((tool as IntegrationScanResult & { hooks?: boolean }).hooks) detail += ' + hooks';
+          if ((tool as IntegrationScanResult & { channel?: boolean }).channel)
+            detail += ' + channel';
           const statusColor =
             tool.status === 'ready'
               ? 'green'
@@ -71,10 +86,29 @@ export function DetectedToolsList({ detected, integrationSummary }) {
   );
 }
 
+interface CatalogToolLike {
+  id: string;
+  name: string;
+  description: string;
+  mcpCompatible?: boolean;
+  verdict?: string;
+  confidence?: string;
+}
+
+interface RecommendationsListProps {
+  recommendations: CatalogToolLike[];
+  cols: number;
+  showVerdict?: boolean;
+}
+
 /**
  * Render a numbered list of recommended tools.
  */
-export function RecommendationsList({ recommendations, cols, showVerdict = false }) {
+export function RecommendationsList({
+  recommendations,
+  cols,
+  showVerdict = false,
+}: RecommendationsListProps): React.ReactNode {
   if (recommendations.length === 0) return null;
 
   const maxName = Math.max(...recommendations.map((t) => t.name.length));
@@ -115,6 +149,14 @@ export function RecommendationsList({ recommendations, cols, showVerdict = false
   );
 }
 
+interface CategoryBrowserProps {
+  categoryKeys: string[];
+  selectedCategory: string | null;
+  categories: Record<string, string>;
+  categoryGroups: Record<string, CatalogToolLike[]>;
+  cols: number;
+}
+
 /**
  * Render a category browser with arrow-key navigation.
  */
@@ -124,7 +166,7 @@ export function CategoryBrowser({
   categories,
   categoryGroups,
   cols,
-}) {
+}: CategoryBrowserProps): React.ReactNode {
   if (categoryKeys.length === 0) return null;
 
   return (

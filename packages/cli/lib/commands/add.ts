@@ -1,5 +1,5 @@
 // chinwag add <tool> — add a specific tool's MCP config.
-// Pure stdout output, no TUI. Same pattern as init-command.js.
+// Pure stdout output, no TUI. Same pattern as init-command.ts.
 // Fetches the full tool catalog from the API for discovery.
 
 import { MCP_TOOLS } from '../tools.js';
@@ -7,7 +7,32 @@ import { configureTool } from '../mcp-config.js';
 import { configExists, loadConfig } from '../config.js';
 import { api } from '../api.js';
 
-function evalToTool(e) {
+interface CatalogToolLike {
+  id: string;
+  name: string;
+  description: string;
+  category?: string;
+  mcpCompatible?: boolean;
+  mcpConfigurable?: boolean;
+  website?: string;
+  installCmd?: string;
+  featured?: boolean;
+  verdict?: string;
+  confidence?: string;
+}
+
+interface EvalEntry {
+  id: string;
+  name: string;
+  tagline: string;
+  category?: string;
+  mcp_support?: boolean;
+  metadata?: { website?: string; install_command?: string; featured?: boolean };
+  verdict?: string;
+  confidence?: string;
+}
+
+function evalToTool(e: EvalEntry): CatalogToolLike {
   const meta = e.metadata || {};
   return {
     id: e.id,
@@ -23,7 +48,12 @@ function evalToTool(e) {
   };
 }
 
-export async function runAdd(toolArg) {
+interface CatalogResult {
+  tools: CatalogToolLike[];
+  categories: Record<string, string>;
+}
+
+export async function runAdd(toolArg?: string): Promise<void> {
   if (!toolArg || toolArg === '--list') {
     await printList();
     return;
@@ -83,19 +113,25 @@ export async function runAdd(toolArg) {
   }
 }
 
-async function fetchCatalog() {
+async function fetchCatalog(): Promise<CatalogResult | null> {
   const config = configExists() ? loadConfig() : null;
   try {
-    const result = await api(config).get('/tools/directory?limit=200');
+    const result = (await api(config).get('/tools/directory?limit=200')) as {
+      evaluations?: EvalEntry[];
+      categories?: Record<string, string>;
+    };
     return {
       tools: (result.evaluations || []).map(evalToTool),
       categories: result.categories || {},
     };
-  } catch (err) {
-    console.error('[chinwag]', err?.message || err);
+  } catch (err: unknown) {
+    console.error('[chinwag]', (err as Error)?.message || err);
     // Fallback to old catalog endpoint if directory isn't deployed yet
     try {
-      const fallback = await api(config).get('/tools/catalog');
+      const fallback = (await api(config).get('/tools/catalog')) as {
+        tools?: CatalogToolLike[];
+        categories?: Record<string, string>;
+      };
       return { tools: fallback.tools || [], categories: fallback.categories || {} };
     } catch {
       console.log('  Could not load tool catalog.');
@@ -104,7 +140,7 @@ async function fetchCatalog() {
   }
 }
 
-async function printList() {
+async function printList(): Promise<void> {
   const catalog = await fetchCatalog();
   if (!catalog) return;
 
@@ -113,7 +149,7 @@ async function printList() {
   console.log('');
 
   // Group by category
-  const groups = {};
+  const groups: Record<string, CatalogToolLike[]> = {};
   for (const tool of catalog.tools) {
     const cat = tool.category || 'other';
     if (!groups[cat]) groups[cat] = [];

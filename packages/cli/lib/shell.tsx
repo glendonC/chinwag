@@ -1,11 +1,39 @@
 import React, { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Box, Text, useStdout } from 'ink';
 import { getInkColor } from './colors.js';
 import { getTerminalUiCapabilities } from './terminal-control.js';
 
 const MIN_ROWS = 18;
 
-function getRailWidth(items, compact) {
+export interface ModeItem {
+  key: string;
+  label: string;
+  shortLabel?: string;
+  accent?: string;
+  meta?: string;
+}
+
+interface FooterHint {
+  key: string;
+  label: string;
+  color?: string;
+}
+
+interface ShellUser {
+  handle?: string;
+  color?: string;
+}
+
+export interface ShellDimensions {
+  cols: number;
+  rows: number;
+  viewportRows: number;
+  compact: boolean;
+  narrow: boolean;
+}
+
+function getRailWidth(items: ModeItem[] | undefined, compact: boolean): number {
   if (!items?.length) return 0;
 
   return items.reduce((total, item) => {
@@ -16,29 +44,29 @@ function getRailWidth(items, compact) {
   }, 0);
 }
 
-function getActiveModeItem(items, activeKey) {
+function getActiveModeItem(items: ModeItem[], activeKey: string): ModeItem | null {
   return items.find((item) => item.key === activeKey) || items[0] || null;
 }
 
-function getNavHintWidth(compact) {
+function getNavHintWidth(compact: boolean): number {
   const labels = compact ? ['← shift+tab', 'tab →'] : ['← shift+tab', 'tab →'];
   return Math.max(...labels.map((label) => label.length)) + 5;
 }
 
-function RailPill({ item, active, compact, fillMode }) {
+interface RailPillProps {
+  item: ModeItem;
+  active: boolean;
+  compact: boolean;
+  fillMode: boolean;
+}
+
+function RailPill({ item, active, compact, fillMode }: RailPillProps): React.ReactNode {
   const accent = item.accent || 'cyan';
   const label = compact ? item.shortLabel || item.label : item.label;
-  const backgroundColor = fillMode ? (active ? accent : 'blackBright') : undefined;
   const textColor = fillMode ? (active ? 'black' : 'white') : active ? accent : 'white';
 
   return (
-    <Box
-      borderStyle="round"
-      borderColor={active ? accent : 'gray'}
-      backgroundColor={backgroundColor}
-      paddingX={1}
-      marginRight={1}
-    >
+    <Box borderStyle="round" borderColor={active ? accent : 'gray'} paddingX={1} marginRight={1}>
       <Text color={textColor} dimColor={!active && !fillMode} bold={active}>
         {label}
       </Text>
@@ -47,7 +75,19 @@ function RailPill({ item, active, compact, fillMode }) {
   );
 }
 
-export function ModeRail({ items = [], activeKey, compact = false, fillMode = false }) {
+interface ModeRailProps {
+  items?: ModeItem[];
+  activeKey: string;
+  compact?: boolean;
+  fillMode?: boolean;
+}
+
+export function ModeRail({
+  items = [],
+  activeKey,
+  compact = false,
+  fillMode = false,
+}: ModeRailProps): React.ReactNode {
   if (!items.length) return null;
 
   return (
@@ -65,7 +105,13 @@ export function ModeRail({ items = [], activeKey, compact = false, fillMode = fa
   );
 }
 
-function NavControlHint({ direction, align = 'left' }) {
+interface NavControlHintProps {
+  direction: 'left' | 'right';
+  align?: 'left' | 'right';
+  compact?: boolean;
+}
+
+function NavControlHint({ direction, align = 'left' }: NavControlHintProps): React.ReactNode {
   const label = direction === 'left' ? '← shift+tab' : 'tab →';
 
   return (
@@ -79,7 +125,11 @@ function NavControlHint({ direction, align = 'left' }) {
   );
 }
 
-function OperatorBadge({ user }) {
+interface OperatorBadgeProps {
+  user: ShellUser | null;
+}
+
+function OperatorBadge({ user }: OperatorBadgeProps): React.ReactNode {
   if (!user?.handle) {
     return <Text dimColor>local operator</Text>;
   }
@@ -94,7 +144,21 @@ function OperatorBadge({ user }) {
   );
 }
 
-export function ControlShell({ modeItems = [], activeMode, user, footerHints = null, children }) {
+interface ControlShellProps {
+  modeItems?: ModeItem[];
+  activeMode: string;
+  user: ShellUser | null;
+  footerHints?: FooterHint[] | null;
+  children: ReactNode | ((dims: ShellDimensions) => ReactNode);
+}
+
+export function ControlShell({
+  modeItems = [],
+  activeMode,
+  user,
+  footerHints = null,
+  children,
+}: ControlShellProps): React.ReactNode {
   const { stdout } = useStdout();
   const [dimensions, setDimensions] = useState({
     cols: stdout?.columns || 80,
@@ -105,7 +169,7 @@ export function ControlShell({ modeItems = [], activeMode, user, footerHints = n
   useEffect(() => {
     if (!stdout) return;
 
-    const onResize = () => {
+    const onResize = (): void => {
       setDimensions({
         cols: stdout.columns || 80,
         rows: stdout.rows || 24,
@@ -113,7 +177,9 @@ export function ControlShell({ modeItems = [], activeMode, user, footerHints = n
     };
 
     stdout.on('resize', onResize);
-    return () => stdout.off('resize', onResize);
+    return () => {
+      stdout.off('resize', onResize);
+    };
   }, [stdout]);
 
   const cols = dimensions.cols;
@@ -128,7 +194,7 @@ export function ControlShell({ modeItems = [], activeMode, user, footerHints = n
     getRailWidth(activeModeItem ? [activeModeItem] : [], true) + compactHintWidth + 8,
   );
 
-  let layoutMode = 'full';
+  let layoutMode: 'full' | 'compact' | 'narrow' = 'full';
   if (cols < compactMinCols) layoutMode = 'narrow';
   else if (cols < fullMinCols) layoutMode = 'compact';
 

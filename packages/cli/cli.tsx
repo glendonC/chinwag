@@ -1,8 +1,10 @@
 import React, { useState, useEffect, Component } from 'react';
+import type { ReactNode, ErrorInfo } from 'react';
 import { render, Box, Text, useApp, useInput } from 'ink';
 import { basename } from 'path';
 import { readFileSync } from 'fs';
 import { loadConfig, configExists, deleteConfig } from './lib/config.js';
+import type { ChinwagConfig } from './lib/config.js';
 import { api } from './lib/api.js';
 import { Welcome } from './lib/init.jsx';
 import { Chat } from './lib/chat.jsx';
@@ -10,6 +12,7 @@ import { Customize } from './lib/customize.jsx';
 import { Dashboard } from './lib/dashboard/index.jsx';
 import { Discover } from './lib/discover.jsx';
 import { ControlShell } from './lib/shell.jsx';
+import type { ModeItem, ShellDimensions } from './lib/shell.jsx';
 import { useTerminalControl } from './lib/terminal-control.js';
 
 // Node 22+ required for native WebSocket
@@ -18,12 +21,12 @@ if (parseInt(process.version.slice(1)) < 22) {
   process.exit(1);
 }
 
-let PKG_VERSION = '0.1.0';
+let _PKG_VERSION = '0.1.0';
 try {
   const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
-  PKG_VERSION = pkg.version || PKG_VERSION;
-} catch (err) {
-  console.error('[chinwag]', err?.message || err);
+  _PKG_VERSION = pkg.version || _PKG_VERSION;
+} catch (err: unknown) {
+  console.error('[chinwag]', (err as Error)?.message || err);
 }
 
 // Hand off to an MCP/hook/channel runtime module in the same process.
@@ -31,7 +34,15 @@ try {
 // and hooks need direct stdio access — child_process would add broken-pipe risk.
 // The never-resolving promise keeps the top-level await alive so the imported
 // module's signal handlers and event loops continue running.
-async function handOffToRuntime(modulePath, { stripSubcommand = false, transport = null } = {}) {
+interface HandOffOptions {
+  stripSubcommand?: boolean;
+  transport?: string | null;
+}
+
+async function handOffToRuntime(
+  modulePath: string,
+  { stripSubcommand = false, transport = null }: HandOffOptions = {},
+): Promise<void> {
   if (transport) {
     process.env.CHINWAG_TRANSPORT = transport;
   }
@@ -40,24 +51,32 @@ async function handOffToRuntime(modulePath, { stripSubcommand = false, transport
   }
   await import(modulePath);
   // Keep process alive — the imported module owns the event loop from here.
-  await new Promise(() => {});
+  await new Promise<void>(() => {});
 }
 
-class ErrorBoundary extends Component {
-  constructor(props) {
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  error: Error | null;
+}
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { error: null };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { error };
   }
 
-  componentDidCatch(error) {
+  componentDidCatch(error: Error, _errorInfo: ErrorInfo): void {
     process.stderr.write(`[chinwag] Screen error: ${error.message}\n`);
   }
 
-  render() {
+  render(): ReactNode {
     if (this.state.error) {
       return React.createElement(
         Box,
@@ -138,27 +157,39 @@ if (process.argv[2] === 'dashboard') {
 
 const SPINNER = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 const SPINNER_INTERVAL_MS = 80;
-const PRIMARY_MODES = [
+const PRIMARY_MODES: ModeItem[] = [
   { key: 'dashboard', label: 'dashboard', shortLabel: 'dashboard', accent: 'cyan' },
   { key: 'discover', label: 'tools', shortLabel: 'tools', accent: 'yellow' },
   { key: 'chat', label: 'chat', shortLabel: 'chat', accent: 'magenta' },
   { key: 'customize', label: 'settings', shortLabel: 'settings', accent: 'green' },
 ];
 
-function App() {
+interface FooterHint {
+  key: string;
+  label: string;
+  color?: string;
+}
+
+interface UserInfo {
+  handle?: string;
+  color?: string;
+}
+
+const SHELL_MODE_PREFIXES: Record<string, ModeItem> = {
+  loading: { key: 'loading', label: 'boot', shortLabel: 'boot', accent: 'cyan' },
+  welcome: { key: 'welcome', label: 'setup', shortLabel: 'setup', accent: 'cyan' },
+};
+
+function App(): React.ReactNode {
   const [screen, setScreen] = useState('loading');
-  const [config, setConfig] = useState(null);
-  const [user, setUser] = useState(null);
+  const [config, setConfig] = useState<ChinwagConfig | null>(null);
+  const [user, setUser] = useState<UserInfo | null>(null);
   const [spin, setSpin] = useState(0);
-  const [footerHints, setFooterHints] = useState(null);
+  const [footerHints, setFooterHints] = useState<FooterHint[] | null>(null);
   const { exit } = useApp();
   const projectLabel = basename(process.cwd());
   const isPrimaryMode = PRIMARY_MODES.some((mode) => mode.key === screen);
 
-  const SHELL_MODE_PREFIXES = {
-    loading: { key: 'loading', label: 'boot', shortLabel: 'boot', accent: 'cyan' },
-    welcome: { key: 'welcome', label: 'setup', shortLabel: 'setup', accent: 'cyan' },
-  };
   const prefix = SHELL_MODE_PREFIXES[screen];
   const shellModes = prefix ? [prefix, ...PRIMARY_MODES] : PRIMARY_MODES;
 
@@ -171,17 +202,17 @@ function App() {
   }, [screen]);
 
   useEffect(() => {
-    async function init() {
+    async function init(): Promise<void> {
       if (configExists()) {
         const cfg = loadConfig();
         setConfig(cfg);
 
         try {
-          const me = await api(cfg).get('/me');
+          const me = (await api(cfg).get('/me')) as UserInfo;
           setUser(me);
           setScreen('dashboard');
-        } catch (err) {
-          console.error('[chinwag]', err?.message || err);
+        } catch (err: unknown) {
+          console.error('[chinwag]', (err as Error)?.message || err);
           setScreen('welcome');
         }
       } else {
@@ -191,13 +222,13 @@ function App() {
     init();
   }, []);
 
-  const onSetup = (cfg, usr) => {
+  const onSetup = (cfg: ChinwagConfig, usr: UserInfo): void => {
     setConfig(cfg);
     setUser(usr);
     setScreen('dashboard');
   };
 
-  const navigate = (to) => {
+  const navigate = (to: string): void => {
     if (to === 'quit') {
       exit();
       return;
@@ -205,17 +236,17 @@ function App() {
     setScreen(to);
   };
 
-  const refreshUser = async () => {
+  const refreshUser = async (): Promise<void> => {
     if (!config) return;
     try {
-      const me = await api(config).get('/me');
+      const me = (await api(config).get('/me')) as UserInfo;
       setUser(me);
-    } catch (err) {
-      console.error('[chinwag]', err?.message || err);
+    } catch (err: unknown) {
+      console.error('[chinwag]', (err as Error)?.message || err);
     }
   };
 
-  useInput((input, key) => {
+  useInput((input: string, key) => {
     if (!isPrimaryMode || !key.tab) return;
 
     const idx = PRIMARY_MODES.findIndex((mode) => mode.key === screen);
@@ -226,7 +257,7 @@ function App() {
     setScreen(PRIMARY_MODES[nextIdx].key);
   });
 
-  function renderScreen({ viewportRows }) {
+  function renderScreen({ viewportRows }: { viewportRows: number }): React.ReactNode {
     switch (screen) {
       case 'loading':
         return (
@@ -240,16 +271,10 @@ function App() {
       case 'welcome':
         return <Welcome onComplete={onSetup} />;
       case 'chat':
-        return <Chat config={config} user={user} navigate={navigate} layout={{ viewportRows }} />;
+        return <Chat config={config} user={user} navigate={navigate} />;
       case 'customize':
         return (
-          <Customize
-            config={config}
-            user={user}
-            navigate={navigate}
-            refreshUser={refreshUser}
-            layout={{ viewportRows }}
-          />
+          <Customize config={config} user={user} navigate={navigate} refreshUser={refreshUser} />
         );
       case 'dashboard':
         return (
@@ -257,13 +282,11 @@ function App() {
             config={config}
             navigate={navigate}
             layout={{ viewportRows }}
-            projectLabel={projectLabel}
-            appVersion={PKG_VERSION}
             setFooterHints={setFooterHints}
           />
         );
       case 'discover':
-        return <Discover config={config} navigate={navigate} layout={{ viewportRows }} />;
+        return <Discover config={config} navigate={navigate} />;
       default:
         return null;
     }
@@ -271,7 +294,7 @@ function App() {
 
   return (
     <ControlShell modeItems={shellModes} activeMode={screen} user={user} footerHints={footerHints}>
-      {({ viewportRows, compact: _compact }) => (
+      {({ viewportRows }: ShellDimensions) => (
         <ErrorBoundary>{renderScreen({ viewportRows })}</ErrorBoundary>
       )}
     </ControlShell>

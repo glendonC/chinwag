@@ -4,7 +4,10 @@ import { basename, resolve } from 'path';
 import { stripAnsi } from '../utils/ansi.js';
 import { getAgentDisplayLabel } from './agent-display.js';
 import { HintRow, NoticeLine } from './ui.jsx';
+import type { HintItem } from './ui.jsx';
 import { getOutput } from '../process-manager.js';
+import type { CombinedAgentRow } from './view.js';
+import type { DashboardNotice } from './reducer.js';
 
 const MEDIA_EXTS = new Set([
   '.png',
@@ -26,7 +29,7 @@ const MEDIA_EXTS = new Set([
 ]);
 const CONFIG_EXTS = new Set(['.json', '.yaml', '.yml', '.toml', '.ini', '.env', '.lock']);
 
-function fileColor(name) {
+function fileColor(name: string): string {
   const dot = name.lastIndexOf('.');
   if (dot === -1) return 'cyan';
   const ext = name.slice(dot).toLowerCase();
@@ -35,15 +38,25 @@ function fileColor(name) {
   return 'cyan';
 }
 
-function isMedia(name) {
+function isMedia(name: string): boolean {
   const dot = name.lastIndexOf('.');
   return dot !== -1 && MEDIA_EXTS.has(name.slice(dot).toLowerCase());
 }
 
 // OSC 8 terminal hyperlink — clickable in iTerm2, VS Code/Cursor terminal
-function linked(label, filePath) {
+function linked(label: string, filePath: string): string {
   const abs = resolve(filePath);
   return `\x1b]8;;file://${abs}\x07${label}\x1b]8;;\x07`;
+}
+
+interface AgentFocusViewProps {
+  focusedAgent: CombinedAgentRow | null;
+  combinedAgents: CombinedAgentRow[];
+  conflicts: Array<[string, string[]]>;
+  notice: DashboardNotice | null;
+  showDiagnostics: boolean;
+  liveAgentNameCounts: Map<string, number>;
+  navHints: HintItem[];
 }
 
 export function AgentFocusView({
@@ -54,7 +67,7 @@ export function AgentFocusView({
   showDiagnostics,
   liveAgentNameCounts,
   navHints,
-}) {
+}: AgentFocusViewProps): React.ReactNode {
   if (!focusedAgent) return <Text dimColor>Agent no longer available. Press Esc to go back.</Text>;
 
   const freshAgent = focusedAgent._managed

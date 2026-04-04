@@ -2,10 +2,15 @@ import React, { useEffect, useCallback, useMemo } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
 import { HintRow } from './ui.jsx';
 import { useDashboardConnection } from './connection.jsx';
+import type { UseDashboardConnectionReturn } from './connection.jsx';
 import { useMemoryManager } from './memory.js';
+import type { UseMemoryManagerReturn } from './memory.js';
 import { useAgentLifecycle } from './agents.js';
+import type { UseAgentLifecycleReturn } from './agents.js';
 import { useComposer } from './composer.js';
+import type { UseComposerReturn } from './composer.js';
 import { useIntegrationDoctor } from './integrations.js';
+import type { UseIntegrationDoctorReturn } from './integrations.js';
 import { createInputHandler, createCommandHandler } from './input.js';
 import { MainPane, MemoryView, SessionsView } from './main-pane.jsx';
 import { AgentFocusView } from './agent-focus.jsx';
@@ -22,10 +27,33 @@ import {
   useMemory,
   useCommandPalette,
 } from './context.jsx';
+import type { ChinwagConfig } from '../config.js';
+
+interface FooterHint {
+  key: string;
+  label: string;
+  color?: string;
+}
+
+interface DashboardLayout {
+  viewportRows?: number;
+}
 
 // ── Main Dashboard component ────────────────────────
 
-export function Dashboard({ config, navigate, layout, setFooterHints }) {
+interface DashboardProps {
+  config: ChinwagConfig | null;
+  navigate: (to: string) => void;
+  layout?: DashboardLayout;
+  setFooterHints?: ((hints: FooterHint[]) => void) | null;
+}
+
+export function Dashboard({
+  config,
+  navigate,
+  layout,
+  setFooterHints,
+}: DashboardProps): React.ReactNode {
   const { stdout } = useStdout();
   const viewportRows = layout?.viewportRows || 18;
 
@@ -37,18 +65,32 @@ export function Dashboard({ config, navigate, layout, setFooterHints }) {
         config={config}
         navigate={navigate}
         viewportRows={viewportRows}
-        setFooterHints={setFooterHints}
+        setFooterHints={setFooterHints || null}
         stdout={stdout}
       />
     </ViewProvider>
   );
 }
 
+interface DashboardProvidersProps {
+  config: ChinwagConfig | null;
+  navigate: (to: string) => void;
+  viewportRows: number;
+  setFooterHints: ((hints: FooterHint[]) => void) | null;
+  stdout: NodeJS.WriteStream | null;
+}
+
 /**
  * Sets up connection + domain hooks, wires them into the provider tree.
  * Must be a child of ViewProvider so hooks can call useView().
  */
-function DashboardProviders({ config, navigate, viewportRows, setFooterHints, stdout }) {
+function DashboardProviders({
+  config,
+  navigate,
+  viewportRows,
+  setFooterHints,
+  stdout,
+}: DashboardProvidersProps): React.ReactNode {
   const { flash } = useView();
 
   // ── Connection + project state ─────────────────────
@@ -62,7 +104,13 @@ function DashboardProviders({ config, navigate, viewportRows, setFooterHints, st
     bumpRefreshKey: connection.bumpRefreshKey,
     flash,
   });
-  const agentsHook = useAgentLifecycle({ config, teamId, projectRoot, stdout, flash });
+  const agentsHook = useAgentLifecycle({
+    config,
+    teamId,
+    projectRoot: projectRoot || '',
+    stdout,
+    flash,
+  });
   const integrations = useIntegrationDoctor({ projectRoot, flash });
   const composer = useComposer({
     config,
@@ -110,6 +158,18 @@ function DashboardProviders({ config, navigate, viewportRows, setFooterHints, st
   );
 }
 
+interface DashboardInnerProps {
+  config: ChinwagConfig | null;
+  navigate: (to: string) => void;
+  viewportRows: number;
+  setFooterHints: ((hints: FooterHint[]) => void) | null;
+  connection: UseDashboardConnectionReturn;
+  memoryHook: UseMemoryManagerReturn;
+  agentsHook: UseAgentLifecycleReturn;
+  integrations: UseIntegrationDoctorReturn;
+  composer: UseComposerReturn;
+}
+
 /**
  * Bridge component: reads Agent/Memory contexts to get derived data needed
  * by CommandPaletteProvider, then wraps the main view in that provider.
@@ -124,7 +184,7 @@ function DashboardInner({
   agentsHook,
   integrations,
   composer,
-}) {
+}: DashboardInnerProps): React.ReactNode {
   const { selectedAgent, hasLiveAgents } = useAgents();
   const { hasMemories } = useMemory();
 
@@ -137,7 +197,7 @@ function DashboardInner({
       hasLiveAgents={hasLiveAgents}
       selectedAgent={selectedAgent}
     >
-      <DashboardView
+      <DashboardViewComponent
         config={config}
         navigate={navigate}
         viewportRows={viewportRows}
@@ -152,11 +212,23 @@ function DashboardInner({
   );
 }
 
+interface DashboardViewProps {
+  config: ChinwagConfig | null;
+  navigate: (to: string) => void;
+  viewportRows: number;
+  setFooterHints: ((hints: FooterHint[]) => void) | null;
+  connection: UseDashboardConnectionReturn;
+  memoryHook: UseMemoryManagerReturn;
+  agentsHook: UseAgentLifecycleReturn;
+  integrations: UseIntegrationDoctorReturn;
+  composer: UseComposerReturn;
+}
+
 /**
  * Handles input, rendering, and all view-level logic.
  * Consumes all 5 domain contexts for derived data.
  */
-function DashboardView({
+function DashboardViewComponent({
   config,
   navigate,
   viewportRows: _viewportRows,
@@ -166,7 +238,7 @@ function DashboardView({
   agentsHook,
   integrations,
   composer,
-}) {
+}: DashboardViewProps): React.ReactNode {
   const {
     context,
     error,
@@ -340,7 +412,7 @@ function DashboardView({
   // ── Nav hints ──────────────────────────────────────
   const navItems = useMemo(() => {
     if (isAgentFocusView) {
-      const items = [{ key: 'esc', label: 'back', color: 'cyan' }];
+      const items: FooterHint[] = [{ key: 'esc', label: 'back', color: 'cyan' }];
       if (focusedAgent?._managed && !focusedAgent._dead)
         items.push({ key: 'x', label: 'stop', color: 'red' });
       if (focusedAgent?._managed && focusedAgent._dead) {
@@ -377,7 +449,7 @@ function DashboardView({
 
   // ── Contextual hints ───────────────────────────────
   const contextHints = useMemo(() => {
-    const hints = [];
+    const hints: Array<{ commandKey: string; label: string; color: string }> = [];
     if (mainSelectedAgent) {
       hints.push({ commandKey: 'enter', label: 'inspect', color: 'cyan' });
       if (isAgentAddressable(mainSelectedAgent))

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useReducer, useCallback } from 'rea
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import { getInkColor } from './colors.js';
+import type { ChinwagConfig } from './config.js';
 
 const WS_URL = process.env.CHINWAG_WS_URL || 'wss://chinwag-api.glendonchin.workers.dev/ws/chat';
 
@@ -21,16 +22,31 @@ export const WS_ACTIONS = {
   ERROR: 'ERROR',
   CLOSED: 'CLOSED',
   CLEAR_ERROR: 'CLEAR_ERROR',
-};
+} as const;
 
-export const WS_INITIAL_STATE = {
+interface WsState {
+  status: string;
+  retryCount: number;
+  error: string | null;
+  intentionalClose: boolean;
+}
+
+type WsAction =
+  | { type: typeof WS_ACTIONS.CONNECTING }
+  | { type: typeof WS_ACTIONS.CONNECTED }
+  | { type: typeof WS_ACTIONS.DISCONNECTED }
+  | { type: typeof WS_ACTIONS.ERROR; error: string }
+  | { type: typeof WS_ACTIONS.CLOSED }
+  | { type: typeof WS_ACTIONS.CLEAR_ERROR };
+
+export const WS_INITIAL_STATE: WsState = {
   status: 'disconnected',
   retryCount: 0,
   error: null,
   intentionalClose: false,
 };
 
-export function wsReducer(state, action) {
+export function wsReducer(state: WsState, action: WsAction): WsState {
   switch (action.type) {
     case WS_ACTIONS.CONNECTING:
       return { ...state, status: 'connecting', error: null };
@@ -51,25 +67,44 @@ export function wsReducer(state, action) {
   }
 }
 
-export function Chat({ config, user, navigate }) {
-  const [messages, setMessages] = useState([]);
+interface ChatMessage {
+  type: string;
+  content?: string;
+  handle?: string;
+  color?: string;
+  timestamp?: string;
+}
+
+interface ChatUser {
+  handle?: string;
+  color?: string;
+}
+
+interface ChatProps {
+  config: ChinwagConfig | null;
+  user: ChatUser | null;
+  navigate: (to: string) => void;
+}
+
+export function Chat({ config, user, navigate }: ChatProps): React.ReactNode {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [roomCount, setRoomCount] = useState(0);
   const [displayError, setDisplayError] = useState('');
 
   const [wsState, dispatch] = useReducer(wsReducer, WS_INITIAL_STATE);
-  const wsRef = useRef(null);
-  const reconnectTimerRef = useRef(null);
-  const errorTimerRef = useRef(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const clearReconnectTimer = useCallback(() => {
+  const clearReconnectTimer = useCallback((): void => {
     if (reconnectTimerRef.current) {
       clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
     }
   }, []);
 
-  const clearErrorTimer = useCallback(() => {
+  const clearErrorTimer = useCallback((): void => {
     if (errorTimerRef.current) {
       clearTimeout(errorTimerRef.current);
       errorTimerRef.current = null;
@@ -77,32 +112,32 @@ export function Chat({ config, user, navigate }) {
   }, []);
 
   const connect = useCallback(
-    function connect(shuffle = false) {
+    function connect(shuffle = false): void {
       dispatch({ type: WS_ACTIONS.CONNECTING });
 
       const url = new URL(WS_URL);
       if (shuffle) url.searchParams.set('shuffle', '1');
 
       const ws = new WebSocket(url.toString(), {
-        headers: { Authorization: `Bearer ${config.token}` },
-      });
+        headers: { Authorization: `Bearer ${config!.token}` },
+      } as unknown as string);
 
       ws.addEventListener('open', () => {
         dispatch({ type: WS_ACTIONS.CONNECTED });
       });
 
-      ws.addEventListener('message', (event) => {
-        let data;
+      ws.addEventListener('message', (event: MessageEvent) => {
+        let data: Record<string, unknown>;
         try {
-          data = JSON.parse(event.data);
-        } catch (err) {
-          console.error('[chinwag]', err?.message || err);
+          data = JSON.parse(event.data as string);
+        } catch (err: unknown) {
+          console.error('[chinwag]', (err as Error)?.message || err);
           return;
         }
 
         if (data.type === 'history') {
-          setMessages(data.messages || []);
-          setRoomCount(data.roomCount || 0);
+          setMessages((data.messages as ChatMessage[]) || []);
+          setRoomCount((data.roomCount as number) || 0);
           return;
         }
 
@@ -111,7 +146,7 @@ export function Chat({ config, user, navigate }) {
             ...prev.slice(-(CHAT_HISTORY_LIMIT - 1)),
             {
               type: 'system',
-              content: data.content,
+              content: data.content as string,
               timestamp: new Date().toISOString(),
             },
           ]);
@@ -119,7 +154,7 @@ export function Chat({ config, user, navigate }) {
         }
 
         if (data.type === 'join' || data.type === 'leave') {
-          setRoomCount(data.roomCount || 0);
+          setRoomCount((data.roomCount as number) || 0);
           setMessages((prev) => [
             ...prev.slice(-(CHAT_HISTORY_LIMIT - 1)),
             {
@@ -132,7 +167,10 @@ export function Chat({ config, user, navigate }) {
         }
 
         if (data.type === 'message') {
-          setMessages((prev) => [...prev.slice(-(CHAT_HISTORY_LIMIT - 1)), data]);
+          setMessages((prev) => [
+            ...prev.slice(-(CHAT_HISTORY_LIMIT - 1)),
+            data as unknown as ChatMessage,
+          ]);
         }
       });
 
@@ -146,7 +184,7 @@ export function Chat({ config, user, navigate }) {
 
       wsRef.current = ws;
     },
-    [config.token],
+    [config],
   );
 
   // Schedule reconnect when state transitions to disconnected with retryCount > 0
@@ -179,13 +217,13 @@ export function Chat({ config, user, navigate }) {
     };
   }, [connect, clearReconnectTimer, clearErrorTimer]);
 
-  function showError(message) {
+  function showError(message: string): void {
     setDisplayError(message);
     clearErrorTimer();
     errorTimerRef.current = setTimeout(() => setDisplayError(''), ERROR_DISPLAY_MS);
   }
 
-  function send() {
+  function send(): void {
     const msg = input.trim();
     if (!msg) return;
     if (!wsRef.current || wsState.status !== 'connected') {
@@ -201,7 +239,7 @@ export function Chat({ config, user, navigate }) {
     setInput('');
   }
 
-  function shuffle() {
+  function shuffle(): void {
     dispatch({ type: WS_ACTIONS.CLOSED });
     clearReconnectTimer();
     if (wsRef.current) {
@@ -212,7 +250,7 @@ export function Chat({ config, user, navigate }) {
     connect(true);
   }
 
-  useInput((ch, key) => {
+  useInput((ch: string, key) => {
     if (key.escape) {
       navigate('dashboard');
       return;
@@ -250,7 +288,7 @@ export function Chat({ config, user, navigate }) {
           }
           return (
             <Box key={i}>
-              <Text color={getInkColor(msg.color)} bold>
+              <Text color={getInkColor(msg.color || 'white')} bold>
                 {msg.handle}
               </Text>
               <Text>: {msg.content}</Text>
