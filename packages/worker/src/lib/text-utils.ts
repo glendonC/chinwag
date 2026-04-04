@@ -8,10 +8,8 @@ const log = createLogger('text-utils');
 /**
  * Strip leading ./ and trailing /, collapse //, remove .. segments.
  * Prevents path traversal outside the project root.
- * @param {string} p
- * @returns {string}
  */
-export function normalizePath(p) {
+export function normalizePath(p: string): string {
   let result = p.replace(/^\.\//, '').replace(/\/+/g, '/').replace(/\/$/, '');
   // Remove any ".." path segments to prevent path traversal
   result = result
@@ -23,12 +21,8 @@ export function normalizePath(p) {
   return result;
 }
 
-/**
- * Convert a JS Date (or now) to SQLite-compatible datetime string: "YYYY-MM-DD HH:MM:SS"
- * @param {Date} [date]
- * @returns {string}
- */
-export function toSQLDateTime(date) {
+/** Convert a JS Date (or now) to SQLite-compatible datetime string: "YYYY-MM-DD HH:MM:SS" */
+export function toSQLDateTime(date?: Date): string {
   return (date || new Date())
     .toISOString()
     .replace('T', ' ')
@@ -39,14 +33,13 @@ export function toSQLDateTime(date) {
  * Parse a JSON string stored in SQLite, returning fallback on failure.
  * Logs malformed data once per context string so schema bugs surface
  * in logs instead of silently returning empty arrays.
- *
- * @param {string} raw - Raw JSON string from DB column
- * @param {*} fallback - Value to return on parse failure (default: [])
- * @param {string} context - Identifier for log deduplication (e.g. "activity.files")
- * @returns {*} Parsed value or fallback
  */
-const _loggedParseWarnings = new Set();
-export function safeParseJSON(raw, fallback = [], context = 'unknown') {
+const _loggedParseWarnings = new Set<string>();
+export function safeParseJSON<T = unknown>(
+  raw: string,
+  fallback: T = [] as T,
+  context = 'unknown',
+): T {
   if (!raw) return fallback;
   try {
     return JSON.parse(raw);
@@ -55,7 +48,7 @@ export function safeParseJSON(raw, fallback = [], context = 'unknown') {
       _loggedParseWarnings.add(context);
       log.warn('malformed JSON', {
         context,
-        error: /** @type {any} */ (err).message,
+        error: (err as Error).message,
         raw: raw.slice(0, 100),
       });
     }

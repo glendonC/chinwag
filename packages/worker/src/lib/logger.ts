@@ -8,29 +8,30 @@
 //   log.info('member joined', { agentId, teamId });
 //   log.error('lock release failed', { agentId, error: err.message });
 
-/** @type {'debug' | 'info' | 'warn' | 'error'} */
-let globalLogLevel = 'info';
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-const LEVEL_RANK = { debug: 0, info: 1, warn: 2, error: 3 };
+let globalLogLevel: LogLevel = 'info';
 
-/**
- * Set the global log level. Call once at request start if env.LOG_LEVEL is set.
- * @param {string} level
- */
-export function setLogLevel(level) {
+const LEVEL_RANK: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3 };
+
+/** Set the global log level. Call once at request start if env.LOG_LEVEL is set. */
+export function setLogLevel(level: string): void {
   const normalized = typeof level === 'string' ? level.toLowerCase() : '';
-  if (normalized && LEVEL_RANK[normalized] !== undefined) {
-    globalLogLevel = /** @type {'debug' | 'info' | 'warn' | 'error'} */ (normalized);
+  if (normalized && normalized in LEVEL_RANK) {
+    globalLogLevel = normalized as LogLevel;
   }
 }
 
-/**
- * Create a scoped logger instance.
- * @param {string} source - Component name (e.g. 'TeamDO', 'moderation', 'membership')
- * @returns {{ debug: Function, info: Function, warn: Function, error: Function }}
- */
-export function createLogger(source) {
-  function emit(level, msg, extra) {
+export interface Logger {
+  debug: (msg: string, extra?: Record<string, unknown>) => void;
+  info: (msg: string, extra?: Record<string, unknown>) => void;
+  warn: (msg: string, extra?: Record<string, unknown>) => void;
+  error: (msg: string, extra?: Record<string, unknown>) => void;
+}
+
+/** Create a scoped logger instance. */
+export function createLogger(source: string): Logger {
+  function emit(level: LogLevel, msg: string, extra?: Record<string, unknown>): void {
     if (LEVEL_RANK[level] < LEVEL_RANK[globalLogLevel]) return;
 
     const entry = {

@@ -1,23 +1,20 @@
 // Reusable validation helpers extracted from route handlers.
 // Each returns null on success or an error string/response on failure.
 
+import type { Env, User, AgentRuntime, ParsedBody } from '../types.js';
 import { json } from './http.js';
 import { createLogger } from './logger.js';
 import { getDB, getTeam } from './env.js';
+import { getAgentRuntime, teamErrorStatus } from './request-utils.js';
 
 const log = createLogger('validation');
-import { getAgentRuntime, teamErrorStatus } from './request-utils.js';
 
 /**
  * Sanitize an optional string value: type-check, truncate, trim, and convert
  * empty results to null. Replaces the repeated inline pattern:
  *   typeof x === 'string' ? x.slice(0, MAX).trim() || null : null
- *
- * @param {*} value - Value to sanitize
- * @param {number} maxLength - Maximum allowed length
- * @returns {string|null} - Sanitized string or null
  */
-export function sanitizeString(value, maxLength) {
+export function sanitizeString(value: unknown, maxLength: number): string | null {
   if (typeof value !== 'string') return null;
   return value.slice(0, maxLength).trim() || null;
 }
@@ -26,19 +23,21 @@ export function sanitizeString(value, maxLength) {
  * Check for JSON parse errors from parseBody().
  * Returns a 400 JSON response if there's a parse error, null otherwise.
  */
-export function requireJson(body) {
-  if (body._parseError) return json({ error: body._parseError }, 400);
+export function requireJson(body: ParsedBody): Response | null {
+  if ('_parseError' in body)
+    return json({ error: (body as { _parseError: string })._parseError }, 400);
   return null;
 }
 
 /**
  * Validate an array of file path strings.
  * Returns an error string if invalid, null if valid.
- * @param {*} files - The files value to validate
- * @param {number} max - Maximum number of files allowed
- * @param {{ nullable?: boolean }} [opts] - Options; nullable allows null/undefined to pass
  */
-export function validateFileArray(files, max, opts) {
+export function validateFileArray(
+  files: unknown,
+  max: number,
+  opts?: { nullable?: boolean },
+): string | null {
   if (opts?.nullable && (files === null || files === undefined)) {
     return null;
   }
@@ -66,11 +65,11 @@ export function validateFileArray(files, max, opts) {
 /**
  * Validate and normalize an array of tag strings.
  * Returns { error: string } if invalid, { tags: string[] } if valid.
- * @param {*} tags - The tags value to validate
- * @param {number} max - Maximum number of tags allowed
- * @returns {{ error: string, tags?: undefined } | { tags: string[], error?: undefined }}
  */
-export function validateTagsArray(tags, max) {
+export function validateTagsArray(
+  tags: unknown,
+  max: number,
+): { error: string; tags?: undefined } | { tags: string[]; error?: undefined } {
   if (tags === undefined || tags === null) {
     return { tags: [] };
   }
@@ -83,7 +82,7 @@ export function validateTagsArray(tags, max) {
   if (tags.some((t) => typeof t !== 'string' || t.length > 50)) {
     return { error: 'each tag must be a string of 50 chars or less' };
   }
-  return { tags: tags.map((t) => t.toLowerCase().trim()).filter(Boolean) };
+  return { tags: tags.map((t: string) => t.toLowerCase().trim()).filter(Boolean) };
 }
 
 /**
@@ -92,22 +91,21 @@ export function validateTagsArray(tags, max) {
  * the rate limit if the handler returns a response with status < 400
  * (i.e., on success). This matches the existing route behavior where
  * failed operations do not count against the limit.
- *
- * @param {object} db - Database DO stub
- * @param {string} key - Rate limit key
- * @param {number} max - Max per day
- * @param {string} errorMsg - Error message when limit reached
- * @param {function} handler - Async function to run if allowed; should return a Response
- * @returns {Promise<Response>}
  */
-export async function withRateLimit(db, key, max, errorMsg, handler) {
-  let limit;
+export async function withRateLimit(
+  db: DurableObjectStub,
+  key: string,
+  max: number,
+  errorMsg: string,
+  handler: () => Promise<Response>,
+): Promise<Response> {
+  let limit: { allowed: boolean };
   try {
-    limit = await db.checkRateLimit(key, max);
+    limit = await (db as any).checkRateLimit(key, max);
   } catch (err) {
     log.error('rate limit check failed', {
       key,
-      error: /** @type {any} */ (err)?.message || String(err),
+      error: (err as Error)?.message || String(err),
     });
     return json({ error: 'Service temporarily unavailable' }, 503);
   }
@@ -117,11 +115,11 @@ export async function withRateLimit(db, key, max, errorMsg, handler) {
   const response = await handler();
   if (response.status < 400) {
     try {
-      await db.consumeRateLimit(key);
+      await (db as any).consumeRateLimit(key);
     } catch (err) {
       log.error('rate limit consume failed', {
         key,
-        error: /** @type {any} */ (err)?.message || String(err),
+        error: (err as Error)?.message || String(err),
       });
     }
   }
@@ -131,13 +129,12 @@ export async function withRateLimit(db, key, max, errorMsg, handler) {
 /**
  * Validate that `body[field]` is a non-empty string, optionally capping length.
  * Returns the trimmed string on success, or null if invalid.
- *
- * @param {object} body - Parsed request body
- * @param {string} field - Field name to check
- * @param {number} [maxLength] - Optional max character length
- * @returns {string|null} Trimmed string or null
  */
-export function requireString(body, field, maxLength) {
+export function requireString(
+  body: Record<string, unknown>,
+  field: string,
+  maxLength?: number,
+): string | null {
   const value = body[field];
   if (typeof value !== 'string' || !value.trim()) return null;
   if (maxLength && value.length > maxLength) return null;
@@ -147,13 +144,12 @@ export function requireString(body, field, maxLength) {
 /**
  * Validate that `body[field]` is an array with at most `maxItems` entries.
  * Returns the array on success, or null if invalid.
- *
- * @param {object} body - Parsed request body
- * @param {string} field - Field name to check
- * @param {number} maxItems - Maximum allowed items
- * @returns {Array|null} Validated array or null
  */
-export function requireArray(body, field, maxItems) {
+export function requireArray(
+  body: Record<string, unknown>,
+  field: string,
+  maxItems: number,
+): unknown[] | null {
   const value = body[field];
   if (!Array.isArray(value) || value.length === 0) return null;
   if (value.length > maxItems) return null;
@@ -163,12 +159,9 @@ export function requireArray(body, field, maxItems) {
 /**
  * Execute `SELECT changes()` on a DO SQL handle and return whether any rows changed.
  * Replaces the repeated pattern: `sql.exec('SELECT changes() as c').toArray()[0].c`
- *
- * @param {object} sql - DO SQL handle
- * @returns {number} Number of rows changed by the last statement
  */
-export function sqlChanges(sql) {
-  return sql.exec('SELECT changes() as c').toArray()[0].c;
+export function sqlChanges(sql: SqlStorage): number {
+  return (sql.exec('SELECT changes() as c').toArray()[0] as { c: number }).c;
 }
 
 /**
@@ -178,13 +171,8 @@ export function sqlChanges(sql) {
  *
  * Callers pass the DO's `transact` function (bound to ctx.storage.transactionSync)
  * so submodules don't need a direct reference to ctx.
- *
- * @template T
- * @param {(fn: () => T) => T} transact - ctx.storage.transactionSync bound to the DO
- * @param {() => T} fn - Synchronous function containing sql.exec calls
- * @returns {T} The return value of `fn`
  */
-export function withTransaction(transact, fn) {
+export function withTransaction<T>(transact: (fn: () => T) => T, fn: () => T): T {
   return transact(fn);
 }
 
@@ -193,11 +181,8 @@ export function withTransaction(transact, fn) {
  * Returns a placeholder string and params array suitable for embedding in a query.
  * When the array is empty, returns a literal that matches nothing (`'__none__'`),
  * avoiding SQL syntax errors from `IN ()`.
- *
- * @param {any[]} items - Values to include in the IN clause
- * @returns {{ sql: string, params: any[] }}
  */
-export function buildInClause(items) {
+export function buildInClause(items: unknown[]): { sql: string; params: unknown[] } {
   if (!items || items.length === 0) {
     return { sql: "'__none__'", params: [] };
   }
@@ -209,15 +194,14 @@ export function buildInClause(items) {
  * Uses CF-Connecting-IP (hashed for privacy) for the key. Atomically
  * checks and consumes in one call to eliminate the race window between
  * separate check/consume operations.
- *
- * @param {Request} request - Incoming request (for IP extraction)
- * @param {object} env - Worker env (for DB access)
- * @param {string} prefix - Rate limit key prefix (e.g. 'stats', 'catalog')
- * @param {number} max - Max requests per IP per 24h window
- * @param {function} handler - Async function to run if allowed; should return a Response
- * @returns {Promise<Response>}
  */
-export async function withIpRateLimit(request, env, prefix, max, handler) {
+export async function withIpRateLimit(
+  request: Request,
+  env: Env,
+  prefix: string,
+  max: number,
+  handler: () => Promise<Response>,
+): Promise<Response> {
   const ip = request.headers.get('CF-Connecting-IP');
   if (!ip) {
     return json({ error: 'Unable to identify client' }, 400);
@@ -225,13 +209,25 @@ export async function withIpRateLimit(request, env, prefix, max, handler) {
   const hashedIp = await hashIp(ip);
   const key = `pub:${prefix}:${hashedIp}`;
   const db = getDB(env);
-  const result = await db.checkAndConsume(key, max);
+  const result = await (db as any).checkAndConsume(key, max);
   if (!result.allowed) {
     return json({ error: 'Rate limit exceeded. Try again later.' }, 429, {
       'Retry-After': '3600',
     });
   }
   return handler();
+}
+
+interface WithTeamRateLimitOpts {
+  request: Request;
+  user: User;
+  env: Env;
+  teamId: string;
+  rateLimitKey: string;
+  rateLimitMax: number;
+  rateLimitMsg: string;
+  successStatus?: number;
+  action: (team: DurableObjectStub, agentId: string, runtime: AgentRuntime) => Promise<any>;
 }
 
 /**
@@ -241,20 +237,6 @@ export async function withIpRateLimit(request, env, prefix, max, handler) {
  *
  * Eliminates the repeated 4-line preamble (getDB, getTeam, getAgentRuntime)
  * and the withRateLimit + error-mapping boilerplate from team route handlers.
- *
- * @param {object} opts
- * @param {Request} opts.request
- * @param {object}  opts.user
- * @param {object}  opts.env
- * @param {string}  opts.teamId
- * @param {string}  opts.rateLimitKey - e.g. 'memory', 'locks' (prefixed with user.id internally)
- * @param {number}  opts.rateLimitMax
- * @param {string}  opts.rateLimitMsg
- * @param {number}  [opts.successStatus=200] - HTTP status on success
- * @param {(team: any, agentId: string, runtime: any) => Promise<any>} opts.action
- *   Called with the team DO stub, resolved agentId, and full runtime.
- *   Should return a DO result object ({ ok, ... } or { error, code }).
- * @returns {Promise<Response>}
  */
 export async function withTeamRateLimit({
   request,
@@ -266,7 +248,7 @@ export async function withTeamRateLimit({
   rateLimitMsg,
   successStatus = 200,
   action,
-}) {
+}: WithTeamRateLimitOpts): Promise<Response> {
   const db = getDB(env);
   const runtime = getAgentRuntime(request, user);
   const agentId = runtime.agentId;
@@ -283,11 +265,8 @@ export async function withTeamRateLimit({
  * Hash an IP address using SHA-256 so raw IPs are not stored in the database.
  * Returns a hex-encoded hash truncated to 16 characters (64 bits — sufficient
  * for rate-limit bucketing, not a security hash).
- *
- * @param {string} ip - Raw IP address
- * @returns {Promise<string>} Truncated hex hash
  */
-export async function hashIp(ip) {
+export async function hashIp(ip: string): Promise<string> {
   const data = new TextEncoder().encode(ip);
   const hash = await crypto.subtle.digest('SHA-256', data);
   const hex = [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -296,6 +275,6 @@ export async function hashIp(ip) {
 
 /** Test whether a string is a valid UUID v4 (the format produced by crypto.randomUUID()). */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-export function isUUID(value) {
+export function isUUID(value: unknown): boolean {
   return typeof value === 'string' && UUID_RE.test(value);
 }

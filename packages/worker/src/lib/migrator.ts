@@ -10,11 +10,13 @@ import { getErrorMessage } from './errors.js';
 
 const log = createLogger('migrator');
 
-/**
- * Ensure the `_migrations` bookkeeping table exists.
- * @param {object} sql - ctx.storage.sql handle
- */
-function ensureMigrationsTable(sql) {
+export interface Migration {
+  name: string;
+  up: (sql: SqlStorage) => void;
+}
+
+/** Ensure the `_migrations` bookkeeping table exists. */
+function ensureMigrationsTable(sql: SqlStorage): void {
   sql.exec(`
     CREATE TABLE IF NOT EXISTS _migrations (
       id INTEGER PRIMARY KEY,
@@ -24,26 +26,21 @@ function ensureMigrationsTable(sql) {
   `);
 }
 
-/**
- * Return the set of migration names already applied.
- * @param {object} sql
- * @returns {Set<string>}
- */
-function getAppliedMigrations(sql) {
+/** Return the set of migration names already applied. */
+function getAppliedMigrations(sql: SqlStorage): Set<string> {
   const rows = sql.exec('SELECT name FROM _migrations ORDER BY id').toArray();
-  return new Set(rows.map((r) => r.name));
+  return new Set(rows.map((r) => (r as { name: string }).name));
 }
 
 /**
  * Run an ordered list of named migrations, skipping any that have already
  * been applied. Each new migration is wrapped in a transaction.
- *
- * @param {object} sql               - ctx.storage.sql handle
- * @param {<T>(fn: () => T) => T} transact - ctx.storage.transactionSync
- * @param {Array<{ name: string, up: (sql: object) => void }>} migrations
- * @returns {number} count of newly applied migrations
  */
-export function runMigrations(sql, transact, migrations) {
+export function runMigrations(
+  sql: SqlStorage,
+  transact: <T>(fn: () => T) => T,
+  migrations: Migration[],
+): number {
   ensureMigrationsTable(sql);
   const applied = getAppliedMigrations(sql);
   let count = 0;

@@ -5,13 +5,13 @@
 //   Success: { ok: true, ...data }
 //   Failure: { error: 'Human-readable message', code: 'ERROR_CODE' }
 //
-// Error codes → HTTP status (via teamErrorStatus() in request-utils.js):
-//   NOT_MEMBER, NOT_OWNER, FORBIDDEN → 403
-//   NOT_FOUND                        → 404
-//   CONFLICT                         → 409
-//   VALIDATION                       → 400
-//   INTERNAL                         → 500
-//   (unknown)                        → 400
+// Error codes -> HTTP status (via teamErrorStatus() in request-utils.ts):
+//   NOT_MEMBER, NOT_OWNER, FORBIDDEN -> 403
+//   NOT_FOUND                        -> 404
+//   CONFLICT                         -> 409
+//   VALIDATION                       -> 400
+//   INTERNAL                         -> 500
+//   (unknown)                        -> 400
 //
 // Route handlers check `.error` and call `teamErrorStatus(result)` to map.
 // DOs never throw for expected failures — throws are for bugs only.
@@ -20,7 +20,7 @@
 // "Active" = recent heartbeat or live WebSocket. Used for conflict detection,
 // lock visibility, and getContext member status.
 export const HEARTBEAT_ACTIVE_WINDOW_S = 60;
-// "Stale" = no heartbeat for this long → evicted from team, locks released,
+// "Stale" = no heartbeat for this long -> evicted from team, locks released,
 // sessions auto-closed. Used in cleanup and orphan detection.
 // 15 minutes: long enough that debugging pauses or slow user input don't
 // evict agents, short enough that genuinely dead agents get cleaned up.
@@ -121,8 +121,8 @@ export const VALID_COLORS = [
   'sky',
   'lavender',
   'white',
-];
-export const VALID_COLORS_SET = new Set(VALID_COLORS);
+] as const;
+export const VALID_COLORS_SET = new Set<string>(VALID_COLORS);
 
 // --- Misc ---
 export const CHAT_COOLDOWN_MS = 5 * 60 * 1000;
