@@ -4,6 +4,11 @@ import TextInput from 'ink-text-input';
 import { getInkColor } from './colors.js';
 import type { ChinwagConfig } from './config.js';
 import { formatError, createLogger } from '@chinwag/shared';
+import {
+  ERROR_DISPLAY_MS,
+  MAX_RECONNECT_DELAY_MS,
+  RECONNECT_BASE_MS,
+} from './constants/timings.js';
 
 const log = createLogger('chat');
 
@@ -13,9 +18,6 @@ const WS_URL = process.env.CHINWAG_WS_URL || 'wss://chinwag-api.glendonchin.work
 const CHAT_HISTORY_LIMIT = 50;
 const VISIBLE_MESSAGE_COUNT = 15;
 const MAX_MESSAGE_LENGTH = 280;
-const ERROR_DISPLAY_MS = 3000;
-const MAX_RECONNECT_DELAY_MS = 15000;
-const RECONNECT_BASE_MS = 1000;
 
 // ── WebSocket state machine ─────────────────────────
 export const WS_ACTIONS = {
@@ -147,6 +149,9 @@ export function Chat({ config, user, navigate }: ChatProps): React.ReactNode {
       const url = new URL(WS_URL);
       if (shuffle) url.searchParams.set('shuffle', '1');
 
+      // Node.js WebSocket accepts an options object as second arg for headers,
+      // but the TS type definition only declares `string | string[]` for protocols.
+      // Double cast required because the types don't overlap at all.
       const ws = new WebSocket(url.toString(), {
         headers: { Authorization: `Bearer ${config!.token}` },
       } as unknown as string);

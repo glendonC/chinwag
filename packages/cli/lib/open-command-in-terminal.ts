@@ -6,10 +6,9 @@ import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { formatError, createLogger } from '@chinwag/shared';
+import { EXEC_TIMEOUT_MS } from './constants/timings.js';
 
 const log = createLogger('open-command');
-
-const EXEC_TIMEOUT_MS = 10000;
 
 export function openCommandInTerminal(command: string, cwd: string = process.cwd()): SpawnResult {
   const env = detectTerminalEnvironment();

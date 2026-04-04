@@ -4,10 +4,9 @@
 import { execFileSync } from 'child_process';
 import { configExists, loadConfig } from './config.js';
 import { createLogger } from '@chinwag/shared';
+import { EXEC_TIMEOUT_MS } from './constants/timings.js';
 
 const log = createLogger('open-dashboard');
-
-const EXEC_TIMEOUT_MS = 10000;
 const DASHBOARD_URL: string = process.env.CHINWAG_DASHBOARD_URL || 'https://chinwag.dev/dashboard';
 
 export async function openDashboard(): Promise<void> {

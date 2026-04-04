@@ -5,28 +5,29 @@ import { api, getApiUrl } from '../api.js';
 import { detectTools } from '../mcp-config.js';
 import { getProjectContext } from '../project.js';
 import { SPINNER } from './utils.js';
+import { SPINNER_INTERVAL_MS } from './constants.js';
 import { classifyError } from '../utils/errors.js';
+import { hasError } from '../utils/type-guards.js';
 import type { ChinwagConfig } from '../config.js';
 import type { TeamContext } from './view.js';
 import type { HostIntegration } from '@chinwag/shared/integration-model.js';
 import type { WebSocketTicketResponse } from '@chinwag/shared/contracts.js';
 import { formatError, createLogger } from '@chinwag/shared';
+import {
+  POLL_FAST_MS,
+  POLL_MEDIUM_MS,
+  POLL_SLOW_MS,
+  POLL_IDLE_MS,
+  BACKOFF_MAX_MS,
+  OFFLINE_THRESHOLD,
+  IDLE_TIER_1,
+  IDLE_TIER_2,
+  IDLE_TIER_3,
+  RECONCILE_INTERVAL_MS,
+  WS_CONNECT_TIMEOUT_MS,
+} from '../constants/timings.js';
 
 const log = createLogger('dashboard-connection');
-
-// ── Constants ───────────────────────────────────────
-const SPINNER_INTERVAL_MS = 80;
-const OFFLINE_THRESHOLD = 6; // consecutive failures before going offline
-const POLL_FAST_MS = 5_000;
-const POLL_MEDIUM_MS = 15_000;
-const POLL_SLOW_MS = 30_000;
-const POLL_IDLE_MS = 60_000;
-const BACKOFF_MAX_MS = 60_000;
-const IDLE_TIER_1 = 6; // 30s idle -> medium poll
-const IDLE_TIER_2 = 12; // 1min idle -> slow poll
-const IDLE_TIER_3 = 60; // 5min idle -> idle poll
-const RECONCILE_INTERVAL_MS = 60_000;
-const WS_CONNECT_TIMEOUT_MS = 10_000;
 
 interface ContextLike {
   members?: Array<{
@@ -102,8 +103,7 @@ export function useDashboardConnection({
   const initProject = (): InitProjectState => {
     const project = getProjectContext(process.cwd());
     if (!project) return { error: 'No .chinwag file found. Run `npx chinwag init` first.' };
-    if ((project as unknown as { error?: string }).error)
-      return { error: (project as unknown as { error: string }).error };
+    if (hasError(project)) return { error: project.error };
     let tools: HostIntegration[] = [];
     try {
       tools = detectTools(project.root);
@@ -203,7 +203,8 @@ export function useDashboardConnection({
       setConnDetail(null);
 
       // Track whether context changed for idle backoff
-      const fp = contextFingerprint(ctx as unknown as ContextLike);
+      // ctx shares the same shape as ContextLike (members/memories/messages/locks)
+      const fp = contextFingerprint(ctx as ContextLike);
       if (fp === lastFingerprint.current) {
         unchangedPolls.current++;
       } else {

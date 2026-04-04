@@ -211,7 +211,8 @@ export function DataProvider({
   const combinedAgents = useMemo(
     () =>
       buildCombinedAgentRows({
-        managedAgents: agents.managedAgents as unknown as ManagedAgent[],
+        // AgentInfo[] from process-manager shares the same shape as ManagedAgent
+        managedAgents: agents.managedAgents as ManagedAgent[],
         connectedAgents: dashboardView.visibleAgents,
         getToolName: dashboardView.getToolName,
       }),

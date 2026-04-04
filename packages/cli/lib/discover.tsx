@@ -15,10 +15,9 @@ import type {
   ToolCatalogResponse,
 } from '@chinwag/shared/contracts.js';
 import { formatError, createLogger } from '@chinwag/shared';
+import { LOADING_TIMEOUT_MS } from './constants/timings.js';
 
 const log = createLogger('discover');
-
-const LOADING_TIMEOUT_MS = 15000;
 
 interface DiscoverProps {
   config: ChinwagConfig | null;

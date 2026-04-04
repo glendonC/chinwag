@@ -20,6 +20,7 @@ import {
   saveLauncherPreference,
 } from '../launcher-preferences.js';
 import { getProjectContext } from '../project.js';
+import { hasError } from '../utils/type-guards.js';
 import { formatError, createLogger } from '@chinwag/shared';
 
 const log = createLogger('run');
@@ -119,8 +120,8 @@ export async function runManagedAgentCommand(argv: string[] = []): Promise<numbe
     process.stderr.write('No .chinwag file found. Run `npx chinwag init` in this project first.\n');
     return 1;
   }
-  if ((project as unknown as { error?: string }).error) {
-    process.stderr.write(`${(project as unknown as { error: string }).error}\n`);
+  if (hasError(project)) {
+    process.stderr.write(`${project.error}\n`);
     return 1;
   }
 

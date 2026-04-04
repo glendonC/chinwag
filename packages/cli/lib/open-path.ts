@@ -1,6 +1,5 @@
 import { execFileSync } from 'child_process';
-
-const EXEC_TIMEOUT_MS = 10000;
+import { EXEC_TIMEOUT_MS } from './constants/timings.js';
 
 interface OpenPathResult {
   ok: boolean;
