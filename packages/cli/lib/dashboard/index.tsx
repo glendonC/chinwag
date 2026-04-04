@@ -19,13 +19,10 @@ import { isAgentAddressable } from './agent-display.js';
 import {
   ViewProvider,
   ConnectionProvider,
-  AgentProvider,
-  MemoryProvider,
-  CommandPaletteProvider,
+  DataProvider,
   useView,
-  useAgents,
-  useMemory,
-  useCommandPalette,
+  useData,
+  useCommandSuggestions,
 } from './context.jsx';
 import type { ChinwagConfig } from '../config.js';
 
@@ -83,6 +80,8 @@ interface DashboardProvidersProps {
 /**
  * Sets up connection + domain hooks, wires them into the provider tree.
  * Must be a child of ViewProvider so hooks can call useView().
+ *
+ * Provider tree: ViewProvider → ConnectionProvider → DataProvider → DashboardView
  */
 function DashboardProviders({
   config,
@@ -121,94 +120,32 @@ function DashboardProviders({
     clearMemoryInput: memoryHook.clearMemoryInput,
   });
 
-  // ── Compose the providers, then render the inner component ──
+  // ── Flat provider tree ────────────────────────────
   return (
     <ConnectionProvider connection={connection}>
-      <AgentProvider
+      <DataProvider
         agents={agentsHook}
+        memory={memoryHook}
         context={context}
         detectedTools={detectedTools}
         teamName={teamName}
         cols={cols}
+        composeMode={composer.composeMode}
         viewportRows={viewportRows}
       >
-        <MemoryProvider
-          memory={memoryHook}
-          context={context}
-          detectedTools={detectedTools}
-          teamName={teamName}
-          cols={cols}
-          composeMode={composer.composeMode}
+        <DashboardViewComponent
+          config={config}
+          navigate={navigate}
           viewportRows={viewportRows}
-        >
-          <DashboardInner
-            config={config}
-            navigate={navigate}
-            viewportRows={viewportRows}
-            setFooterHints={setFooterHints}
-            connection={connection}
-            memoryHook={memoryHook}
-            agentsHook={agentsHook}
-            integrations={integrations}
-            composer={composer}
-          />
-        </MemoryProvider>
-      </AgentProvider>
+          setFooterHints={setFooterHints}
+          connection={connection}
+          memoryHook={memoryHook}
+          agentsHook={agentsHook}
+          integrations={integrations}
+          composer={composer}
+        />
+      </DataProvider>
     </ConnectionProvider>
-  );
-}
-
-interface DashboardInnerProps {
-  config: ChinwagConfig | null;
-  navigate: (to: string) => void;
-  viewportRows: number;
-  setFooterHints: ((hints: FooterHint[]) => void) | null;
-  connection: UseDashboardConnectionReturn;
-  memoryHook: UseMemoryManagerReturn;
-  agentsHook: UseAgentLifecycleReturn;
-  integrations: UseIntegrationDoctorReturn;
-  composer: UseComposerReturn;
-}
-
-/**
- * Bridge component: reads Agent/Memory contexts to get derived data needed
- * by CommandPaletteProvider, then wraps the main view in that provider.
- */
-function DashboardInner({
-  config,
-  navigate,
-  viewportRows,
-  setFooterHints,
-  connection,
-  memoryHook,
-  agentsHook,
-  integrations,
-  composer,
-}: DashboardInnerProps): React.ReactNode {
-  const { selectedAgent, hasLiveAgents } = useAgents();
-  const { hasMemories } = useMemory();
-
-  return (
-    <CommandPaletteProvider
-      composer={composer}
-      agents={agentsHook}
-      integrations={integrations}
-      hasMemories={hasMemories}
-      hasLiveAgents={hasLiveAgents}
-      selectedAgent={selectedAgent}
-    >
-      <DashboardViewComponent
-        config={config}
-        navigate={navigate}
-        viewportRows={viewportRows}
-        setFooterHints={setFooterHints}
-        connection={connection}
-        memoryHook={memoryHook}
-        agentsHook={agentsHook}
-        integrations={integrations}
-        composer={composer}
-      />
-    </CommandPaletteProvider>
   );
 }
 
@@ -226,7 +163,8 @@ interface DashboardViewProps {
 
 /**
  * Handles input, rendering, and all view-level logic.
- * Consumes all 5 domain contexts for derived data.
+ * Consumes DataProvider for derived data and useCommandSuggestions hook
+ * for command palette.
  */
 function DashboardViewComponent({
   config,
@@ -268,12 +206,21 @@ function DashboardViewComponent({
     liveAgentNameCounts,
     visibleSessionRows,
     conflicts,
-  } = useAgents();
+    memories,
+    filteredMemories,
+    visibleMemories,
+    visibleKnowledgeRows,
+    hasMemories,
+  } = useData();
 
-  const { memories, filteredMemories, visibleMemories, visibleKnowledgeRows, hasMemories } =
-    useMemory();
-
-  const { commandSuggestions } = useCommandPalette();
+  const commandSuggestions = useCommandSuggestions({
+    composer,
+    agents: agentsHook,
+    integrations,
+    hasMemories,
+    hasLiveAgents,
+    selectedAgent,
+  });
 
   const projectDisplayName = formatProjectPath(projectRoot);
 

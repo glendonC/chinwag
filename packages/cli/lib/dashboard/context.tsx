@@ -38,7 +38,8 @@ interface ViewContextValue {
   flash: (msg: string, opts?: { tone?: NoticeTone; autoClearMs?: number }) => void;
 }
 
-interface AgentContextValue extends UseAgentLifecycleReturn {
+interface DataContextValue {
+  // Agent-derived data
   combinedAgents: CombinedAgentRow[];
   liveAgents: CombinedAgentRow[];
   allVisibleAgents: CombinedAgentRow[];
@@ -49,9 +50,7 @@ interface AgentContextValue extends UseAgentLifecycleReturn {
   visibleSessionRows: { items: CombinedAgentRow[]; start: number };
   conflicts: Array<[string, string[]]>;
   getToolName: (id: string) => string | null;
-}
-
-interface MemoryContextValue extends UseMemoryManagerReturn {
+  // Memory-derived data
   memories: MemoryEntry[];
   filteredMemories: MemoryEntry[];
   visibleMemories: MemoryEntry[];
@@ -59,11 +58,7 @@ interface MemoryContextValue extends UseMemoryManagerReturn {
   hasMemories: boolean;
 }
 
-interface CommandPaletteContextValue {
-  commandSuggestions: CommandSuggestion[];
-}
-
-interface CommandSuggestion {
+export interface CommandSuggestion {
   name: string;
   description: string;
 }
@@ -72,9 +67,7 @@ interface CommandSuggestion {
 
 const ViewContext = createContext<ViewContextValue | null>(null);
 const ConnectionContext = createContext<UseDashboardConnectionReturn | null>(null);
-const AgentContext = createContext<AgentContextValue | null>(null);
-const MemoryContext = createContext<MemoryContextValue | null>(null);
-const CommandPaletteContext = createContext<CommandPaletteContextValue | null>(null);
+const DataContext = createContext<DataContextValue | null>(null);
 
 // ── Hooks ───────────────────────────────────────────
 
@@ -90,21 +83,9 @@ export function useConnection(): UseDashboardConnectionReturn {
   return ctx;
 }
 
-export function useAgents(): AgentContextValue {
-  const ctx = useContext(AgentContext);
-  if (!ctx) throw new Error('useAgents must be used within AgentProvider');
-  return ctx;
-}
-
-export function useMemory(): MemoryContextValue {
-  const ctx = useContext(MemoryContext);
-  if (!ctx) throw new Error('useMemory must be used within MemoryProvider');
-  return ctx;
-}
-
-export function useCommandPalette(): CommandPaletteContextValue {
-  const ctx = useContext(CommandPaletteContext);
-  if (!ctx) throw new Error('useCommandPalette must be used within CommandPaletteProvider');
+export function useData(): DataContextValue {
+  const ctx = useContext(DataContext);
+  if (!ctx) throw new Error('useData must be used within DataProvider');
   return ctx;
 }
 
@@ -174,49 +155,57 @@ export function ConnectionProvider({
   return <ConnectionContext.Provider value={connection}>{children}</ConnectionContext.Provider>;
 }
 
-interface AgentProviderProps {
+interface DataProviderProps {
   agents: UseAgentLifecycleReturn;
+  memory: UseMemoryManagerReturn;
   context: TeamContext | null;
   detectedTools: HostIntegration[];
   teamName: string | null;
   cols: number;
+  composeMode: ComposeMode;
   viewportRows: number;
   children: ReactNode;
 }
 
 /**
- * Agent context: raw agents hook + derived agent data.
+ * Combined data context: merges agent and memory derived data into a single provider.
  * Owns: combinedAgents, liveAgents, allVisibleAgents, selection clamping,
- * visibleSessionRows, liveAgentNameCounts, conflicts.
+ * visibleSessionRows, liveAgentNameCounts, conflicts, memories, filteredMemories,
+ * visibleMemories, visibleKnowledgeRows, hasMemories.
  *
- * Reads selectedIdx/mainFocus from ViewProvider (useView) instead of
- * receiving them as props — eliminates the prop-drilling anti-pattern.
+ * Reads selectedIdx/mainFocus from ViewProvider (useView) for agent selection.
  */
-export function AgentProvider({
+export function DataProvider({
   agents,
+  memory,
   context,
   detectedTools,
   teamName,
   cols,
+  composeMode,
   viewportRows,
   children,
-}: AgentProviderProps): React.ReactNode {
+}: DataProviderProps): React.ReactNode {
   const { state, dispatch } = useView();
   const { selectedIdx, mainFocus } = state;
 
-  // Build dashboard view data (tool name resolver, visible agents, conflicts)
+  const memorySearch = composeMode === 'memory-search' ? memory.memorySearch : '';
+
+  // Build dashboard view data (tool name resolver, visible agents, conflicts, memories)
   const dashboardView = useMemo(
     () =>
       buildDashboardView({
         context: context ?? undefined,
         detectedTools,
         memoryFilter: null,
-        memorySearch: '',
+        memorySearch,
         cols,
         projectDir: teamName || basename(process.cwd()),
       }),
-    [context, detectedTools, cols, teamName],
+    [context, detectedTools, memorySearch, cols, teamName],
   );
+
+  // ── Agent-derived data ────────────────────────────
 
   // Build combined agent rows from managed + connected
   const combinedAgents = useMemo(
@@ -273,86 +262,11 @@ export function AgentProvider({
     dispatch(clampSelection(allVisibleAgents.length));
   }, [allVisibleAgents.length, dispatch]);
 
-  const value = useMemo(
-    () => ({
-      // Raw agents hook (lifecycle actions, tool state, etc.)
-      ...agents,
-      // Derived data
-      combinedAgents,
-      liveAgents,
-      allVisibleAgents,
-      selectedAgent,
-      mainSelectedAgent,
-      hasLiveAgents,
-      liveAgentNameCounts,
-      visibleSessionRows,
-      conflicts: dashboardView.conflicts,
-      getToolName: dashboardView.getToolName,
-    }),
-    [
-      agents,
-      combinedAgents,
-      liveAgents,
-      allVisibleAgents,
-      selectedAgent,
-      mainSelectedAgent,
-      hasLiveAgents,
-      liveAgentNameCounts,
-      visibleSessionRows,
-      dashboardView.conflicts,
-      dashboardView.getToolName,
-    ],
-  );
-
-  return <AgentContext.Provider value={value}>{children}</AgentContext.Provider>;
-}
-
-interface MemoryProviderProps {
-  memory: UseMemoryManagerReturn;
-  context: TeamContext | null;
-  detectedTools: HostIntegration[];
-  teamName: string | null;
-  cols: number;
-  composeMode: ComposeMode;
-  viewportRows: number;
-  children: ReactNode;
-}
-
-/**
- * Memory context: raw memory hook + derived memory data.
- * Owns: memories, filteredMemories, visibleMemories, visibleKnowledgeRows,
- * hasMemories, selection clamping.
- */
-export function MemoryProvider({
-  memory,
-  context,
-  detectedTools,
-  teamName,
-  cols,
-  composeMode,
-  viewportRows,
-  children,
-}: MemoryProviderProps): React.ReactNode {
-  const memorySearch = composeMode === 'memory-search' ? memory.memorySearch : '';
-
-  // Build dashboard view data scoped to memory filtering
-  const dashboardView = useMemo(
-    () =>
-      buildDashboardView({
-        context: context ?? undefined,
-        detectedTools,
-        memoryFilter: null,
-        memorySearch,
-        cols,
-        projectDir: teamName || basename(process.cwd()),
-      }),
-    [context, detectedTools, memorySearch, cols, teamName],
-  );
+  // ── Memory-derived data ───────────────────────────
 
   const { memories, filteredMemories, visibleMemories } = dashboardView;
   const hasMemories = memories.length > 0;
 
-  const maxViewportItems = Math.max(MIN_VIEWPORT_ROWS, viewportRows - VIEWPORT_CHROME_ROWS);
   const visibleKnowledgeRows = useMemo(
     () => getVisibleWindow(visibleMemories, memory.memorySelectedIdx, maxViewportItems),
     [visibleMemories, memory.memorySelectedIdx, maxViewportItems],
@@ -365,47 +279,73 @@ export function MemoryProvider({
     }
   }, [memory.memorySelectedIdx, visibleMemories.length, memory]);
 
+  // ── Combined value ────────────────────────────────
+
   const value = useMemo(
     () => ({
-      // Raw memory hook
-      ...memory,
-      // Derived data
+      // Agent-derived
+      combinedAgents,
+      liveAgents,
+      allVisibleAgents,
+      selectedAgent,
+      mainSelectedAgent,
+      hasLiveAgents,
+      liveAgentNameCounts,
+      visibleSessionRows,
+      conflicts: dashboardView.conflicts,
+      getToolName: dashboardView.getToolName,
+      // Memory-derived
       memories,
       filteredMemories,
       visibleMemories,
       visibleKnowledgeRows,
       hasMemories,
     }),
-    [memory, memories, filteredMemories, visibleMemories, visibleKnowledgeRows, hasMemories],
+    [
+      combinedAgents,
+      liveAgents,
+      allVisibleAgents,
+      selectedAgent,
+      mainSelectedAgent,
+      hasLiveAgents,
+      liveAgentNameCounts,
+      visibleSessionRows,
+      dashboardView.conflicts,
+      dashboardView.getToolName,
+      memories,
+      filteredMemories,
+      visibleMemories,
+      visibleKnowledgeRows,
+      hasMemories,
+    ],
   );
 
-  return <MemoryContext.Provider value={value}>{children}</MemoryContext.Provider>;
+  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }
 
-interface CommandPaletteProviderProps {
+// ── Command palette hook ────────────────────────────
+
+interface UseCommandSuggestionsArgs {
   composer: UseComposerReturn;
   agents: UseAgentLifecycleReturn;
   integrations: UseIntegrationDoctorReturn;
   hasMemories: boolean;
   hasLiveAgents: boolean;
   selectedAgent: CombinedAgentRow | null;
-  children: ReactNode;
 }
 
 /**
- * Command palette context: command suggestions derived from agent/memory/integration state.
- * Owns: commandEntries, commandSuggestions filtering.
+ * Command suggestions derived from agent/memory/integration state.
+ * Pure hook — no provider needed.
  */
-export function CommandPaletteProvider({
+export function useCommandSuggestions({
   composer,
   agents,
   integrations,
   hasMemories,
   hasLiveAgents,
   selectedAgent,
-  children,
-}: CommandPaletteProviderProps): React.ReactNode {
-  // Command palette entries
+}: UseCommandSuggestionsArgs): CommandSuggestion[] {
   const commandEntries = useMemo(
     () => [
       { name: '/new', description: 'Open a tool in a new terminal tab' },
@@ -449,7 +389,5 @@ export function CommandPaletteProvider({
       .slice(0, COMMAND_SUGGESTION_LIMIT + 1);
   }, [composer.composeMode, commandEntries, commandQuery]);
 
-  const value = useMemo(() => ({ commandSuggestions }), [commandSuggestions]);
-
-  return <CommandPaletteContext.Provider value={value}>{children}</CommandPaletteContext.Provider>;
+  return commandSuggestions;
 }
