@@ -233,4 +233,132 @@ describe('Sidebar', () => {
 
     unmount();
   });
+
+  it('marks tools as active when activeView is "tools"', async () => {
+    const Sidebar = await loadSidebar();
+    const { container, unmount } = renderComponent(Sidebar, { activeView: 'tools' });
+
+    const toolsBtn = [...container.querySelectorAll('button')].find(
+      (b) => b.textContent.trim() === 'Tools',
+    );
+    expect(toolsBtn.getAttribute('aria-current')).toBe('page');
+
+    unmount();
+  });
+
+  it('highlights the active team in the project list', async () => {
+    const Sidebar = await loadSidebar({
+      teams: [
+        { team_id: 't_1', team_name: 'Alpha' },
+        { team_id: 't_2', team_name: 'Beta' },
+      ],
+      activeTeamId: 't_1',
+    });
+    const { container, unmount } = renderComponent(Sidebar, { activeView: 'project' });
+
+    const alphaBtn = [...container.querySelectorAll('button')].find((b) =>
+      b.textContent.includes('Alpha'),
+    );
+    const betaBtn = [...container.querySelectorAll('button')].find((b) =>
+      b.textContent.includes('Beta'),
+    );
+
+    expect(alphaBtn.getAttribute('aria-current')).toBe('page');
+    expect(betaBtn.getAttribute('aria-current')).toBeNull();
+
+    unmount();
+  });
+
+  it('does not highlight project when activeView is not "project"', async () => {
+    const Sidebar = await loadSidebar({
+      teams: [{ team_id: 't_1', team_name: 'Alpha' }],
+      activeTeamId: 't_1',
+    });
+    const { container, unmount } = renderComponent(Sidebar, { activeView: 'overview' });
+
+    const alphaBtn = [...container.querySelectorAll('button')].find((b) =>
+      b.textContent.includes('Alpha'),
+    );
+    expect(alphaBtn.getAttribute('aria-current')).toBeNull();
+
+    unmount();
+  });
+
+  it('falls back to team_id when team_name is empty', async () => {
+    const Sidebar = await loadSidebar({
+      teams: [{ team_id: 't_fallback', team_name: '' }],
+    });
+    const { container, unmount } = renderComponent(Sidebar, { activeView: 'overview' });
+
+    expect(container.textContent).toContain('t_fallback');
+
+    unmount();
+  });
+
+  it('navigates home when logo is clicked', async () => {
+    const Sidebar = await loadSidebar();
+    const { container, unmount } = renderComponent(Sidebar, { activeView: 'settings' });
+
+    const logoBtn = container.querySelector('[aria-label="Home"]');
+    act(() => {
+      logoBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('overview');
+
+    unmount();
+  });
+
+  it('closes mobile sidebar when a nav item is clicked', async () => {
+    const Sidebar = await loadSidebar();
+    const { container, unmount } = renderComponent(Sidebar, { activeView: 'overview' });
+
+    // Open mobile sidebar
+    const toggleBtn = container.querySelector('[aria-label="Toggle sidebar"]');
+    act(() => {
+      toggleBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    // Verify backdrop is present (sidebar open)
+    expect(container.querySelector('[aria-hidden="true"]')).not.toBeNull();
+
+    // Click a nav item (settings)
+    const settingsBtn = [...container.querySelectorAll('button')].find(
+      (b) => b.textContent.trim() === 'Settings',
+    );
+    act(() => {
+      settingsBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    // Backdrop should be gone (sidebar closed)
+    expect(container.querySelector('[aria-hidden="true"]')).toBeNull();
+
+    unmount();
+  });
+
+  it('renders a squircle element for each project', async () => {
+    const Sidebar = await loadSidebar({
+      teams: [
+        { team_id: 't_1', team_name: 'Alpha' },
+        { team_id: 't_2', team_name: 'Beta' },
+      ],
+    });
+    const { container, unmount } = renderComponent(Sidebar, { activeView: 'overview' });
+
+    // Each project button should have two spans: the squircle and the name
+    const alphaBtn = [...container.querySelectorAll('button')].find((b) =>
+      b.textContent.includes('Alpha'),
+    );
+    const betaBtn = [...container.querySelectorAll('button')].find((b) =>
+      b.textContent.includes('Beta'),
+    );
+
+    // Each project button should exist and contain its name
+    expect(alphaBtn).not.toBeNull();
+    expect(betaBtn).not.toBeNull();
+    expect(alphaBtn.querySelectorAll('span').length).toBe(2);
+    expect(betaBtn.querySelectorAll('span').length).toBe(2);
+
+    unmount();
+  });
 });

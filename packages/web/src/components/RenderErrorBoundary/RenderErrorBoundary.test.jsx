@@ -109,4 +109,116 @@ describe('RenderErrorBoundary', () => {
     spy.mockRestore();
     unmount();
   });
+
+  it('resets error state when resetKey changes', async () => {
+    const RenderErrorBoundary = await load();
+    let shouldThrow = true;
+    function MaybeBroken() {
+      if (shouldThrow) throw new Error('Test');
+      return <div>Working</div>;
+    }
+
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <RenderErrorBoundary resetKey="a">
+          <MaybeBroken />
+        </RenderErrorBoundary>,
+      );
+    });
+
+    expect(container.textContent).toContain('Something went wrong');
+
+    // Change resetKey and stop throwing — boundary should reset
+    shouldThrow = false;
+    act(() => {
+      root.render(
+        <RenderErrorBoundary resetKey="b">
+          <MaybeBroken />
+        </RenderErrorBoundary>,
+      );
+    });
+
+    expect(container.textContent).toContain('Working');
+
+    spy.mockRestore();
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it('logs error with custom label', async () => {
+    const RenderErrorBoundary = await load();
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { unmount } = renderComponent(
+      <RenderErrorBoundary label="ProjectView">
+        <BrokenChild />
+      </RenderErrorBoundary>,
+    );
+
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining('[chinwag] ProjectView error:'),
+      expect.any(Error),
+      expect.anything(),
+    );
+
+    spy.mockRestore();
+    unmount();
+  });
+
+  it('default fallback has role="status" for accessibility', async () => {
+    const RenderErrorBoundary = await load();
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { container, unmount } = renderComponent(
+      <RenderErrorBoundary>
+        <BrokenChild />
+      </RenderErrorBoundary>,
+    );
+
+    const statusEl = container.querySelector('[role="status"]');
+    expect(statusEl).not.toBeNull();
+
+    spy.mockRestore();
+    unmount();
+  });
+
+  it('recovery via custom fallback reset function works', async () => {
+    const RenderErrorBoundary = await load();
+    let shouldThrow = true;
+    function MaybeBroken() {
+      if (shouldThrow) throw new Error('Test');
+      return <div>Back to normal</div>;
+    }
+
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { container, unmount } = renderComponent(
+      <RenderErrorBoundary
+        fallback={({ reset }) => (
+          <button data-testid="custom-reset" onClick={reset}>
+            Reset
+          </button>
+        )}
+      >
+        <MaybeBroken />
+      </RenderErrorBoundary>,
+    );
+
+    expect(container.textContent).toContain('Reset');
+
+    shouldThrow = false;
+    const btn = container.querySelector('[data-testid="custom-reset"]');
+    await act(async () => {
+      btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain('Back to normal');
+
+    spy.mockRestore();
+    unmount();
+  });
 });
