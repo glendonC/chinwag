@@ -41,7 +41,7 @@ interface ContextLike {
 }
 
 // Minimal fingerprint of context for change detection (avoids JSON.stringify on every poll)
-function contextFingerprint(ctx: ContextLike | null): string {
+export function contextFingerprint(ctx: ContextLike | null): string {
   if (!ctx) return '';
   const members = (ctx.members || [])
     .map(
@@ -53,6 +53,21 @@ function contextFingerprint(ctx: ContextLike | null): string {
   const msgCount = (ctx.messages || []).length;
   const lockCount = (ctx.locks || []).length;
   return `${members};${memCount};${msgCount};${lockCount}`;
+}
+
+/**
+ * Compute the polling interval based on failure count and idle state.
+ * Extracted to module scope for testability.
+ */
+export function getPollInterval(consecutiveFailures: number, unchangedPolls: number): number {
+  if (consecutiveFailures >= 3) {
+    const base = consecutiveFailures >= OFFLINE_THRESHOLD ? POLL_SLOW_MS : POLL_MEDIUM_MS;
+    return Math.min(base * Math.pow(2, consecutiveFailures - 3), BACKOFF_MAX_MS);
+  }
+  if (unchangedPolls >= IDLE_TIER_3) return POLL_IDLE_MS;
+  if (unchangedPolls >= IDLE_TIER_2) return POLL_SLOW_MS;
+  if (unchangedPolls >= IDLE_TIER_1) return POLL_MEDIUM_MS;
+  return POLL_FAST_MS;
 }
 
 interface StdoutLike {
@@ -232,19 +247,8 @@ export function useDashboardConnection({
     }
 
     // ── Polling fallback ──────────────────────────
-    function getPollInterval(): number {
-      const failures = consecutiveFailures.current;
-      if (failures >= 3) {
-        // Exponential backoff during error states: base * 2^(failures-3), capped at 60s
-        const base = failures >= OFFLINE_THRESHOLD ? POLL_SLOW_MS : POLL_MEDIUM_MS;
-        return Math.min(base * Math.pow(2, failures - 3), BACKOFF_MAX_MS);
-      }
-      // Progressive backoff when context is unchanged (idle team)
-      const idle = unchangedPolls.current;
-      if (idle >= IDLE_TIER_3) return POLL_IDLE_MS;
-      if (idle >= IDLE_TIER_2) return POLL_SLOW_MS;
-      if (idle >= IDLE_TIER_1) return POLL_MEDIUM_MS;
-      return POLL_FAST_MS;
+    function getLocalPollInterval(): number {
+      return getPollInterval(consecutiveFailures.current, unchangedPolls.current);
     }
 
     function startPolling(): void {
@@ -258,7 +262,7 @@ export function useDashboardConnection({
             handleFetchError(err);
           }
           if (!destroyed) schedulePoll();
-        }, getPollInterval());
+        }, getLocalPollInterval());
       }
       schedulePoll();
     }
