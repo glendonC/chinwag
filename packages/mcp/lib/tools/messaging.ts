@@ -1,7 +1,7 @@
 // chinwag_send_message tool handler.
 
 import * as z from 'zod/v4';
-import { noTeam, errorResult } from '../utils/responses.js';
+import { noTeam, errorResult, appendDegradedWarning } from '../utils/responses.js';
 import { MESSAGE_TEXT_MAX_LENGTH, MESSAGE_TARGET_MAX_LENGTH } from '../constants.js';
 import type { AddToolFn, ToolDeps } from './types.js';
 
@@ -28,11 +28,14 @@ export function registerMessagingTool(
     },
     async (args) => {
       const { text, target } = args as SendMessageArgs;
-      if (!state.teamId || state.heartbeatDead) return noTeam(state);
+      if (!state.teamId) return noTeam(state);
       try {
         await team.sendMessage(state.teamId, text, target);
         const dest = target ? `to ${target}` : 'to team';
-        return { content: [{ type: 'text' as const, text: `Message sent ${dest}: ${text}` }] };
+        return appendDegradedWarning(
+          { content: [{ type: 'text' as const, text: `Message sent ${dest}: ${text}` }] },
+          state.heartbeatDead,
+        );
       } catch (err: unknown) {
         return errorResult(err);
       }

@@ -2,7 +2,13 @@
 
 import * as z from 'zod/v4';
 import { teamPreamble, getCachedContext } from '../context.js';
-import { noTeam, errorResult, getHttpStatus, safeArray } from '../utils/responses.js';
+import {
+  noTeam,
+  errorResult,
+  getHttpStatus,
+  safeArray,
+  appendDegradedWarning,
+} from '../utils/responses.js';
 import { formatConflictsList, type ConflictInfo, type LockedFileInfo } from '../utils/display.js';
 import { formatWho } from '../utils/formatting.js';
 import { normalizePath, normalizeFiles } from '../utils/paths.js';
@@ -29,7 +35,7 @@ export function registerConflictsTool(
       inputSchema: checkConflictsSchema,
     },
     async (args) => {
-      if (!state.teamId || state.heartbeatDead) return noTeam(state);
+      if (!state.teamId) return noTeam(state);
       const { files: rawFiles } = args as CheckConflictsArgs;
       const files = normalizeFiles(rawFiles);
       try {
@@ -39,11 +45,19 @@ export function registerConflictsTool(
         const locked = safeArray<LockedFileInfo>(result, 'locked');
         const lines = formatConflictsList(conflicts, locked);
         if (lines.length === 0) {
-          return {
-            content: [{ type: 'text' as const, text: `${preamble}No conflicts. Safe to proceed.` }],
-          };
+          return appendDegradedWarning(
+            {
+              content: [
+                { type: 'text' as const, text: `${preamble}No conflicts. Safe to proceed.` },
+              ],
+            },
+            state.heartbeatDead,
+          );
         }
-        return { content: [{ type: 'text' as const, text: `${preamble}${lines.join('\n')}` }] };
+        return appendDegradedWarning(
+          { content: [{ type: 'text' as const, text: `${preamble}${lines.join('\n')}` }] },
+          state.heartbeatDead,
+        );
       } catch (err: unknown) {
         if (getHttpStatus(err) === 401) return errorResult(err);
         // Offline fallback: check cached context for potential conflicts

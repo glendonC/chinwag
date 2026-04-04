@@ -2,7 +2,7 @@
 
 import * as z from 'zod/v4';
 import { teamPreamble } from '../context.js';
-import { noTeam, errorResult, safeArray } from '../utils/responses.js';
+import { noTeam, errorResult, safeArray, appendDegradedWarning } from '../utils/responses.js';
 import { normalizeFiles } from '../utils/paths.js';
 import { formatWho } from '../utils/formatting.js';
 import { FILE_PATH_MAX_LENGTH, LOCK_FILE_LIST_MAX } from '../constants.js';
@@ -37,7 +37,7 @@ export function registerLockTools(
       inputSchema: claimFilesSchema,
     },
     async (args) => {
-      if (!state.teamId || state.heartbeatDead) return noTeam(state);
+      if (!state.teamId) return noTeam(state);
       const { files: rawFiles } = args as ClaimFilesArgs;
       const files = normalizeFiles(rawFiles);
       try {
@@ -56,7 +56,10 @@ export function registerLockTools(
             lines.push(`Blocked: ${b.file} \u2014 held by ${who}`);
           }
         }
-        return { content: [{ type: 'text' as const, text: `${preamble}${lines.join('\n')}` }] };
+        return appendDegradedWarning(
+          { content: [{ type: 'text' as const, text: `${preamble}${lines.join('\n')}` }] },
+          state.heartbeatDead,
+        );
       } catch (err: unknown) {
         return errorResult(err);
       }
@@ -71,13 +74,16 @@ export function registerLockTools(
       inputSchema: releaseFilesSchema,
     },
     async (args) => {
-      if (!state.teamId || state.heartbeatDead) return noTeam(state);
+      if (!state.teamId) return noTeam(state);
       const { files: rawFiles } = args as ReleaseFilesArgs;
       const files = rawFiles ? normalizeFiles(rawFiles) : undefined;
       try {
         await team.releaseFiles(state.teamId, files);
         const msg = files ? `Released: ${files.join(', ')}` : 'All locks released.';
-        return { content: [{ type: 'text' as const, text: msg }] };
+        return appendDegradedWarning(
+          { content: [{ type: 'text' as const, text: msg }] },
+          state.heartbeatDead,
+        );
       } catch (err: unknown) {
         return errorResult(err);
       }

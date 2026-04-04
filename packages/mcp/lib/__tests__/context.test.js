@@ -166,6 +166,99 @@ describe('context cache', () => {
       expect(result).toBeNull();
       consoleSpy.mockRestore();
     });
+
+    it('discards cached context when it exceeds max stale threshold', async () => {
+      vi.useFakeTimers();
+      const ctx = { members: [{ handle: 'alice' }] };
+      const team = {
+        getTeamContext: vi.fn().mockResolvedValueOnce(ctx).mockRejectedValue(new Error('Timeout')),
+      };
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      // First call succeeds — caches context
+      await refreshContext(team, 't_abc');
+      expect(getCachedContext()).toEqual(ctx);
+
+      // Advance past TTL + max stale (300s + some margin)
+      vi.advanceTimersByTime(301_000);
+
+      // Second call fails — context is too stale, should be discarded
+      const result = await refreshContext(team, 't_abc');
+      expect(result).toBeNull();
+      expect(getCachedContext()).toBeNull();
+      consoleSpy.mockRestore();
+      vi.useRealTimers();
+    });
+
+    it('keeps cached context when stale but within max threshold', async () => {
+      vi.useFakeTimers();
+      const ctx = { members: [{ handle: 'alice' }] };
+      const team = {
+        getTeamContext: vi.fn().mockResolvedValueOnce(ctx).mockRejectedValue(new Error('Timeout')),
+      };
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      await refreshContext(team, 't_abc');
+
+      // Advance past TTL but within max stale (e.g. 60s)
+      vi.advanceTimersByTime(60_000);
+
+      const result = await refreshContext(team, 't_abc');
+      expect(result).toEqual(ctx);
+      consoleSpy.mockRestore();
+      vi.useRealTimers();
+    });
+
+    it('starts offline retry timer on failure and retries periodically', async () => {
+      vi.useFakeTimers();
+      const ctx = { members: [{ handle: 'alice' }] };
+      const team = {
+        getTeamContext: vi
+          .fn()
+          .mockRejectedValueOnce(new Error('Timeout'))
+          .mockResolvedValueOnce(ctx),
+      };
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      // First call fails — starts retry timer
+      await refreshContext(team, 't_abc');
+      expect(offlinePrefix()).toMatch(/\[offline/);
+
+      // Advance past the retry interval (60s)
+      await vi.advanceTimersByTimeAsync(61_000);
+
+      // The retry should have called getTeamContext again and succeeded
+      expect(team.getTeamContext).toHaveBeenCalledTimes(2);
+      expect(offlinePrefix()).toBe('');
+      consoleSpy.mockRestore();
+      vi.useRealTimers();
+    });
+
+    it('stops offline retry timer when coming back online', async () => {
+      vi.useFakeTimers();
+      const team = {
+        getTeamContext: vi
+          .fn()
+          .mockRejectedValueOnce(new Error('Timeout'))
+          .mockResolvedValueOnce({ members: [] }),
+      };
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      // Go offline
+      await refreshContext(team, 't_abc');
+      expect(offlinePrefix()).toMatch(/\[offline/);
+
+      // Come back online (no cache so no TTL guard)
+      await refreshContext(team, 't_abc');
+      expect(offlinePrefix()).toBe('');
+
+      // Advance time — retry timer should not fire additional calls
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect(team.getTeamContext).toHaveBeenCalledTimes(2);
+
+      consoleSpy.mockRestore();
+      vi.useRealTimers();
+    });
   });
 
   // --- offlinePrefix ---
@@ -175,12 +268,54 @@ describe('context cache', () => {
       expect(offlinePrefix()).toBe('');
     });
 
-    it('returns offline tag when offline', async () => {
+    it('returns offline tag when offline (no age when fresh)', async () => {
       const team = { getTeamContext: vi.fn().mockRejectedValue(new Error('fail')) };
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       await refreshContext(team, 't_abc');
       expect(offlinePrefix()).toBe('[offline -- using cached data] ');
       consoleSpy.mockRestore();
+    });
+
+    it('includes age in minutes when cache is 1-4 minutes old', async () => {
+      vi.useFakeTimers();
+      const ctx = { members: [{ handle: 'alice' }] };
+      const team = {
+        getTeamContext: vi.fn().mockResolvedValueOnce(ctx).mockRejectedValue(new Error('fail')),
+      };
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      // Cache a successful result
+      await refreshContext(team, 't_abc');
+      // Advance past TTL + 2 minutes
+      vi.advanceTimersByTime(150_000); // 2.5 minutes
+
+      // Fail — go offline
+      await refreshContext(team, 't_abc');
+      expect(offlinePrefix()).toBe('[offline 2m -- using cached data] ');
+      consoleSpy.mockRestore();
+      vi.useRealTimers();
+    });
+
+    it('shows 5m+ when cache is 5+ minutes old', async () => {
+      vi.useFakeTimers();
+      const ctx = { members: [{ handle: 'alice' }] };
+      const team = {
+        getTeamContext: vi.fn().mockResolvedValueOnce(ctx).mockRejectedValue(new Error('fail')),
+      };
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      await refreshContext(team, 't_abc');
+      // Advance 5 minutes + some margin (but still within max stale of 300s)
+      // Actually, 300s = 5min exactly. We need to stay under to keep cache alive.
+      // Advance 4.5 minutes to keep cache, then check what offlinePrefix shows at 5min+
+      vi.advanceTimersByTime(299_000); // 4m59s — just under max stale
+
+      await refreshContext(team, 't_abc');
+      // Cache is ~299s old = 4 minutes (floor), not 5m+ yet
+      expect(offlinePrefix()).toBe('[offline 4m -- using cached data] ');
+
+      consoleSpy.mockRestore();
+      vi.useRealTimers();
     });
   });
 
@@ -241,6 +376,7 @@ describe('context cache', () => {
       await refreshContext(team, 't_abc');
 
       const result = await teamPreamble(team, 't_abc');
+      // No cached data (never succeeded), so age tag is empty
       expect(result).toBe('[offline] ');
       consoleSpy.mockRestore();
     });

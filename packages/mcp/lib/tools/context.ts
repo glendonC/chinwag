@@ -3,7 +3,7 @@
 import * as z from 'zod/v4';
 import { refreshContext, offlinePrefix } from '../context.js';
 import { createLogger } from '../utils/logger.js';
-import { noTeam, getErrorMessage, safeArray } from '../utils/responses.js';
+import { noTeam, getErrorMessage, safeArray, appendDegradedWarning } from '../utils/responses.js';
 import { formatToolTag, formatWho, type TeamMember } from '../utils/formatting.js';
 import type { LockContextInfo, MessageInfo, MemoryInfo } from '../utils/display.js';
 import { MODEL_MAX_LENGTH } from '../constants.js';
@@ -33,7 +33,7 @@ export function registerContextTool(
     },
     async (args) => {
       const { model } = (args ?? {}) as GetTeamContextArgs;
-      if (!state.teamId || state.heartbeatDead) return noTeam(state);
+      if (!state.teamId) return noTeam(state);
 
       // Deferred model enrichment -- fire-and-forget on first report.
       // Tracks which model was reported (not just a boolean) so a different
@@ -83,7 +83,8 @@ export function registerContextTool(
       }
 
       const lines: string[] = [];
-      if (offlinePrefix()) lines.push('[offline \u2014 showing cached data]');
+      const offline = offlinePrefix();
+      if (offline) lines.push(offline.trim());
 
       const members = safeArray<TeamMember>(ctx, 'members');
       const locks = safeArray<LockContextInfo>(ctx, 'locks');
@@ -130,7 +131,10 @@ export function registerContextTool(
         }
       }
 
-      return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
+      return appendDegradedWarning(
+        { content: [{ type: 'text' as const, text: lines.join('\n') }] },
+        state.heartbeatDead,
+      );
     },
   );
 }

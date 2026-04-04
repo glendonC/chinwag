@@ -3,7 +3,7 @@
 import * as z from 'zod/v4';
 import { setTerminalTitle } from '@chinwag/shared/session-registry.js';
 import { teamPreamble } from '../context.js';
-import { noTeam, errorResult } from '../utils/responses.js';
+import { noTeam, errorResult, appendDegradedWarning } from '../utils/responses.js';
 import { normalizeFiles } from '../utils/paths.js';
 import {
   TITLE_MAX_LENGTH,
@@ -38,7 +38,7 @@ export function registerActivityTool(
     },
     async (args) => {
       const { files: rawFiles, summary } = args as UpdateActivityArgs;
-      if (!state.teamId || state.heartbeatDead) return noTeam(state);
+      if (!state.teamId) return noTeam(state);
       try {
         const files = normalizeFiles(rawFiles);
         await team.updateActivity(state.teamId, files, summary);
@@ -51,9 +51,10 @@ export function registerActivityTool(
           setTerminalTitle(state.tty, `chinwag \u00B7 ${label}`);
         }
         const preamble = await teamPreamble(team, state.teamId);
-        return {
+        const result = {
           content: [{ type: 'text' as const, text: `${preamble}Activity updated: ${summary}` }],
         };
+        return appendDegradedWarning(result, state.heartbeatDead);
       } catch (err: unknown) {
         return errorResult(err);
       }

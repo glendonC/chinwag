@@ -3,7 +3,7 @@
 
 import * as z from 'zod/v4';
 import { teamPreamble } from '../context.js';
-import { noTeam, errorResult, safeArray } from '../utils/responses.js';
+import { noTeam, errorResult, safeArray, appendDegradedWarning } from '../utils/responses.js';
 import type { MemoryInfo } from '../utils/display.js';
 import {
   MEMORY_TEXT_MAX_LENGTH,
@@ -73,14 +73,17 @@ export function registerMemoryTools(
     },
     async (args) => {
       const { text, tags } = args as SaveMemoryArgs;
-      if (!state.teamId || state.heartbeatDead) return noTeam(state);
+      if (!state.teamId) return noTeam(state);
       try {
         await team.saveMemory(state.teamId, text, tags);
         const preamble = await teamPreamble(team, state.teamId);
         const tagStr = tags?.length ? ` [${tags.join(', ')}]` : '';
-        return {
-          content: [{ type: 'text' as const, text: `${preamble}Memory saved${tagStr}: ${text}` }],
-        };
+        return appendDegradedWarning(
+          {
+            content: [{ type: 'text' as const, text: `${preamble}Memory saved${tagStr}: ${text}` }],
+          },
+          state.heartbeatDead,
+        );
       } catch (err: unknown) {
         return errorResult(err);
       }
@@ -96,7 +99,7 @@ export function registerMemoryTools(
     },
     async (args) => {
       const { id, text, tags } = args as UpdateMemoryArgs;
-      if (!state.teamId || state.heartbeatDead) return noTeam(state);
+      if (!state.teamId) return noTeam(state);
       if (!text && !tags) {
         return {
           content: [
@@ -119,14 +122,17 @@ export function registerMemoryTools(
         const parts: string[] = [];
         if (text) parts.push('text updated');
         if (tags) parts.push(`tags \u2192 ${tags.join(', ')}`);
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: `${preamble}Memory ${id} updated (${parts.join(', ')}).`,
-            },
-          ],
-        };
+        return appendDegradedWarning(
+          {
+            content: [
+              {
+                type: 'text' as const,
+                text: `${preamble}Memory ${id} updated (${parts.join(', ')}).`,
+              },
+            ],
+          },
+          state.heartbeatDead,
+        );
       } catch (err: unknown) {
         return errorResult(err);
       }
@@ -142,18 +148,24 @@ export function registerMemoryTools(
     },
     async (args) => {
       const { query, tags, limit } = args as SearchMemoryArgs;
-      if (!state.teamId || state.heartbeatDead) return noTeam(state);
+      if (!state.teamId) return noTeam(state);
       try {
         const result = await team.searchMemories(state.teamId, query, tags, limit);
         const memories = safeArray<MemoryInfo>(result, 'memories');
         if (memories.length === 0) {
-          return { content: [{ type: 'text' as const, text: 'No memories found.' }] };
+          return appendDegradedWarning(
+            { content: [{ type: 'text' as const, text: 'No memories found.' }] },
+            state.heartbeatDead,
+          );
         }
         const lines = memories.map((m) => {
           const tagStr = m.tags?.length ? ` [${m.tags.join(', ')}]` : '';
           return `${m.text}${tagStr} (id: ${m.id}, by ${m.handle})`;
         });
-        return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
+        return appendDegradedWarning(
+          { content: [{ type: 'text' as const, text: lines.join('\n') }] },
+          state.heartbeatDead,
+        );
       } catch (err: unknown) {
         return errorResult(err);
       }
@@ -169,7 +181,7 @@ export function registerMemoryTools(
     },
     async (args) => {
       const { id } = args as DeleteMemoryArgs;
-      if (!state.teamId || state.heartbeatDead) return noTeam(state);
+      if (!state.teamId) return noTeam(state);
       try {
         const result = await team.deleteMemory(state.teamId, id);
         if (!result.ok) {
@@ -180,7 +192,10 @@ export function registerMemoryTools(
             isError: true,
           };
         }
-        return { content: [{ type: 'text' as const, text: `Memory ${id} deleted.` }] };
+        return appendDegradedWarning(
+          { content: [{ type: 'text' as const, text: `Memory ${id} deleted.` }] },
+          state.heartbeatDead,
+        );
       } catch (err: unknown) {
         return errorResult(err);
       }

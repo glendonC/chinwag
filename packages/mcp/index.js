@@ -73,6 +73,7 @@ async function main() {
     modelReportInflight: null,
     lastActivity: Date.now(),
     heartbeatInterval: null,
+    heartbeatRecoveryTimeout: null,
     shuttingDown: false,
     teamJoinError: null,
     heartbeatDead: false,

@@ -15,7 +15,7 @@
 import { formatToolTag } from './utils/formatting.js';
 import { createLogger } from './utils/logger.js';
 import { getErrorMessage } from './utils/responses.js';
-import { CONTEXT_TTL_MS } from './constants.js';
+import { CONTEXT_TTL_MS, CONTEXT_MAX_STALE_MS, CONTEXT_OFFLINE_RETRY_MS } from './constants.js';
 import type { TeamContext } from './utils/display.js';
 import type { TeamHandlers } from './team.js';
 
@@ -30,6 +30,7 @@ export interface ContextCacheState {
   consecutiveErrors: number;
   lastPreambleState: string;
   inflightRefresh: Promise<TeamContext | null> | null;
+  offlineRetryTimer: ReturnType<typeof setInterval> | null;
 }
 
 /** Returns a fresh default state — useful for testing isolated instances. */
@@ -42,6 +43,7 @@ export function createContextCache(): ContextCacheState {
     consecutiveErrors: 0,
     lastPreambleState: '',
     inflightRefresh: null,
+    offlineRetryTimer: null,
   };
 }
 
@@ -70,6 +72,24 @@ export async function refreshContext(
   }
 }
 
+/** Start the offline retry timer if not already running. */
+function startOfflineRetry(team: TeamHandlers, teamId: string): void {
+  if (cache.offlineRetryTimer) return;
+  cache.offlineRetryTimer = setInterval(() => {
+    // Fire-and-forget: retry refresh in background while offline.
+    // refreshContext handles dedup via inflightRefresh.
+    void refreshContext(team, teamId);
+  }, CONTEXT_OFFLINE_RETRY_MS);
+}
+
+/** Stop the offline retry timer. */
+function stopOfflineRetry(): void {
+  if (cache.offlineRetryTimer) {
+    clearInterval(cache.offlineRetryTimer);
+    cache.offlineRetryTimer = null;
+  }
+}
+
 async function doRefresh(
   team: TeamHandlers,
   teamId: string,
@@ -82,6 +102,7 @@ async function doRefresh(
     if (cache.isOffline) {
       cache.isOffline = false;
       cache.consecutiveErrors = 0;
+      stopOfflineRetry();
       log.info('Back online');
     }
     return cache.cachedContext;
@@ -102,12 +123,26 @@ async function doRefresh(
       );
     }
     cache.isOffline = true;
-    return cache.cachedContext; // null if never fetched — caller must handle
+    startOfflineRetry(team, teamId);
+
+    // If cached context is too stale, discard it — callers handle null gracefully.
+    if (cache.cachedContext && now - cache.cachedContextAt > CONTEXT_MAX_STALE_MS) {
+      log.warn(
+        `Cached context too stale (${Math.round((now - cache.cachedContextAt) / 1000)}s) -- discarding`,
+      );
+      cache.cachedContext = null;
+    }
+
+    return cache.cachedContext; // null if never fetched or discarded — caller must handle
   }
 }
 
 export function offlinePrefix(): string {
-  return cache.isOffline ? '[offline -- using cached data] ' : '';
+  if (!cache.isOffline) return '';
+  const ageMs = cache.cachedContextAt > 0 ? Date.now() - cache.cachedContextAt : 0;
+  const ageMin = Math.floor(ageMs / 60_000);
+  const ageTag = ageMin >= 5 ? ' 5m+' : ageMin >= 1 ? ` ${ageMin}m` : '';
+  return `[offline${ageTag} -- using cached data] `;
 }
 
 export function getCachedContext(): TeamContext | null {
@@ -115,12 +150,19 @@ export function getCachedContext(): TeamContext | null {
 }
 
 export function clearContextCache(): void {
+  stopOfflineRetry();
   Object.assign(cache, createContextCache());
 }
 
 export async function teamPreamble(team: TeamHandlers, teamId: string): Promise<string> {
   const ctx = await refreshContext(team, teamId);
-  if (!ctx) return cache.isOffline ? '[offline] ' : '';
+  if (!ctx) {
+    if (!cache.isOffline) return '';
+    const ageMs = cache.cachedContextAt > 0 ? Date.now() - cache.cachedContextAt : 0;
+    const ageMin = Math.floor(ageMs / 60_000);
+    const ageTag = ageMin >= 5 ? ' 5m+' : ageMin >= 1 ? ` ${ageMin}m` : '';
+    return `[offline${ageTag}] `;
+  }
   const active = ctx.members?.filter((m) => m.status === 'active') || [];
   if (active.length === 0) return offlinePrefix();
 
