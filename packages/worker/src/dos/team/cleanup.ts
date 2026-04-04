@@ -15,17 +15,15 @@ import { HEARTBEAT_STALE_WINDOW_S, SESSION_RETENTION_DAYS } from '../../lib/cons
 
 const log = createLogger('TeamDO:cleanup');
 
-/**
- * Run cleanup queries, logging on failure without aborting the transaction.
- * @param {SqlStorage} sql
- * @param {Set<string>} connectedAgentIds - Agents with active WebSocket connections
- * @param {<T>(fn: () => T) => T} transact - Transaction wrapper
- */
-export function runCleanup(sql, connectedAgentIds, transact) {
+export function runCleanup(
+  sql: SqlStorage,
+  connectedAgentIds: Set<string>,
+  transact: <T>(fn: () => T) => T,
+): void {
   const ws = buildInClause([...connectedAgentIds]);
 
   /** Run a cleanup query, logging on failure without aborting the transaction. */
-  const step = (label, fn) => {
+  const step = (label: string, fn: () => void): void => {
     try {
       fn();
     } catch (err) {

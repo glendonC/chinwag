@@ -1,26 +1,17 @@
-/** @import { RuntimeMetadata } from '../../types.js' */
+import type { RuntimeMetadata } from '../../types.js';
 
 const RUNTIME_TOKEN_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
-/**
- * Validate and cap a single runtime metadata value.
- * @param {any} value
- * @param {number} [maxLength=50]
- * @returns {string | null}
- */
-function normalizeValue(value, maxLength = 50) {
+/** Validate and cap a single runtime metadata value. */
+function normalizeValue(value: unknown, maxLength = 50): string | null {
   if (!value || typeof value !== 'string') return null;
   if (value.length > maxLength) return null;
   if (!RUNTIME_TOKEN_PATTERN.test(value)) return null;
   return value;
 }
 
-/**
- * Extract the host tool name from a prefixed agent ID (e.g. "cursor:abc" -> "cursor").
- * @param {string} [agentId='']
- * @returns {string}
- */
-export function inferHostToolFromAgentId(agentId = '') {
+/** Extract the host tool name from a prefixed agent ID (e.g. "cursor:abc" -> "cursor"). */
+export function inferHostToolFromAgentId(agentId = ''): string {
   const idx = String(agentId).indexOf(':');
   return idx > 0 ? agentId.slice(0, idx) : 'unknown';
 }
@@ -28,11 +19,11 @@ export function inferHostToolFromAgentId(agentId = '') {
 /**
  * Normalize runtime metadata from either a string tool name or a runtime object.
  * Always returns a complete RuntimeMetadata with no undefined fields.
- * @param {string | Record<string, any> | null | undefined} runtimeOrTool
- * @param {string} [agentId='']
- * @returns {RuntimeMetadata}
  */
-export function normalizeRuntimeMetadata(runtimeOrTool, agentId = '') {
+export function normalizeRuntimeMetadata(
+  runtimeOrTool: string | Record<string, unknown> | null | undefined,
+  agentId = '',
+): RuntimeMetadata {
   if (!runtimeOrTool || typeof runtimeOrTool === 'string') {
     const hostTool =
       normalizeValue(runtimeOrTool) || inferHostToolFromAgentId(agentId) || 'unknown';

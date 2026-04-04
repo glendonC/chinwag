@@ -1,11 +1,22 @@
-// Database Durable Object — single instance holding all persistent data in SQLite.
+// Database Durable Object -- single instance holding all persistent data in SQLite.
 // Uses DO RPC for direct method calls from the Worker.
 // Users have UUID primary keys; handles are display names with a unique index.
 //
 // Submodules:
-//   evaluations.js — tool directory CRUD (largest separate domain)
+//   evaluations.ts -- tool directory CRUD (largest separate domain)
 
 import { DurableObject } from 'cloudflare:workers';
+import type {
+  Env,
+  DOResult,
+  DOError,
+  User,
+  NewUser,
+  RateLimitCheck,
+  WebSession,
+  UserTeam,
+  AgentProfile,
+} from '../../types.js';
 import { seedEvaluations } from '../../lib/seed-evaluations.js';
 import { toSQLDateTime } from '../../lib/text-utils.js';
 import { VALID_COLORS, WEB_SESSION_DURATION_MS } from '../../lib/constants.js';
@@ -84,7 +95,7 @@ const ADJECTIVES = [
   'rusty',
   'shiny',
   'tricky',
-];
+] as const;
 
 const NOUNS = [
   'fox',
@@ -151,36 +162,36 @@ const NOUNS = [
   'ridge',
   'storm',
   'thorn',
-];
+] as const;
 
-export class DatabaseDO extends DurableObject {
+export class DatabaseDO extends DurableObject<Env> {
+  sql: SqlStorage;
   #schemaReady = false;
   #evaluationsSeeded = false;
 
-  /** @type {<T>(fn: () => T) => T} */
-  #transact;
+  #transact: <T>(fn: () => T) => T;
 
-  constructor(ctx, env) {
+  constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.sql = ctx.storage.sql;
-    this.#transact = (fn) => ctx.storage.transactionSync(fn);
+    this.#transact = <T>(fn: () => T): T => ctx.storage.transactionSync(fn);
   }
 
-  #ensureSchema() {
+  #ensureSchema(): void {
     if (this.#schemaReady) return;
 
     ensureSchemaFn(this.sql, this.#transact);
 
     // Prune stale rate limit rows and expired sessions (runs every startup,
-    // not a migration — these are recurring cleanup, not schema changes)
+    // not a migration -- these are recurring cleanup, not schema changes)
     schemaCleanup(this.sql);
 
     this.#schemaReady = true;
   }
 
-  // ── Users ──
+  // -- Users --
 
-  async createUser() {
+  async createUser(): Promise<DOResult<NewUser & { ok: true }>> {
     this.#ensureSchema();
 
     const id = crypto.randomUUID();
@@ -207,7 +218,7 @@ export class DatabaseDO extends DurableObject {
     return { ok: true, id, handle, color, token };
   }
 
-  async getUser(id) {
+  async getUser(id: string): Promise<DOResult<{ ok: true; user: User }>> {
     this.#ensureSchema();
     const rows = this.sql
       .exec(
@@ -215,7 +226,7 @@ export class DatabaseDO extends DurableObject {
         id,
       )
       .toArray();
-    const user = rows[0] || null;
+    const user = (rows[0] as unknown as User) || null;
     if (user) {
       const lastActive = new Date(user.last_active).getTime();
       if (Date.now() - lastActive > 300_000) {
@@ -225,7 +236,7 @@ export class DatabaseDO extends DurableObject {
     return user ? { ok: true, user } : { error: 'User not found', code: 'NOT_FOUND' };
   }
 
-  async getUserByHandle(handle) {
+  async getUserByHandle(handle: string): Promise<DOResult<{ ok: true; user: User }>> {
     this.#ensureSchema();
     const rows = this.sql
       .exec(
@@ -233,11 +244,14 @@ export class DatabaseDO extends DurableObject {
         handle,
       )
       .toArray();
-    const user = rows[0] || null;
+    const user = (rows[0] as unknown as User) || null;
     return user ? { ok: true, user } : { error: 'User not found', code: 'NOT_FOUND' };
   }
 
-  async updateHandle(userId, newHandle) {
+  async updateHandle(
+    userId: string,
+    newHandle: string,
+  ): Promise<DOResult<{ ok: true; handle: string }>> {
     this.#ensureSchema();
 
     if (!/^[a-zA-Z0-9_]{3,20}$/.test(newHandle)) {
@@ -258,10 +272,10 @@ export class DatabaseDO extends DurableObject {
     return { ok: true, handle: newHandle };
   }
 
-  async updateColor(userId, color) {
+  async updateColor(userId: string, color: string): Promise<DOResult<{ ok: true; color: string }>> {
     this.#ensureSchema();
 
-    if (!VALID_COLORS.includes(color)) {
+    if (!VALID_COLORS.includes(color as (typeof VALID_COLORS)[number])) {
       return { error: `Color must be one of: ${VALID_COLORS.join(', ')}`, code: 'VALIDATION' };
     }
 
@@ -269,15 +283,15 @@ export class DatabaseDO extends DurableObject {
     return { ok: true, color };
   }
 
-  async setStatus(userId, status) {
+  async setStatus(userId: string, status: string | null): Promise<{ ok: true }> {
     this.#ensureSchema();
     this.sql.exec('UPDATE users SET status = ? WHERE id = ?', status, userId);
     return { ok: true };
   }
 
-  // ── GitHub OAuth ──
+  // -- GitHub OAuth --
 
-  async getUserByGithubId(githubId) {
+  async getUserByGithubId(githubId: string | number): Promise<DOResult<{ ok: true; user: User }>> {
     this.#ensureSchema();
     const rows = this.sql
       .exec(
@@ -285,11 +299,15 @@ export class DatabaseDO extends DurableObject {
         String(githubId),
       )
       .toArray();
-    const user = rows[0] || null;
+    const user = (rows[0] as unknown as User) || null;
     return user ? { ok: true, user } : { error: 'User not found' };
   }
 
-  async createUserFromGithub(githubId, githubLogin, avatarUrl) {
+  async createUserFromGithub(
+    githubId: string | number,
+    githubLogin: string,
+    avatarUrl: string | null,
+  ): Promise<DOResult<NewUser & { ok: true }>> {
     this.#ensureSchema();
 
     const id = crypto.randomUUID();
@@ -321,7 +339,12 @@ export class DatabaseDO extends DurableObject {
     return { ok: true, id, handle, color, token };
   }
 
-  async linkGithub(userId, githubId, githubLogin, avatarUrl) {
+  async linkGithub(
+    userId: string,
+    githubId: string | number,
+    githubLogin: string,
+    avatarUrl: string | null,
+  ): Promise<DOResult<{ ok: true }>> {
     this.#ensureSchema();
 
     const existing = this.sql
@@ -341,7 +364,7 @@ export class DatabaseDO extends DurableObject {
     return { ok: true };
   }
 
-  async unlinkGithub(userId) {
+  async unlinkGithub(userId: string): Promise<{ ok: true }> {
     this.#ensureSchema();
     this.sql.exec(
       'UPDATE users SET github_id = NULL, github_login = NULL, avatar_url = NULL WHERE id = ?',
@@ -350,9 +373,12 @@ export class DatabaseDO extends DurableObject {
     return { ok: true };
   }
 
-  // ── Web sessions ──
+  // -- Web sessions --
 
-  async createWebSession(userId, userAgent) {
+  async createWebSession(
+    userId: string,
+    userAgent: string | null,
+  ): Promise<{ ok: true; token: string; expires_at: string }> {
     this.#ensureSchema();
     const token = crypto.randomUUID();
     const expiresAt = toSQLDateTime(new Date(Date.now() + WEB_SESSION_DURATION_MS));
@@ -367,7 +393,7 @@ export class DatabaseDO extends DurableObject {
     return { ok: true, token, expires_at: expiresAt };
   }
 
-  async getWebSession(token) {
+  async getWebSession(token: string): Promise<DOResult<{ ok: true; session: WebSession }>> {
     this.#ensureSchema();
     const rows = this.sql
       .exec(
@@ -379,18 +405,18 @@ export class DatabaseDO extends DurableObject {
       .toArray();
     if (rows.length === 0) return { error: 'Session not found', code: 'NOT_FOUND' };
 
-    // Slide the window — refresh expiry and last_used on access
+    // Slide the window -- refresh expiry and last_used on access
     this.sql.exec(`UPDATE web_sessions SET last_used = datetime('now') WHERE token = ?`, token);
-    return { ok: true, session: rows[0] };
+    return { ok: true, session: rows[0] as unknown as WebSession };
   }
 
-  async revokeWebSession(token) {
+  async revokeWebSession(token: string): Promise<{ ok: true }> {
     this.#ensureSchema();
     this.sql.exec('UPDATE web_sessions SET revoked = 1 WHERE token = ?', token);
     return { ok: true };
   }
 
-  async getUserWebSessions(userId) {
+  async getUserWebSessions(userId: string): Promise<{ ok: true; sessions: WebSession[] }> {
     this.#ensureSchema();
     const sessions = this.sql
       .exec(
@@ -400,17 +426,17 @@ export class DatabaseDO extends DurableObject {
        ORDER BY last_used DESC LIMIT 20`,
         userId,
       )
-      .toArray();
+      .toArray() as unknown as WebSession[];
     return { ok: true, sessions };
   }
 
-  // ── Rate limiting ──
+  // -- Rate limiting --
   // Uses hourly buckets with a 24-hour sliding window. Each bucket stores
   // the count for one hour (key = "YYYY-MM-DDTHH"). To check the limit,
   // we SUM all buckets from the last 24 hours. This prevents the midnight-
   // reset exploit where a user could double their quota around UTC midnight.
 
-  async checkRateLimit(key, maxPerWindow = 3) {
+  async checkRateLimit(key: string, maxPerWindow = 3): Promise<RateLimitCheck & { ok: true }> {
     this.#ensureSchema();
     const windowStart = hourBucket(Date.now() - 24 * 60 * 60 * 1000);
 
@@ -422,11 +448,11 @@ export class DatabaseDO extends DurableObject {
       )
       .toArray();
 
-    const count = rows[0]?.total || 0;
+    const count = ((rows[0] as Record<string, unknown>)?.total as number) || 0;
     return { ok: true, allowed: count < maxPerWindow, count };
   }
 
-  async consumeRateLimit(key) {
+  async consumeRateLimit(key: string): Promise<{ ok: true }> {
     this.#ensureSchema();
     const bucket = hourBucket(Date.now());
 
@@ -444,7 +470,10 @@ export class DatabaseDO extends DurableObject {
    * Eliminates the race window between separate check and consume calls.
    * Use for public/unauthenticated endpoints where every request should count.
    */
-  async checkAndConsume(key, maxPerWindow = 3) {
+  async checkAndConsume(
+    key: string,
+    maxPerWindow = 3,
+  ): Promise<{ ok: true; allowed: boolean; count: number }> {
     this.#ensureSchema();
     const now = Date.now();
     const windowStart = hourBucket(now - 24 * 60 * 60 * 1000);
@@ -458,7 +487,7 @@ export class DatabaseDO extends DurableObject {
       )
       .toArray();
 
-    const count = rows[0]?.total || 0;
+    const count = ((rows[0] as Record<string, unknown>)?.total as number) || 0;
     if (count >= maxPerWindow) {
       return { ok: true, allowed: false, count };
     }
@@ -473,59 +502,65 @@ export class DatabaseDO extends DurableObject {
     return { ok: true, allowed: true, count: count + 1 };
   }
 
-  // ── Stats ──
+  // -- Stats --
 
-  async getStats() {
+  async getStats(): Promise<{ ok: true; totalUsers: number }> {
     this.#ensureSchema();
     const users = this.sql.exec('SELECT COUNT(*) as count FROM users').toArray();
-    return { ok: true, totalUsers: users[0]?.count || 0 };
+    return { ok: true, totalUsers: ((users[0] as Record<string, unknown>)?.count as number) || 0 };
   }
 
-  // ── Tool evaluations (logic in evaluations.js) ──
+  // -- Tool evaluations (logic in evaluations.ts) --
 
-  async #ensureEvaluationsSeeded() {
+  async #ensureEvaluationsSeeded(): Promise<void> {
     if (this.#evaluationsSeeded) return;
     this.#ensureSchema();
     const { count } = hasEvalsFn(this.sql);
     if (count === 0) {
-      await seedEvaluations(this);
+      await seedEvaluations(this as unknown as DurableObjectStub);
     }
     this.#evaluationsSeeded = true;
   }
 
-  async saveEvaluation(evaluation) {
+  async saveEvaluation(evaluation: Record<string, unknown>): Promise<{ ok: true }> {
     this.#ensureSchema();
-    return saveEvalFn(this.sql, evaluation);
+    return saveEvalFn(this.sql, evaluation as any);
   }
 
-  async getEvaluation(toolId) {
+  async getEvaluation(toolId: string): Promise<ReturnType<typeof getEvalFn>> {
     await this.#ensureEvaluationsSeeded();
     return getEvalFn(this.sql, toolId);
   }
 
-  async listEvaluations(filters = {}) {
+  async listEvaluations(
+    filters: Record<string, unknown> = {},
+  ): Promise<ReturnType<typeof listEvalsFn>> {
     await this.#ensureEvaluationsSeeded();
-    return listEvalsFn(this.sql, filters);
+    return listEvalsFn(this.sql, filters as any);
   }
 
-  async searchEvaluations(query, limit = 20) {
+  async searchEvaluations(query: string, limit = 20): Promise<ReturnType<typeof searchEvalsFn>> {
     await this.#ensureEvaluationsSeeded();
     return searchEvalsFn(this.sql, query, limit);
   }
 
-  async deleteEvaluation(toolId) {
+  async deleteEvaluation(toolId: string): Promise<ReturnType<typeof deleteEvalFn>> {
     this.#ensureSchema();
     return deleteEvalFn(this.sql, toolId);
   }
 
-  async hasEvaluations() {
+  async hasEvaluations(): Promise<ReturnType<typeof hasEvalsFn>> {
     this.#ensureSchema();
     return hasEvalsFn(this.sql);
   }
 
-  // ── User teams ──
+  // -- User teams --
 
-  async addUserTeam(userId, teamId, name = null) {
+  async addUserTeam(
+    userId: string,
+    teamId: string,
+    name: string | null = null,
+  ): Promise<{ ok: true }> {
     this.#ensureSchema();
     this.sql.exec(
       `INSERT INTO user_teams (user_id, team_id, team_name) VALUES (?, ?, ?)
@@ -538,26 +573,29 @@ export class DatabaseDO extends DurableObject {
     return { ok: true };
   }
 
-  async getUserTeams(userId) {
+  async getUserTeams(userId: string): Promise<{ ok: true; teams: UserTeam[] }> {
     this.#ensureSchema();
     const teams = this.sql
       .exec(
         'SELECT team_id, team_name, joined_at FROM user_teams WHERE user_id = ? ORDER BY joined_at DESC LIMIT 50',
         userId,
       )
-      .toArray();
+      .toArray() as unknown as UserTeam[];
     return { ok: true, teams };
   }
 
-  async removeUserTeam(userId, teamId) {
+  async removeUserTeam(userId: string, teamId: string): Promise<{ ok: true }> {
     this.#ensureSchema();
     this.sql.exec('DELETE FROM user_teams WHERE user_id = ? AND team_id = ?', userId, teamId);
     return { ok: true };
   }
 
-  // ── Agent profiles ──
+  // -- Agent profiles --
 
-  async updateAgentProfile(userId, profile) {
+  async updateAgentProfile(
+    userId: string,
+    profile: Partial<AgentProfile>,
+  ): Promise<DOResult<{ ok: true }>> {
     this.#ensureSchema();
     const user = this.sql.exec('SELECT id FROM users WHERE id = ?', userId).toArray();
     if (user.length === 0) return { error: 'User not found', code: 'NOT_FOUND' };
@@ -583,22 +621,22 @@ export class DatabaseDO extends DurableObject {
     return { ok: true };
   }
 
-  // ── Private helpers ──
+  // -- Private helpers --
 
-  #generateHandle() {
+  #generateHandle(): string {
     const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
     const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
     return adj + noun;
   }
 
-  #handleExists(handle) {
+  #handleExists(handle: string): boolean {
     return this.sql.exec('SELECT 1 FROM users WHERE handle = ?', handle).toArray().length > 0;
   }
 
   /** Resolve a unique handle, appending random hex on collision. */
-  #resolveUniqueHandle(preferred) {
+  #resolveUniqueHandle(preferred: string): string | null {
     if (!this.#handleExists(preferred)) return preferred;
-    // First collision: append 4 hex chars (e.g. "swiftfox" → "swiftfoxa7f2")
+    // First collision: append 4 hex chars (e.g. "swiftfox" -> "swiftfoxa7f2")
     const attempt2 = this.#generateHandle() + crypto.randomUUID().slice(0, 4);
     if (!this.#handleExists(attempt2)) return attempt2;
     // Second collision: append 8 hex chars for near-guaranteed uniqueness
@@ -609,6 +647,6 @@ export class DatabaseDO extends DurableObject {
 }
 
 /** Return the hourly bucket key for a given timestamp (e.g. "2026-04-02T14"). */
-function hourBucket(ms) {
+function hourBucket(ms: number): string {
   return new Date(ms).toISOString().slice(0, 13);
 }

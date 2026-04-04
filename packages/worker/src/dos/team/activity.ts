@@ -1,6 +1,7 @@
-// Activity tracking — updateActivity, checkConflicts, reportFile.
+// Activity tracking -- updateActivity, checkConflicts, reportFile.
 // Each function takes `sql` as the first parameter.
 
+import type { DOResult } from '../../types.js';
 import { normalizePath } from '../../lib/text-utils.js';
 import { createLogger } from '../../lib/logger.js';
 import { safeParse } from '../../lib/safe-parse.js';
@@ -9,7 +10,33 @@ import { buildInClause, withTransaction } from '../../lib/validation.js';
 
 const log = createLogger('TeamDO.activity');
 
-export function updateActivity(sql, resolvedAgentId, files, summary, transact) {
+interface ConflictEntry {
+  owner_handle: string;
+  tool: string;
+  files: string[];
+  summary: string;
+}
+
+interface LockedFileEntry {
+  file: string;
+  held_by: string;
+  tool: string;
+  claimed_at: string;
+}
+
+interface ConflictCheckResult {
+  ok: true;
+  conflicts: ConflictEntry[];
+  locked: LockedFileEntry[];
+}
+
+export function updateActivity(
+  sql: SqlStorage,
+  resolvedAgentId: string,
+  files: string[],
+  summary: string,
+  transact: <T>(fn: () => T) => T,
+): DOResult<{ ok: true }> {
   const normalized = files.map(normalizePath);
 
   return withTransaction(transact, () => {
@@ -28,17 +55,17 @@ export function updateActivity(sql, resolvedAgentId, files, summary, transact) {
       "UPDATE members SET last_heartbeat = datetime('now') WHERE agent_id = ?",
       resolvedAgentId,
     );
-    return { ok: true };
+    return { ok: true as const };
   });
 }
 
 export function checkConflicts(
-  sql,
-  resolvedAgentId,
-  files,
-  recordMetric,
-  connectedAgentIds = new Set(),
-) {
+  sql: SqlStorage,
+  resolvedAgentId: string,
+  files: string[],
+  recordMetric: (metric: string) => void,
+  connectedAgentIds: Set<string> = new Set(),
+): ConflictCheckResult {
   // Active = recent heartbeat OR live WebSocket connection
   const wsAlive = [...connectedAgentIds];
   const ws = buildInClause(wsAlive);
@@ -58,25 +85,31 @@ export function checkConflicts(
     .toArray();
 
   const myFiles = new Set(files.map(normalizePath));
-  const conflicts = [];
+  const conflicts: ConflictEntry[] = [];
 
   for (const row of others) {
-    if (!row.files) continue;
-    const theirFiles = safeParse(row.files, `checkConflicts agent=${row.agent_id} files`, [], log);
+    const r = row as Record<string, unknown>;
+    if (!r.files) continue;
+    const theirFiles = safeParse(
+      r.files as string,
+      `checkConflicts agent=${r.agent_id} files`,
+      [] as string[],
+      log,
+    );
     if (theirFiles.length === 0) continue;
-    const overlap = theirFiles.filter((f) => myFiles.has(f));
+    const overlap = theirFiles.filter((f: string) => myFiles.has(f));
     if (overlap.length > 0) {
       conflicts.push({
-        owner_handle: row.owner_handle,
-        tool: row.tool || 'unknown',
+        owner_handle: r.owner_handle as string,
+        tool: (r.tool as string) || 'unknown',
         files: overlap,
-        summary: row.summary || '',
+        summary: (r.summary as string) || '',
       });
     }
   }
 
-  // Check file locks — only from active agents (heartbeat OR WebSocket)
-  const lockedFiles = [];
+  // Check file locks -- only from active agents (heartbeat OR WebSocket)
+  const lockedFiles: LockedFileEntry[] = [];
   const fileList = [...myFiles];
   if (fileList.length > 0) {
     const placeholders = fileList.map(() => '?').join(',');
@@ -94,11 +127,12 @@ export function checkConflicts(
       )
       .toArray();
     for (const lock of lockRows) {
+      const l = lock as Record<string, unknown>;
       lockedFiles.push({
-        file: lock.file_path,
-        held_by: lock.owner_handle,
-        tool: lock.tool || 'unknown',
-        claimed_at: lock.claimed_at,
+        file: l.file_path as string,
+        held_by: l.owner_handle as string,
+        tool: (l.tool as string) || 'unknown',
+        claimed_at: l.claimed_at as string,
       });
     }
   }
@@ -117,19 +151,24 @@ export function checkConflicts(
   return { ok: true, conflicts, locked: lockedFiles };
 }
 
-export function reportFile(sql, resolvedAgentId, filePath, transact) {
+export function reportFile(
+  sql: SqlStorage,
+  resolvedAgentId: string,
+  filePath: string,
+  transact: <T>(fn: () => T) => T,
+): DOResult<{ ok: true }> {
   const normalized = normalizePath(filePath);
 
   const existing = sql
     .exec('SELECT files FROM activities WHERE agent_id = ?', resolvedAgentId)
     .toArray();
 
-  let files = [];
-  if (existing.length > 0 && existing[0].files) {
+  let files: string[] = [];
+  if (existing.length > 0 && (existing[0] as Record<string, unknown>).files) {
     files = safeParse(
-      existing[0].files,
+      (existing[0] as Record<string, unknown>).files as string,
       `reportFile agent=${resolvedAgentId} stored files`,
-      [],
+      [] as string[],
       log,
     );
   }
@@ -154,6 +193,6 @@ export function reportFile(sql, resolvedAgentId, filePath, transact) {
       "UPDATE members SET last_heartbeat = datetime('now') WHERE agent_id = ?",
       resolvedAgentId,
     );
-    return { ok: true };
+    return { ok: true as const };
   });
 }

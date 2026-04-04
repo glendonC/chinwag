@@ -2,6 +2,14 @@
 // These are the two "wide" reads: getContext (full state for agents/dashboards)
 // and getSummary (lightweight counts for cross-project overview).
 
+import type {
+  TeamMember,
+  TeamContext,
+  TeamSummary,
+  ContextLockEntry,
+  Memory,
+  SessionInfo,
+} from '../../types.js';
 import { HEARTBEAT_ACTIVE_WINDOW_S } from '../../lib/constants.js';
 import { createLogger } from '../../lib/logger.js';
 import { safeParse } from '../../lib/safe-parse.js';
@@ -9,37 +17,46 @@ import { inferHostToolFromAgentId } from './runtime.js';
 
 const log = createLogger('TeamDO.context');
 
+interface TelemetryBreakdown {
+  tools_configured: Array<{ tool: string; joins: number }>;
+  hosts_configured: Array<{ host_tool: string; joins: number }>;
+  surfaces_seen: Array<{ agent_surface: string; joins: number }>;
+  models_seen: Array<{ agent_model: string; count: number }>;
+  usage: Record<string, number>;
+}
+
 /** Read all telemetry metrics in one scan, then partition by prefix in JS. */
-export function getTelemetryBreakdown(sql) {
+export function getTelemetryBreakdown(sql: SqlStorage): TelemetryBreakdown {
   const rows = sql.exec('SELECT metric, count FROM telemetry ORDER BY count DESC').toArray();
 
-  const tools_configured = [];
-  const hosts_configured = [];
-  const surfaces_seen = [];
-  const models_seen = [];
-  const usage = {};
+  const tools_configured: Array<{ tool: string; joins: number }> = [];
+  const hosts_configured: Array<{ host_tool: string; joins: number }> = [];
+  const surfaces_seen: Array<{ agent_surface: string; joins: number }> = [];
+  const models_seen: Array<{ agent_model: string; count: number }> = [];
+  const usage: Record<string, number> = {};
 
   for (const row of rows) {
-    const m = row.metric;
+    const r = row as { metric: string; count: number };
+    const m = r.metric;
     if (m.startsWith('tool:')) {
       if (tools_configured.length < 10) {
-        tools_configured.push({ tool: m.slice(5), joins: row.count });
+        tools_configured.push({ tool: m.slice(5), joins: r.count });
       }
     } else {
       // All non-tool metrics go into the usage map
-      usage[m] = row.count;
+      usage[m] = r.count;
 
       if (m.startsWith('host:')) {
         if (hosts_configured.length < 10) {
-          hosts_configured.push({ host_tool: m.slice(5), joins: row.count });
+          hosts_configured.push({ host_tool: m.slice(5), joins: r.count });
         }
       } else if (m.startsWith('surface:')) {
         if (surfaces_seen.length < 10) {
-          surfaces_seen.push({ agent_surface: m.slice(8), joins: row.count });
+          surfaces_seen.push({ agent_surface: m.slice(8), joins: r.count });
         }
       } else if (m.startsWith('model:')) {
         if (models_seen.length < 10) {
-          models_seen.push({ agent_model: m.slice(6), count: row.count });
+          models_seen.push({ agent_model: m.slice(6), count: r.count });
         }
       }
     }
@@ -49,12 +66,12 @@ export function getTelemetryBreakdown(sql) {
 }
 
 /**
- * Full team context — members, activities, conflicts, locks, memories, sessions, telemetry.
- * @param {object} sql - DO SQL handle
- * @param {Set<string>} connectedIds - agent IDs with active WebSocket connections
- * @returns {object} Team-wide context (everything except per-agent messages)
+ * Full team context -- members, activities, conflicts, locks, memories, sessions, telemetry.
  */
-export function queryTeamContext(sql, connectedIds) {
+export function queryTeamContext(
+  sql: SqlStorage,
+  connectedIds: Set<string>,
+): TeamContext & { ok: true } {
   const members = sql
     .exec(
       `SELECT m.agent_id, m.handle, m.host_tool, m.agent_surface, m.transport, m.agent_model,
@@ -72,7 +89,7 @@ export function queryTeamContext(sql, connectedIds) {
     )
     .toArray();
 
-  const memories = sql
+  const memories: Memory[] = sql
     .exec(
       `SELECT id, text, tags, handle, host_tool, agent_surface, agent_model, created_at, updated_at
      FROM memories
@@ -80,10 +97,18 @@ export function queryTeamContext(sql, connectedIds) {
      LIMIT 20`,
     )
     .toArray()
-    .map((m) => ({
-      ...m,
-      tags: safeParse(m.tags || '[]', `queryTeamContext memory=${m.id} tags`, [], log),
-    }));
+    .map((m) => {
+      const row = m as Record<string, unknown>;
+      return {
+        ...row,
+        tags: safeParse(
+          (row.tags as string) || '[]',
+          `queryTeamContext memory=${row.id} tags`,
+          [] as string[],
+          log,
+        ),
+      } as unknown as Memory;
+    });
 
   const recentSessions = sql
     .exec(
@@ -100,41 +125,53 @@ export function queryTeamContext(sql, connectedIds) {
     .toArray();
 
   // Build member list with status resolution
-  const memberList = members.map((m) => {
-    const wsConnected = connectedIds.has(m.agent_id);
-    const status = wsConnected ? 'active' : m.heartbeat_active ? 'active' : 'offline';
+  const memberList: TeamMember[] = members.map((m) => {
+    const row = m as Record<string, unknown>;
+    const wsConnected = connectedIds.has(row.agent_id as string);
+    const status: 'active' | 'offline' = wsConnected
+      ? 'active'
+      : row.heartbeat_active
+        ? 'active'
+        : 'offline';
     return {
-      agent_id: m.agent_id,
-      handle: m.handle,
-      tool: m.host_tool || 'unknown',
-      host_tool: m.host_tool || 'unknown',
-      agent_surface: m.agent_surface || null,
-      transport: m.transport || null,
-      agent_model: m.agent_model || null,
+      agent_id: row.agent_id as string,
+      handle: row.handle as string,
+      tool: (row.host_tool as string) || 'unknown',
+      host_tool: (row.host_tool as string) || 'unknown',
+      agent_surface: (row.agent_surface as string) || null,
+      transport: (row.transport as string) || null,
+      agent_model: (row.agent_model as string) || null,
       status,
-      framework: m.framework || null,
-      session_minutes: m.session_minutes || null,
-      seconds_since_update: m.seconds_since_update ?? null,
-      minutes_since_update: m.minutes_since_update ?? null,
-      signal_tier: wsConnected ? 'websocket' : m.heartbeat_active ? 'http' : 'none',
-      activity: m.files
+      framework: (row.framework as string) || null,
+      session_minutes: (row.session_minutes as number) || null,
+      seconds_since_update:
+        row.seconds_since_update != null ? (row.seconds_since_update as number) : null,
+      minutes_since_update:
+        row.minutes_since_update != null ? (row.minutes_since_update as number) : null,
+      signal_tier: wsConnected ? 'websocket' : row.heartbeat_active ? 'http' : 'none',
+      activity: row.files
         ? {
-            files: safeParse(m.files, `queryTeamContext agent=${m.agent_id} member files`, [], log),
-            summary: m.summary,
-            updated_at: m.updated_at,
+            files: safeParse(
+              row.files as string,
+              `queryTeamContext agent=${row.agent_id} member files`,
+              [] as string[],
+              log,
+            ),
+            summary: row.summary as string,
+            updated_at: row.updated_at as string,
           }
         : null,
     };
   });
 
-  // Server-side conflict detection — single source of truth
-  const conflicts = [];
-  const fileOwners = new Map();
+  // Server-side conflict detection -- single source of truth
+  const conflicts: Array<{ file: string; agents: string[] }> = [];
+  const fileOwners = new Map<string, Array<{ handle: string; tool: string }>>();
   for (const m of memberList) {
     if (m.status !== 'active' || !m.activity?.files) continue;
     for (const f of m.activity.files) {
       if (!fileOwners.has(f)) fileOwners.set(f, []);
-      fileOwners.get(f).push({ handle: m.handle, tool: m.tool });
+      fileOwners.get(f)!.push({ handle: m.handle, tool: m.tool || 'unknown' });
     }
   }
   for (const [file, owners] of fileOwners) {
@@ -156,7 +193,7 @@ export function queryTeamContext(sql, connectedIds) {
      WHERE m.last_heartbeat > datetime('now', '-' || ? || ' seconds')`,
       HEARTBEAT_ACTIVE_WINDOW_S,
     )
-    .toArray();
+    .toArray() as unknown as ContextLockEntry[];
 
   const telemetry = getTelemetryBreakdown(sql);
 
@@ -168,31 +205,31 @@ export function queryTeamContext(sql, connectedIds) {
     memories,
     ...telemetry,
     recentSessions: recentSessions.map((s) => {
-      const toolFromAgent = s.host_tool || inferHostToolFromAgentId(s.agent_id);
+      const row = s as Record<string, unknown>;
+      const toolFromAgent =
+        (row.host_tool as string) || inferHostToolFromAgentId(row.agent_id as string);
       return {
-        ...s,
+        ...row,
         tool: toolFromAgent && toolFromAgent !== 'unknown' ? toolFromAgent : null,
-        host_tool: s.host_tool || toolFromAgent || 'unknown',
-        agent_surface: s.agent_surface || null,
-        transport: s.transport || null,
-        agent_model: s.agent_model || null,
+        host_tool: (row.host_tool as string) || toolFromAgent || 'unknown',
+        agent_surface: (row.agent_surface as string) || null,
+        transport: (row.transport as string) || null,
+        agent_model: (row.agent_model as string) || null,
         files_touched: safeParse(
-          s.files_touched || '[]',
-          `queryTeamContext session agent=${s.agent_id} files_touched`,
-          [],
+          (row.files_touched as string) || '[]',
+          `queryTeamContext session agent=${row.agent_id} files_touched`,
+          [] as string[],
           log,
         ),
-      };
+      } as unknown as SessionInfo;
     }),
   };
 }
 
 /**
- * Lightweight team summary — counts only, for cross-project dashboard.
- * @param {object} sql - DO SQL handle
- * @returns {object} Summary with counts and telemetry
+ * Lightweight team summary -- counts only, for cross-project dashboard.
  */
-export function queryTeamSummary(sql) {
+export function queryTeamSummary(sql: SqlStorage): TeamSummary & TelemetryBreakdown & { ok: true } {
   const active = sql
     .exec(
       `SELECT COUNT(*) as c FROM members
@@ -213,10 +250,16 @@ export function queryTeamSummary(sql) {
     )
     .toArray();
 
-  const fileCounts = new Map();
+  const fileCounts = new Map<string, number>();
   for (const row of activities) {
-    if (!row.files) continue;
-    const parsedFiles = safeParse(row.files, 'queryTeamSummary activity files', [], log);
+    const r = row as Record<string, unknown>;
+    if (!r.files) continue;
+    const parsedFiles = safeParse(
+      r.files as string,
+      'queryTeamSummary activity files',
+      [] as string[],
+      log,
+    );
     for (const f of parsedFiles) {
       fileCounts.set(f, (fileCounts.get(f) || 0) + 1);
     }
@@ -231,12 +274,12 @@ export function queryTeamSummary(sql) {
 
   return {
     ok: true,
-    active_agents: active[0]?.c || 0,
-    total_members: total[0]?.c || 0,
+    active_agents: ((active[0] as Record<string, unknown>)?.c as number) || 0,
+    total_members: ((total[0] as Record<string, unknown>)?.c as number) || 0,
     conflict_count: conflictCount,
-    memory_count: memoriesCount[0]?.c || 0,
-    live_sessions: live[0]?.c || 0,
-    recent_sessions_24h: recent[0]?.c || 0,
+    memory_count: ((memoriesCount[0] as Record<string, unknown>)?.c as number) || 0,
+    live_sessions: ((live[0] as Record<string, unknown>)?.c as number) || 0,
+    recent_sessions_24h: ((recent[0] as Record<string, unknown>)?.c as number) || 0,
     ...getTelemetryBreakdown(sql),
   };
 }

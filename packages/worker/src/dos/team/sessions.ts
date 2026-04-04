@@ -1,6 +1,7 @@
-// Session tracking (observability) — startSession, endSession, recordEdit, getSessionHistory.
+// Session tracking (observability) -- startSession, endSession, recordEdit, getSessionHistory.
 // Each function takes `sql` as the first parameter.
 
+import type { DOResult, SessionInfo } from '../../types.js';
 import { normalizePath } from '../../lib/text-utils.js';
 import { createLogger } from '../../lib/logger.js';
 import { safeParse } from '../../lib/safe-parse.js';
@@ -10,7 +11,14 @@ import { sqlChanges, withTransaction } from '../../lib/validation.js';
 
 const log = createLogger('TeamDO.sessions');
 
-export function startSession(sql, resolvedAgentId, handle, framework, runtimeOrTool, transact) {
+export function startSession(
+  sql: SqlStorage,
+  resolvedAgentId: string,
+  handle: string,
+  framework: string | null | undefined,
+  runtimeOrTool: string | Record<string, unknown> | null | undefined,
+  transact: <T>(fn: () => T) => T,
+): DOResult<{ ok: true; session_id: string }> {
   const runtime = normalizeRuntimeMetadata(runtimeOrTool, resolvedAgentId);
   const id = crypto.randomUUID();
 
@@ -45,11 +53,17 @@ export function startSession(sql, resolvedAgentId, handle, framework, runtimeOrT
       runtime.transport,
       runtime.model,
     );
-    return { ok: true, session_id: id };
+    return { ok: true as const, session_id: id };
   });
 }
 
-export function enrichSessionModel(sql, resolvedAgentId, model, recordMetric, transact) {
+export function enrichSessionModel(
+  sql: SqlStorage,
+  resolvedAgentId: string,
+  model: string,
+  recordMetric: (metric: string) => void,
+  transact: <T>(fn: () => T) => T,
+): { ok: true } {
   withTransaction(transact, () => {
     sql.exec(
       `UPDATE sessions SET agent_model = ? WHERE agent_id = ? AND ended_at IS NULL AND agent_model IS NULL`,
@@ -66,7 +80,11 @@ export function enrichSessionModel(sql, resolvedAgentId, model, recordMetric, tr
   return { ok: true };
 }
 
-export function endSession(sql, resolvedAgentId, sessionId) {
+export function endSession(
+  sql: SqlStorage,
+  resolvedAgentId: string,
+  sessionId: string,
+): DOResult<{ ok: true }> {
   sql.exec(
     `UPDATE sessions SET ended_at = datetime('now') WHERE id = ? AND agent_id = ? AND ended_at IS NULL`,
     sessionId,
@@ -77,7 +95,11 @@ export function endSession(sql, resolvedAgentId, sessionId) {
   return { ok: true };
 }
 
-export function recordEdit(sql, resolvedAgentId, filePath) {
+export function recordEdit(
+  sql: SqlStorage,
+  resolvedAgentId: string,
+  filePath: string,
+): { ok: true; skipped?: boolean } {
   const normalized = normalizePath(filePath);
 
   // Find the active session for this agent (or resolved session)
@@ -88,13 +110,13 @@ export function recordEdit(sql, resolvedAgentId, filePath) {
     )
     .toArray();
 
-  if (sessions.length === 0) return { ok: true, skipped: true }; // No active session — caller can log if needed
+  if (sessions.length === 0) return { ok: true, skipped: true }; // No active session
 
-  const session = sessions[0];
+  const session = sessions[0] as Record<string, unknown>;
   let files = safeParse(
-    session.files_touched || '[]',
+    (session.files_touched as string) || '[]',
     `recordEdit session=${session.id} files_touched`,
-    [],
+    [] as string[],
     log,
   );
   if (!files.includes(normalized)) {
@@ -105,12 +127,15 @@ export function recordEdit(sql, resolvedAgentId, filePath) {
   sql.exec(
     `UPDATE sessions SET edit_count = edit_count + 1, files_touched = ? WHERE id = ?`,
     JSON.stringify(files),
-    session.id,
+    session.id as string,
   );
   return { ok: true };
 }
 
-export function getSessionHistory(sql, days) {
+export function getSessionHistory(
+  sql: SqlStorage,
+  days: number,
+): { ok: true; sessions: SessionInfo[] } {
   const sessions = sql
     .exec(
       `SELECT handle AS owner_handle, framework, host_tool, agent_surface, transport, agent_model, started_at, ended_at,
@@ -126,14 +151,17 @@ export function getSessionHistory(sql, days) {
 
   return {
     ok: true,
-    sessions: sessions.map((s) => ({
-      ...s,
-      files_touched: safeParse(
-        s.files_touched || '[]',
-        `getSessionHistory handle=${s.owner_handle} files_touched`,
-        [],
-        log,
-      ),
-    })),
+    sessions: sessions.map((s) => {
+      const row = s as Record<string, unknown>;
+      return {
+        ...row,
+        files_touched: safeParse(
+          (row.files_touched as string) || '[]',
+          `getSessionHistory handle=${row.owner_handle} files_touched`,
+          [] as string[],
+          log,
+        ),
+      } as unknown as SessionInfo;
+    }),
   };
 }

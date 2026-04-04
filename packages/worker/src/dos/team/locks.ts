@@ -1,16 +1,23 @@
-// Advisory file locking — claimFiles, releaseFiles, getLockedFiles.
+// Advisory file locking -- claimFiles, releaseFiles, getLockedFiles.
 // Each function takes `sql` as the first parameter.
 
+import type { LockClaim, BlockedLock, LockEntry } from '../../types.js';
 import { normalizePath } from '../../lib/text-utils.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
 import { HEARTBEAT_ACTIVE_WINDOW_S } from '../../lib/constants.js';
 import { buildInClause, sqlChanges } from '../../lib/validation.js';
 
-export function claimFiles(sql, resolvedAgentId, files, handle, runtimeOrTool) {
+export function claimFiles(
+  sql: SqlStorage,
+  resolvedAgentId: string,
+  files: string[],
+  handle: string,
+  runtimeOrTool: string | Record<string, unknown> | null | undefined,
+): LockClaim {
   const runtime = normalizeRuntimeMetadata(runtimeOrTool, resolvedAgentId);
   const normalized = files.map(normalizePath);
-  const claimed = [];
-  const blocked = [];
+  const claimed: string[] = [];
+  const blocked: BlockedLock[] = [];
 
   for (const file of normalized) {
     // Atomic claim: insert if free, no-op if already held by another agent.
@@ -37,20 +44,20 @@ export function claimFiles(sql, resolvedAgentId, files, handle, runtimeOrTool) {
     // by another agent (the WHERE clause prevented the update).
     const changed = sqlChanges(sql);
     if (changed === 0) {
-      // Lock held by another agent — fetch their details for the blocked response.
+      // Lock held by another agent -- fetch their details for the blocked response.
       const lock = sql
         .exec(
           'SELECT handle, host_tool, agent_surface, claimed_at FROM locks WHERE file_path = ?',
           file,
         )
-        .toArray()[0];
+        .toArray()[0] as Record<string, unknown>;
       blocked.push({
         file,
-        held_by: lock.handle,
-        tool: lock.host_tool || 'unknown',
-        host_tool: lock.host_tool || 'unknown',
-        agent_surface: lock.agent_surface || null,
-        claimed_at: lock.claimed_at,
+        held_by: lock.handle as string,
+        tool: (lock.host_tool as string) || 'unknown',
+        host_tool: (lock.host_tool as string) || 'unknown',
+        agent_surface: (lock.agent_surface as string) || null,
+        claimed_at: lock.claimed_at as string,
       });
     } else {
       claimed.push(file);
@@ -60,7 +67,11 @@ export function claimFiles(sql, resolvedAgentId, files, handle, runtimeOrTool) {
   return { ok: true, claimed, blocked };
 }
 
-export function releaseFiles(sql, resolvedAgentId, files) {
+export function releaseFiles(
+  sql: SqlStorage,
+  resolvedAgentId: string,
+  files: string[] | null | undefined,
+): { ok: true } {
   if (!files || files.length === 0) {
     // Release all locks for this agent
     sql.exec('DELETE FROM locks WHERE agent_id = ?', resolvedAgentId);
@@ -73,7 +84,10 @@ export function releaseFiles(sql, resolvedAgentId, files) {
   return { ok: true };
 }
 
-export function getLockedFiles(sql, connectedAgentIds = new Set()) {
+export function getLockedFiles(
+  sql: SqlStorage,
+  connectedAgentIds: Set<string> = new Set(),
+): { ok: true; locks: LockEntry[] } {
   const ws = buildInClause([...connectedAgentIds]);
 
   const locks = sql
@@ -88,7 +102,7 @@ export function getLockedFiles(sql, connectedAgentIds = new Set()) {
       HEARTBEAT_ACTIVE_WINDOW_S,
       ...ws.params,
     )
-    .toArray();
+    .toArray() as unknown as LockEntry[];
 
   return { ok: true, locks };
 }

@@ -1,8 +1,9 @@
-// Room Durable Object — handles WebSocket connections for a single chat room.
+// Room Durable Object -- handles WebSocket connections for a single chat room.
 // Each room is an independent DO instance, coordinated by the Lobby.
 // Uses fetch() for WebSocket upgrades, RPC for Lobby communication.
 
 import { DurableObject } from 'cloudflare:workers';
+import type { Env } from './types.js';
 import { getErrorMessage } from './lib/errors.js';
 import { createLogger } from './lib/logger.js';
 import { safeParse } from './lib/safe-parse.js';
@@ -18,7 +19,32 @@ import {
   MAX_WS_MESSAGE_SIZE,
 } from './lib/constants.js';
 
-export function checkWindowedRateLimit(rateLimits, key, maxPerMinute = 10, now = Date.now()) {
+interface RateLimitEntry {
+  windowStart: number;
+  count: number;
+}
+
+interface ChatSession {
+  handle: string;
+  color: string;
+}
+
+interface ChatMessage {
+  type: string;
+  handle?: string;
+  color?: string;
+  content?: string;
+  timestamp?: string;
+  messages?: ChatMessage[];
+  roomCount?: number;
+}
+
+export function checkWindowedRateLimit(
+  rateLimits: Map<string, RateLimitEntry>,
+  key: string,
+  maxPerMinute = 10,
+  now = Date.now(),
+): boolean {
   let entry = rateLimits.get(key);
   if (!entry || now - entry.windowStart > CHAT_RATE_LIMIT_WINDOW_MS) {
     entry = { windowStart: now, count: 0 };
@@ -38,23 +64,28 @@ export function checkWindowedRateLimit(rateLimits, key, maxPerMinute = 10, now =
   return entry.count <= maxPerMinute;
 }
 
-export class RoomDO extends DurableObject {
-  constructor(ctx, env) {
+export class RoomDO extends DurableObject<Env> {
+  sessions: Map<WebSocket, ChatSession>;
+  history: ChatMessage[];
+  chatRateLimits: Map<string, RateLimitEntry>;
+  roomId: string | null;
+
+  constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
-    // WebSocket → { handle, color }
+    // WebSocket -> { handle, color }
     this.sessions = new Map();
     this.history = [];
     this.chatRateLimits = new Map();
     this.roomId = null;
   }
 
-  async fetch(request) {
+  async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname !== '/ws') {
       return new Response('Not found', { status: 404 });
     }
 
-    // Handle and color are set by the Worker after authentication — not user-supplied.
+    // Handle and color are set by the Worker after authentication -- not user-supplied.
     // The X-Chinwag-Verified header confirms this request came from our Worker, not an external caller.
     if (request.headers.get('X-Chinwag-Verified') !== '1') {
       return new Response('Forbidden', { status: 403 });
@@ -99,7 +130,7 @@ export class RoomDO extends DurableObject {
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  async webSocketMessage(ws, rawMessage) {
+  async webSocketMessage(ws: WebSocket, rawMessage: string | ArrayBuffer): Promise<void> {
     const session = this.sessions.get(ws);
     if (!session) return;
 
@@ -109,11 +140,16 @@ export class RoomDO extends DurableObject {
       return;
     }
 
-    const data = safeParse(raw, `RoomDO.webSocketMessage room=${this.roomId}`, null, log);
+    const data = safeParse<Record<string, unknown> | null>(
+      raw,
+      `RoomDO.webSocketMessage room=${this.roomId}`,
+      null,
+      log,
+    );
     if (!data) return;
 
     if (data.type === 'message') {
-      const content = (data.content || '').trim();
+      const content = ((data.content as string) || '').trim();
       if (!content || content.length > CHAT_MAX_MESSAGE_LENGTH) return;
 
       if (
@@ -138,7 +174,7 @@ export class RoomDO extends DurableObject {
         return;
       }
 
-      const message = {
+      const message: ChatMessage = {
         type: 'message',
         handle: session.handle,
         color: session.color,
@@ -155,15 +191,20 @@ export class RoomDO extends DurableObject {
     }
   }
 
-  async webSocketClose(ws) {
+  async webSocketClose(
+    ws: WebSocket,
+    _code: number,
+    _reason: string,
+    _wasClean: boolean,
+  ): Promise<void> {
     await this.#handleDisconnect(ws);
   }
 
-  async webSocketError(ws) {
+  async webSocketError(ws: WebSocket, _error: unknown): Promise<void> {
     await this.#handleDisconnect(ws);
   }
 
-  async #handleDisconnect(ws) {
+  async #handleDisconnect(ws: WebSocket): Promise<void> {
     const session = this.sessions.get(ws);
     this.sessions.delete(ws);
 
@@ -178,11 +219,7 @@ export class RoomDO extends DurableObject {
     await this.#updateLobbyCount();
   }
 
-  /**
-   * @param {object} message
-   * @param {WebSocket} [exclude]
-   */
-  broadcast(message, exclude) {
+  broadcast(message: ChatMessage, exclude?: WebSocket): void {
     const data = JSON.stringify(message);
     let failures = 0;
     for (const [ws] of this.sessions) {
@@ -195,17 +232,19 @@ export class RoomDO extends DurableObject {
       }
     }
     if (failures > 0) {
-      log.warn('broadcast partial failure', { roomId: this.roomId, failures });
+      log.warn('broadcast partial failure', { roomId: this.roomId || 'unknown', failures });
     }
   }
 
-  async #updateLobbyCount() {
+  async #updateLobbyCount(): Promise<void> {
     try {
-      const lobby = this.env.LOBBY.get(this.env.LOBBY.idFromName('main'));
+      const lobby = this.env.LOBBY.get(this.env.LOBBY.idFromName('main')) as unknown as {
+        updateRoomCount: (roomId: string, count: number) => Promise<{ ok: true }>;
+      };
       await lobby.updateRoomCount(this.roomId || 'unknown', this.sessions.size);
     } catch (err) {
       log.error('failed to update lobby', {
-        roomId: this.roomId,
+        roomId: this.roomId || 'unknown',
         error: getErrorMessage(err),
       });
     }

@@ -1,36 +1,42 @@
 // Schema DDL and migrations for TeamDO.
 // Called once per DO instance to ensure tables exist and reconcile legacy schemas.
 
+import type { Migration } from '../../lib/migrator.js';
 import { createLogger } from '../../lib/logger.js';
 import { runMigrations } from '../../lib/migrator.js';
 
 const log = createLogger('TeamDO.schema');
 
-// ── Helpers (used by reconciliation migration) ──
+// -- Helpers (used by reconciliation migration) --
 
-function logMigrationError(statement, error) {
+function logMigrationError(statement: string, error: unknown): void {
   const message = error instanceof Error ? error.message : String(error);
   log.error('migration failed', { error: message, sql: statement.replace(/\s+/g, ' ').trim() });
 }
 
-function getColumns(sql, table) {
+function getColumns(sql: SqlStorage, table: string): Set<string> {
   try {
     return new Set(
       sql
         .exec(`PRAGMA table_info(${table})`)
         .toArray()
-        .map((row) => row.name),
+        .map((row) => (row as { name: string }).name),
     );
   } catch {
     return new Set();
   }
 }
 
-function hasColumn(sql, table, column) {
+function hasColumn(sql: SqlStorage, table: string, column: string): boolean {
   return getColumns(sql, table).has(column);
 }
 
-function renameColumnIfNeeded(sql, table, fromColumn, toColumn) {
+function renameColumnIfNeeded(
+  sql: SqlStorage,
+  table: string,
+  fromColumn: string,
+  toColumn: string,
+): void {
   if (hasColumn(sql, table, toColumn) || !hasColumn(sql, table, fromColumn)) return;
   const statement = `ALTER TABLE ${table} RENAME COLUMN ${fromColumn} TO ${toColumn}`;
   try {
@@ -40,13 +46,12 @@ function renameColumnIfNeeded(sql, table, fromColumn, toColumn) {
   }
 }
 
-/**
- * @param {any} sql
- * @param {string} table
- * @param {string} definition
- * @param {string | null} [backfill]
- */
-function addColumnIfMissing(sql, table, definition, backfill = null) {
+function addColumnIfMissing(
+  sql: SqlStorage,
+  table: string,
+  definition: string,
+  backfill: string | null = null,
+): void {
   const columnName = definition.trim().split(/\s+/, 1)[0];
   if (hasColumn(sql, table, columnName)) return;
   const statement = `ALTER TABLE ${table} ADD COLUMN ${definition}`;
@@ -58,9 +63,9 @@ function addColumnIfMissing(sql, table, definition, backfill = null) {
   }
 }
 
-// ── Migrations ──
+// -- Migrations --
 
-const migrations = [
+const migrations: Migration[] = [
   {
     name: '001_initial_schema',
     up(sql) {
@@ -231,15 +236,14 @@ const migrations = [
   },
 ];
 
-/**
- * @param {object} sql - ctx.storage.sql handle
- * @param {boolean} tablesCreated - true if schema has already been initialized this instance
- * @param {<T>(fn: () => T) => T} [transact] - ctx.storage.transactionSync (optional for back-compat)
- */
-export function ensureSchema(sql, tablesCreated, transact) {
+export function ensureSchema(
+  sql: SqlStorage,
+  tablesCreated: boolean,
+  transact: <T>(fn: () => T) => T,
+): void {
   if (tablesCreated) return;
 
   // If no transact provided (back-compat), wrap each migration body directly
-  const txn = transact || ((fn) => fn());
+  const txn = transact || (<T>(fn: () => T): T => fn());
   runMigrations(sql, txn, migrations);
 }

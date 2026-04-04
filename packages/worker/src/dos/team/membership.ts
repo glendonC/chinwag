@@ -1,22 +1,22 @@
-// Team membership — join, leave, heartbeat.
+// Team membership -- join, leave, heartbeat.
 // Each function takes `sql` as the first parameter and operates on the members table.
 
-/** @import { DOResult } from '../../types.js' */
+import type { DOResult } from '../../types.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
 import { sqlChanges, withTransaction } from '../../lib/validation.js';
 
 /**
  * Join a team. Atomic ownership-safe upsert: re-joining refreshes heartbeat,
  * but an agent_id owned by another user is rejected.
- * @param {any} sql - DO SQL handle (ctx.storage.sql)
- * @param {string} agentId
- * @param {string} ownerId
- * @param {string} handle
- * @param {string | Record<string, any>} runtimeOrTool
- * @param {(metric: string) => void} recordMetric
- * @returns {DOResult}
  */
-export function join(sql, agentId, ownerId, handle, runtimeOrTool, recordMetric) {
+export function join(
+  sql: SqlStorage,
+  agentId: string,
+  ownerId: string,
+  handle: string,
+  runtimeOrTool: string | Record<string, unknown> | null | undefined,
+  recordMetric: (metric: string) => void,
+): DOResult<{ ok: true }> {
   const runtime = normalizeRuntimeMetadata(runtimeOrTool, agentId);
 
   // Atomic ownership-safe upsert: INSERT the new member, but ON CONFLICT only
@@ -56,12 +56,13 @@ export function join(sql, agentId, ownerId, handle, runtimeOrTool, recordMetric)
 /**
  * Leave a team. Removes member, their activity, and their locks.
  * If ownerId is provided, only removes if the agent belongs to that owner.
- * @param {any} sql - DO SQL handle
- * @param {string} agentId
- * @param {string | null} ownerId
- * @returns {DOResult}
  */
-export function leave(sql, agentId, ownerId, transact) {
+export function leave(
+  sql: SqlStorage,
+  agentId: string,
+  ownerId: string | null,
+  transact: <T>(fn: () => T) => T,
+): DOResult<{ ok: true }> {
   // Wrap in transaction so locks/activities/members are removed atomically.
   // Without this, a partial failure could orphan locks or activities.
   return withTransaction(transact, () => {
@@ -105,13 +106,8 @@ export function leave(sql, agentId, ownerId, transact) {
   });
 }
 
-/**
- * Bump an agent's heartbeat timestamp.
- * @param {any} sql - DO SQL handle
- * @param {string} resolvedAgentId - Already-resolved agent ID
- * @returns {DOResult}
- */
-export function heartbeat(sql, resolvedAgentId) {
+/** Bump an agent's heartbeat timestamp. */
+export function heartbeat(sql: SqlStorage, resolvedAgentId: string): DOResult<{ ok: true }> {
   sql.exec(
     "UPDATE members SET last_heartbeat = datetime('now') WHERE agent_id = ?",
     resolvedAgentId,

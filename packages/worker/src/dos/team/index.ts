@@ -1,19 +1,20 @@
-// Team Durable Object — one instance per team.
+// Team Durable Object -- one instance per team.
 // Manages team membership, activity tracking, file conflict detection,
 // shared project memory, and session history (observability).
 //
 // Business logic is split into submodules:
-//   schema.js      — DDL, migrations, index creation
-//   context.js     — composite read queries (getContext, getSummary)
-//   identity.js    — agent ID resolution and ownership verification
-//   cleanup.js     — stale member eviction and data pruning
-//   membership.js, activity.js, memory.js, locks.js, sessions.js, messages.js — domain logic
-//   runtime.js     — agent ID / host tool inference
+//   schema.ts      -- DDL, migrations, index creation
+//   context.ts     -- composite read queries (getContext, getSummary)
+//   identity.ts    -- agent ID resolution and ownership verification
+//   cleanup.ts     -- stale member eviction and data pruning
+//   membership.ts, activity.ts, memory.ts, locks.ts, sessions.ts, messages.ts -- domain logic
+//   runtime.ts     -- agent ID / host tool inference
 //
 // This file owns the class shell, WebSocket handling, caching, and the
 // thin RPC wrappers that tie it all together.
 
 import { DurableObject } from 'cloudflare:workers';
+import type { Env, DOResult, DOError, TeamContext } from '../../types.js';
 import { getErrorMessage, isDOError } from '../../lib/errors.js';
 import { createLogger } from '../../lib/logger.js';
 import { toSQLDateTime } from '../../lib/text-utils.js';
@@ -55,37 +56,36 @@ import {
   HEARTBEAT_BROADCAST_DEBOUNCE_MS,
 } from '../../lib/constants.js';
 
-export class TeamDO extends DurableObject {
+export class TeamDO extends DurableObject<Env> {
+  sql: SqlStorage;
   #schemaReady = false;
   #lastCleanup = 0;
-  #lastHeartbeatBroadcast = new Map();
+  #lastHeartbeatBroadcast = new Map<string, number>();
 
-  /** @type {(import('../../types.js').TeamContext & { ok: true }) | null} */
-  #contextCache = null;
+  #contextCache: (TeamContext & { ok: true }) | null = null;
   #contextCacheExpire = 0;
 
-  /** @type {<T>(fn: () => T) => T} */
-  #transact;
+  #transact: <T>(fn: () => T) => T;
 
-  constructor(ctx, env) {
+  constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.sql = ctx.storage.sql;
-    this.#transact = (fn) => ctx.storage.transactionSync(fn);
+    this.#transact = <T>(fn: () => T): T => ctx.storage.transactionSync(fn);
   }
 
-  // ── Schema ──
+  // -- Schema --
 
-  #ensureSchema() {
+  #ensureSchema(): void {
     ensureSchema(this.sql, this.#schemaReady, this.#transact);
     this.#schemaReady = true;
   }
 
-  // ── WebSocket support (Hibernation API) ──
-  // Two roles: 'agent' (MCP servers — connection IS presence) and
-  // 'watcher' (dashboards — observe only, no presence signal).
+  // -- WebSocket support (Hibernation API) --
+  // Two roles: 'agent' (MCP servers -- connection IS presence) and
+  // 'watcher' (dashboards -- observe only, no presence signal).
   // Tags: [resolvedAgentId, 'role:agent'] or [resolvedAgentId, 'role:watcher']
 
-  async fetch(request) {
+  async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname !== '/ws') {
       return new Response('Not found', { status: 404 });
@@ -123,7 +123,7 @@ export class TeamDO extends DurableObject {
       this.#broadcastToWatchers({ type: 'status_change', agent_id: resolved, status: 'active' });
     }
 
-    // Send initial full context — on failure, send error frame so client knows
+    // Send initial full context -- on failure, send error frame so client knows
     try {
       const ctx = await this.getContext(resolved);
       server.send(JSON.stringify({ type: 'context', data: ctx }));
@@ -139,9 +139,9 @@ export class TeamDO extends DurableObject {
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  async webSocketMessage(ws, rawMessage) {
-    // Guard: if the WS has no tags, it was never properly accepted — ignore
-    let tags;
+  async webSocketMessage(ws: WebSocket, rawMessage: string | ArrayBuffer): Promise<void> {
+    // Guard: if the WS has no tags, it was never properly accepted -- ignore
+    let tags: string[];
     try {
       tags = this.ctx.getTags(ws);
     } catch (err) {
@@ -150,7 +150,7 @@ export class TeamDO extends DurableObject {
     }
     const agentId = tags.find((t) => !t.startsWith('role:'));
     if (!agentId) {
-      // Unauthenticated or untagged WebSocket — log and ignore
+      // Unauthenticated or untagged WebSocket -- log and ignore
       log.warn('untagged WebSocket message', {
         event: 'ws_unauth_message',
         messagePreview: String(rawMessage).slice(0, 200),
@@ -161,12 +161,12 @@ export class TeamDO extends DurableObject {
     const isAgent = tags.includes('role:agent');
 
     try {
-      const data = JSON.parse(rawMessage);
+      const data = JSON.parse(rawMessage as string) as Record<string, unknown>;
 
       if (data.type === 'ping') {
         this.#ensureSchema();
         if (data.lastToolUseAt) {
-          const parsed = new Date(data.lastToolUseAt);
+          const parsed = new Date(data.lastToolUseAt as string);
           if (!isNaN(parsed.getTime())) {
             const ts = toSQLDateTime(parsed);
             this.sql.exec(
@@ -192,8 +192,8 @@ export class TeamDO extends DurableObject {
         const result = updateActivityFn(
           this.sql,
           agentId,
-          data.files || [],
-          data.summary || '',
+          (data.files as string[]) || [],
+          (data.summary as string) || '',
           this.#transact,
         );
         if (!isDOError(result)) {
@@ -206,7 +206,7 @@ export class TeamDO extends DurableObject {
         }
       } else if (data.type === 'file' && isAgent) {
         this.#ensureSchema();
-        const result = reportFileFn(this.sql, agentId, data.file, this.#transact);
+        const result = reportFileFn(this.sql, agentId, data.file as string, this.#transact);
         if (!isDOError(result)) {
           this.#broadcastToWatchers({ type: 'file', agent_id: agentId, file: data.file });
         }
@@ -226,15 +226,20 @@ export class TeamDO extends DurableObject {
     }
   }
 
-  async webSocketClose(ws) {
-    let tags;
+  async webSocketClose(
+    ws: WebSocket,
+    _code: number,
+    _reason: string,
+    _wasClean: boolean,
+  ): Promise<void> {
+    let tags: string[];
     try {
       tags = this.ctx.getTags(ws);
     } catch (err) {
       log.error('webSocketClose: failed to read tags on closing socket', {
         error: getErrorMessage(err),
       });
-      // Tags lost — cannot identify agent. This is rare (DO restart mid-close).
+      // Tags lost -- cannot identify agent. This is rare (DO restart mid-close).
       // Stale locks/members will be cleaned up by #maybeCleanup's heartbeat eviction.
       return;
     }
@@ -244,7 +249,7 @@ export class TeamDO extends DurableObject {
     if (isAgent && agentId) {
       this.#ensureSchema();
       this.#lastHeartbeatBroadcast.delete(agentId);
-      // Release locks — agent is gone, don't block others
+      // Release locks -- agent is gone, don't block others
       let locksReleased = true;
       try {
         releaseFilesFn(this.sql, agentId, null);
@@ -268,7 +273,7 @@ export class TeamDO extends DurableObject {
     }
   }
 
-  async webSocketError(ws) {
+  async webSocketError(ws: WebSocket, _error: unknown): Promise<void> {
     // Log the error for observability; webSocketClose fires after for actual cleanup
     let agentId = 'unknown';
     try {
@@ -280,10 +285,10 @@ export class TeamDO extends DurableObject {
     log.warn('WebSocket error', { event: 'ws_error', agentId });
   }
 
-  // ── Internal helpers ──
+  // -- Internal helpers --
 
   /** Agent IDs with an active 'role:agent' WebSocket connection. */
-  #getConnectedAgentIds() {
+  #getConnectedAgentIds(): Set<string> {
     return new Set(
       this.ctx
         .getWebSockets('role:agent')
@@ -292,12 +297,12 @@ export class TeamDO extends DurableObject {
     );
   }
 
-  #invalidateContextCache() {
+  #invalidateContextCache(): void {
     this.#contextCache = null;
     this.#contextCacheExpire = 0;
   }
 
-  #broadcastToWatchers(event, { invalidateCache = true } = {}) {
+  #broadcastToWatchers(event: Record<string, unknown>, { invalidateCache = true } = {}): void {
     if (invalidateCache) this.#invalidateContextCache();
     const sockets = this.ctx.getWebSockets();
     if (!sockets.length) return;
@@ -315,15 +320,15 @@ export class TeamDO extends DurableObject {
     }
   }
 
-  // Evict stale members and prune old sessions — at most once per minute.
-  #maybeCleanup() {
+  // Evict stale members and prune old sessions -- at most once per minute.
+  #maybeCleanup(): void {
     const now = Date.now();
     if (now - this.#lastCleanup < CLEANUP_INTERVAL_MS) return;
     this.#lastCleanup = now;
     runCleanup(this.sql, this.#getConnectedAgentIds(), this.#transact);
   }
 
-  #recordMetric(metric) {
+  #recordMetric(metric: string): void {
     this.sql.exec(
       `INSERT INTO telemetry (metric, count, last_at) VALUES (?, 1, datetime('now'))
        ON CONFLICT(metric) DO UPDATE SET count = count + 1, last_at = datetime('now')`,
@@ -331,10 +336,9 @@ export class TeamDO extends DurableObject {
     );
   }
 
-  // ── Identity resolution (delegated to identity.js) ──
+  // -- Identity resolution (delegated to identity.ts) --
 
-  /** @param {string} agentId @param {string|null} [ownerId] */
-  #resolveOwnedAgentId(agentId, ownerId = null) {
+  #resolveOwnedAgentId(agentId: string, ownerId: string | null = null): string | null {
     return resolveOwnedAgentId(this.sql, agentId, ownerId);
   }
 
@@ -342,7 +346,11 @@ export class TeamDO extends DurableObject {
    * Common RPC wrapper: ensure schema, resolve agent, run callback.
    * Eliminates the repeated NOT_MEMBER check across 18+ RPC methods.
    */
-  #withMember(agentId, ownerId, fn) {
+  #withMember<T>(
+    agentId: string,
+    ownerId: string | null,
+    fn: (resolved: string) => T,
+  ): T | DOError {
     this.#ensureSchema();
     const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
     if (!resolved) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
@@ -350,11 +358,16 @@ export class TeamDO extends DurableObject {
   }
 
   // --- Bound helper for submodules that need to record telemetry ---
-  #boundRecordMetric = (metric) => this.#recordMetric(metric);
+  #boundRecordMetric = (metric: string): void => this.#recordMetric(metric);
 
-  // ── Membership ──
+  // -- Membership --
 
-  async join(agentId, ownerId, ownerHandle, runtimeOrTool = 'unknown') {
+  async join(
+    agentId: string,
+    ownerId: string,
+    ownerHandle: string,
+    runtimeOrTool: string | Record<string, unknown> | null = 'unknown',
+  ): Promise<DOResult<{ ok: true }>> {
     this.#ensureSchema();
     const result = join(
       this.sql,
@@ -376,7 +389,7 @@ export class TeamDO extends DurableObject {
     return result;
   }
 
-  async leave(agentId, ownerId = null) {
+  async leave(agentId: string, ownerId: string | null = null): Promise<DOResult<{ ok: true }>> {
     this.#ensureSchema();
     const result = leave(this.sql, agentId, ownerId, this.#transact);
     if (!isDOError(result)) {
@@ -386,7 +399,10 @@ export class TeamDO extends DurableObject {
     return result;
   }
 
-  async heartbeat(agentId, ownerId = null) {
+  async heartbeat(
+    agentId: string,
+    ownerId: string | null = null,
+  ): Promise<DOResult<{ ok: true }> | DOError> {
     return this.#withMember(agentId, ownerId, (resolved) => {
       const result = heartbeatFn(this.sql, resolved);
       if (!isDOError(result)) {
@@ -404,9 +420,14 @@ export class TeamDO extends DurableObject {
     });
   }
 
-  // ── Activity ──
+  // -- Activity --
 
-  async updateActivity(agentId, files, summary, ownerId = null) {
+  async updateActivity(
+    agentId: string,
+    files: string[],
+    summary: string,
+    ownerId: string | null = null,
+  ): Promise<DOResult<{ ok: true }> | DOError> {
     return this.#withMember(agentId, ownerId, (resolved) => {
       const result = updateActivityFn(this.sql, resolved, files, summary, this.#transact);
       if (!isDOError(result)) {
@@ -416,7 +437,11 @@ export class TeamDO extends DurableObject {
     });
   }
 
-  async checkConflicts(agentId, files, ownerId = null) {
+  async checkConflicts(
+    agentId: string,
+    files: string[],
+    ownerId: string | null = null,
+  ): Promise<ReturnType<typeof checkConflictsFn> | DOError> {
     return this.#withMember(agentId, ownerId, (resolved) =>
       checkConflictsFn(
         this.sql,
@@ -428,7 +453,11 @@ export class TeamDO extends DurableObject {
     );
   }
 
-  async reportFile(agentId, filePath, ownerId = null) {
+  async reportFile(
+    agentId: string,
+    filePath: string,
+    ownerId: string | null = null,
+  ): Promise<DOResult<{ ok: true }> | DOError> {
     return this.#withMember(agentId, ownerId, (resolved) => {
       const result = reportFileFn(this.sql, resolved, filePath, this.#transact);
       if (!isDOError(result)) {
@@ -438,9 +467,12 @@ export class TeamDO extends DurableObject {
     });
   }
 
-  // ── Context (composite queries — logic in context.js) ──
+  // -- Context (composite queries -- logic in context.ts) --
 
-  async getContext(agentId, ownerId = null) {
+  async getContext(
+    agentId: string,
+    ownerId: string | null = null,
+  ): Promise<Record<string, unknown> | DOError> {
     return this.#withMember(agentId, ownerId, (resolved) => {
       // Always bump calling agent's heartbeat
       this.sql.exec(
@@ -448,7 +480,7 @@ export class TeamDO extends DurableObject {
         resolved,
       );
 
-      // Per-agent messages (always fresh — has target_agent filter, can't be cached team-wide)
+      // Per-agent messages (always fresh -- has target_agent filter, can't be cached team-wide)
       const messages = this.sql
         .exec(
           `SELECT handle AS from_handle, host_tool AS from_tool, host_tool AS from_host_tool, agent_surface AS from_agent_surface, text, created_at
@@ -478,45 +510,74 @@ export class TeamDO extends DurableObject {
     });
   }
 
-  // ── Sessions (observability) ──
+  // -- Sessions (observability) --
 
-  async startSession(agentId, handle, framework, runtimeOrOwnerId = null, ownerId = null) {
+  async startSession(
+    agentId: string,
+    handle: string,
+    framework: string,
+    runtimeOrOwnerId: Record<string, unknown> | string | null = null,
+    ownerId: string | null = null,
+  ): Promise<DOResult<{ ok: true; session_id: string }> | DOError> {
     const runtime =
       runtimeOrOwnerId && typeof runtimeOrOwnerId === 'object' ? runtimeOrOwnerId : null;
-    const resolvedOwnerId = runtime ? ownerId : runtimeOrOwnerId;
+    const resolvedOwnerId = runtime ? ownerId : (runtimeOrOwnerId as string | null);
     return this.#withMember(agentId, resolvedOwnerId, (resolved) =>
       startSessionFn(this.sql, resolved, handle, framework, runtime, this.#transact),
     );
   }
 
-  async endSession(agentId, sessionId, ownerId = null) {
+  async endSession(
+    agentId: string,
+    sessionId: string,
+    ownerId: string | null = null,
+  ): Promise<DOResult<{ ok: true }> | DOError> {
     return this.#withMember(agentId, ownerId, (resolved) =>
       endSessionFn(this.sql, resolved, sessionId),
     );
   }
 
-  async recordEdit(agentId, filePath, ownerId = null) {
+  async recordEdit(
+    agentId: string,
+    filePath: string,
+    ownerId: string | null = null,
+  ): Promise<{ ok: true; skipped?: boolean } | DOError> {
     return this.#withMember(agentId, ownerId, (resolved) =>
       recordEditFn(this.sql, resolved, filePath),
     );
   }
 
-  async getHistory(agentId, days, ownerId = null) {
+  async getHistory(
+    agentId: string,
+    days: number,
+    ownerId: string | null = null,
+  ): Promise<ReturnType<typeof getSessionHistory> | DOError> {
     return this.#withMember(agentId, ownerId, () => getSessionHistory(this.sql, days));
   }
 
-  async enrichModel(agentId, model, ownerId = null) {
+  async enrichModel(
+    agentId: string,
+    model: string,
+    ownerId: string | null = null,
+  ): Promise<{ ok: true } | DOError> {
     return this.#withMember(agentId, ownerId, (resolved) =>
       enrichSessionModelFn(this.sql, resolved, model, this.#boundRecordMetric, this.#transact),
     );
   }
 
-  // ── Memory ──
+  // -- Memory --
 
-  async saveMemory(agentId, text, tags, handle, runtimeOrOwnerId = null, ownerId = null) {
+  async saveMemory(
+    agentId: string,
+    text: string,
+    tags: string[],
+    handle: string,
+    runtimeOrOwnerId: Record<string, unknown> | string | null = null,
+    ownerId: string | null = null,
+  ): Promise<ReturnType<typeof saveMemoryFn> | DOError> {
     const runtime =
       runtimeOrOwnerId && typeof runtimeOrOwnerId === 'object' ? runtimeOrOwnerId : null;
-    const resolvedOwnerId = runtime ? ownerId : runtimeOrOwnerId;
+    const resolvedOwnerId = runtime ? ownerId : (runtimeOrOwnerId as string | null);
     return this.#withMember(agentId, resolvedOwnerId, (resolved) => {
       const result = saveMemoryFn(
         this.sql,
@@ -535,23 +596,45 @@ export class TeamDO extends DurableObject {
     });
   }
 
-  async searchMemories(agentId, query, tags, limit = 20, ownerId = null) {
+  async searchMemories(
+    agentId: string,
+    query: string | null,
+    tags: string[] | null,
+    limit = 20,
+    ownerId: string | null = null,
+  ): Promise<ReturnType<typeof searchMemoriesFn> | DOError> {
     return this.#withMember(agentId, ownerId, () => searchMemoriesFn(this.sql, query, tags, limit));
   }
 
-  async updateMemory(agentId, memoryId, text, tags, ownerId = null) {
+  async updateMemory(
+    agentId: string,
+    memoryId: string,
+    text: string | undefined,
+    tags: string[] | undefined,
+    ownerId: string | null = null,
+  ): Promise<DOResult<{ ok: true }> | DOError> {
     return this.#withMember(agentId, ownerId, (resolved) =>
       updateMemoryFn(this.sql, resolved, memoryId, text, tags),
     );
   }
 
-  async deleteMemory(agentId, memoryId, ownerId = null) {
+  async deleteMemory(
+    agentId: string,
+    memoryId: string,
+    ownerId: string | null = null,
+  ): Promise<DOResult<{ ok: true }> | DOError> {
     return this.#withMember(agentId, ownerId, () => deleteMemoryFn(this.sql, memoryId));
   }
 
-  // ── File Locks ──
+  // -- File Locks --
 
-  async claimFiles(agentId, files, handle, runtimeOrTool, ownerId = null) {
+  async claimFiles(
+    agentId: string,
+    files: string[],
+    handle: string,
+    runtimeOrTool: string | Record<string, unknown> | null | undefined,
+    ownerId: string | null = null,
+  ): Promise<ReturnType<typeof claimFilesFn> | DOError> {
     return this.#withMember(agentId, ownerId, (resolved) => {
       const result = claimFilesFn(this.sql, resolved, files, handle, runtimeOrTool);
       if (!isDOError(result)) {
@@ -566,7 +649,11 @@ export class TeamDO extends DurableObject {
     });
   }
 
-  async releaseFiles(agentId, files, ownerId = null) {
+  async releaseFiles(
+    agentId: string,
+    files: string[] | null | undefined,
+    ownerId: string | null = null,
+  ): Promise<{ ok: true } | DOError> {
     return this.#withMember(agentId, ownerId, (resolved) => {
       const result = releaseFilesFn(this.sql, resolved, files);
       if (!isDOError(result)) {
@@ -581,15 +668,25 @@ export class TeamDO extends DurableObject {
     });
   }
 
-  async getLockedFiles(agentId, ownerId = null) {
+  async getLockedFiles(
+    agentId: string,
+    ownerId: string | null = null,
+  ): Promise<ReturnType<typeof getLockedFilesFn> | DOError> {
     return this.#withMember(agentId, ownerId, () =>
       getLockedFilesFn(this.sql, this.#getConnectedAgentIds()),
     );
   }
 
-  // ── Messages ──
+  // -- Messages --
 
-  async sendMessage(agentId, handle, runtimeOrTool, text, targetAgent, ownerId = null) {
+  async sendMessage(
+    agentId: string,
+    handle: string,
+    runtimeOrTool: string | Record<string, unknown> | null | undefined,
+    text: string,
+    targetAgent: string | null | undefined,
+    ownerId: string | null = null,
+  ): Promise<{ ok: true; id: string } | DOError> {
     return this.#withMember(agentId, ownerId, (resolved) => {
       const result = sendMessageFn(
         this.sql,
@@ -607,15 +704,19 @@ export class TeamDO extends DurableObject {
     });
   }
 
-  async getMessages(agentId, since, ownerId = null) {
+  async getMessages(
+    agentId: string,
+    since: string | null | undefined,
+    ownerId: string | null = null,
+  ): Promise<ReturnType<typeof getMessagesFn> | DOError> {
     return this.#withMember(agentId, ownerId, (resolved) =>
       getMessagesFn(this.sql, resolved, since),
     );
   }
 
-  // ── Summary (lightweight, for cross-project dashboard) ──
+  // -- Summary (lightweight, for cross-project dashboard) --
 
-  async getSummary(ownerId) {
+  async getSummary(ownerId: string): Promise<ReturnType<typeof queryTeamSummary> | DOError> {
     this.#ensureSchema();
     // Dashboard summary: check that this user owns at least one agent in the team
     const ownerRow = this.sql

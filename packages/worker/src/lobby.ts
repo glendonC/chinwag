@@ -1,8 +1,10 @@
-// Lobby Durable Object — tracks all chat rooms, assigns users to rooms,
+// Lobby Durable Object -- tracks all chat rooms, assigns users to rooms,
 // and tracks presence (who has the app open).
 // Uses DO RPC for direct method calls.
 
 import { DurableObject } from 'cloudflare:workers';
+import type { Env } from './types.js';
+import type { Migration } from './lib/migrator.js';
 import {
   CHAT_MIN_ROOM_SIZE,
   CHAT_MAX_ROOM_SIZE,
@@ -11,7 +13,12 @@ import {
 } from './lib/constants.js';
 import { runMigrations } from './lib/migrator.js';
 
-const lobbyMigrations = [
+interface RoomInfo {
+  count: number;
+  lastUpdate: number;
+}
+
+const lobbyMigrations: Migration[] = [
   {
     name: '001_initial_schema',
     up(sql) {
@@ -31,50 +38,54 @@ const lobbyMigrations = [
   },
 ];
 
-export class LobbyDO extends DurableObject {
+export class LobbyDO extends DurableObject<Env> {
+  sql: SqlStorage;
+  rooms: Map<string, RoomInfo>;
+  presence: Map<string, number>;
   #schemaReady = false;
   #lastPresenceCleanup = 0;
 
-  /** @type {<T>(fn: () => T) => T} */
-  #transact;
+  #transact: <T>(fn: () => T) => T;
 
-  constructor(ctx, env) {
+  constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.sql = ctx.storage.sql;
-    this.#transact = (fn) => ctx.storage.transactionSync(fn);
-    // roomId → { count, lastUpdate }
+    this.#transact = <T>(fn: () => T): T => ctx.storage.transactionSync(fn);
+    // roomId -> { count, lastUpdate }
     this.rooms = new Map();
-    // handle → lastSeen timestamp
+    // handle -> lastSeen timestamp
     this.presence = new Map();
   }
 
-  #ensureSchema() {
+  #ensureSchema(): void {
     if (this.#schemaReady) return;
 
     runMigrations(this.sql, this.#transact, lobbyMigrations);
 
     // Hydrate in-memory Maps from SQLite
     for (const row of this.sql.exec('SELECT room_id, count, last_updated FROM rooms')) {
-      this.rooms.set(row.room_id, {
-        count: row.count,
-        lastUpdate: new Date(row.last_updated + 'Z').getTime(),
+      const r = row as { room_id: string; count: number; last_updated: string };
+      this.rooms.set(r.room_id, {
+        count: r.count,
+        lastUpdate: new Date(r.last_updated + 'Z').getTime(),
       });
     }
 
     for (const row of this.sql.exec('SELECT handle, last_seen FROM presence')) {
-      this.presence.set(row.handle, row.last_seen);
+      const r = row as { handle: string; last_seen: number };
+      this.presence.set(r.handle, r.last_seen);
     }
 
     this.#schemaReady = true;
   }
 
-  /** Evict stale presence entries — at most once per PRESENCE_TTL_MS. */
-  #maybeCleanupPresence() {
+  /** Evict stale presence entries -- at most once per PRESENCE_TTL_MS. */
+  #maybeCleanupPresence(): void {
     const now = Date.now();
     if (now - this.#lastPresenceCleanup < PRESENCE_TTL_MS) return;
     this.#lastPresenceCleanup = now;
 
-    const staleHandles = [];
+    const staleHandles: string[] = [];
     for (const [handle, lastSeen] of this.presence) {
       if (now - lastSeen > PRESENCE_TTL_MS) {
         this.presence.delete(handle);
@@ -87,7 +98,7 @@ export class LobbyDO extends DurableObject {
     }
   }
 
-  async heartbeat(handle) {
+  async heartbeat(handle: string): Promise<{ ok: true }> {
     this.#ensureSchema();
     const now = Date.now();
     this.presence.set(handle, now);
@@ -100,9 +111,9 @@ export class LobbyDO extends DurableObject {
     return { ok: true };
   }
 
-  async assignRoom(handle, shuffle = false) {
+  async assignRoom(handle: string, shuffle = false): Promise<{ ok: true; roomId: string }> {
     this.#ensureSchema();
-    let bestRoom = null;
+    let bestRoom: string | null = null;
     let bestScore = Infinity;
 
     for (const [roomId, info] of this.rooms) {
@@ -125,7 +136,7 @@ export class LobbyDO extends DurableObject {
     return { ok: true, roomId: bestRoom };
   }
 
-  async updateRoomCount(roomId, count) {
+  async updateRoomCount(roomId: string, count: number): Promise<{ ok: true }> {
     this.#ensureSchema();
     if (count <= 0) {
       this.rooms.delete(roomId);
@@ -141,14 +152,14 @@ export class LobbyDO extends DurableObject {
     return { ok: true };
   }
 
-  async removeRoom(roomId) {
+  async removeRoom(roomId: string): Promise<{ ok: true }> {
     this.#ensureSchema();
     this.rooms.delete(roomId);
     this.sql.exec('DELETE FROM rooms WHERE room_id = ?', roomId);
     return { ok: true };
   }
 
-  async getStats() {
+  async getStats(): Promise<{ ok: true; online: number; chatUsers: number; activeRooms: number }> {
     this.#ensureSchema();
     this.#maybeCleanupPresence();
 

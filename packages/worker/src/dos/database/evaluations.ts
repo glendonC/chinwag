@@ -1,15 +1,55 @@
-// Tool evaluation CRUD — manages the tool directory/catalog stored in DatabaseDO.
+// Tool evaluation CRUD -- manages the tool directory/catalog stored in DatabaseDO.
 // Each evaluation records whether a tool is integrated, installable, or listed,
 // along with metadata, sources, and confidence level.
 
 import { sqlChanges } from '../../lib/validation.js';
 
-/**
- * Upsert a tool evaluation.
- * @param {object} sql - DO SQL handle
- * @param {object} evaluation - Evaluation record
- */
-export function saveEvaluation(sql, evaluation) {
+interface EvaluationInput {
+  id: string;
+  name: string;
+  tagline?: string | null;
+  category?: string | null;
+  mcp_support?: number | null;
+  has_cli?: number | null;
+  hooks_support?: number | null;
+  channel_support?: number | null;
+  process_detectable?: number | null;
+  open_source?: number | null;
+  verdict: string;
+  integration_tier?: string | null;
+  blocking_issues?: string | string[] | null;
+  metadata?: string | Record<string, unknown>;
+  sources?: string | unknown[];
+  in_registry?: number;
+  evaluated_at: string;
+  confidence?: string;
+  evaluated_by?: string | null;
+}
+
+interface ParsedEvaluation {
+  id: string;
+  name: string;
+  tagline: string | null;
+  category: string | null;
+  mcp_support: number | null;
+  has_cli: number | null;
+  hooks_support: number | null;
+  channel_support: number | null;
+  process_detectable: number | null;
+  open_source: number | null;
+  verdict: string;
+  integration_tier: string | null;
+  blocking_issues: unknown[];
+  metadata: Record<string, unknown>;
+  sources: unknown[];
+  in_registry: number;
+  evaluated_at: string;
+  confidence: string;
+  evaluated_by: string | null;
+}
+
+/** Upsert a tool evaluation. */
+export function saveEvaluation(sql: SqlStorage, evaluation: EvaluationInput): { ok: true } {
   const metadata =
     typeof evaluation.metadata === 'string'
       ? evaluation.metadata
@@ -69,15 +109,30 @@ export function saveEvaluation(sql, evaluation) {
   return { ok: true };
 }
 
-export function getEvaluation(sql, toolId) {
+export function getEvaluation(
+  sql: SqlStorage,
+  toolId: string,
+): { ok: true; evaluation: ParsedEvaluation | null } {
   const rows = sql.exec('SELECT * FROM tool_evaluations WHERE id = ?', toolId).toArray();
   if (rows.length === 0) return { ok: true, evaluation: null };
-  return { ok: true, evaluation: parseEvaluation(rows[0]) };
+  return { ok: true, evaluation: parseEvaluation(rows[0] as Record<string, unknown>) };
 }
 
-export function listEvaluations(sql, filters = {}) {
-  const conditions = [];
-  const params = [];
+interface ListFilters {
+  verdict?: string | null;
+  category?: string | null;
+  mcp_support?: number | null;
+  in_registry?: number | null;
+  limit?: number;
+  offset?: number;
+}
+
+export function listEvaluations(
+  sql: SqlStorage,
+  filters: ListFilters = {},
+): { ok: true; evaluations: ParsedEvaluation[] } {
+  const conditions: string[] = [];
+  const params: unknown[] = [];
 
   if (filters.verdict != null) {
     conditions.push('verdict = ?');
@@ -109,10 +164,14 @@ export function listEvaluations(sql, filters = {}) {
     )
     .toArray();
 
-  return { ok: true, evaluations: rows.map((r) => parseEvaluation(r)) };
+  return { ok: true, evaluations: rows.map((r) => parseEvaluation(r as Record<string, unknown>)) };
 }
 
-export function searchEvaluations(sql, query, limit = 20) {
+export function searchEvaluations(
+  sql: SqlStorage,
+  query: string,
+  limit = 20,
+): { ok: true; evaluations: ParsedEvaluation[] } {
   const pattern = `%${query}%`;
   const rows = sql
     .exec(
@@ -123,24 +182,24 @@ export function searchEvaluations(sql, query, limit = 20) {
     )
     .toArray();
 
-  return { ok: true, evaluations: rows.map((r) => parseEvaluation(r)) };
+  return { ok: true, evaluations: rows.map((r) => parseEvaluation(r as Record<string, unknown>)) };
 }
 
-export function deleteEvaluation(sql, toolId) {
+export function deleteEvaluation(sql: SqlStorage, toolId: string): { ok: true; deleted: boolean } {
   sql.exec('DELETE FROM tool_evaluations WHERE id = ?', toolId);
   return { ok: true, deleted: sqlChanges(sql) > 0 };
 }
 
-export function hasEvaluations(sql) {
+export function hasEvaluations(sql: SqlStorage): { ok: true; count: number } {
   const rows = sql.exec('SELECT COUNT(*) as count FROM tool_evaluations').toArray();
-  return { ok: true, count: rows[0].count };
+  return { ok: true, count: (rows[0] as { count: number }).count };
 }
 
-function parseEvaluation(row) {
+function parseEvaluation(row: Record<string, unknown>): ParsedEvaluation {
   return {
     ...row,
-    metadata: JSON.parse(row.metadata || '{}'),
-    sources: JSON.parse(row.sources || '[]'),
-    blocking_issues: JSON.parse(row.blocking_issues || '[]'),
-  };
+    metadata: JSON.parse((row.metadata as string) || '{}'),
+    sources: JSON.parse((row.sources as string) || '[]'),
+    blocking_issues: JSON.parse((row.blocking_issues as string) || '[]'),
+  } as ParsedEvaluation;
 }

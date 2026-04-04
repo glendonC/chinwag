@@ -1,6 +1,7 @@
-// Shared project memory — saveMemory, searchMemories, updateMemory, deleteMemory.
+// Shared project memory -- saveMemory, searchMemories, updateMemory, deleteMemory.
 // Each function takes `sql` as the first parameter.
 
+import type { DOResult, Memory } from '../../types.js';
 import { createLogger } from '../../lib/logger.js';
 import { safeParse } from '../../lib/safe-parse.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
@@ -10,20 +11,26 @@ import { sqlChanges, withTransaction } from '../../lib/validation.js';
 const log = createLogger('TeamDO.memory');
 
 // Escape LIKE wildcards so user-supplied text is matched literally
-function escapeLike(s) {
+function escapeLike(s: string): string {
   return s.replace(/[%_]/g, (ch) => `\\${ch}`);
 }
 
+interface SaveMemoryResult {
+  ok: true;
+  id: string;
+  evicted?: number;
+}
+
 export function saveMemory(
-  sql,
-  resolvedAgentId,
-  text,
-  tags,
-  handle,
-  runtimeOrTool,
-  recordMetric,
-  transact,
-) {
+  sql: SqlStorage,
+  resolvedAgentId: string,
+  text: string,
+  tags: string[] | null | undefined,
+  handle: string,
+  runtimeOrTool: string | Record<string, unknown> | null | undefined,
+  recordMetric: (metric: string) => void,
+  transact: <T>(fn: () => T) => T,
+): DOResult<SaveMemoryResult> {
   const runtime = normalizeRuntimeMetadata(runtimeOrTool, resolvedAgentId);
 
   // Inherit model from active session (session is the source of truth for model)
@@ -33,7 +40,10 @@ export function saveMemory(
       resolvedAgentId,
     )
     .toArray();
-  const model = sessionRow[0]?.agent_model || runtime.model || null;
+  const model =
+    ((sessionRow[0] as Record<string, unknown> | undefined)?.agent_model as string) ||
+    runtime.model ||
+    null;
 
   const id = crypto.randomUUID();
 
@@ -73,15 +83,25 @@ export function saveMemory(
   });
   recordMetric('memories_saved');
 
-  const result = { ok: true, id };
+  const result: SaveMemoryResult = { ok: true, id };
   if (evicted > 0) result.evicted = evicted;
   return result;
 }
 
-export function searchMemories(sql, query, tags, limit = 20) {
+interface SearchMemoriesResult {
+  ok: true;
+  memories: Memory[];
+}
+
+export function searchMemories(
+  sql: SqlStorage,
+  query: string | null | undefined,
+  tags: string[] | null | undefined,
+  limit = 20,
+): SearchMemoriesResult {
   const cappedLimit = Math.min(Math.max(1, limit), 50);
-  const conditions = [];
-  const params = [];
+  const conditions: string[] = [];
+  const params: unknown[] = [];
 
   if (query) {
     conditions.push("text LIKE ? ESCAPE '\\'");
@@ -104,24 +124,31 @@ export function searchMemories(sql, query, tags, limit = 20) {
   return {
     ok: true,
     memories: rows.map((m) => {
+      const row = m as Record<string, unknown>;
       const parsedTags = safeParse(
-        m.tags || '[]',
-        `searchMemories memory=${m.id} tags`,
-        m.tags ? [String(m.tags)] : [],
+        (row.tags as string) || '[]',
+        `searchMemories memory=${row.id} tags`,
+        row.tags ? [String(row.tags)] : [],
         log,
       );
-      return { ...m, tags: parsedTags };
+      return { ...row, tags: parsedTags } as unknown as Memory;
     }),
   };
 }
 
-export function updateMemory(sql, resolvedAgentId, memoryId, text, tags) {
+export function updateMemory(
+  sql: SqlStorage,
+  _resolvedAgentId: string,
+  memoryId: string,
+  text: string | undefined,
+  tags: string[] | undefined,
+): DOResult<{ ok: true }> {
   const existing = sql.exec('SELECT id FROM memories WHERE id = ?', memoryId).toArray();
   if (existing.length === 0) return { error: 'Memory not found', code: 'NOT_FOUND' };
 
-  // Any team member can update — memories are team knowledge
-  const sets = [];
-  const params = [];
+  // Any team member can update -- memories are team knowledge
+  const sets: string[] = [];
+  const params: unknown[] = [];
   if (text !== undefined) {
     sets.push('text = ?');
     params.push(typeof text === 'string' ? text.trim() : String(text));
@@ -137,8 +164,8 @@ export function updateMemory(sql, resolvedAgentId, memoryId, text, tags) {
   return { ok: true };
 }
 
-export function deleteMemory(sql, memoryId) {
-  // Any team member can delete — memories are team knowledge
+export function deleteMemory(sql: SqlStorage, memoryId: string): DOResult<{ ok: true }> {
+  // Any team member can delete -- memories are team knowledge
   sql.exec('DELETE FROM memories WHERE id = ?', memoryId);
   if (sqlChanges(sql) === 0) return { error: 'Memory not found', code: 'NOT_FOUND' };
   return { ok: true };

@@ -4,9 +4,13 @@
 // Import with: import type { DOResult, User, ... } from './types.js'
 
 // Forward-reference DO classes for Env typing.
-// import type is erased at compile time, avoiding circular dependency issues
-// during incremental migration (DO files are still .js in Phase 1).
-// Generic DurableObjectNamespace<T> will be added in Phase 2 once DOs are .ts.
+// import type is erased at compile time, avoiding circular dependency issues.
+// Phase 2 complete: DO classes are now .ts, so we use generic DurableObjectNamespace<T>
+// for type-safe RPC calls. Route handlers still use `as any` for DO stubs (Phase 3).
+import type { DatabaseDO } from './dos/database/index.js';
+import type { LobbyDO } from './lobby.js';
+import type { RoomDO } from './room.js';
+import type { TeamDO } from './dos/team/index.js';
 
 // ── DO Result pattern ──
 // Every DO method returns { ok: true, ...data } on success or { error: string } on failure.
@@ -340,10 +344,10 @@ export interface ModerationResult {
 // ── Worker environment bindings (from wrangler.toml) ──
 
 export interface Env {
-  DATABASE: DurableObjectNamespace;
-  LOBBY: DurableObjectNamespace;
-  ROOM: DurableObjectNamespace;
-  TEAM: DurableObjectNamespace;
+  DATABASE: DurableObjectNamespace<DatabaseDO>;
+  LOBBY: DurableObjectNamespace<LobbyDO>;
+  ROOM: DurableObjectNamespace<RoomDO>;
+  TEAM: DurableObjectNamespace<TeamDO>;
   AUTH_KV: KVNamespace;
   AI: unknown;
   ENVIRONMENT: string;

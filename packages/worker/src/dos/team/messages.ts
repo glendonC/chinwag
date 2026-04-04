@@ -1,18 +1,19 @@
-// Ephemeral agent messages — sendMessage, getMessages.
+// Ephemeral agent messages -- sendMessage, getMessages.
 // Messages auto-expire after 1 hour.
 // Each function takes `sql` as the first parameter.
 
+import type { AgentMessage } from '../../types.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
 
 export function sendMessage(
-  sql,
-  resolvedAgentId,
-  handle,
-  runtimeOrTool,
-  text,
-  targetAgent,
-  recordMetric,
-) {
+  sql: SqlStorage,
+  resolvedAgentId: string,
+  handle: string,
+  runtimeOrTool: string | Record<string, unknown> | null | undefined,
+  text: string,
+  targetAgent: string | null | undefined,
+  recordMetric: (metric: string) => void,
+): { ok: true; id: string } {
   const runtime = normalizeRuntimeMetadata(runtimeOrTool, resolvedAgentId);
   const id = crypto.randomUUID();
   sql.exec(
@@ -30,7 +31,11 @@ export function sendMessage(
   return { ok: true, id };
 }
 
-export function getMessages(sql, resolvedAgentId, since) {
+export function getMessages(
+  sql: SqlStorage,
+  resolvedAgentId: string,
+  since: string | null | undefined,
+): { ok: true; messages: AgentMessage[] } {
   const messages = sql
     .exec(
       `SELECT id, handle, host_tool, agent_surface, target_agent, text, created_at
@@ -42,7 +47,7 @@ export function getMessages(sql, resolvedAgentId, since) {
       since || null,
       resolvedAgentId,
     )
-    .toArray();
+    .toArray() as unknown as AgentMessage[];
 
   return { ok: true, messages };
 }

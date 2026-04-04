@@ -1,12 +1,13 @@
 // Schema DDL and migrations for DatabaseDO.
 // Called once per DO instance to ensure tables exist and run migrations.
 
+import type { Migration } from '../../lib/migrator.js';
 import { runMigrations } from '../../lib/migrator.js';
 import { getErrorMessage } from '../../lib/errors.js';
 
-// ── Migrations ──
+// -- Migrations --
 
-const migrations = [
+const migrations: Migration[] = [
   {
     name: '001_initial_schema',
     up(sql) {
@@ -87,8 +88,6 @@ const migrations = [
     name: '002_add_columns',
     up(sql) {
       // team_name column for tables created before this column existed
-      // (uses IF NOT EXISTS pattern via ALTER — idempotent since the migrator
-      //  tracks applied migrations, but safe if column already exists from 001)
       try {
         sql.exec('ALTER TABLE user_teams ADD COLUMN team_name TEXT');
       } catch (err) {
@@ -116,23 +115,15 @@ const migrations = [
   },
 ];
 
-/**
- * Run all schema migrations.
- *
- * @param {object} sql - ctx.storage.sql handle
- * @param {<T>(fn: () => T) => T} transact - ctx.storage.transactionSync
- */
-export function ensureSchema(sql, transact) {
+export function ensureSchema(sql: SqlStorage, transact: <T>(fn: () => T) => T): void {
   runMigrations(sql, transact, migrations);
 }
 
 /**
  * Prune stale data that should run on every startup (not a migration).
  * Cleans expired rate-limit buckets and revoked/expired web sessions.
- *
- * @param {object} sql - ctx.storage.sql handle
  */
-export function cleanup(sql) {
+export function cleanup(sql: SqlStorage): void {
   sql.exec("DELETE FROM account_limits WHERE date < date('now', '-2 days')");
   sql.exec("DELETE FROM web_sessions WHERE expires_at < datetime('now') OR revoked = 1");
 }
