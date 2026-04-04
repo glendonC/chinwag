@@ -44,12 +44,11 @@ export interface BootstrapOptions {
 
   /**
    * What to do when config, token, or team file is missing.
-   * - 'exit-error': log error and exit with non-zero code (index.js via validateConfig)
-   * - 'exit-silent': exit(0) silently, never block the caller (hook.js)
-   * - 'exit-mixed': exit(1) for config/token, exit(0) for missing team (channel.js)
-   * - 'return-null': return null so the caller can decide (not currently used)
+   * - 'require-all': log error and exit with non-zero code — fail on any missing config, token, or team (index.js)
+   * - 'require-config': exit(1) for missing config/token, exit(0) for missing team (channel.js)
+   * - 'optional': exit(0) silently, never block the caller (hook.js)
    */
-  onMissing?: 'exit-error' | 'exit-silent' | 'exit-mixed' | 'return-null';
+  onMissing?: 'require-all' | 'require-config' | 'optional';
 
   /** Label for log messages, e.g. 'chinwag' or 'chinwag-channel'. */
   logPrefix?: string;
@@ -79,17 +78,16 @@ export interface BootstrapResult {
 /**
  * Bootstrap shared initialization for any MCP entry point.
  *
- * Returns a fully resolved BootstrapResult, or null if `onMissing: 'return-null'`
- * is set and a required value is missing. For other onMissing modes, the function
- * calls process.exit() and never returns.
+ * Returns a fully resolved BootstrapResult. For missing prerequisites, the function
+ * calls process.exit() according to the onMissing strategy and never returns.
  */
-export async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapResult | null> {
+export async function bootstrap(options: BootstrapOptions = {}): Promise<BootstrapResult> {
   const {
     hostToolHint = 'unknown',
     defaultTransport = 'mcp',
     configMode = 'simple',
     identityMode = 'resolve',
-    onMissing = 'exit-error',
+    onMissing = 'require-all',
     logPrefix = 'chinwag',
   } = options;
 
@@ -121,14 +119,14 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
   // 2. Find team file
   const teamId = findTeamFile();
   if (!teamId) {
-    if (onMissing === 'exit-mixed') {
+    if (onMissing === 'require-config') {
       // channel.js: missing team is a clean exit, not an error
       log.info('No .chinwag file — inactive.');
       process.exit(0);
-    } else if (onMissing === 'exit-silent') {
+    } else if (onMissing === 'optional') {
       process.exit(0);
     }
-    // For 'exit-error' and 'return-null': teamId is allowed to be null
+    // For 'require-all': teamId is allowed to be null
     // (index.js proceeds with teamId=null; tools just skip team ops)
   }
 
@@ -170,29 +168,27 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
 
 /**
  * Handle a missing prerequisite (config, token, or team) according to the
- * configured onMissing strategy.
+ * configured onMissing strategy. Always exits the process — never returns.
  */
 function handleMissing(
   mode: NonNullable<BootstrapOptions['onMissing']>,
   logPrefix: string,
   reason: string,
-): null | never {
+): never {
   switch (mode) {
-    case 'exit-silent':
+    case 'optional':
       process.exit(0);
       return null as never; // unreachable, satisfies TS
-    case 'exit-mixed':
+    case 'require-config':
       // For config/token issues in channel.js: exit(1) with a log
       console.error(`[${logPrefix}] ${reason}`);
       process.exit(1);
       return null as never;
-    case 'exit-error':
+    case 'require-all':
       // validateConfig handles its own exits, this shouldn't be reached
       // for configMode 'full'. For safety, log and exit.
       console.error(`[${logPrefix}] ${reason}`);
       process.exit(1);
       return null as never;
-    case 'return-null':
-      return null;
   }
 }

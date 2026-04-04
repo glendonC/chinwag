@@ -36,7 +36,7 @@ async function main() {
     defaultTransport: 'mcp',
     configMode: 'full',
     identityMode: 'session',
-    onMissing: 'exit-error',
+    onMissing: 'require-all',
   });
   const { runtime, agentId, client, team, teamId } = ctx;
   const toolName = runtime.hostTool;

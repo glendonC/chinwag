@@ -39,7 +39,7 @@ async function main() {
     defaultTransport: 'channel',
     configMode: 'simple',
     identityMode: 'resolve',
-    onMissing: 'exit-mixed',
+    onMissing: 'require-config',
     logPrefix: 'chinwag-channel',
   });
   const { runtime, agentId, client, team, teamId } = ctx;

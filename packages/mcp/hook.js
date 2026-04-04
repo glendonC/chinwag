@@ -28,7 +28,7 @@ async function main() {
     defaultTransport: 'hook',
     configMode: 'simple',
     identityMode: 'resolve',
-    onMissing: 'exit-silent',
+    onMissing: 'optional',
   });
   if (!ctx || !ctx.teamId) {
     process.exit(0);
