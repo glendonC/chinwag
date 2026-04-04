@@ -42,6 +42,11 @@ export async function authenticate(request, env) {
     // Prefer ticket (short-lived, single-use) over token for WS auth
     const ticket = url.searchParams.get('ticket');
     if (ticket) {
+      // TOCTOU: KV get-then-delete is not atomic. Two concurrent requests with the
+      // same ticket could both pass the null check before either deletes the key.
+      // Risk is minimal: tickets are random UUIDs with 30s TTL, rate-limited, and the
+      // race window is sub-millisecond within a single CF colo. Atomic delete would
+      // require a Durable Object, adding latency for negligible security gain.
       const kvKey = `ticket:${ticket}`;
       const userId = await env.AUTH_KV.get(kvKey);
       if (!userId) return null;
