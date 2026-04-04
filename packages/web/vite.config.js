@@ -27,14 +27,13 @@ export default defineConfig({
       exclude: ['src/**/*.test.*'],
       reporter: ['text', 'json-summary'],
       reportsDirectory: './coverage',
-      // Thresholds enforce current coverage floor (~5% margin below actual).
-      // Actuals as of 2026-04-03: stmts 49.2, branches 32.5, funcs 42, lines 50.8.
-      // Raise these as more view-level and component tests are added.
+      // Thresholds enforce current coverage floor (~3% margin below actual).
+      // Actuals as of 2026-04-04: stmts 50.7, branches 34.3, funcs 42, lines 52.4.
       thresholds: {
-        statements: 45,
-        branches: 28,
-        functions: 38,
-        lines: 46,
+        statements: 48,
+        branches: 31,
+        functions: 39,
+        lines: 49,
       },
     },
   },
