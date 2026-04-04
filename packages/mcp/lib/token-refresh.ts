@@ -14,15 +14,44 @@ export interface RefreshResult {
   refresh_token: string;
 }
 
+// Inflight deduplication: if multiple callers trigger refresh concurrently,
+// the second awaits the first's promise instead of starting a new one.
+// Same pattern as api.ts inflightRefresh.
+let inflightRefresh: Promise<RefreshResult | null> | null = null;
+
 /**
  * Attempt to refresh tokens via POST /auth/refresh and persist to disk.
  *
  * Uses a bare (unauthenticated) client — the refresh endpoint accepts the
  * refresh_token in the body, not via Authorization header.
  *
+ * Safe to call concurrently: uses inflight deduplication so only one
+ * network request is made even if multiple callers race.
+ *
  * Returns the new token pair on success, or null on failure.
  */
 export async function refreshAndPersistToken(
+  baseUrl: string,
+  refreshToken: string,
+  currentConfig: Record<string, unknown>,
+): Promise<RefreshResult | null> {
+  if (inflightRefresh) {
+    return inflightRefresh;
+  }
+
+  inflightRefresh = doRefreshAndPersist(baseUrl, refreshToken, currentConfig).finally(() => {
+    inflightRefresh = null;
+  });
+
+  return inflightRefresh;
+}
+
+/** @internal Exported only for testing — resets the inflight deduplication state. */
+export function _resetInflightRefresh(): void {
+  inflightRefresh = null;
+}
+
+async function doRefreshAndPersist(
   baseUrl: string,
   refreshToken: string,
   currentConfig: Record<string, unknown>,
@@ -42,12 +71,17 @@ export async function refreshAndPersistToken(
     };
     try {
       saveConfig(updatedConfig);
+      log.info('Token refreshed and persisted successfully.');
     } catch (writeErr: unknown) {
       const { configFile } = getConfigPaths();
-      log.warn(`Could not persist refreshed token to ${configFile}: ` + getErrorMessage(writeErr));
+      log.warn(
+        'Token refresh succeeded but disk persist failed — ' +
+          'in-memory token is valid but will not survive restart. ' +
+          `Config path: ${configFile}. Error: ` +
+          getErrorMessage(writeErr),
+      );
     }
 
-    log.info('Token refreshed successfully.');
     return result;
   } catch (err: unknown) {
     log.error('Token refresh failed: ' + getErrorMessage(err));

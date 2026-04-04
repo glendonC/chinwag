@@ -4,10 +4,21 @@
 import { createLogger } from './utils/logger.js';
 import { getErrorMessage } from './utils/responses.js';
 import { refreshAndPersistToken } from './token-refresh.js';
+import type { RefreshResult } from './token-refresh.js';
 import { getApiUrl } from './api.js';
 import type { EnvironmentProfile } from './profile.js';
 
 const log = createLogger('auth');
+
+// Inflight deduplication for startup token refresh: if multiple concurrent
+// validateConfig() calls hit a 401, only one refresh runs.
+// Same pattern as api.ts inflightRefresh.
+let inflightRefresh: Promise<RefreshResult | null> | null = null;
+
+/** @internal Exported only for testing — resets the inflight deduplication state. */
+export function _resetInflightRefresh(): void {
+  inflightRefresh = null;
+}
 
 /** Config shape as used by the auth module (superset of ChinwagConfig). */
 interface AuthConfig {
@@ -68,11 +79,17 @@ export async function validateConfig({
     const httpErr = err as HttpError;
     if (httpErr.status === 401 && config.refresh_token) {
       log.info('Access token expired, attempting refresh...');
-      const refreshed = await refreshAndPersistToken(
-        getApiUrl(),
-        config.refresh_token,
-        config as Record<string, unknown>,
-      );
+      // Deduplicate concurrent refresh attempts across validateConfig calls
+      if (!inflightRefresh) {
+        inflightRefresh = refreshAndPersistToken(
+          getApiUrl(),
+          config.refresh_token,
+          config as Record<string, unknown>,
+        ).finally(() => {
+          inflightRefresh = null;
+        });
+      }
+      const refreshed = await inflightRefresh;
       if (refreshed) {
         config = { ...config, token: refreshed.token, refresh_token: refreshed.refresh_token };
       } else {
