@@ -5,11 +5,16 @@ import { api } from './api.js';
 import { addToolToProject } from './utils/tool-actions.js';
 import { computeToolRecommendations } from './utils/tool-recommendations.js';
 import { evalToTool } from './utils/tool-catalog.js';
-import type { CatalogToolLike, EvalEntry } from './utils/tool-catalog.js';
+import type { CatalogToolLike } from './utils/tool-catalog.js';
 import { DetectedToolsList, RecommendationsList, CategoryBrowser } from './tool-display.jsx';
 import type { ChinwagConfig } from './config.js';
 import type { IntegrationScanResult } from '@chinwag/shared/integration-doctor.js';
-import type { ToolCatalogEntry } from '@chinwag/shared/contracts.js';
+import type {
+  ToolCatalogEntry,
+  ToolDirectoryResponse,
+  ToolCatalogResponse,
+} from '@chinwag/shared/contracts.js';
+import { formatError } from '@chinwag/shared';
 
 const LOADING_TIMEOUT_MS = 15000;
 
@@ -39,27 +44,22 @@ export function Discover({ config, navigate }: DiscoverProps): React.ReactNode {
     // Fetch catalog from API (single source of truth)
     async function fetchCatalog(): Promise<void> {
       try {
-        const result = (await api(config).get('/tools/directory?limit=200')) as {
-          evaluations?: EvalEntry[];
-          categories?: Record<string, string>;
-        };
+        const result = await api(config).get<ToolDirectoryResponse>('/tools/directory?limit=200');
         if (cancelled) return;
         setCatalog((result.evaluations || []).map(evalToTool));
         setCategories(result.categories || {});
       } catch (err: unknown) {
-        console.error('[chinwag]', (err as Error)?.message || err);
+        console.error('[chinwag]', formatError(err));
         // Fallback to old catalog endpoint if directory isn't deployed yet
         try {
-          const fallback = (await api(config).get('/tools/catalog')) as {
-            tools?: CatalogToolLike[];
-            categories?: Record<string, string>;
-          };
+          const fallback = await api(config).get<ToolCatalogResponse>('/tools/catalog');
           if (cancelled) return;
           setCatalog(fallback.tools || []);
           setCategories(fallback.categories || {});
         } catch (err2: unknown) {
+          console.error('[chinwag] Fallback catalog fetch failed:', formatError(err2));
           if (cancelled) return;
-          setMessage(`Could not fetch tool catalog: ${(err2 as Error).message}`);
+          setMessage(`Could not fetch tool catalog: ${formatError(err2)}`);
         }
       }
       if (cancelled) return;

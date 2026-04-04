@@ -3,6 +3,7 @@ import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import { getInkColor } from './colors.js';
 import type { ChinwagConfig } from './config.js';
+import { formatError } from '@chinwag/shared';
 
 const WS_URL = process.env.CHINWAG_WS_URL || 'wss://chinwag-api.glendonchin.workers.dev/ws/chat';
 
@@ -75,6 +76,32 @@ interface ChatMessage {
   timestamp?: string;
 }
 
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null;
+}
+
+function toChatMessage(v: unknown): ChatMessage | null {
+  if (!isRecord(v)) return null;
+  if (typeof v.type !== 'string') return null;
+  return {
+    type: v.type,
+    content: typeof v.content === 'string' ? v.content : undefined,
+    handle: typeof v.handle === 'string' ? v.handle : undefined,
+    color: typeof v.color === 'string' ? v.color : undefined,
+    timestamp: typeof v.timestamp === 'string' ? v.timestamp : undefined,
+  };
+}
+
+function toChatMessages(v: unknown): ChatMessage[] {
+  if (!Array.isArray(v)) return [];
+  const result: ChatMessage[] = [];
+  for (const item of v) {
+    const msg = toChatMessage(item);
+    if (msg) result.push(msg);
+  }
+  return result;
+}
+
 interface ChatUser {
   handle?: string;
   color?: string;
@@ -127,17 +154,19 @@ export function Chat({ config, user, navigate }: ChatProps): React.ReactNode {
       });
 
       ws.addEventListener('message', (event: MessageEvent) => {
-        let data: Record<string, unknown>;
+        let data: unknown;
         try {
           data = JSON.parse(event.data as string);
         } catch (err: unknown) {
-          console.error('[chinwag]', (err as Error)?.message || err);
+          console.error('[chinwag]', formatError(err));
           return;
         }
 
+        if (!isRecord(data)) return;
+
         if (data.type === 'history') {
-          setMessages((data.messages as ChatMessage[]) || []);
-          setRoomCount((data.roomCount as number) || 0);
+          setMessages(toChatMessages(data.messages));
+          setRoomCount(typeof data.roomCount === 'number' ? data.roomCount : 0);
           return;
         }
 
@@ -146,7 +175,7 @@ export function Chat({ config, user, navigate }: ChatProps): React.ReactNode {
             ...prev.slice(-(CHAT_HISTORY_LIMIT - 1)),
             {
               type: 'system',
-              content: data.content as string,
+              content: typeof data.content === 'string' ? data.content : '',
               timestamp: new Date().toISOString(),
             },
           ]);
@@ -154,12 +183,13 @@ export function Chat({ config, user, navigate }: ChatProps): React.ReactNode {
         }
 
         if (data.type === 'join' || data.type === 'leave') {
-          setRoomCount((data.roomCount as number) || 0);
+          setRoomCount(typeof data.roomCount === 'number' ? data.roomCount : 0);
+          const handle = typeof data.handle === 'string' ? data.handle : 'unknown';
           setMessages((prev) => [
             ...prev.slice(-(CHAT_HISTORY_LIMIT - 1)),
             {
               type: 'system',
-              content: `${data.handle} ${data.type === 'join' ? 'joined' : 'left'}`,
+              content: `${handle} ${data.type === 'join' ? 'joined' : 'left'}`,
               timestamp: new Date().toISOString(),
             },
           ]);
@@ -167,10 +197,10 @@ export function Chat({ config, user, navigate }: ChatProps): React.ReactNode {
         }
 
         if (data.type === 'message') {
-          setMessages((prev) => [
-            ...prev.slice(-(CHAT_HISTORY_LIMIT - 1)),
-            data as unknown as ChatMessage,
-          ]);
+          const msg = toChatMessage(data);
+          if (msg) {
+            setMessages((prev) => [...prev.slice(-(CHAT_HISTORY_LIMIT - 1)), msg]);
+          }
         }
       });
 

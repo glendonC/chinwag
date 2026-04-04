@@ -13,26 +13,28 @@ import type { ChinwagConfig } from '../config.js';
 import { api, initAccount } from '../api.js';
 import { detectTools, configureTool } from '../mcp-config.js';
 import { classifyError } from '../utils/errors.js';
+import type { AuthenticatedUser } from '@chinwag/shared/contracts.js';
+import type { InitAccountResponse, CreateTeamResponse } from '../types/api.js';
 
-// Map chinwag color names to chalk methods
-const CHALK_COLORS: Record<string, string> = {
-  red: 'red',
-  cyan: 'cyan',
-  yellow: 'yellow',
-  green: 'green',
-  magenta: 'magenta',
-  blue: 'blue',
-  orange: 'redBright',
-  lime: 'greenBright',
-  pink: 'magentaBright',
-  sky: 'cyanBright',
-  lavender: 'blueBright',
-  white: 'white',
+// Map chinwag color names to type-safe chalk functions
+const CHALK_COLORS: Record<string, (s: string) => string> = {
+  red: chalk.red,
+  cyan: chalk.cyan,
+  yellow: chalk.yellow,
+  green: chalk.green,
+  magenta: chalk.magenta,
+  blue: chalk.blue,
+  orange: chalk.hex('#ff9b3f'),
+  lime: chalk.greenBright,
+  pink: chalk.magentaBright,
+  sky: chalk.cyanBright,
+  lavender: chalk.hex('#a585ff'),
+  white: chalk.white,
 };
 
 function colorize(text: string, colorName: string): string {
-  const fn = CHALK_COLORS[colorName] || 'white';
-  return (chalk as unknown as Record<string, (s: string) => string>)[fn](text);
+  const fn = CHALK_COLORS[colorName];
+  return fn ? fn(text) : text;
 }
 
 const dim = chalk.dim;
@@ -57,7 +59,7 @@ export async function runInit(): Promise<void> {
   if (configExists()) {
     config = loadConfig() as ChinwagConfig;
     try {
-      const me = (await api(config).get('/me')) as { handle: string; color: string };
+      const me = await api(config).get<AuthenticatedUser>('/me');
       handle = me.handle;
       color = me.color;
       accountVerb = null; // existing, verified
@@ -116,7 +118,7 @@ export async function runInit(): Promise<void> {
   } else {
     try {
       const projectName = basename(cwd);
-      const result = (await client.post('/teams', { name: projectName })) as { team_id: string };
+      const result = await client.post<CreateTeamResponse>('/teams', { name: projectName });
       teamId = result.team_id;
       await client.post(`/teams/${teamId}/join`, { name: projectName });
       writeFileSync(
@@ -187,7 +189,7 @@ export async function runInit(): Promise<void> {
 }
 
 async function createAccount(): Promise<ChinwagConfig> {
-  const result = (await initAccount()) as { token: string; handle: string; color: string };
+  const result = (await initAccount()) as InitAccountResponse;
   const config: ChinwagConfig = { token: result.token, handle: result.handle, color: result.color };
   saveConfig(config);
   return config;

@@ -7,7 +7,9 @@ import { configureTool } from '../mcp-config.js';
 import { configExists, loadConfig } from '../config.js';
 import { api } from '../api.js';
 import { evalToTool } from '../utils/tool-catalog.js';
-import type { CatalogToolLike, EvalEntry } from '../utils/tool-catalog.js';
+import type { CatalogToolLike } from '../utils/tool-catalog.js';
+import type { ToolDirectoryResponse, ToolCatalogResponse } from '@chinwag/shared/contracts.js';
+import { formatError } from '@chinwag/shared';
 
 interface CatalogResult {
   tools: CatalogToolLike[];
@@ -77,24 +79,19 @@ export async function runAdd(toolArg?: string): Promise<void> {
 async function fetchCatalog(): Promise<CatalogResult | null> {
   const config = configExists() ? loadConfig() : null;
   try {
-    const result = (await api(config).get('/tools/directory?limit=200')) as {
-      evaluations?: EvalEntry[];
-      categories?: Record<string, string>;
-    };
+    const result = await api(config).get<ToolDirectoryResponse>('/tools/directory?limit=200');
     return {
       tools: (result.evaluations || []).map(evalToTool),
       categories: result.categories || {},
     };
   } catch (err: unknown) {
-    console.error('[chinwag]', (err as Error)?.message || err);
+    console.error('[chinwag]', formatError(err));
     // Fallback to old catalog endpoint if directory isn't deployed yet
     try {
-      const fallback = (await api(config).get('/tools/catalog')) as {
-        tools?: CatalogToolLike[];
-        categories?: Record<string, string>;
-      };
+      const fallback = await api(config).get<ToolCatalogResponse>('/tools/catalog');
       return { tools: fallback.tools || [], categories: fallback.categories || {} };
-    } catch {
+    } catch (err2: unknown) {
+      console.error('[chinwag] Fallback catalog fetch failed:', formatError(err2));
       console.log('  Could not load tool catalog.');
       return null;
     }

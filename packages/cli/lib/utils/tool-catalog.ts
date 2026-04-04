@@ -21,20 +21,24 @@ export interface CatalogToolLike {
 export interface EvalEntry {
   id: string;
   name: string;
-  tagline: string;
+  tagline?: string;
   category?: string;
-  mcp_support?: boolean;
-  metadata?: { website?: string; install_command?: string; featured?: boolean };
+  mcp_support?: boolean | string;
+  metadata?: Record<string, unknown>;
   verdict?: string;
   confidence?: string;
 }
 
 export function evalToTool(e: EvalEntry): CatalogToolLike {
-  const meta = e.metadata || {};
+  const meta = (e.metadata || {}) as {
+    website?: string;
+    install_command?: string;
+    featured?: boolean;
+  };
   return {
     id: e.id,
     name: e.name,
-    description: e.tagline,
+    description: e.tagline || '',
     category: e.category,
     mcpCompatible: !!e.mcp_support,
     website: meta.website,

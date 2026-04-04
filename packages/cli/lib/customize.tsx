@@ -14,17 +14,23 @@ import { classifyError } from './utils/errors.js';
 import { addToolToProject } from './utils/tool-actions.js';
 import { computeToolRecommendations } from './utils/tool-recommendations.js';
 import { evalToTool } from './utils/tool-catalog.js';
-import type { CatalogToolLike, EvalEntry } from './utils/tool-catalog.js';
+import type { CatalogToolLike } from './utils/tool-catalog.js';
 import { DetectedToolsList, RecommendationsList } from './tool-display.jsx';
 import type { IntegrationScanResult } from '@chinwag/shared/integration-doctor.js';
-import type { ToolCatalogEntry } from '@chinwag/shared/contracts.js';
+import type {
+  ToolCatalogEntry,
+  ToolDirectoryResponse,
+  ToolCatalogResponse,
+} from '@chinwag/shared/contracts.js';
+import type { HandleUpdateResponse } from './types/api.js';
+import { formatError } from '@chinwag/shared';
 
 let PKG_VERSION = '0.1.0';
 try {
   const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf-8'));
   PKG_VERSION = pkg.version;
 } catch (err: unknown) {
-  console.error('[chinwag]', (err as Error)?.message || err);
+  console.error('[chinwag]', formatError(err));
 }
 
 let VSCODE_EXTENSION = { publisher: 'chinwag', name: 'chinwag', version: PKG_VERSION };
@@ -38,7 +44,7 @@ try {
     version: pkg.version || PKG_VERSION,
   };
 } catch (err: unknown) {
-  console.error('[chinwag]', (err as Error)?.message || err);
+  console.error('[chinwag]', formatError(err));
 }
 
 const IDE_COMMAND_SHORTCUT = process.platform === 'darwin' ? 'Cmd+Shift+P' : 'Ctrl+Shift+P';
@@ -296,21 +302,16 @@ export function Customize({
 
     async function fetchCatalog(): Promise<void> {
       try {
-        const result = (await api(config).get('/tools/directory?limit=200')) as {
-          evaluations?: EvalEntry[];
-          categories?: Record<string, string>;
-        };
+        const result = await api(config).get<ToolDirectoryResponse>('/tools/directory?limit=200');
         setTools((prev) => ({ ...prev, catalog: (result.evaluations || []).map(evalToTool) }));
       } catch (err: unknown) {
-        console.error('[chinwag]', (err as Error)?.message || err);
+        console.error('[chinwag]', formatError(err));
         try {
-          const fallback = (await api(config).get('/tools/catalog')) as {
-            tools?: CatalogToolLike[];
-            categories?: Record<string, string>;
-          };
+          const fallback = await api(config).get<ToolCatalogResponse>('/tools/catalog');
           setTools((prev) => ({ ...prev, catalog: fallback.tools || [] }));
         } catch (err2: unknown) {
-          showFlash(`Could not fetch tool catalog: ${(err2 as Error).message}`, 'error');
+          console.error('[chinwag] Fallback catalog fetch failed:', formatError(err2));
+          showFlash(`Could not fetch tool catalog: ${formatError(err2)}`, 'error');
         }
       }
       setTools((prev) => ({ ...prev, loading: false }));
@@ -331,7 +332,7 @@ export function Customize({
       try {
         cpSync(join(IDE_EXTENSION_DIR, 'logo-mark.svg'), join(target, 'logo-mark.svg'));
       } catch (err: unknown) {
-        console.error('[chinwag]', (err as Error)?.message || err);
+        console.error('[chinwag]', formatError(err));
       }
       showFlash(
         wasInstalled
@@ -339,7 +340,7 @@ export function Customize({
           : `Installed — restart IDE, then ${IDE_COMMAND_SHORTCUT} → "chinwag: Open Dashboard"`,
       );
     } catch (err: unknown) {
-      console.error('[chinwag]', (err as Error)?.message || err);
+      console.error('[chinwag]', formatError(err));
       if (wasInstalled) {
         showFlash(`${IDE_COMMAND_SHORTCUT} → "chinwag: Open Dashboard"`);
       } else {
@@ -370,9 +371,9 @@ export function Customize({
     if (!newHandle) return;
 
     try {
-      const result = (await api(config).put('/me/handle', { handle: newHandle })) as {
-        error?: string;
-      };
+      const result = await api(config).put<HandleUpdateResponse>('/me/handle', {
+        handle: newHandle,
+      });
       if (result.error) {
         setFlash({ type: 'error', text: result.error });
         return;

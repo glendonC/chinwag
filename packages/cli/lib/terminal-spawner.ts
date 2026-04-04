@@ -4,6 +4,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 import { safeAgentId, isProcessAlive } from '@chinwag/shared/session-registry.js';
 import { escapeAppleScriptString } from './utils/shell.js';
+import { formatError } from '@chinwag/shared';
 
 const EXEC_TIMEOUT_MS = 10000;
 const PIDS_DIR = join(homedir(), '.chinwag', 'pids');
@@ -131,7 +132,7 @@ function spawnInTmux(shellCommand: string, cwd?: string): SpawnResult {
     execFileSync('tmux', args, { stdio: 'ignore', timeout: EXEC_TIMEOUT_MS });
     return { ok: true };
   } catch (err: unknown) {
-    return { ok: false, error: (err as Error).message };
+    return { ok: false, error: formatError(err) };
   }
 }
 
@@ -151,7 +152,7 @@ function spawnInIdeTerminal(shellCommand: string, cwd?: string, toolName?: strin
     );
     return { ok: true };
   } catch (err: unknown) {
-    console.error('[chinwag]', (err as Error)?.message || err);
+    console.error('[chinwag]', formatError(err));
     // Fallback to platform terminal if file write fails
     if (process.platform === 'darwin') return spawnInMacosTerminal(shellCommand);
     if (process.platform === 'linux') return spawnOnLinux(shellCommand);
@@ -175,7 +176,7 @@ function spawnInIterm2(shellCommand: string): SpawnResult {
     execFileSync('osascript', ['-e', script], { stdio: 'ignore', timeout: EXEC_TIMEOUT_MS });
     return { ok: true };
   } catch (err: unknown) {
-    return { ok: false, error: (err as Error).message };
+    return { ok: false, error: formatError(err) };
   }
 }
 
@@ -193,7 +194,7 @@ function spawnInMacosTerminal(shellCommand: string): SpawnResult {
     );
     return { ok: true };
   } catch (err: unknown) {
-    return { ok: false, error: (err as Error).message };
+    return { ok: false, error: formatError(err) };
   }
 }
 
@@ -209,7 +210,7 @@ function spawnOnLinux(shellCommand: string): SpawnResult {
       execFileSync(cmd, args, { stdio: 'ignore', timeout: EXEC_TIMEOUT_MS });
       return { ok: true };
     } catch (err: unknown) {
-      console.error('[chinwag]', (err as Error)?.message || err);
+      console.error('[chinwag]', formatError(err));
     }
   }
   return { ok: false, error: 'No terminal emulator found' };
@@ -224,7 +225,7 @@ function spawnOnWindows(shellCommand: string): SpawnResult {
       });
       return { ok: true };
     } catch (err: unknown) {
-      console.error('[chinwag]', (err as Error)?.message || err);
+      console.error('[chinwag]', formatError(err));
     }
     execFileSync('cmd', ['/c', 'start', '', 'cmd', '/k', shellCommand], {
       stdio: 'ignore',
@@ -232,7 +233,7 @@ function spawnOnWindows(shellCommand: string): SpawnResult {
     });
     return { ok: true };
   } catch (err: unknown) {
-    return { ok: false, error: (err as Error).message };
+    return { ok: false, error: formatError(err) };
   }
 }
 
@@ -272,7 +273,7 @@ export function readPidFile(agentId: string): number | null {
     const pid = parseInt(content, 10);
     return Number.isFinite(pid) && pid > 0 ? pid : null;
   } catch (err: unknown) {
-    console.error('[chinwag]', (err as Error)?.message || err);
+    console.error('[chinwag]', formatError(err));
     return null;
   }
 }
@@ -283,7 +284,7 @@ export function cleanPidFile(agentId: string): void {
     const pidPath = join(PIDS_DIR, `${safe}.pid`);
     if (existsSync(pidPath)) unlinkSync(pidPath);
   } catch (err: unknown) {
-    console.error('[chinwag]', (err as Error)?.message || err);
+    console.error('[chinwag]', formatError(err));
   }
 }
 
@@ -294,12 +295,12 @@ export function killByPid(pid: number): boolean {
       try {
         process.kill(pid, 'SIGKILL');
       } catch (err: unknown) {
-        console.error('[chinwag]', (err as Error)?.message || err);
+        console.error('[chinwag]', formatError(err));
       }
     }, KILL_GRACE_MS);
     return true;
   } catch (err: unknown) {
-    console.error('[chinwag]', (err as Error)?.message || err);
+    console.error('[chinwag]', formatError(err));
     return false;
   }
 }

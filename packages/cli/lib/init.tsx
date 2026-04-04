@@ -5,6 +5,7 @@ import type { ChinwagConfig } from './config.js';
 import { initAccount } from './api.js';
 import { getInkColor } from './colors.js';
 import { classifyInitError } from './utils/errors.js';
+import { formatError } from '@chinwag/shared';
 
 interface AccountResult {
   token: string;
@@ -50,7 +51,7 @@ export function Welcome({ onComplete }: WelcomeProps): React.ReactNode {
         setState('ready');
       } catch (err: unknown) {
         setError({
-          message: (err as Error).message || 'Failed to connect to server',
+          message: formatError(err),
           status: (err as { status?: number }).status,
         });
         setState('error');

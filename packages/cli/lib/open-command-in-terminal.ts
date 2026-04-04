@@ -5,6 +5,7 @@ import { shellQuote, escapeAppleScriptString } from './utils/shell.js';
 import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
+import { formatError } from '@chinwag/shared';
 
 const EXEC_TIMEOUT_MS = 10000;
 
@@ -26,7 +27,7 @@ export function openCommandInTerminal(command: string, cwd: string = process.cwd
       );
       return { ok: true };
     } catch (err: unknown) {
-      console.error('[chinwag]', (err as Error)?.message || err);
+      console.error('[chinwag]', formatError(err));
       // fall through to platform spawners
     }
   }
@@ -61,7 +62,7 @@ export function openCommandInTerminal(command: string, cwd: string = process.cwd
           execFileSync(cmd, args, { stdio: 'ignore', timeout: EXEC_TIMEOUT_MS });
           return { ok: true };
         } catch (err: unknown) {
-          console.error('[chinwag]', (err as Error)?.message || err);
+          console.error('[chinwag]', formatError(err));
         }
       }
 
@@ -79,6 +80,6 @@ export function openCommandInTerminal(command: string, cwd: string = process.cwd
 
     return { ok: false, error: 'Unsupported platform' };
   } catch (err: unknown) {
-    return { ok: false, error: (err as Error).message || 'Could not open terminal' };
+    return { ok: false, error: formatError(err) };
   }
 }

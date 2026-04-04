@@ -5,6 +5,7 @@ import { isAgentAddressable, getAgentTargetLabel } from './agent-display.js';
 import type { ChinwagConfig } from '../config.js';
 import type { CombinedAgentRow } from './view.js';
 import type { NoticeTone } from './reducer.js';
+import { formatError } from '@chinwag/shared';
 
 export type ComposeMode = 'command' | 'targeted' | 'memory-search' | 'memory-add' | null;
 
@@ -128,7 +129,7 @@ export function useComposer({
         flash(targetLabel ? `Sent to ${targetLabel}` : 'Sent to team', { tone: 'success' });
         bumpRefreshKey();
       } catch (err: unknown) {
-        console.error('[chinwag] Could not send message:', (err as Error)?.message || err);
+        console.error('[chinwag] Could not send message:', formatError(err));
         flash('Send failed \u2014 message preserved, try again', {
           tone: 'error',
           autoClearMs: 5000,
