@@ -6,6 +6,7 @@ import { detectTools } from '../mcp-config.js';
 import { getProjectContext } from '../project.js';
 import { SPINNER } from './utils.js';
 import { SPINNER_INTERVAL_MS } from './constants.js';
+import { useTimerRegistry } from './use-timer-registry.js';
 import { classifyError } from '../utils/errors.js';
 import { hasError } from '../utils/type-guards.js';
 import type { ChinwagConfig } from '../config.js';
@@ -166,6 +167,7 @@ export function useDashboardConnection({
 
   // ── WebSocket connection with polling fallback ───
   const wsRef = useRef<WebSocket | null>(null);
+  const timers = useTimerRegistry();
 
   useEffect(() => {
     if (!teamId) return;
@@ -176,31 +178,6 @@ export function useDashboardConnection({
     let reconcileInterval: ReturnType<typeof setInterval> | null = null;
     let wsConnectTimeout: ReturnType<typeof setTimeout> | null = null;
     let destroyed = false;
-
-    // ── Tracked timer registry ──────────────────────
-    const timers = new Set<ReturnType<typeof setTimeout>>();
-    function setTrackedTimeout(fn: () => void, ms: number): ReturnType<typeof setTimeout> {
-      const id = setTimeout(fn, ms);
-      timers.add(id);
-      return id;
-    }
-    function clearTrackedTimeout(id: ReturnType<typeof setTimeout> | null): void {
-      if (id != null) {
-        clearTimeout(id);
-        timers.delete(id);
-      }
-    }
-    function setTrackedInterval(fn: () => void, ms: number): ReturnType<typeof setInterval> {
-      const id = setInterval(fn, ms);
-      timers.add(id);
-      return id;
-    }
-    function clearTrackedInterval(id: ReturnType<typeof setInterval> | null): void {
-      if (id != null) {
-        clearInterval(id);
-        timers.delete(id);
-      }
-    }
 
     async function fetchContextOnce(): Promise<void> {
       if (!joined.current) {
@@ -254,7 +231,7 @@ export function useDashboardConnection({
     function startPolling(): void {
       if (destroyed || pollInterval) return;
       function schedulePoll(): void {
-        pollInterval = setTrackedTimeout(async () => {
+        pollInterval = timers.setTimeout(async () => {
           if (destroyed) return;
           try {
             await fetchContextOnce();
@@ -269,7 +246,7 @@ export function useDashboardConnection({
 
     function stopPolling(): void {
       if (pollInterval) {
-        clearTrackedTimeout(pollInterval);
+        timers.clearTimeout(pollInterval);
         pollInterval = null;
       }
     }
@@ -303,7 +280,7 @@ export function useDashboardConnection({
         const ws = new WebSocket(wsUrl);
 
         // Timeout: if still CONNECTING after 10s, close and fall back to polling
-        wsConnectTimeout = setTrackedTimeout(() => {
+        wsConnectTimeout = timers.setTimeout(() => {
           if (ws.readyState === WebSocket.CONNECTING) {
             ws.close();
             startPolling();
@@ -312,7 +289,7 @@ export function useDashboardConnection({
 
         ws.onopen = (): void => {
           if (wsConnectTimeout) {
-            clearTrackedTimeout(wsConnectTimeout);
+            timers.clearTimeout(wsConnectTimeout);
             wsConnectTimeout = null;
           }
           if (destroyed) {
@@ -323,8 +300,8 @@ export function useDashboardConnection({
           setConnState('connected');
           setConnDetail(null);
           // Full reconciliation every 60s to correct drift
-          if (reconcileInterval) clearTrackedInterval(reconcileInterval);
-          reconcileInterval = setTrackedInterval(async () => {
+          if (reconcileInterval) timers.clearInterval(reconcileInterval);
+          reconcileInterval = timers.setInterval(async () => {
             try {
               await fetchContextOnce();
             } catch (err: unknown) {
@@ -351,7 +328,7 @@ export function useDashboardConnection({
           if (destroyed) return;
           wsRef.current = null;
           if (reconcileInterval) {
-            clearTrackedInterval(reconcileInterval);
+            timers.clearInterval(reconcileInterval);
             reconcileInterval = null;
           }
           startPolling();
@@ -372,11 +349,7 @@ export function useDashboardConnection({
 
     return () => {
       destroyed = true;
-      for (const id of timers) {
-        clearTimeout(id);
-        clearInterval(id);
-      }
-      timers.clear();
+      timers.clearAll();
       if (wsRef.current) {
         try {
           wsRef.current.close();
@@ -386,7 +359,7 @@ export function useDashboardConnection({
         wsRef.current = null;
       }
     };
-  }, [teamId, teamName, refreshKey, config]);
+  }, [teamId, teamName, refreshKey, config, timers]);
 
   function retry(): void {
     setError(null);

@@ -89,6 +89,50 @@ export function useData(): DataContextValue {
   return ctx;
 }
 
+/** Focused selector for agent-related data from DataProvider. */
+export function useAgentData(): Pick<
+  DataContextValue,
+  | 'combinedAgents'
+  | 'liveAgents'
+  | 'allVisibleAgents'
+  | 'selectedAgent'
+  | 'mainSelectedAgent'
+  | 'hasLiveAgents'
+  | 'liveAgentNameCounts'
+  | 'visibleSessionRows'
+  | 'conflicts'
+  | 'getToolName'
+> {
+  const data = useData();
+  return {
+    combinedAgents: data.combinedAgents,
+    liveAgents: data.liveAgents,
+    allVisibleAgents: data.allVisibleAgents,
+    selectedAgent: data.selectedAgent,
+    mainSelectedAgent: data.mainSelectedAgent,
+    hasLiveAgents: data.hasLiveAgents,
+    liveAgentNameCounts: data.liveAgentNameCounts,
+    visibleSessionRows: data.visibleSessionRows,
+    conflicts: data.conflicts,
+    getToolName: data.getToolName,
+  };
+}
+
+/** Focused selector for memory-related data from DataProvider. */
+export function useMemoryData(): Pick<
+  DataContextValue,
+  'memories' | 'filteredMemories' | 'visibleMemories' | 'visibleKnowledgeRows' | 'hasMemories'
+> {
+  const data = useData();
+  return {
+    memories: data.memories,
+    filteredMemories: data.filteredMemories,
+    visibleMemories: data.visibleMemories,
+    visibleKnowledgeRows: data.visibleKnowledgeRows,
+    hasMemories: data.hasMemories,
+  };
+}
+
 // ── Providers ───────────────────────────────────────
 
 interface ViewProviderProps {

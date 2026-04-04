@@ -184,6 +184,116 @@ export function CommandBar({
   );
 }
 
+// ── Agents table ────────────────────────────────────
+
+interface AgentsTableProps {
+  agents: CombinedAgentRow[];
+  visibleRows: { items: CombinedAgentRow[]; start: number };
+  selectedIdx: number;
+  mainFocus: string;
+  liveAgentNameCounts: Map<string, number>;
+  allVisibleAgents: CombinedAgentRow[];
+  cols: number;
+}
+
+function AgentsTable({
+  agents: allAgents,
+  visibleRows,
+  selectedIdx,
+  mainFocus,
+  liveAgentNameCounts,
+  allVisibleAgents,
+  cols,
+}: AgentsTableProps): React.ReactNode {
+  const toolColWidth =
+    Math.max(
+      4,
+      ...allAgents.map(
+        (a) => getAgentDisplayLabel(a, liveAgentNameCounts, allVisibleAgents).length,
+      ),
+    ) + 1;
+  const glyphColWidth = 2;
+  const maxActivity = cols ? cols - 4 - glyphColWidth - toolColWidth : Infinity;
+
+  return (
+    <Box flexDirection="column" marginTop={1}>
+      {visibleRows.items.map((agent, idx) => {
+        const absoluteIdx = visibleRows.start + idx;
+        const isSelected = absoluteIdx === selectedIdx;
+        const sel = isSelected && mainFocus === 'agents';
+        const isDone = agent._dead;
+        const isFailed = agent._failed;
+        const intent = getAgentIntent(agent);
+        const isIdle = !intent || /idle/i.test(intent);
+        const activity = isDone
+          ? agent.outputPreview || (isFailed ? 'exited with error' : 'completed')
+          : isIdle
+            ? agent._duration
+              ? `connected ${agent._duration}`
+              : '\u2013'
+            : intent;
+        const originGlyph = agent._managed ? '●' : '○';
+        const glyphColor = isDone ? (isFailed ? 'red' : 'gray') : isIdle ? 'yellow' : 'green';
+        const activityColor = isDone ? undefined : getIntentColor(intent);
+        const label = getAgentDisplayLabel(agent, liveAgentNameCounts, allVisibleAgents).padEnd(
+          toolColWidth,
+        );
+        return (
+          <Text key={agent.agent_id || agent.id}>
+            <Text color={sel ? 'cyan' : 'gray'}>{sel ? '\u203A ' : '  '}</Text>
+            <Text color={glyphColor} dimColor={isDone}>
+              {originGlyph}{' '}
+            </Text>
+            <Text bold={sel} dimColor={isDone}>
+              {label}
+            </Text>
+            <Text color={activityColor} dimColor={isDone}>
+              {truncateText(activity, maxActivity)}
+            </Text>
+          </Text>
+        );
+      })}
+    </Box>
+  );
+}
+
+// ── Tool picker overlay ─────────────────────────────
+
+interface ToolPickerOverlayProps {
+  agents: UseAgentLifecycleReturn;
+}
+
+function ToolPickerOverlay({ agents }: ToolPickerOverlayProps): React.ReactNode {
+  const tools =
+    agents.readyCliAgents.length > 0 ? agents.readyCliAgents : agents.installedCliAgents;
+  const termEnv = detectTerminalEnvironment();
+
+  return (
+    <Box flexDirection="column" marginTop={1}>
+      <Text>
+        <Text dimColor>Opens in: </Text>
+        <Text>{termEnv.name}</Text>
+      </Text>
+      <Box flexDirection="column" marginTop={1}>
+        {tools.map((tool, idx) => (
+          <Text key={tool.id}>
+            <Text color={idx === agents.toolPickerIdx ? 'cyan' : 'gray'}>
+              {idx === agents.toolPickerIdx ? '\u203A ' : '  '}
+            </Text>
+            <Text color={idx === agents.toolPickerIdx ? 'cyan' : 'white'}>{tool.name}</Text>
+          </Text>
+        ))}
+      </Box>
+      <Text dimColor>
+        {'\n'}
+        {'\u2191\u2193'} select {'\u00B7'} enter open {'\u00B7'} esc cancel
+      </Text>
+    </Box>
+  );
+}
+
+// ── Main pane ───────────────────────────────────────
+
 interface MainPaneConnectionProps {
   connState: string;
   connDetail: string | null;
@@ -264,65 +374,15 @@ export function MainPane({
         {allVisibleAgents.length === 0 ? (
           <Text dimColor> No agents connected. Press [n] to start one.</Text>
         ) : (
-          (() => {
-            const toolColWidth =
-              Math.max(
-                4,
-                ...allVisibleAgents.map(
-                  (a) => getAgentDisplayLabel(a, liveAgentNameCounts, allVisibleAgents).length,
-                ),
-              ) + 1;
-            const glyphColWidth = 2; // "● " or "○ "
-            const maxActivity = cols ? cols - 4 - glyphColWidth - toolColWidth : Infinity;
-            return (
-              <Box flexDirection="column" marginTop={1}>
-                {visibleSessionRows.items.map((agent, idx) => {
-                  const absoluteIdx = visibleSessionRows.start + idx;
-                  const isSelected = absoluteIdx === selectedIdx;
-                  const sel = isSelected && mainFocus === 'agents';
-                  const isDone = agent._dead;
-                  const isFailed = agent._failed;
-                  const intent = getAgentIntent(agent);
-                  const isIdle = !intent || /idle/i.test(intent);
-                  const activity = isDone
-                    ? agent.outputPreview || (isFailed ? 'exited with error' : 'completed')
-                    : isIdle
-                      ? agent._duration
-                        ? `connected ${agent._duration}`
-                        : '\u2013'
-                      : intent;
-                  const originGlyph = agent._managed ? '●' : '○';
-                  const glyphColor = isDone
-                    ? isFailed
-                      ? 'red'
-                      : 'gray'
-                    : isIdle
-                      ? 'yellow'
-                      : 'green';
-                  const activityColor = isDone ? undefined : getIntentColor(intent);
-                  const label = getAgentDisplayLabel(
-                    agent,
-                    liveAgentNameCounts,
-                    allVisibleAgents,
-                  ).padEnd(toolColWidth);
-                  return (
-                    <Text key={agent.agent_id || agent.id}>
-                      <Text color={sel ? 'cyan' : 'gray'}>{sel ? '\u203A ' : '  '}</Text>
-                      <Text color={glyphColor} dimColor={isDone}>
-                        {originGlyph}{' '}
-                      </Text>
-                      <Text bold={sel} dimColor={isDone}>
-                        {label}
-                      </Text>
-                      <Text color={activityColor} dimColor={isDone}>
-                        {truncateText(activity, maxActivity)}
-                      </Text>
-                    </Text>
-                  );
-                })}
-              </Box>
-            );
-          })()
+          <AgentsTable
+            agents={allVisibleAgents}
+            visibleRows={visibleSessionRows}
+            selectedIdx={selectedIdx}
+            mainFocus={mainFocus}
+            liveAgentNameCounts={liveAgentNameCounts}
+            allVisibleAgents={allVisibleAgents}
+            cols={cols}
+          />
         )}
       </Box>
 
@@ -371,34 +431,7 @@ export function MainPane({
 
       <NoticeLine notice={notice} />
 
-      {agents.toolPickerOpen &&
-        (() => {
-          const tools =
-            agents.readyCliAgents.length > 0 ? agents.readyCliAgents : agents.installedCliAgents;
-          const termEnv = detectTerminalEnvironment();
-          return (
-            <Box flexDirection="column" marginTop={1}>
-              <Text>
-                <Text dimColor>Opens in: </Text>
-                <Text>{termEnv.name}</Text>
-              </Text>
-              <Box flexDirection="column" marginTop={1}>
-                {tools.map((tool, idx) => (
-                  <Text key={tool.id}>
-                    <Text color={idx === agents.toolPickerIdx ? 'cyan' : 'gray'}>
-                      {idx === agents.toolPickerIdx ? '\u203A ' : '  '}
-                    </Text>
-                    <Text color={idx === agents.toolPickerIdx ? 'cyan' : 'white'}>{tool.name}</Text>
-                  </Text>
-                ))}
-              </Box>
-              <Text dimColor>
-                {'\n'}
-                {'\u2191\u2193'} select {'\u00B7'} enter open {'\u00B7'} esc cancel
-              </Text>
-            </Box>
-          );
-        })()}
+      {agents.toolPickerOpen && <ToolPickerOverlay agents={agents} />}
 
       {composer.isComposing && (
         <Box paddingTop={1} flexDirection="column">
