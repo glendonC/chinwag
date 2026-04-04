@@ -2,7 +2,7 @@
 
 import type { Env, User } from '../../types.js';
 import { checkContent } from '../../moderation.js';
-import { getDB, getTeam } from '../../lib/env.js';
+import { getDB, getTeam, rpc } from '../../lib/env.js';
 import { getErrorMessage } from '../../lib/errors.js';
 import { json } from '../../lib/http.js';
 import { createLogger } from '../../lib/logger.js';
@@ -58,8 +58,8 @@ export async function handleTeamJoin(
     RATE_LIMIT_JOINS,
     'Team join limit reached (100/day). Try again tomorrow.',
     async () => {
-      const result = await (team as any).join(agentId, user.id, user.handle, runtime);
-      if (result.error) {
+      const result = rpc(await team.join(agentId, user.id, user.handle, runtime));
+      if ('error' in result) {
         auditLog('team.join', {
           actor: user.handle,
           outcome: 'failure',
@@ -68,20 +68,7 @@ export async function handleTeamJoin(
         return json({ error: result.error }, 400);
       }
 
-      const dbResult = await (db as any).addUserTeam(user.id, teamId, name);
-      if (dbResult.error) {
-        log.error('failed to sync joined team', { teamId, userId: user.id, error: dbResult.error });
-        // Roll back: leave the team since the DB record failed
-        await (team as any).leave(agentId, user.id).catch((err: unknown) => {
-          log.error('rollback leave failed', { teamId, agentId, error: getErrorMessage(err) });
-        });
-        auditLog('team.join', {
-          actor: user.handle,
-          outcome: 'failure',
-          meta: { team_id: teamId, reason: 'db_sync_failed' },
-        });
-        return json({ error: 'Failed to record team membership' }, 500);
-      }
+      await db.addUserTeam(user.id, teamId, name);
 
       auditLog('team.join', {
         actor: user.handle,
@@ -101,8 +88,8 @@ export async function handleTeamLeave(
 ): Promise<Response> {
   const { agentId } = getAgentRuntime(request, user);
   const team = getTeam(env, teamId);
-  const result = await (team as any).leave(agentId, user.id);
-  if (result.error) {
+  const result = rpc(await team.leave(agentId, user.id));
+  if ('error' in result) {
     auditLog('team.leave', {
       actor: user.handle,
       outcome: 'failure',
@@ -117,12 +104,7 @@ export async function handleTeamLeave(
   });
 
   const db = getDB(env);
-  const dbResult = await (db as any).removeUserTeam(user.id, teamId);
-  if (dbResult.error) {
-    log.error('failed to remove team', { teamId, userId: user.id, error: dbResult.error });
-    // The agent already left the team DO -- the DB record is stale but not critical.
-    // Return success but log the inconsistency.
-  }
+  await db.removeUserTeam(user.id, teamId);
 
   return json(result);
 }
@@ -135,18 +117,14 @@ export async function handleTeamContext(
 ): Promise<Response> {
   const { agentId } = getAgentRuntime(request, user);
   const team = getTeam(env, teamId);
-  const result = await (team as any).getContext(agentId, user.id);
-  if (result.error) {
+  const result = rpc(await team.getContext(agentId, user.id));
+  if ('error' in result) {
     log.warn(`getContext failed: ${result.error}`);
     return json({ error: result.error }, 403);
   }
 
   const db = getDB(env);
-  const dbResult = await (db as any).addUserTeam(user.id, teamId);
-  if (dbResult.error) {
-    log.warn('failed to backfill team', { teamId, userId: user.id, error: dbResult.error });
-    // Backfill failure is non-blocking — context was already retrieved successfully
-  }
+  await db.addUserTeam(user.id, teamId);
 
   return json(result);
 }
@@ -159,8 +137,8 @@ export async function handleTeamHeartbeat(
 ): Promise<Response> {
   const { agentId } = getAgentRuntime(request, user);
   const team = getTeam(env, teamId);
-  const result = await (team as any).heartbeat(agentId, user.id);
-  if (result.error) {
+  const result = rpc(await team.heartbeat(agentId, user.id));
+  if ('error' in result) {
     log.warn(`heartbeat failed: ${result.error}`);
     return json({ error: result.error }, teamErrorStatus(result));
   }
@@ -183,7 +161,7 @@ export async function handleTeamWebSocket(
   wsUrl.searchParams.set('agentId', agentId);
   wsUrl.searchParams.set('ownerId', user.id);
 
-  return (team as any).fetch(
+  return team.fetch(
     new Request(wsUrl.toString(), {
       headers: {
         'X-Chinwag-Verified': '1',

@@ -79,12 +79,13 @@ async function moderateWithAI(text: string, env: Env): Promise<AIResult> {
   }
 
   try {
-    const response = await (env.AI as any).run('@cf/meta/llama-guard-3-8b', {
+    const response = await env.AI.run('@cf/meta/llama-guard-3-8b', {
       messages: [{ role: 'user', content: text }],
       max_tokens: 64,
     });
 
-    const output = ((response as any).response || '').trim().toLowerCase();
+    const raw = response.response;
+    const output = (typeof raw === 'string' ? raw : '').trim().toLowerCase();
 
     // Guard: empty or completely unexpected output -- fail-safe (treat as flagged)
     if (!output) {

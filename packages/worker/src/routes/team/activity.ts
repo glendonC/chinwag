@@ -2,7 +2,7 @@
 
 import type { Env, User } from '../../types.js';
 import { checkContent } from '../../moderation.js';
-import { getDB, getTeam } from '../../lib/env.js';
+import { getDB, getTeam, rpc } from '../../lib/env.js';
 import { json, parseBody } from '../../lib/http.js';
 import { getAgentRuntime, teamErrorStatus } from '../../lib/request-utils.js';
 import { requireJson, validateFileArray, withRateLimit } from '../../lib/validation.js';
@@ -58,8 +58,8 @@ export async function handleTeamActivity(
 
   const { agentId } = getAgentRuntime(request, user);
   const team = getTeam(env, teamId);
-  const result = await (team as any).updateActivity(agentId, files, summary, user.id);
-  if (result.error) {
+  const result = rpc(await team.updateActivity(agentId, files as string[], summary, user.id));
+  if ('error' in result) {
     log.warn(`updateActivity failed: ${result.error}`);
     return json({ error: result.error }, teamErrorStatus(result));
   }
@@ -83,8 +83,8 @@ export async function handleTeamConflicts(
 
   const { agentId } = getAgentRuntime(request, user);
   const team = getTeam(env, teamId);
-  const result = await (team as any).checkConflicts(agentId, files, user.id);
-  if (result.error) {
+  const result = rpc(await team.checkConflicts(agentId, files as string[], user.id));
+  if ('error' in result) {
     log.warn(`checkConflicts failed: ${result.error}`);
     return json({ error: result.error }, 403);
   }
@@ -120,8 +120,8 @@ export async function handleTeamFile(
     RATE_LIMIT_FILE_REPORTS,
     'File report limit reached (500/day). Try again tomorrow.',
     async () => {
-      const result = await (team as any).reportFile(agentId, file, user.id);
-      if (result.error) {
+      const result = rpc(await team.reportFile(agentId, file, user.id));
+      if ('error' in result) {
         log.warn(`reportFile failed: ${result.error}`);
         return json({ error: result.error }, teamErrorStatus(result));
       }
@@ -155,14 +155,10 @@ export async function handleTeamStartSession(
     RATE_LIMIT_SESSIONS,
     'Session limit reached. Try again tomorrow.',
     async () => {
-      const result = await (team as any).startSession(
-        agentId,
-        user.handle,
-        framework,
-        runtime,
-        user.id,
+      const result = rpc(
+        await team.startSession(agentId, user.handle, framework, runtime, user.id),
       );
-      if (result.error) {
+      if ('error' in result) {
         log.warn(`startSession failed: ${result.error}`);
         return json({ error: result.error }, teamErrorStatus(result));
       }
@@ -194,8 +190,8 @@ export async function handleTeamEndSession(
 
   const { agentId } = getAgentRuntime(request, user);
   const team = getTeam(env, teamId);
-  const result = await (team as any).endSession(agentId, session_id, user.id);
-  if (result.error) {
+  const result = rpc(await team.endSession(agentId, session_id, user.id));
+  if ('error' in result) {
     log.warn(`endSession failed: ${result.error}`);
     return json({ error: result.error }, teamErrorStatus(result));
   }
@@ -234,8 +230,8 @@ export async function handleTeamSessionEdit(
     RATE_LIMIT_EDITS,
     'Edit recording limit reached. Try again tomorrow.',
     async () => {
-      const result = await (team as any).recordEdit(agentId, file, user.id);
-      if (result.error) {
+      const result = rpc(await team.recordEdit(agentId, file, user.id));
+      if ('error' in result) {
         log.warn(`recordEdit failed: ${result.error}`);
         return json({ error: result.error }, teamErrorStatus(result));
       }
@@ -259,8 +255,8 @@ export async function handleTeamHistory(
 
   const { agentId } = getAgentRuntime(request, user);
   const team = getTeam(env, teamId);
-  const result = await (team as any).getHistory(agentId, days, user.id);
-  if (result.error) {
+  const result = rpc(await team.getHistory(agentId, days, user.id));
+  if ('error' in result) {
     log.warn(`getHistory failed: ${result.error}`);
     return json({ error: result.error }, 403);
   }
@@ -288,8 +284,8 @@ export async function handleTeamEnrichModel(
 
   const { agentId } = getAgentRuntime(request, user);
   const team = getTeam(env, teamId);
-  const result = await (team as any).enrichModel(agentId, model.trim(), user.id);
-  if (result.error) {
+  const result = rpc(await team.enrichModel(agentId, model.trim(), user.id));
+  if ('error' in result) {
     log.warn(`enrichModel failed: ${result.error}`);
     return json({ error: result.error }, teamErrorStatus(result));
   }

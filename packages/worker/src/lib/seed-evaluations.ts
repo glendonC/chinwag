@@ -23,7 +23,7 @@ interface CatalogEntry {
   mcpConfigurable?: boolean;
 }
 
-interface SeedEvaluation {
+interface SeedEvaluation extends Record<string, unknown> {
   id: string;
   name: string;
   tagline: string | null;
@@ -89,8 +89,11 @@ function catalogEntryToEvaluation(entry: CatalogEntry): SeedEvaluation {
   };
 }
 
-export async function seedEvaluations(db: DurableObjectStub): Promise<void> {
+/** Accepts either a DatabaseDO instance (self-seeding) or a DurableObjectStub<DatabaseDO>. */
+export async function seedEvaluations(db: {
+  saveEvaluation(e: Record<string, unknown>): Promise<{ ok: true }>;
+}): Promise<void> {
   for (const entry of TOOL_CATALOG as CatalogEntry[]) {
-    await (db as any).saveEvaluation(catalogEntryToEvaluation(entry));
+    await db.saveEvaluation(catalogEntryToEvaluation(entry));
   }
 }

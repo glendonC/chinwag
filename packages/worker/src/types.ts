@@ -5,8 +5,9 @@
 
 // Forward-reference DO classes for Env typing.
 // import type is erased at compile time, avoiding circular dependency issues.
-// Phase 2 complete: DO classes are now .ts, so we use generic DurableObjectNamespace<T>
-// for type-safe RPC calls. Route handlers still use `as any` for DO stubs (Phase 3).
+// Phase 3 complete: DO classes are .ts with generic DurableObjectNamespace<T>, and
+// lib/env.ts returns fully parameterized DurableObjectStub<T>. Route handlers call
+// DO methods directly without `as any` casts.
 import type { DatabaseDO } from './dos/database/index.js';
 import type { LobbyDO } from './lobby.js';
 import type { RoomDO } from './room.js';
@@ -61,6 +62,7 @@ export interface NewUser {
 
 /** Normalized runtime metadata extracted from request headers. */
 export interface AgentRuntime {
+  [key: string]: unknown;
   agentId: string;
   hostTool: string;
   agentSurface: string | null;
@@ -349,7 +351,7 @@ export interface Env {
   ROOM: DurableObjectNamespace<RoomDO>;
   TEAM: DurableObjectNamespace<TeamDO>;
   AUTH_KV: KVNamespace;
-  AI: unknown;
+  AI: Ai;
   ENVIRONMENT: string;
   DASHBOARD_URL: string;
   GITHUB_CLIENT_ID?: string;

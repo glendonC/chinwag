@@ -517,7 +517,7 @@ export class DatabaseDO extends DurableObject<Env> {
     this.#ensureSchema();
     const { count } = hasEvalsFn(this.sql);
     if (count === 0) {
-      await seedEvaluations(this as unknown as DurableObjectStub);
+      await seedEvaluations(this);
     }
     this.#evaluationsSeeded = true;
   }

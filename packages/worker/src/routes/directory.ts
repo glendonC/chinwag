@@ -1,5 +1,5 @@
 import type { Env, User } from '../types.js';
-import { getDB } from '../lib/env.js';
+import { getDB, rpc } from '../lib/env.js';
 import { json, parseBody } from '../lib/http.js';
 import { createLogger } from '../lib/logger.js';
 import { requireJson, withRateLimit, withIpRateLimit } from '../lib/validation.js';
@@ -46,26 +46,21 @@ export async function handleListDirectory(request: Request, env: Env): Promise<R
 
   const db = getDB(env);
 
-  let result: Record<string, unknown>;
-  if (q) {
-    result = await (db as any).searchEvaluations(q, limit);
-  } else {
-    result = await (db as any).listEvaluations({
-      verdict,
-      category,
-      mcp_support,
-      in_registry,
-      limit,
-      offset,
-    });
-  }
-  if (result.error) {
-    log.warn(`listDirectory failed: ${result.error}`);
-    return json({ error: result.error }, 500);
-  }
+  const result = q
+    ? rpc(await db.searchEvaluations(q, limit))
+    : rpc(
+        await db.listEvaluations({
+          verdict,
+          category,
+          mcp_support,
+          in_registry,
+          limit,
+          offset,
+        }),
+      );
 
   return json(
-    { evaluations: (result.evaluations as unknown[]) || [], categories: CATEGORY_NAMES },
+    { evaluations: result.evaluations || [], categories: CATEGORY_NAMES },
     200,
     CACHE_HEADERS,
   );
@@ -77,11 +72,7 @@ export async function handleGetDirectoryEntry(
   toolId: string,
 ): Promise<Response> {
   const db = getDB(env);
-  const result = await (db as any).getEvaluation(toolId);
-  if (result.error) {
-    log.warn(`getDirectoryEntry failed: ${result.error}`);
-    return json({ error: result.error }, 500);
-  }
+  const result = rpc(await db.getEvaluation(toolId));
   if (!result.evaluation) return json({ error: 'Tool not found' }, 404);
   return json({ evaluation: result.evaluation }, 200, CACHE_HEADERS);
 }
@@ -101,7 +92,7 @@ export async function handleAdminDelete(request: Request, env: Env): Promise<Res
   const db = getDB(env);
   const results: Array<{ id: unknown; deleted: unknown }> = [];
   for (const id of ids) {
-    const r = await (db as any).deleteEvaluation(id);
+    const r = rpc(await db.deleteEvaluation(id));
     results.push({ id, deleted: r.deleted });
   }
   return json({ results }, 200);
@@ -135,7 +126,7 @@ export async function handleBatchEvaluate(request: Request, env: Env): Promise<R
       if ('error' in result) {
         results.push({ name: toolName, error: result.error });
       } else {
-        await (db as any).saveEvaluation(result.evaluation);
+        await db.saveEvaluation(result.evaluation as unknown as Record<string, unknown>);
         results.push({
           name: result.evaluation.name,
           verdict: result.evaluation.verdict,
@@ -192,7 +183,7 @@ export async function handleTriggerEvaluation(
     'Evaluation limit reached (5/day). Try again tomorrow.',
     async () => {
       // Check if evaluation already exists and is recent
-      const existing = await (db as any).getEvaluation(slugified);
+      const existing = rpc(await db.getEvaluation(slugified));
       if (existing.evaluation) {
         const evaluatedAt = new Date(
           existing.evaluation.evaluated_at || existing.evaluation.created_at,
@@ -209,11 +200,7 @@ export async function handleTriggerEvaluation(
         return json({ error: result.error }, 500);
       }
 
-      const saveResult = await (db as any).saveEvaluation(result.evaluation);
-      if (saveResult.error) {
-        log.warn(`triggerEvaluation save failed: ${saveResult.error}`);
-        return json({ error: saveResult.error }, 500);
-      }
+      await db.saveEvaluation(result.evaluation as unknown as Record<string, unknown>);
 
       return json({ evaluation: result.evaluation }, 201);
     },

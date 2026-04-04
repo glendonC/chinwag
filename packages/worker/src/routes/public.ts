@@ -1,6 +1,6 @@
 import type { Env, User } from '../types.js';
 import { TOOL_CATALOG, CATEGORY_NAMES } from '../catalog.js';
-import { getDB, getLobby } from '../lib/env.js';
+import { getDB, getLobby, rpc } from '../lib/env.js';
 import { json } from '../lib/http.js';
 import { createLogger } from '../lib/logger.js';
 import { auditLog } from '../lib/audit.js';
@@ -58,13 +58,13 @@ export async function handleInit(request: Request, env: Env): Promise<Response> 
   const db = getDB(env);
 
   // Atomic check-and-consume eliminates the race window between check and consume
-  const limit = await (db as any).checkAndConsume(hashedIp, RATE_LIMIT_ACCOUNTS_PER_IP);
+  const limit = rpc(await db.checkAndConsume(hashedIp, RATE_LIMIT_ACCOUNTS_PER_IP));
   if (!limit.allowed) {
     return json({ error: 'Too many accounts created recently. Try again later.' }, 429);
   }
 
-  const result = await (db as any).createUser();
-  if (result.error) {
+  const result = rpc(await db.createUser());
+  if ('error' in result) {
     log.warn(`createUser failed: ${result.error}`);
     return json({ error: result.error }, 400);
   }
@@ -94,8 +94,8 @@ export async function handleInit(request: Request, env: Env): Promise<Response> 
 export async function handleStats(request: Request, env: Env): Promise<Response> {
   return withIpRateLimit(request, env, 'stats', RATE_LIMIT_STATS_PER_IP, async () => {
     const [lobbyStats, dbStats] = await Promise.all([
-      (getLobby(env) as any).getStats(),
-      (getDB(env) as any).getStats(),
+      getLobby(env).getStats().then(rpc),
+      getDB(env).getStats().then(rpc),
     ]);
     const { ok: _ok1, ...lobby } = lobbyStats;
     const { ok: _ok2, ...dbData } = dbStats;
@@ -105,11 +105,13 @@ export async function handleStats(request: Request, env: Env): Promise<Response>
 
 export async function handleToolCatalog(request: Request, env: Env): Promise<Response> {
   return withIpRateLimit(request, env, 'catalog', RATE_LIMIT_CATALOG_PER_IP, async () => {
-    const result = await (getDB(env) as any).listEvaluations({});
+    const result = rpc(await getDB(env).listEvaluations({}));
 
     let tools;
     if (result.evaluations && result.evaluations.length > 0) {
-      tools = result.evaluations.map(evaluationToCatalogEntry);
+      tools = (result.evaluations as unknown as Record<string, unknown>[]).map(
+        evaluationToCatalogEntry,
+      );
     } else {
       tools = TOOL_CATALOG;
     }
@@ -200,21 +202,21 @@ export async function handleGithubCallback(request: Request, env: Env): Promise<
   const db = getDB(env);
 
   // Look up existing account by GitHub ID, or create new one
-  const ghLookup = await (db as any).getUserByGithubId(githubId);
+  const ghLookup = rpc(await db.getUserByGithubId(githubId));
   let userId: string;
-  if (!ghLookup.ok) {
+  if ('error' in ghLookup) {
     const ip = request.headers.get('CF-Connecting-IP');
     if (!ip) {
       return Response.redirect(`${getDashboardUrl(env)}#error=rate_limited`, 302);
     }
     const hashedCallbackIp = await hashIp(ip);
-    const limit = await (db as any).checkAndConsume(hashedCallbackIp, RATE_LIMIT_ACCOUNTS_PER_IP);
+    const limit = rpc(await db.checkAndConsume(hashedCallbackIp, RATE_LIMIT_ACCOUNTS_PER_IP));
     if (!limit.allowed) {
       return Response.redirect(`${getDashboardUrl(env)}#error=rate_limited`, 302);
     }
 
-    const created = await (db as any).createUserFromGithub(githubId, githubLogin, avatarUrl);
-    if (created.error) {
+    const created = rpc(await db.createUserFromGithub(githubId, githubLogin, avatarUrl));
+    if ('error' in created) {
       return Response.redirect(`${getDashboardUrl(env)}#error=account_failed`, 302);
     }
     // Store the CLI token in KV (so the user could use it from CLI later)
@@ -232,11 +234,7 @@ export async function handleGithubCallback(request: Request, env: Env): Promise<
 
   // Create a web session token
   const userAgent = request.headers.get('User-Agent') || null;
-  const session = await (db as any).createWebSession(userId, userAgent);
-
-  if (session.error) {
-    return Response.redirect(`${getDashboardUrl(env)}#error=session_failed`, 302);
-  }
+  const session = rpc(await db.createWebSession(userId, userAgent));
 
   // Store session token in KV with 30-day TTL
   await env.AUTH_KV.put(`token:${session.token}`, userId, {
@@ -316,13 +314,15 @@ export async function handleGithubLinkCallback(request: Request, env: Env): Prom
   const ghUser: Record<string, unknown> = await userRes.json();
   const db = getDB(env);
 
-  const result = await (db as any).linkGithub(
-    storedUserId,
-    String(ghUser.id),
-    ghUser.login,
-    ghUser.avatar_url,
+  const result = rpc(
+    await db.linkGithub(
+      storedUserId,
+      String(ghUser.id),
+      (ghUser.login as string) || '',
+      (ghUser.avatar_url as string) || null,
+    ),
   );
-  if (result.error) {
+  if ('error' in result) {
     return Response.redirect(`${getDashboardUrl(env)}#error=github_already_linked`, 302);
   }
 

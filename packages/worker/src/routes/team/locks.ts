@@ -1,7 +1,7 @@
 // Team lock routes — claim, release, get locks.
 
 import type { Env, User } from '../../types.js';
-import { getTeam } from '../../lib/env.js';
+import { getTeam, rpc } from '../../lib/env.js';
 import { json, parseBody } from '../../lib/http.js';
 import { createLogger } from '../../lib/logger.js';
 import { getAgentRuntime, teamErrorStatus } from '../../lib/request-utils.js';
@@ -34,7 +34,7 @@ export async function handleTeamClaimFiles(
     rateLimitMax: RATE_LIMIT_LOCKS,
     rateLimitMsg: 'Lock claim limit reached (100/day). Try again tomorrow.',
     action: (team, agentId, runtime) =>
-      (team as any).claimFiles(agentId, files, user.handle, runtime, user.id),
+      team.claimFiles(agentId, files as string[], user.handle, runtime, user.id),
   });
 }
 
@@ -49,14 +49,14 @@ export async function handleTeamReleaseFiles(
   if (parseErr) return parseErr;
 
   const b = body as Record<string, unknown>;
-  const files = b.files || null;
+  const files = (b.files || null) as string[] | null;
   const fileErr = validateFileArray(files, LOCK_CLAIM_MAX_FILES, { nullable: true });
   if (fileErr) return json({ error: fileErr }, 400);
 
   const { agentId } = getAgentRuntime(request, user);
   const team = getTeam(env, teamId);
-  const result = await (team as any).releaseFiles(agentId, files, user.id);
-  if (result.error) {
+  const result = rpc(await team.releaseFiles(agentId, files, user.id));
+  if ('error' in result) {
     log.warn(`releaseFiles failed: ${result.error}`);
     return json({ error: result.error }, teamErrorStatus(result));
   }
@@ -71,8 +71,8 @@ export async function handleTeamGetLocks(
 ): Promise<Response> {
   const { agentId } = getAgentRuntime(request, user);
   const team = getTeam(env, teamId);
-  const result = await (team as any).getLockedFiles(agentId, user.id);
-  if (result.error) {
+  const result = rpc(await team.getLockedFiles(agentId, user.id));
+  if ('error' in result) {
     log.warn(`getLockedFiles failed: ${result.error}`);
     return json({ error: result.error }, teamErrorStatus(result));
   }

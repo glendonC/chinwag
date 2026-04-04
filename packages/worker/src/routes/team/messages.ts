@@ -2,7 +2,7 @@
 
 import type { Env, User } from '../../types.js';
 import { checkContent } from '../../moderation.js';
-import { getDB, getTeam } from '../../lib/env.js';
+import { getDB, getTeam, rpc } from '../../lib/env.js';
 import { json, parseBody } from '../../lib/http.js';
 import { createLogger } from '../../lib/logger.js';
 import { getAgentRuntime, teamErrorStatus } from '../../lib/request-utils.js';
@@ -52,15 +52,17 @@ export async function handleTeamSendMessage(
     RATE_LIMIT_MESSAGES,
     'Message limit reached (200/day). Try again tomorrow.',
     async () => {
-      const result = await (team as any).sendMessage(
-        agentId,
-        user.handle,
-        runtime,
-        text,
-        (target as string) || null,
-        user.id,
+      const result = rpc(
+        await team.sendMessage(
+          agentId,
+          user.handle,
+          runtime,
+          text,
+          (target as string) || null,
+          user.id,
+        ),
       );
-      if (result.error) {
+      if ('error' in result) {
         log.warn(`sendMessage failed: ${result.error}`);
         return json({ error: result.error }, teamErrorStatus(result));
       }
@@ -80,8 +82,8 @@ export async function handleTeamGetMessages(
 
   const { agentId } = getAgentRuntime(request, user);
   const team = getTeam(env, teamId);
-  const result = await (team as any).getMessages(agentId, since, user.id);
-  if (result.error) {
+  const result = rpc(await team.getMessages(agentId, since, user.id));
+  if ('error' in result) {
     log.warn(`getMessages failed: ${result.error}`);
     return json({ error: result.error }, teamErrorStatus(result));
   }

@@ -2,7 +2,7 @@
 
 import type { Env, User } from '../../types.js';
 import { checkContent, isBlocked } from '../../moderation.js';
-import { getTeam } from '../../lib/env.js';
+import { getTeam, rpc } from '../../lib/env.js';
 import { json, parseBody } from '../../lib/http.js';
 import { createLogger } from '../../lib/logger.js';
 import { getAgentRuntime, teamErrorStatus } from '../../lib/request-utils.js';
@@ -70,7 +70,7 @@ export async function handleTeamSaveMemory(
     rateLimitMsg: 'Memory save limit reached (20/day). Try again tomorrow.',
     successStatus: 201,
     action: (team, agentId, runtime) =>
-      (team as any).saveMemory(agentId, text, tags, user.handle, runtime, user.id),
+      team.saveMemory(agentId, text, tags, user.handle, runtime, user.id),
   });
 }
 
@@ -112,8 +112,8 @@ export async function handleTeamSearchMemory(
 
   const { agentId } = getAgentRuntime(request, user);
   const team = getTeam(env, teamId);
-  const result = await (team as any).searchMemories(agentId, query, tags, limit, user.id);
-  if (result.error) {
+  const result = rpc(await team.searchMemories(agentId, query, tags, limit, user.id));
+  if ('error' in result) {
     log.warn(`searchMemories failed: ${result.error}`);
     return json({ error: result.error }, teamErrorStatus(result));
   }
@@ -178,7 +178,7 @@ export async function handleTeamUpdateMemory(
     rateLimitKey: 'memory_update',
     rateLimitMax: RATE_LIMIT_MEMORY_UPDATES,
     rateLimitMsg: 'Memory update limit reached (50/day). Try again tomorrow.',
-    action: (team, agentId) => (team as any).updateMemory(agentId, id, text, tags, user.id),
+    action: (team, agentId) => team.updateMemory(agentId, id, text, tags, user.id),
   });
 }
 
@@ -204,6 +204,6 @@ export async function handleTeamDeleteMemory(
     rateLimitKey: 'memory_delete',
     rateLimitMax: RATE_LIMIT_MEMORY_DELETES,
     rateLimitMsg: 'Memory delete limit reached (50/day). Try again tomorrow.',
-    action: (team, agentId) => (team as any).deleteMemory(agentId, id, user.id),
+    action: (team, agentId) => team.deleteMemory(agentId, id, user.id),
   });
 }

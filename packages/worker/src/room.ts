@@ -238,9 +238,7 @@ export class RoomDO extends DurableObject<Env> {
 
   async #updateLobbyCount(): Promise<void> {
     try {
-      const lobby = this.env.LOBBY.get(this.env.LOBBY.idFromName('main')) as unknown as {
-        updateRoomCount: (roomId: string, count: number) => Promise<{ ok: true }>;
-      };
+      const lobby = this.env.LOBBY.get(this.env.LOBBY.idFromName('main'));
       await lobby.updateRoomCount(this.roomId || 'unknown', this.sessions.size);
     } catch (err) {
       log.error('failed to update lobby', {

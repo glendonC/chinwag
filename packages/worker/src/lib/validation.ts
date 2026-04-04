@@ -2,9 +2,11 @@
 // Each returns null on success or an error string/response on failure.
 
 import type { Env, User, AgentRuntime, ParsedBody } from '../types.js';
+import type { DatabaseDO } from '../dos/database/index.js';
+import type { TeamDO } from '../dos/team/index.js';
 import { json } from './http.js';
 import { createLogger } from './logger.js';
-import { getDB, getTeam } from './env.js';
+import { getDB, getTeam, rpc } from './env.js';
 import { getAgentRuntime, teamErrorStatus } from './request-utils.js';
 
 const log = createLogger('validation');
@@ -92,7 +94,7 @@ export function validateTagsArray(
  * from flooding with invalid requests without hitting limits.
  */
 export async function withRateLimit(
-  db: DurableObjectStub,
+  db: DurableObjectStub<DatabaseDO>,
   key: string,
   max: number,
   errorMsg: string,
@@ -100,7 +102,7 @@ export async function withRateLimit(
 ): Promise<Response> {
   let limit: { allowed: boolean };
   try {
-    limit = await (db as any).checkRateLimit(key, max);
+    limit = await db.checkRateLimit(key, max);
   } catch (err) {
     log.error('rate limit check failed', {
       key,
@@ -115,7 +117,7 @@ export async function withRateLimit(
   // regardless of whether the handler succeeds or returns an error status.
   // This prevents attackers from flooding with invalid requests for free.
   try {
-    await (db as any).consumeRateLimit(key);
+    await db.consumeRateLimit(key);
   } catch (err) {
     log.error('rate limit consume failed', {
       key,
@@ -208,7 +210,7 @@ export async function withIpRateLimit(
   const hashedIp = await hashIp(ip);
   const key = `pub:${prefix}:${hashedIp}`;
   const db = getDB(env);
-  const result = await (db as any).checkAndConsume(key, max);
+  const result = rpc(await db.checkAndConsume(key, max));
   if (!result.allowed) {
     return json({ error: 'Rate limit exceeded. Try again later.' }, 429, {
       'Retry-After': '3600',
@@ -226,7 +228,7 @@ interface WithTeamRateLimitOpts {
   rateLimitMax: number;
   rateLimitMsg: string;
   successStatus?: number;
-  action: (team: DurableObjectStub, agentId: string, runtime: AgentRuntime) => Promise<any>;
+  action: (team: DurableObjectStub<TeamDO>, agentId: string, runtime: AgentRuntime) => Promise<any>;
 }
 
 /**
