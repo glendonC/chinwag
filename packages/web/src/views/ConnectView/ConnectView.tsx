@@ -58,10 +58,7 @@ export default function ConnectView({ error: initialError = null }: Props) {
 
   async function handleConnect(): Promise<void> {
     const t = tokenInput.trim();
-    if (!t) {
-      setTokenError('Paste a token first.');
-      return;
-    }
+    if (!t) return;
 
     setConnecting(true);
     setTokenError(null);
@@ -188,7 +185,11 @@ export default function ConnectView({ error: initialError = null }: Props) {
                 autoComplete="off"
                 spellCheck={false}
               />
-              <button className={styles.tokenSubmit} onClick={handleConnect} disabled={connecting}>
+              <button
+                className={styles.tokenSubmit}
+                onClick={handleConnect}
+                disabled={connecting || !tokenInput.trim()}
+              >
                 {connecting ? 'Connecting...' : 'Connect'}
               </button>
             </div>

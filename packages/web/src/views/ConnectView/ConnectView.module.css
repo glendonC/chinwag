@@ -88,7 +88,7 @@
   color: #fff;
   background: var(--github-bg);
   border: none;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   text-decoration: none;
   transition:
@@ -170,10 +170,10 @@
 }
 
 .commandBox {
-  width: 100%;
+  width: fit-content;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--space-xl);
   padding: 14px 16px;
   background: transparent;
   border: 1px solid var(--hairline);
@@ -275,7 +275,7 @@
   color: #fff;
   background: var(--accent);
   border: none;
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   white-space: nowrap;
   transition:

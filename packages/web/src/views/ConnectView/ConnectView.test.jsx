@@ -96,7 +96,7 @@ describe('ConnectView', () => {
     unmount();
   });
 
-  it('shows a validation error when connecting with an empty token', async () => {
+  it('disables the connect button when token input is empty', async () => {
     const authenticateMock = vi.fn();
     const ConnectView = await loadConnectView({ authenticateMock });
     const { container, unmount } = renderComponent(ConnectView, {});
@@ -105,11 +105,7 @@ describe('ConnectView', () => {
       b.textContent.includes('Connect'),
     );
 
-    await act(async () => {
-      connectButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-
-    expect(container.textContent).toContain('Paste a token first');
+    expect(connectButton?.disabled).toBe(true);
     expect(authenticateMock).not.toHaveBeenCalled();
 
     unmount();
