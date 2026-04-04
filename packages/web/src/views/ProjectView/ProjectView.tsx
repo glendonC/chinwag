@@ -1,5 +1,6 @@
-import { type CSSProperties } from 'react';
+import { type CSSProperties, useCallback } from 'react';
 import { forceRefresh } from '../../lib/stores/polling.js';
+import { teamActions } from '../../lib/stores/teams.js';
 import ActivityTimeline from '../../components/ActivityTimeline/ActivityTimeline.jsx';
 import StatusState from '../../components/StatusState/StatusState.jsx';
 import ViewHeader from '../../components/ViewHeader/ViewHeader.jsx';
@@ -14,11 +15,7 @@ import { useTabs } from '../../hooks/useTabs.js';
 import ProjectOverviewTab from './ProjectOverviewTab.jsx';
 import ProjectLiveTab from './ProjectLiveTab.jsx';
 import ProjectMemoryTab from './ProjectMemoryTab.jsx';
-import useProjectStatus from './useProjectStatus.js';
-import useProjectMembers from './useProjectMembers.js';
-import useProjectSessions from './useProjectSessions.js';
-import useProjectAnalytics from './useProjectAnalytics.js';
-import useProjectMemories from './useProjectMemories.js';
+import { useProjectData } from './useProjectData.js';
 import styles from './ProjectView.module.css';
 
 const PROJECT_TABS = ['overview', 'agents', 'memory'] as const;
@@ -34,18 +31,47 @@ interface StatEntry {
 interface Props {}
 
 export default function ProjectView(_props: Props) {
-  const { activeTeam, projectLabel, pollError, lastSynced, isLoading, isUnavailable } =
-    useProjectStatus();
+  const {
+    activeTeam,
+    activeTeamId,
+    projectLabel,
+    pollError,
+    lastSynced,
+    isLoading,
+    isUnavailable,
+    members,
+    activeAgents,
+    offlineAgents,
+    sortedAgents,
+    liveToolMix,
+    allSessions,
+    sessions,
+    filesTouchedCount,
+    sessionEditCount,
+    liveSessionCount,
+    locks,
+    conflicts,
+    filesInPlay,
+    toolSummaries,
+    memories,
+    memoryBreakdown,
+  } = useProjectData();
 
-  const { members, activeAgents, offlineAgents, sortedAgents, liveToolMix } = useProjectMembers();
+  const handleUpdateMemory = useCallback(
+    async (id: string, text?: string, tags?: string[]) => {
+      if (!activeTeamId) return;
+      await teamActions.updateMemory(activeTeamId, id, text, tags);
+    },
+    [activeTeamId],
+  );
 
-  const { allSessions, sessions, filesTouchedCount, sessionEditCount, liveSessionCount } =
-    useProjectSessions();
-
-  const { locks, conflicts, filesInPlay, toolSummaries } = useProjectAnalytics();
-
-  const { memories, memoryBreakdown, handleUpdateMemory, handleDeleteMemory } =
-    useProjectMemories();
+  const handleDeleteMemory = useCallback(
+    async (id: string) => {
+      if (!activeTeamId) return;
+      await teamActions.deleteMemory(activeTeamId, id);
+    },
+    [activeTeamId],
+  );
 
   const {
     activeTab: activeViz,
