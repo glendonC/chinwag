@@ -207,12 +207,14 @@ export default function MemoryRow({ memory, onUpdate, onDelete }: Props) {
               value={editTags}
               onChange={(e) => dispatch({ type: 'SET_TAGS', value: e.target.value })}
               placeholder="Tags (comma-separated)"
+              aria-label="Tags (comma-separated)"
               disabled={saving}
             />
             <textarea
               className={styles.editTextarea}
               value={editText}
               onChange={(e) => dispatch({ type: 'SET_TEXT', value: e.target.value })}
+              aria-label="Memory content"
               maxLength={2000}
               rows={3}
               disabled={saving}

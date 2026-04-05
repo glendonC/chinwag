@@ -274,7 +274,9 @@ describe('websocket store', () => {
     expect(bridge.poll).toHaveBeenCalledTimes(3);
   });
 
-  it('resets reconciliation backoff when a message arrives', async () => {
+  it('restarts reconciliation timer on message without resetting backoff delay', async () => {
+    // Pin jitter to 100% for deterministic timing
+    vi.spyOn(Math, 'random').mockReturnValue(1);
     const apiMock = vi.fn().mockResolvedValue({ ticket: 'tix_abc' });
     const { connectTeamWebSocket, setPollingBridge } = await loadWebSocketModule({ apiMock });
 
@@ -291,19 +293,24 @@ describe('websocket store', () => {
     const ws = MockWebSocket.instances[0];
     ws.simulateOpen();
 
-    // Advance partway through the first reconciliation window
-    await vi.advanceTimersByTimeAsync(20_000);
-    expect(bridge.poll).not.toHaveBeenCalled();
+    // onopen → scheduleReconcile: jitter(30_000)=30_000, delay→60_000
+    // First poll fires at 30s
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(bridge.poll).toHaveBeenCalledTimes(1);
+    // poll callback → scheduleReconcile: jitter(60_000)=60_000, delay→120_000
 
-    // Incoming message resets the backoff timer
+    // Message restarts timer at current delay (120_000)
     ws.simulateMessage({ type: 'context', data: { members: [] } });
 
-    // The reset means the next reconcile fires 30s from now, not 10s
-    await vi.advanceTimersByTimeAsync(20_000);
-    expect(bridge.poll).not.toHaveBeenCalled();
-
-    await vi.advanceTimersByTimeAsync(10_000);
+    // 60s not enough — backoff wasn't reset to initial
+    await vi.advanceTimersByTimeAsync(60_000);
     expect(bridge.poll).toHaveBeenCalledTimes(1);
+
+    // After full 120s from message, poll fires
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(bridge.poll).toHaveBeenCalledTimes(2);
+
+    vi.spyOn(Math, 'random').mockRestore();
   });
 
   it('generation counter prevents stale onclose from restarting polling', async () => {

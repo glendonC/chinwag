@@ -630,6 +630,8 @@ describe('websocket module', () => {
 
     it('doubles the reconcile delay with exponential backoff up to max', async () => {
       vi.useFakeTimers();
+      // Pin jitter to 100% so delays are deterministic (jitteredDelay = delay * 1.0)
+      vi.spyOn(Math, 'random').mockReturnValue(1);
       const apiMock = vi.fn().mockResolvedValue({ ticket: 'tkt_1' });
       const pollMock = vi.fn().mockResolvedValue(undefined);
       const { connectTeamWebSocket, setPollingBridge } = await loadWebSocketModule({ apiMock });
@@ -649,25 +651,29 @@ describe('websocket module', () => {
       await flushPromises();
       instances[0]._open();
 
-      // Initial: 100ms
+      // Initial: jitter(100ms) = 100ms (random=1 → 0.5+0.5=1.0 → 100*1=100)
       await vi.advanceTimersByTimeAsync(100);
       expect(pollMock).toHaveBeenCalledTimes(1);
 
-      // Second: 200ms (100 * 2)
+      // Second: delay doubled to 200ms, jitter(200) = 200ms
       await vi.advanceTimersByTimeAsync(200);
       expect(pollMock).toHaveBeenCalledTimes(2);
 
-      // Third: 400ms (200 * 2, capped at max 400)
+      // Third: delay doubled to 400ms (capped at max), jitter(400) = 400ms
       await vi.advanceTimersByTimeAsync(400);
       expect(pollMock).toHaveBeenCalledTimes(3);
 
-      // Fourth: should still be 400ms (capped at RECONCILE_MAX_MS)
+      // Fourth: still capped at 400ms
       await vi.advanceTimersByTimeAsync(400);
       expect(pollMock).toHaveBeenCalledTimes(4);
+
+      vi.spyOn(Math, 'random').mockRestore();
     });
 
-    it('resets reconcile delay when a message is received', async () => {
+    it('preserves backoff delay when a message is received (only restarts timer)', async () => {
       vi.useFakeTimers();
+      // Pin jitter to 100% for deterministic timing
+      vi.spyOn(Math, 'random').mockReturnValue(1);
       const apiMock = vi.fn().mockResolvedValue({ ticket: 'tkt_1' });
       const pollMock = vi.fn().mockResolvedValue(undefined);
       const { connectTeamWebSocket, setPollingBridge } = await loadWebSocketModule({ apiMock });
@@ -687,16 +693,24 @@ describe('websocket module', () => {
       await flushPromises();
       instances[0]._open();
 
-      // Let backoff grow: 100ms -> first poll
+      // onopen → scheduleReconcile: jitter(100)=100, reconcileDelay→200. Timer at 100ms.
       await vi.advanceTimersByTimeAsync(100);
       expect(pollMock).toHaveBeenCalledTimes(1);
+      // poll callback → scheduleReconcile: jitter(200)=200, reconcileDelay→400. Timer at 200ms.
 
-      // Next poll would be at 200ms, but a message arrives and resets to 100ms
+      // Message arrives mid-timer — restarts timer with current reconcileDelay (400)
+      // jitter(400)=400, reconcileDelay→800 (or capped). Timer at 400ms from now.
       instances[0]._message({ type: 'context', data: { members: [] } });
 
-      // After 100ms (reset initial), poll should fire
-      await vi.advanceTimersByTimeAsync(100);
+      // 200ms is NOT enough — old behavior would have reset to initial 100ms
+      await vi.advanceTimersByTimeAsync(200);
+      expect(pollMock).toHaveBeenCalledTimes(1);
+
+      // After the full 400ms from the message, poll fires
+      await vi.advanceTimersByTimeAsync(200);
       expect(pollMock).toHaveBeenCalledTimes(2);
+
+      vi.spyOn(Math, 'random').mockRestore();
     });
 
     it('skips reconcile if a previous reconcile is still in flight', async () => {

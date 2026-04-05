@@ -138,8 +138,12 @@ export async function connectTeamWebSocket(teamId: string): Promise<void> {
   const agentId = `web-dashboard:${token.slice(0, 8)}`;
   const wsUrl = `${wsBase}/teams/${teamId}/ws?agentId=${encodeURIComponent(agentId)}&ticket=${encodeURIComponent(ticket)}`;
 
-  /** Schedule the next reconciliation poll with exponential backoff. */
+  /** Schedule the next reconciliation poll with exponential backoff + jitter. */
   function scheduleReconcile(expectedGen: number): void {
+    // Apply jitter: use 50-100% of the current delay to avoid thundering-herd
+    const jitteredDelay = Math.round(reconcileDelay * (0.5 + Math.random() * 0.5));
+    // Pre-compute the next delay so it's ready for the following iteration
+    reconcileDelay = Math.min(reconcileDelay * 2, RECONCILE_MAX_MS);
     reconcileTimer = setTimeout(async () => {
       if (wsGeneration !== expectedGen) return;
       if (reconcileInFlight) return; // previous reconcile still running
@@ -149,10 +153,8 @@ export async function connectTeamWebSocket(teamId: string): Promise<void> {
       } finally {
         reconcileInFlight = false;
       }
-      // Double the delay, capped at max
-      reconcileDelay = Math.min(reconcileDelay * 2, RECONCILE_MAX_MS);
       scheduleReconcile(expectedGen);
-    }, reconcileDelay);
+    }, jitteredDelay);
   }
 
   try {
@@ -184,9 +186,9 @@ export async function connectTeamWebSocket(teamId: string): Promise<void> {
     ws.onmessage = (evt: MessageEvent) => {
       if (wsGeneration !== gen) return;
       if (teamActions.getState().activeTeamId !== teamId) return;
-      // Reset reconciliation backoff — fresh data means less need to poll soon,
-      // but restarting the timer ensures we reconcile relative to the last event.
-      reconcileDelay = RECONCILE_INITIAL_MS;
+      // Restart the reconciliation timer relative to the last event, but
+      // preserve the current backoff delay — resetting on every message would
+      // defeat exponential backoff under high-frequency streams.
       if (reconcileTimer) {
         clearTimeout(reconcileTimer);
         reconcileTimer = null;
