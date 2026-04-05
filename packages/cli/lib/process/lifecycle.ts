@@ -247,11 +247,15 @@ export function killAgent(id: number): boolean {
     }
     if (!proc._killTimer) {
       proc._killTimer = setTimeout(() => {
-        if (proc.status === 'running') {
+        // Guard: process may have exited naturally during the grace period.
+        // Check both status and pid before attempting SIGKILL.
+        if (proc.status === 'running' && proc.pid) {
           try {
-            process.kill(proc.pid!, 'SIGKILL');
-          } catch (err: unknown) {
-            log.error(formatError(err));
+            process.kill(proc.pid, 'SIGKILL');
+          } catch {
+            // ESRCH (no such process) is expected if the process exited between
+            // the status check and the kill call. Other errors are also non-fatal
+            // since the goal (process termination) is already achieved.
           }
         }
         proc._killTimer = null;
