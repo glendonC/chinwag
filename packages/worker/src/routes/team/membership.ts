@@ -4,6 +4,7 @@ import { checkContent } from '../../moderation.js';
 import { rpc } from '../../lib/env.js';
 import { json } from '../../lib/http.js';
 import { teamRoute, doResult } from '../../lib/middleware.js';
+import { teamErrorStatus } from '../../lib/request-utils.js';
 import { createLogger } from '../../lib/logger.js';
 import { withRateLimit } from '../../lib/validation.js';
 import { auditLog } from '../../lib/audit.js';
@@ -97,7 +98,7 @@ export const handleTeamContext = teamRoute(async ({ user, teamId, db, agentId, t
   const result = rpc(await team.getContext(agentId, user.id));
   if ('error' in result) {
     log.warn(`getContext failed: ${result.error}`);
-    return json({ error: result.error }, 403);
+    return json({ error: result.error }, teamErrorStatus(result));
   }
 
   await db.addUserTeam(user.id, teamId);

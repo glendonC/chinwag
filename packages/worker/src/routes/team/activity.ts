@@ -57,12 +57,7 @@ export const handleTeamConflicts = teamJsonRoute(async ({ body, agentId, team, u
   const fileErr = validateFileArray(files, ACTIVITY_MAX_FILES);
   if (fileErr) return json({ error: fileErr }, 400);
 
-  const result = rpc(await team.checkConflicts(agentId, files as string[], user.id));
-  if ('error' in result) {
-    log.warn(`checkConflicts failed: ${result.error}`);
-    return json({ error: result.error }, 403);
-  }
-  return json(result);
+  return doResult(team.checkConflicts(agentId, files as string[], user.id), 'checkConflicts');
 });
 
 export const handleTeamFile = teamJsonRoute(async ({ body, user, db, agentId, team }) => {
@@ -171,12 +166,7 @@ export const handleTeamHistory = teamRoute(async ({ request, agentId, team, user
     Math.min(isNaN(parsed) ? HISTORY_DEFAULT_DAYS : parsed, HISTORY_MAX_DAYS),
   );
 
-  const result = rpc(await team.getHistory(agentId, days, user.id));
-  if ('error' in result) {
-    log.warn(`getHistory failed: ${result.error}`);
-    return json({ error: result.error }, 403);
-  }
-  return json(result);
+  return doResult(team.getHistory(agentId, days, user.id), 'getHistory');
 });
 
 export const handleTeamEnrichModel = teamJsonRoute(async ({ body, agentId, team, user }) => {
