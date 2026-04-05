@@ -1,4 +1,5 @@
 import { type ChangeEvent } from 'react';
+import clsx from 'clsx';
 import { getToolMeta } from '../../lib/toolMeta.js';
 import { projectGradient } from '../../lib/projectGradient.js';
 import { navigate } from '../../lib/router.js';
@@ -73,9 +74,7 @@ export default function ProjectsPanel({
                   />
                   {team.team_name || team.team_id}
                 </span>
-                <span className={`${styles.td} ${agents > 0 ? styles.tdAccent : ''}`}>
-                  {agents}
-                </span>
+                <span className={clsx(styles.td, agents > 0 && styles.tdAccent)}>{agents}</span>
                 <span className={styles.td}>{team.memory_count || 0}</span>
                 <span className={styles.td}>{toolCount}</span>
               </button>

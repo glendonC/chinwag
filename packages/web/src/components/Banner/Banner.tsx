@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import clsx from 'clsx';
 import styles from './Banner.module.css';
 
 interface BannerAction {
@@ -24,7 +25,7 @@ export default function Banner({
   onDismiss,
 }: Props) {
   return (
-    <div className={`${styles.banner} ${styles[variant]}`} role="status" aria-live="polite">
+    <div className={clsx(styles.banner, styles[variant])} role="status" aria-live="polite">
       <div className={styles.body}>
         {eyebrow && <span className={styles.eyebrow}>{eyebrow}</span>}
         <span className={styles.text}>{children}</span>

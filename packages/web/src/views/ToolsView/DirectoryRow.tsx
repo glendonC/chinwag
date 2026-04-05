@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import { getToolMeta } from '../../lib/toolMeta.js';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
 import styles from './ToolsView.module.css';
@@ -34,7 +35,7 @@ const CONFIDENCE_MAP: Record<string, string> = {
 export function ConfidenceDot({ level }: ConfidenceDotProps) {
   return (
     <span
-      className={`${styles.confidence} ${(level && CONFIDENCE_MAP[level]) || CONFIDENCE_MAP.low}`}
+      className={clsx(styles.confidence, (level && CONFIDENCE_MAP[level]) || CONFIDENCE_MAP.low)}
     >
       {level || 'unknown'}
     </span>

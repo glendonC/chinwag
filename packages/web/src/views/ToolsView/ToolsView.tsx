@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import { formatShare } from '../../lib/toolAnalytics.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
 import StatCard from '../../components/StatCard/StatCard.jsx';
@@ -224,7 +225,10 @@ export default function ToolsView(_props: Props) {
             {VERDICT_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
-                className={`${styles.filterButton} ${activeVerdict === opt.value ? styles.filterButtonActive : ''}`}
+                className={clsx(
+                  styles.filterButton,
+                  activeVerdict === opt.value && styles.filterButtonActive,
+                )}
                 onClick={() => setActiveVerdict(opt.value)}
               >
                 {opt.label}
@@ -232,7 +236,10 @@ export default function ToolsView(_props: Props) {
             ))}
             <span className={styles.filterDivider} />
             <button
-              className={`${styles.filterButton} ${activeCategory === 'all' ? styles.filterButtonActive : ''}`}
+              className={clsx(
+                styles.filterButton,
+                activeCategory === 'all' && styles.filterButtonActive,
+              )}
               onClick={() => setActiveCategory('all')}
             >
               All categories
@@ -240,7 +247,10 @@ export default function ToolsView(_props: Props) {
             {categoryList.map(([id, label]) => (
               <button
                 key={id}
-                className={`${styles.filterButton} ${activeCategory === id ? styles.filterButtonActive : ''}`}
+                className={clsx(
+                  styles.filterButton,
+                  activeCategory === id && styles.filterButtonActive,
+                )}
                 onClick={() => setActiveCategory(id)}
               >
                 {label}

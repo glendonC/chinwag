@@ -1,4 +1,5 @@
 import { type CSSProperties, useCallback } from 'react';
+import clsx from 'clsx';
 import { forceRefresh } from '../../lib/stores/polling.js';
 import { teamActions } from '../../lib/stores/teams.js';
 import ActivityTimeline from '../../components/ActivityTimeline/ActivityTimeline.jsx';
@@ -161,7 +162,7 @@ export default function ProjectView(_props: Props) {
               aria-controls={`panel-${s.id}`}
               data-tab={s.id}
               tabIndex={activeViz === s.id ? 0 : -1}
-              className={`${styles.statButton} ${activeViz === s.id ? styles.statActive : ''}`}
+              className={clsx(styles.statButton, activeViz === s.id && styles.statActive)}
               style={{ '--stat-index': i } as CSSProperties}
               onClick={(e) => {
                 e.currentTarget.focus();
@@ -172,9 +173,7 @@ export default function ProjectView(_props: Props) {
                 {s.label}
                 {activeViz === s.id && <KeyboardHint {...hint} />}
               </span>
-              <span
-                className={`${styles.statValue} ${s.tone === 'accent' ? styles.statAccent : ''}`}
-              >
+              <span className={clsx(styles.statValue, s.tone === 'accent' && styles.statAccent)}>
                 {s.value}
               </span>
             </button>

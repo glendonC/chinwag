@@ -1,4 +1,5 @@
 import { useState, useMemo, type ChangeEvent } from 'react';
+import clsx from 'clsx';
 import type { Memory } from '../../lib/apiSchemas.js';
 import MemoryRow from '../../components/MemoryRow/MemoryRow.jsx';
 import EmptyState from '../../components/EmptyState/EmptyState.jsx';
@@ -54,7 +55,7 @@ export default function ProjectMemoryTab({
             {activeTag && (
               <button
                 type="button"
-                className={`${styles.tagPill} ${styles.tagPillClear}`}
+                className={clsx(styles.tagPill, styles.tagPillClear)}
                 onClick={() => setActiveTag(null)}
               >
                 All
@@ -64,7 +65,7 @@ export default function ProjectMemoryTab({
               <button
                 key={tag}
                 type="button"
-                className={`${styles.tagPill} ${activeTag === tag ? styles.tagPillActive : ''}`}
+                className={clsx(styles.tagPill, activeTag === tag && styles.tagPillActive)}
                 onClick={() => setActiveTag(activeTag === tag ? null : tag)}
               >
                 {tag}

@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import styles from './StatusState.module.css';
 
 interface Props {
@@ -25,7 +26,7 @@ export default function StatusState({
     tone === 'danger' ? styles.danger : tone === 'loading' ? styles.loading : styles.neutral;
 
   return (
-    <section className={`${styles.state} ${toneClass}`.trim()} role="status" aria-live="polite">
+    <section className={clsx(styles.state, toneClass)} role="status" aria-live="polite">
       <div className={styles.topline}>
         {eyebrow ? <span className={styles.eyebrow}>{eyebrow}</span> : null}
         {meta ? <span className={styles.meta}>{meta}</span> : null}

@@ -1,4 +1,5 @@
 import type { ReactNode, ElementType } from 'react';
+import clsx from 'clsx';
 import styles from './Skeleton.module.css';
 
 interface SkeletonLineProps {
@@ -55,5 +56,5 @@ interface ShimmerTextProps {
 }
 
 export function ShimmerText({ children, as: Tag = 'h2', className = '' }: ShimmerTextProps) {
-  return <Tag className={`${styles.shimmerText} ${className}`.trim()}>{children}</Tag>;
+  return <Tag className={clsx(styles.shimmerText, className)}>{children}</Tag>;
 }

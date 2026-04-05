@@ -1,4 +1,5 @@
 import { useMemo, useState, useCallback } from 'react';
+import clsx from 'clsx';
 import styles from './ActivityTimeline.module.css';
 import { BIN_COUNT, buildTimelineBins, type TimelineBin } from './timelineBins.js';
 
@@ -54,7 +55,7 @@ export default function ActivityTimeline({ sessions = [], liveCount = 0 }: Props
               <button
                 key={r.id}
                 type="button"
-                className={`${styles.rangeOption} ${rangeId === r.id ? styles.rangeActive : ''}`}
+                className={clsx(styles.rangeOption, rangeId === r.id && styles.rangeActive)}
                 onClick={() => selectRange(r.id)}
               >
                 {r.label}
@@ -85,7 +86,11 @@ export default function ActivityTimeline({ sessions = [], liveCount = 0 }: Props
               onMouseLeave={() => setHoveredBin(null)}
             >
               <span
-                className={`${styles.bar} ${isCurrent ? styles.barCurrent : ''} ${isHovered ? styles.barHovered : ''}`}
+                className={clsx(
+                  styles.bar,
+                  isCurrent && styles.barCurrent,
+                  isHovered && styles.barHovered,
+                )}
                 style={{ height }}
               />
             </span>
@@ -99,7 +104,7 @@ export default function ActivityTimeline({ sessions = [], liveCount = 0 }: Props
             <button
               key={r.id}
               type="button"
-              className={`${styles.rangeOption} ${rangeId === r.id ? styles.rangeActive : ''}`}
+              className={clsx(styles.rangeOption, rangeId === r.id && styles.rangeActive)}
               onClick={() => selectRange(r.id)}
             >
               {r.label}

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import clsx from 'clsx';
 import { getToolMeta, normalizeToolId } from '../../lib/toolMeta.js';
 import { summarizeList } from '../../lib/summarize.js';
 import { useToolCatalog } from '../../lib/useToolCatalog.js';
@@ -147,7 +148,10 @@ export default function ToolsPanel({
     <div className={styles.vizPanel} role="tabpanel" id="panel-tools">
       <div className={styles.spatialContainer}>
         <div
-          className={`${styles.spatialTrack} ${screen === 'directory' ? styles.spatialShowDirectory : ''}`}
+          className={clsx(
+            styles.spatialTrack,
+            screen === 'directory' && styles.spatialShowDirectory,
+          )}
         >
           {/* ── Screen 1: Stack ── */}
           <div className={styles.spatialScreen}>
@@ -369,7 +373,10 @@ export default function ToolsPanel({
                   {VERDICT_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
-                      className={`${styles.dirFilterBtn} ${activeVerdict === opt.value ? styles.dirFilterBtnActive : ''}`}
+                      className={clsx(
+                        styles.dirFilterBtn,
+                        activeVerdict === opt.value && styles.dirFilterBtnActive,
+                      )}
                       onClick={() => setActiveVerdict(opt.value)}
                     >
                       {opt.label}
@@ -377,7 +384,10 @@ export default function ToolsPanel({
                   ))}
                   <span className={styles.dirFilterDivider} />
                   <button
-                    className={`${styles.dirFilterBtn} ${activeCategory === 'all' ? styles.dirFilterBtnActive : ''}`}
+                    className={clsx(
+                      styles.dirFilterBtn,
+                      activeCategory === 'all' && styles.dirFilterBtnActive,
+                    )}
                     onClick={() => setActiveCategory('all')}
                   >
                     All categories
@@ -385,7 +395,10 @@ export default function ToolsPanel({
                   {categoryList.map(([id, label]) => (
                     <button
                       key={id}
-                      className={`${styles.dirFilterBtn} ${activeCategory === id ? styles.dirFilterBtnActive : ''}`}
+                      className={clsx(
+                        styles.dirFilterBtn,
+                        activeCategory === id && styles.dirFilterBtnActive,
+                      )}
                       onClick={() => setActiveCategory(id)}
                     >
                       {label}

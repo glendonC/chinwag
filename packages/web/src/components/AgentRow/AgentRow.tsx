@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import type { Member } from '../../lib/apiSchemas.js';
 import { formatDuration } from '../../lib/utils.js';
 import ToolIcon from '../ToolIcon/ToolIcon.jsx';
@@ -27,9 +28,9 @@ export default function AgentRow({ agent }: Props) {
   const showSummary = summary && !/^editing\s/i.test(summary);
 
   return (
-    <div className={`${styles.row} ${isActive ? '' : styles.offline}`}>
+    <div className={clsx(styles.row, !isActive && styles.offline)}>
       <div className={styles.identity}>
-        <span className={`${styles.dot} ${isActive ? styles.dotOn : styles.dotOff}`} />
+        <span className={clsx(styles.dot, isActive ? styles.dotOn : styles.dotOff)} />
         {tool && <ToolIcon tool={tool} size={16} monochrome={!isActive} />}
       </div>
       <div className={styles.info}>

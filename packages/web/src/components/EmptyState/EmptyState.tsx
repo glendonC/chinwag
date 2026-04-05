@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import clsx from 'clsx';
 import styles from './EmptyState.module.css';
 
 interface Props {
@@ -8,7 +9,7 @@ interface Props {
 }
 
 export default function EmptyState({ title, hint = '', large = false }: Props) {
-  const cls = [styles.emptyState, large ? styles.large : ''].filter(Boolean).join(' ');
+  const cls = clsx(styles.emptyState, large && styles.large);
 
   return (
     <div className={cls} role="status">

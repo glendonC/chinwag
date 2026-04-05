@@ -1,4 +1,5 @@
 import { useState, type KeyboardEvent, type CSSProperties } from 'react';
+import clsx from 'clsx';
 import { useAuthStore, authActions } from '../../lib/stores/auth.js';
 import { stopPolling } from '../../lib/stores/polling.js';
 import { api } from '../../lib/api.js';
@@ -182,7 +183,7 @@ export default function SettingsView(_props: Props) {
                   placeholder="3-20 chars"
                 />
                 <button
-                  className={`${styles.actionButton} ${styles.actionButtonPrimary}`}
+                  className={clsx(styles.actionButton, styles.actionButtonPrimary)}
                   onClick={saveHandle}
                   disabled={handleForm.saving}
                 >
@@ -231,7 +232,11 @@ export default function SettingsView(_props: Props) {
               return (
                 <button
                   key={color.name}
-                  className={`${styles.colorDot} ${isCurrent ? styles.colorDotCurrent : ''} ${isPreview ? styles.colorDotPreview : ''}`}
+                  className={clsx(
+                    styles.colorDot,
+                    isCurrent && styles.colorDotCurrent,
+                    isPreview && styles.colorDotPreview,
+                  )}
                   style={{ '--dot-color': color.hex } as CSSProperties}
                   onClick={() => selectColor(color.name)}
                   onMouseEnter={() => setColorForm((prev) => ({ ...prev, hovered: color.name }))}
@@ -255,7 +260,7 @@ export default function SettingsView(_props: Props) {
           {THEME_OPTIONS.map((option) => (
             <button
               key={option}
-              className={`${styles.themeOption} ${theme === option ? styles.themeOptionActive : ''}`}
+              className={clsx(styles.themeOption, theme === option && styles.themeOptionActive)}
               onClick={() => setTheme(option as ThemePreference)}
             >
               {option.charAt(0).toUpperCase() + option.slice(1)}

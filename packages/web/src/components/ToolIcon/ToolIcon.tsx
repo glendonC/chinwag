@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import { getToolMeta } from '../../lib/toolMeta.js';
 import styles from './ToolIcon.module.css';
 
@@ -29,9 +30,7 @@ export default function ToolIcon({
   ariaHidden = true,
 }: Props) {
   const meta = getToolMeta(tool);
-  const classes = [styles.icon, monochrome ? styles.monochrome : '', className]
-    .filter(Boolean)
-    .join(' ');
+  const classes = clsx(styles.icon, monochrome && styles.monochrome, className);
 
   // 1. Local SVG (highest quality — hand-curated)
   if (meta.icon) {
@@ -77,7 +76,7 @@ export default function ToolIcon({
   // 3. Letter fallback
   return (
     <span
-      className={`${classes} ${styles.fallback}`}
+      className={clsx(classes, styles.fallback)}
       style={{ width: size, height: size, backgroundColor: meta.color }}
       aria-hidden={ariaHidden}
     >

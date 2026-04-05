@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import clsx from 'clsx';
 import { useTeamStore } from '../../lib/stores/teams.js';
 import { navigate, type Route } from '../../lib/router.js';
 import { projectGradient } from '../../lib/projectGradient.js';
@@ -59,7 +60,7 @@ export default function Sidebar({ activeView }: Props) {
         />
       )}
 
-      <aside className={`${styles.sidebar} ${mobileOpen ? styles.sidebarOpen : ''}`}>
+      <aside className={clsx(styles.sidebar, mobileOpen && styles.sidebarOpen)}>
         <button
           type="button"
           className={styles.sidebarLogo}
@@ -76,7 +77,7 @@ export default function Sidebar({ activeView }: Props) {
         <nav className={styles.sidebarNav} aria-label="Primary">
           <button
             type="button"
-            className={`${styles.navItem} ${overviewActive ? styles.navItemActive : ''}`}
+            className={clsx(styles.navItem, overviewActive && styles.navItemActive)}
             onClick={go('overview')}
             aria-current={overviewActive ? 'page' : undefined}
           >
@@ -122,7 +123,7 @@ export default function Sidebar({ activeView }: Props) {
           </button>
           <button
             type="button"
-            className={`${styles.navItem} ${settingsActive ? styles.navItemActive : ''}`}
+            className={clsx(styles.navItem, settingsActive && styles.navItemActive)}
             onClick={go('settings')}
             aria-current={settingsActive ? 'page' : undefined}
           >
@@ -147,7 +148,13 @@ export default function Sidebar({ activeView }: Props) {
                 <button
                   key={team.team_id}
                   type="button"
-                  className={`${styles.navItem} ${styles.navItemProject} ${activeTeamId === team.team_id && activeView === 'project' ? styles.navItemActive : ''}`}
+                  className={clsx(
+                    styles.navItem,
+                    styles.navItemProject,
+                    activeTeamId === team.team_id &&
+                      activeView === 'project' &&
+                      styles.navItemActive,
+                  )}
                   onClick={go('project', team.team_id)}
                   aria-current={
                     activeTeamId === team.team_id && activeView === 'project' ? 'page' : undefined
