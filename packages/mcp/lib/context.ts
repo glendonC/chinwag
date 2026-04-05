@@ -78,7 +78,9 @@ function startOfflineRetry(team: TeamHandlers, teamId: string): void {
   cache.offlineRetryTimer = setInterval(() => {
     // Fire-and-forget: retry refresh in background while offline.
     // refreshContext handles dedup via inflightRefresh.
-    void refreshContext(team, teamId);
+    void refreshContext(team, teamId).catch((err) =>
+      log.warn('Background context refresh failed', { error: getErrorMessage(err) }),
+    );
   }, CONTEXT_OFFLINE_RETRY_MS);
 }
 

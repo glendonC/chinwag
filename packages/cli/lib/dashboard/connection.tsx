@@ -123,8 +123,8 @@ export function useDashboardConnection({
     let tools: HostIntegration[] = [];
     try {
       tools = detectTools(project.root);
-    } catch {
-      /* detection failed */
+    } catch (err) {
+      log.warn('Tool detection failed', { error: formatError(err) });
     }
     return { teamId: project.teamId, teamName: project.teamName, root: project.root, tools };
   };

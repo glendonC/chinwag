@@ -93,8 +93,10 @@ export function registerTeamTool(
                 // Immediately retry the heartbeat after successful rejoin
                 try {
                   await team.heartbeat(state.teamId!);
-                } catch {
-                  // Non-critical: rejoin succeeded, next interval will retry
+                } catch (hbErr: unknown) {
+                  log.warn('Post-rejoin heartbeat failed, next interval will retry', {
+                    error: getErrorMessage(hbErr),
+                  });
                 }
               } catch (joinErr: unknown) {
                 log.error('Rejoin failed: ' + getErrorMessage(joinErr));

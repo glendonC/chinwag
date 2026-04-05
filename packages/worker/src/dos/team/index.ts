@@ -516,13 +516,10 @@ export class TeamDO extends DurableObject<Env> {
     agentId: string,
     handle: string,
     framework: string,
-    runtimeOrOwnerId: Record<string, unknown> | string | null = null,
+    runtime: Record<string, unknown> | null = null,
     ownerId: string | null = null,
   ): Promise<DOResult<{ ok: true; session_id: string }> | DOError> {
-    const runtime =
-      runtimeOrOwnerId && typeof runtimeOrOwnerId === 'object' ? runtimeOrOwnerId : null;
-    const resolvedOwnerId = runtime ? ownerId : (runtimeOrOwnerId as string | null);
-    return this.#withMember(agentId, resolvedOwnerId, (resolved) =>
+    return this.#withMember(agentId, ownerId, (resolved) =>
       startSessionFn(this.sql, resolved, handle, framework, runtime, this.#transact),
     );
   }
@@ -572,13 +569,10 @@ export class TeamDO extends DurableObject<Env> {
     text: string,
     tags: string[],
     handle: string,
-    runtimeOrOwnerId: Record<string, unknown> | string | null = null,
+    runtime: Record<string, unknown> | null = null,
     ownerId: string | null = null,
   ): Promise<ReturnType<typeof saveMemoryFn> | DOError> {
-    const runtime =
-      runtimeOrOwnerId && typeof runtimeOrOwnerId === 'object' ? runtimeOrOwnerId : null;
-    const resolvedOwnerId = runtime ? ownerId : (runtimeOrOwnerId as string | null);
-    return this.#withMember(agentId, resolvedOwnerId, (resolved) => {
+    return this.#withMember(agentId, ownerId, (resolved) => {
       const result = saveMemoryFn(
         this.sql,
         resolved,
