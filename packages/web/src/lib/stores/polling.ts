@@ -135,6 +135,12 @@ async function poll(): Promise<void> {
         await teamActions.loadTeams();
       }
       if (teamActions.getState().activeTeamId !== null) return;
+      // Sync sidebar teams if the dashboard shows teams the store doesn't know about
+      const knownIds = new Set((teamActions.getState().teams || []).map((t) => t.team_id));
+      const hasMismatch =
+        validated.teams.length !== knownIds.size ||
+        validated.teams.some((t) => !knownIds.has(t.team_id));
+      if (hasMismatch) teamActions.loadTeams();
       pollingStore.setState({
         dashboardData: validated,
         dashboardStatus: 'ready',
