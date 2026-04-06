@@ -1,0 +1,275 @@
+.detail {
+  padding-top: 8px;
+  animation: detailEnter 0.3s var(--motion) both;
+  animation-delay: 0.15s;
+}
+
+@keyframes detailEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Header: eyebrow back + display title ── */
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--space-xl);
+}
+
+.eyebrowBack {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  color: var(--soft);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  align-self: flex-start;
+}
+
+.eyebrowBack:hover {
+  color: var(--ink);
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.title {
+  font-family: var(--display);
+  font-size: var(--display-page);
+  font-weight: 300;
+  line-height: var(--display-line);
+  letter-spacing: var(--display-spacing);
+  color: var(--ink);
+  margin: 0;
+  text-wrap: balance;
+}
+
+.tagline {
+  font-size: var(--text-md);
+  color: var(--muted);
+  margin: 4px 0 0;
+  max-width: 48ch;
+  line-height: 1.5;
+}
+
+/* ── Stat grid ── */
+
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px 48px;
+  margin-bottom: 40px;
+}
+
+.statCell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.statLabel {
+  font-family: var(--mono);
+  font-size: var(--text-10);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-table);
+  color: var(--soft);
+}
+
+.statValue {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink);
+  text-transform: capitalize;
+}
+
+.statStub {
+  font-size: var(--text-sm);
+  color: var(--soft);
+}
+
+/* ── Setup CTA ── */
+
+.setupCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 28px;
+  margin-bottom: 40px;
+  background: var(--ghost);
+  color: var(--soft);
+  border: none;
+  border-radius: 999px;
+  font-family: var(--sans);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ── Notable ── */
+
+.notable {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  line-height: 1.6;
+  max-width: 52ch;
+  margin-bottom: 32px;
+}
+
+/* ── Metadata links ── */
+
+.metaSection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.metaItem {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.metaLabel {
+  font-family: var(--mono);
+  font-size: var(--text-10);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--soft);
+}
+
+.metaLink {
+  font-family: var(--mono);
+  font-size: var(--text-11);
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.metaLink:hover {
+  text-decoration: underline;
+}
+
+.installCmd {
+  font-family: var(--mono);
+  font-size: var(--text-11);
+  color: var(--muted);
+  background: var(--ghost);
+  padding: 3px 8px;
+  border-radius: var(--radius-xs);
+}
+
+/* ── Sources ── */
+
+.sourcesCollapsible {
+  margin-bottom: 24px;
+}
+
+.sourcesToggle {
+  font-family: var(--mono);
+  font-size: var(--text-10);
+  color: var(--soft);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.sourcesToggle::before {
+  content: '\25B8 ';
+}
+
+details[open] > .sourcesToggle::before {
+  content: '\25BE ';
+}
+
+.sourcesList {
+  padding-top: var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sourceEntry {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+}
+
+.sourceClaim {
+  font-family: var(--mono);
+  font-size: var(--text-10);
+  color: var(--soft);
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.sourceCitations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.citationLink {
+  font-size: var(--text-11);
+  color: var(--accent);
+  text-decoration: none;
+  opacity: 0.8;
+}
+
+.citationLink:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+/* ── Footer ── */
+
+.footer {
+  display: flex;
+  gap: 16px;
+  align-items: baseline;
+  padding-top: 16px;
+}
+
+.footerMeta {
+  font-family: var(--mono);
+  font-size: var(--text-10);
+  color: var(--soft);
+}
+
+/* ── Responsive ── */
+
+@media (prefers-reduced-motion: reduce) {
+  .detail {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .statGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .titleRow {
+    gap: 12px;
+  }
+}

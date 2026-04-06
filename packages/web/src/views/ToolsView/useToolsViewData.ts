@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuthStore } from '../../lib/stores/auth.js';
 import { usePollingStore } from '../../lib/stores/polling.js';
+import { setQueryParam, useQueryParam } from '../../lib/router.js';
 import { api } from '../../lib/api.js';
 import {
   createEmptyDashboardSummary,
@@ -81,8 +82,9 @@ export interface ToolsViewData {
   setActiveVerdict: (v: string) => void;
   searchQuery: string;
   setSearchQuery: (v: string) => void;
-  expandedId: string | null;
-  setExpandedId: (v: string | null) => void;
+  selectedToolId: string | null;
+  selectedEvaluation: ToolDirectoryEvaluation | null;
+  selectTool: (id: string | null) => void;
   showAll: boolean;
   setShowAll: (v: boolean) => void;
   hideConfigured: boolean;
@@ -98,8 +100,11 @@ export function useToolsViewData(): ToolsViewData {
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [activeVerdict, setActiveVerdict] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState<boolean>(false);
+
+  // URL-synced tool selection for spatial navigation
+  const selectedToolId = useQueryParam('tool');
+  const selectTool = useCallback((id: string | null) => setQueryParam('tool', id), []);
   const [hideConfigured, setHideConfigured] = useState<boolean>(true);
   const [fallbackDashboardSnapshot, setFallbackDashboardSnapshot] =
     useState<DashboardSummary | null>(null);
@@ -327,8 +332,9 @@ export function useToolsViewData(): ToolsViewData {
     setActiveVerdict,
     searchQuery,
     setSearchQuery,
-    expandedId,
-    setExpandedId,
+    selectedToolId,
+    selectedEvaluation: evaluations.find((ev) => ev.id === selectedToolId) ?? null,
+    selectTool,
     showAll,
     setShowAll,
     hideConfigured,

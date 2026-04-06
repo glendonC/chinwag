@@ -81,3 +81,22 @@ export function useRoute(): Route {
 
   return useSyncExternalStore(subscribe, getSnapshot);
 }
+
+/** Set or remove a query parameter, pushing a history entry. */
+export function setQueryParam(key: string, value: string | null): void {
+  const url = new URL(window.location.href);
+  if (value === null) url.searchParams.delete(key);
+  else url.searchParams.set(key, value);
+  const next = url.pathname + url.search;
+  if (window.location.pathname + window.location.search !== next) {
+    window.history.pushState(null, '', next);
+    emit();
+  }
+}
+
+/** Hook: returns a single query param value, re-renders on navigation. */
+export function useQueryParam(key: string): string | null {
+  return useSyncExternalStore(subscribe, () =>
+    new URLSearchParams(window.location.search).get(key),
+  );
+}
