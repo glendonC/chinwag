@@ -288,6 +288,16 @@ export interface TeamContext {
   usage: Record<string, number>;
 }
 
+export interface ActiveMemberSummary {
+  agent_id: string;
+  handle: string;
+  host_tool: string;
+  agent_surface: string | null;
+  files: string[];
+  summary: string | null;
+  session_minutes: number | null;
+}
+
 export interface TeamSummary {
   active_agents: number;
   total_members: number;
@@ -295,6 +305,26 @@ export interface TeamSummary {
   memory_count: number;
   live_sessions: number;
   recent_sessions_24h: number;
+  active_members: ActiveMemberSummary[];
+}
+
+// ── Commands (daemon relay) ──
+
+export type CommandType = 'spawn' | 'stop' | 'message';
+export type CommandStatus = 'pending' | 'claimed' | 'completed' | 'failed' | 'expired';
+
+export interface Command {
+  id: string;
+  type: CommandType;
+  payload: Record<string, unknown>;
+  sender_id: string;
+  sender_handle: string;
+  status: CommandStatus;
+  claimed_by: string | null;
+  result: Record<string, unknown> | null;
+  created_at: string;
+  claimed_at: string | null;
+  completed_at: string | null;
 }
 
 // ── Rate limiting ──

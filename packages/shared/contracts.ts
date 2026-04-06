@@ -25,7 +25,7 @@ export interface RuntimeIdentityContract {
   transport: string;
   tier: 'managed' | 'connected';
   capabilities: string[];
-  detectionSource: 'explicit' | 'parent-process' | 'fallback';
+  detectionSource: 'explicit' | 'mcp-client-info' | 'parent-process' | 'fallback';
   detectionConfidence: number;
 }
 
@@ -297,6 +297,16 @@ export interface MemoryDeltaEvent {
   created_at?: string;
 }
 
+export interface CommandStatusEvent {
+  type: 'command_status';
+  id: string;
+  status: string;
+  command_type?: string;
+  sender_handle?: string;
+  claimed_by?: string;
+  result?: Record<string, unknown>;
+}
+
 export interface ContextEvent {
   type: 'context';
   data: TeamContext;
@@ -311,7 +321,8 @@ export type DashboardDeltaEvent =
   | StatusChangeEvent
   | LockChangeEvent
   | MessageEvent
-  | MemoryDeltaEvent;
+  | MemoryDeltaEvent
+  | CommandStatusEvent;
 
 export interface ConflictCheckResponse {
   conflicts: ConflictMatch[];

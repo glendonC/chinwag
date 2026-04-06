@@ -5,6 +5,7 @@ import {
   generateAgentId,
   generateSessionAgentId,
   getConfiguredAgentId,
+  inferToolFromClientInfo,
 } from '../agent-identity.js';
 
 describe('agent-identity', () => {
@@ -411,6 +412,190 @@ describe('agent-identity', () => {
     it('trims whitespace from CHINWAG_AGENT_ID', () => {
       process.env.CHINWAG_AGENT_ID = '  cursor:abc  ';
       expect(getConfiguredAgentId('cursor')).toBe('cursor:abc');
+    });
+  });
+
+  describe('inferToolFromClientInfo', () => {
+    it('resolves Claude Code from exact clientInfo name', () => {
+      expect(inferToolFromClientInfo('claude-code')).toBe('claude-code');
+    });
+
+    it('resolves Claude Code case-insensitively', () => {
+      expect(inferToolFromClientInfo('Claude Code')).toBe('claude-code');
+      expect(inferToolFromClientInfo('CLAUDE-CODE')).toBe('claude-code');
+    });
+
+    it('resolves Cursor', () => {
+      expect(inferToolFromClientInfo('Cursor')).toBe('cursor');
+      expect(inferToolFromClientInfo('cursor')).toBe('cursor');
+    });
+
+    it('resolves Windsurf and its alias', () => {
+      expect(inferToolFromClientInfo('windsurf')).toBe('windsurf');
+      expect(inferToolFromClientInfo('Codeium')).toBe('windsurf');
+    });
+
+    it('resolves VS Code from multiple names', () => {
+      expect(inferToolFromClientInfo('Visual Studio Code')).toBe('vscode');
+      expect(inferToolFromClientInfo('vscode')).toBe('vscode');
+      expect(inferToolFromClientInfo('VS Code')).toBe('vscode');
+      expect(inferToolFromClientInfo('GitHub Copilot')).toBe('vscode');
+    });
+
+    it('resolves Codex', () => {
+      expect(inferToolFromClientInfo('codex')).toBe('codex');
+      expect(inferToolFromClientInfo('openai-codex')).toBe('codex');
+    });
+
+    it('resolves JetBrains IDEs', () => {
+      expect(inferToolFromClientInfo('IntelliJ IDEA')).toBe('jetbrains');
+      expect(inferToolFromClientInfo('PyCharm')).toBe('jetbrains');
+      expect(inferToolFromClientInfo('WebStorm')).toBe('jetbrains');
+    });
+
+    it('resolves Amazon Q', () => {
+      expect(inferToolFromClientInfo('Amazon Q')).toBe('amazon-q');
+      expect(inferToolFromClientInfo('Q Developer')).toBe('amazon-q');
+    });
+
+    it('resolves Aider', () => {
+      expect(inferToolFromClientInfo('aider')).toBe('aider');
+      expect(inferToolFromClientInfo('aider-chat')).toBe('aider');
+    });
+
+    it('returns null for unknown clients', () => {
+      expect(inferToolFromClientInfo('some-random-client')).toBeNull();
+      expect(inferToolFromClientInfo('')).toBeNull();
+    });
+
+    it('trims whitespace', () => {
+      expect(inferToolFromClientInfo('  cursor  ')).toBe('cursor');
+    });
+  });
+
+  describe('detectRuntimeIdentity with clientInfoName', () => {
+    it('uses clientInfoName when no explicit tool is set', () => {
+      const result = detectRuntimeIdentity('unknown', {
+        argv: ['node', 'script.js'],
+        readProcessInfoFn: () => null,
+        parentPid: 1,
+        clientInfoName: 'Claude Code',
+      });
+      expect(result.hostTool).toBe('claude-code');
+      expect(result.detectionSource).toBe('mcp-client-info');
+      expect(result.detectionConfidence).toBe(0.95);
+    });
+
+    it('explicit --tool takes precedence over clientInfoName', () => {
+      const result = detectRuntimeIdentity('unknown', {
+        argv: ['node', 'script.js', '--tool', 'windsurf'],
+        readProcessInfoFn: () => null,
+        parentPid: 1,
+        clientInfoName: 'Claude Code',
+      });
+      expect(result.hostTool).toBe('windsurf');
+      expect(result.detectionSource).toBe('explicit');
+    });
+
+    it('CHINWAG_TOOL env takes precedence over clientInfoName', () => {
+      process.env.CHINWAG_TOOL = 'codex';
+      const result = detectRuntimeIdentity('unknown', {
+        argv: ['node', 'script.js'],
+        readProcessInfoFn: () => null,
+        parentPid: 1,
+        clientInfoName: 'Cursor',
+      });
+      expect(result.hostTool).toBe('codex');
+      expect(result.detectionSource).toBe('explicit');
+    });
+
+    it('clientInfoName takes precedence over process tree detection', () => {
+      const processTree = {
+        100: { ppid: 1, command: '/opt/bin/cursor --some-flag' },
+      };
+      const readFn = (pid) => processTree[pid] || null;
+
+      const result = detectRuntimeIdentity('unknown', {
+        argv: ['node', 'script.js'],
+        readProcessInfoFn: readFn,
+        parentPid: 100,
+        clientInfoName: 'Claude Code',
+      });
+      expect(result.hostTool).toBe('claude-code');
+      expect(result.detectionSource).toBe('mcp-client-info');
+    });
+
+    it('falls through to process tree when clientInfoName is unrecognized', () => {
+      const processTree = {
+        100: { ppid: 1, command: '/opt/bin/cursor --some-flag' },
+      };
+      const readFn = (pid) => processTree[pid] || null;
+
+      const result = detectRuntimeIdentity('unknown', {
+        argv: ['node', 'script.js'],
+        readProcessInfoFn: readFn,
+        parentPid: 100,
+        clientInfoName: 'totally-unknown-client',
+      });
+      expect(result.hostTool).toBe('cursor');
+      expect(result.detectionSource).toBe('parent-process');
+    });
+  });
+
+  describe('commandPatterns in process tree detection', () => {
+    it('detects Claude Code from npm package path in command string', () => {
+      const processTree = {
+        100: {
+          ppid: 1,
+          command:
+            '/usr/local/bin/node /usr/local/lib/node_modules/@anthropic-ai/claude-code/cli.js',
+        },
+      };
+      const readFn = (pid) => processTree[pid] || null;
+
+      const result = detectRuntimeIdentity('unknown', {
+        argv: ['node', 'script.js'],
+        readProcessInfoFn: readFn,
+        parentPid: 100,
+      });
+      expect(result.hostTool).toBe('claude-code');
+      expect(result.detectionSource).toBe('parent-process');
+    });
+
+    it('detects Codex from npm package path in command string', () => {
+      const processTree = {
+        100: {
+          ppid: 1,
+          command: 'node /home/user/.npm/_npx/@openai/codex/bin/codex.js',
+        },
+      };
+      const readFn = (pid) => processTree[pid] || null;
+
+      const result = detectRuntimeIdentity('unknown', {
+        argv: ['node', 'script.js'],
+        readProcessInfoFn: readFn,
+        parentPid: 100,
+      });
+      expect(result.hostTool).toBe('codex');
+      expect(result.detectionSource).toBe('parent-process');
+    });
+
+    it('detects Aider from pip package path in command string', () => {
+      const processTree = {
+        100: {
+          ppid: 1,
+          command: '/usr/bin/python3 /home/user/.local/bin/aider-chat --model gpt-4',
+        },
+      };
+      const readFn = (pid) => processTree[pid] || null;
+
+      const result = detectRuntimeIdentity('unknown', {
+        argv: ['node', 'script.js'],
+        readProcessInfoFn: readFn,
+        parentPid: 100,
+      });
+      expect(result.hostTool).toBe('aider');
+      expect(result.detectionSource).toBe('parent-process');
     });
   });
 });

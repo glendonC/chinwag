@@ -36,12 +36,18 @@ interface WsManagerOptions {
   agentId: string;
   /** Shared mutable state (reads/writes .ws, .lastActivity, .shuttingDown) */
   state: WsManagerState;
+  /** Tool IDs this MCP server can spawn — advertised via WebSocket tags. */
+  spawnTools?: string[];
+  /** Called for every incoming WebSocket message (command dispatch, claim results). */
+  onMessage?: (data: Record<string, unknown>, ws: WebSocket) => void;
 }
 
 /** Return type of createWebSocketManager. */
 export interface WsManager {
   connect: () => void;
   disconnect: () => void;
+  /** Update the agent ID used for WebSocket connections. Triggers a reconnect. */
+  updateAgentId: (newAgentId: string) => void;
 }
 
 /**
@@ -54,9 +60,12 @@ export function createWebSocketManager({
   client,
   getApiUrl,
   teamId,
-  agentId,
+  agentId: initialAgentId,
   state,
+  spawnTools,
+  onMessage,
 }: WsManagerOptions): WsManager {
+  let agentId = initialAgentId;
   let reconnectDelay = INITIAL_RECONNECT_DELAY_MS;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let pingTimer: ReturnType<typeof setInterval> | null = null;
@@ -93,7 +102,10 @@ export function createWebSocketManager({
         }
 
         const wsBase = getApiUrl().replace(/^http/, 'ws');
-        const wsUrl = `${wsBase}/teams/${teamId}/ws?agentId=${encodeURIComponent(agentId)}&ticket=${encodeURIComponent(ticket)}&role=agent`;
+        const toolsParam = spawnTools?.length
+          ? `&tools=${encodeURIComponent(spawnTools.join(','))}`
+          : '';
+        const wsUrl = `${wsBase}/teams/${teamId}/ws?agentId=${encodeURIComponent(agentId)}&ticket=${encodeURIComponent(ticket)}&role=agent${toolsParam}`;
 
         const ws = new WebSocket(wsUrl);
 
@@ -116,7 +128,17 @@ export function createWebSocketManager({
           if (pingTimer.unref) pingTimer.unref();
         };
 
-        ws.onmessage = (_event: MessageEvent): void => {}; // agent doesn't need broadcasts
+        ws.onmessage = (event: MessageEvent): void => {
+          if (!onMessage) return;
+          try {
+            const data = JSON.parse(
+              typeof event.data === 'string' ? event.data : String(event.data),
+            ) as Record<string, unknown>;
+            onMessage(data, ws);
+          } catch {
+            // malformed message — ignore
+          }
+        };
 
         ws.onclose = (_event: CloseEvent): void => {
           connecting = false;
@@ -159,5 +181,12 @@ export function createWebSocketManager({
     }
   }
 
-  return { connect: connectWs, disconnect };
+  function updateAgentId(newAgentId: string): void {
+    agentId = newAgentId;
+    // Force reconnect with new identity
+    disconnect();
+    connectWs();
+  }
+
+  return { connect: connectWs, disconnect, updateAgentId };
 }

@@ -3,7 +3,7 @@
 // CRITICAL: Never console.log — stdio transport. Use console.error for all logging.
 
 import { loadConfig, configExists } from './config.js';
-import { api } from './api.js';
+import { api, type IdentityUpdatableClient } from './api.js';
 import { findTeamFile, teamHandlers } from './team.js';
 import { detectRuntimeIdentity, getConfiguredAgentId, generateSessionAgentId } from './identity.js';
 import { resolveAgentIdentity } from './lifecycle.js';
@@ -68,7 +68,7 @@ export interface BootstrapResult {
   agentId: string;
   /** Whether the agent ID was resolved from an exact session record (hook/channel). */
   hasExactSession: boolean;
-  client: ApiClient;
+  client: IdentityUpdatableClient;
   team: TeamHandlers;
   teamId: string | null;
 }

@@ -6,6 +6,8 @@ export interface ToolDetect {
 export interface ToolProcessDetection {
   executables: string[];
   aliases: string[];
+  /** Substrings to match in the full `ps` command string (e.g. package names). */
+  commandPatterns?: string[];
 }
 
 export interface ToolSpawnConfig {
@@ -48,6 +50,11 @@ export interface McpTool {
   color: string;
   detect: ToolDetect;
   processDetection: ToolProcessDetection;
+  /**
+   * Known MCP `clientInfo.name` values that identify this tool.
+   * Matched case-insensitively during MCP initialization handshake.
+   */
+  clientInfoNames?: string[];
   mcpConfig: string;
   hooks?: boolean;
   channel?: boolean;
@@ -100,7 +107,9 @@ export const MCP_TOOLS: McpTool[] = [
     processDetection: {
       executables: ['claude'],
       aliases: ['claude code'],
+      commandPatterns: ['claude-code', '@anthropic-ai/claude-code'],
     },
+    clientInfoNames: ['claude-code', 'claude code', 'claude-ai'],
     mcpConfig: '.mcp.json',
     hooks: true,
     channel: true,
@@ -135,6 +144,7 @@ export const MCP_TOOLS: McpTool[] = [
       executables: ['cursor'],
       aliases: [],
     },
+    clientInfoNames: ['cursor'],
     mcpConfig: '.cursor/mcp.json',
     catalog: {
       description: 'AI-native code editor with inline completions and chat',
@@ -154,6 +164,7 @@ export const MCP_TOOLS: McpTool[] = [
       executables: ['windsurf'],
       aliases: [],
     },
+    clientInfoNames: ['windsurf', 'codeium'],
     mcpConfig: '.windsurf/mcp.json',
     catalog: {
       description: 'AI IDE with autonomous Cascade agent and memory',
@@ -173,6 +184,7 @@ export const MCP_TOOLS: McpTool[] = [
       executables: ['code'],
       aliases: ['code helper'],
     },
+    clientInfoNames: ['visual studio code', 'vscode', 'vs code', 'github copilot'],
     mcpConfig: '.vscode/mcp.json',
     catalog: {
       description: 'Code editor with Copilot, Cline, and Continue extensions',
@@ -190,7 +202,9 @@ export const MCP_TOOLS: McpTool[] = [
     processDetection: {
       executables: ['codex'],
       aliases: [],
+      commandPatterns: ['@openai/codex'],
     },
+    clientInfoNames: ['codex', 'openai-codex'],
     mcpConfig: '.mcp.json',
     spawn: { cmd: 'codex', args: ['exec', '--color', 'never'], interactiveArgs: [] },
     availabilityCheck: {
@@ -222,7 +236,9 @@ export const MCP_TOOLS: McpTool[] = [
     processDetection: {
       executables: ['aider'],
       aliases: [],
+      commandPatterns: ['aider-chat'],
     },
+    clientInfoNames: ['aider', 'aider-chat'],
     mcpConfig: '.mcp.json',
     spawn: { cmd: 'aider', args: ['--message'] },
     catalog: {
@@ -256,6 +272,17 @@ export const MCP_TOOLS: McpTool[] = [
       ],
       aliases: ['intellij idea'],
     },
+    clientInfoNames: [
+      'jetbrains',
+      'intellij idea',
+      'pycharm',
+      'webstorm',
+      'phpstorm',
+      'goland',
+      'rubymine',
+      'rider',
+      'clion',
+    ],
     mcpConfig: '.idea/mcp.json',
     catalog: {
       description: 'AI assistant across IntelliJ, PyCharm, WebStorm, and more',
@@ -274,6 +301,7 @@ export const MCP_TOOLS: McpTool[] = [
       executables: ['q'],
       aliases: ['amazon q'],
     },
+    clientInfoNames: ['amazon q', 'amazon-q', 'q developer'],
     mcpConfig: '.mcp.json',
     spawn: { cmd: 'q', taskArg: 'positional' },
     tier: 'connected',

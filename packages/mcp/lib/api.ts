@@ -51,8 +51,18 @@ async function tryRefreshToken(baseUrl: string): Promise<string | null> {
   return result?.token ?? null;
 }
 
-export function api(config: { token?: string | null } | null, options: ApiOptions = {}): ApiClient {
-  const { agentId, runtimeIdentity } = options;
+/** Extended API client that supports identity correction after MCP init. */
+export interface IdentityUpdatableClient extends ApiClient {
+  /** Rebuild internal HTTP client with corrected agent identity. */
+  updateIdentity(newAgentId: string, newRuntime: RuntimeIdentity): void;
+}
+
+export function api(
+  config: { token?: string | null } | null,
+  options: ApiOptions = {},
+): IdentityUpdatableClient {
+  let agentId = options.agentId;
+  let runtimeIdentity = options.runtimeIdentity;
   const { apiUrl: baseUrl } = getRuntimeTargets();
 
   // Mutable token reference so refresh can update subsequent requests
@@ -119,5 +129,10 @@ export function api(config: { token?: string | null } | null, options: ApiOption
       withRefresh<T>((c) => c.put(path, body)),
     del: <T = unknown>(path: string, body?: Record<string, unknown>) =>
       withRefresh<T>((c) => c.del(path, body)),
+    updateIdentity(newAgentId: string, newRuntime: RuntimeIdentity) {
+      agentId = newAgentId;
+      runtimeIdentity = newRuntime;
+      inner = buildClient(currentToken);
+    },
   };
 }

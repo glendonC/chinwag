@@ -6,6 +6,7 @@ import type {
   TeamMember,
   TeamContext,
   TeamSummary,
+  ActiveMemberSummary,
   ContextLockEntry,
   Memory,
   SessionInfo,
@@ -297,6 +298,42 @@ export function queryTeamSummary(sql: SqlStorage): TeamSummary & TelemetryBreakd
     .exec("SELECT COUNT(*) as c FROM sessions WHERE started_at > datetime('now', '-24 hours')")
     .toArray();
 
+  // Active member details for the overview agents panel.
+  // Exclude phantom members (CLI/web joins with no real tool identity).
+  const activeMembers = sql
+    .exec(
+      `SELECT m.agent_id, m.handle, m.host_tool, m.agent_surface,
+              a.files, a.summary,
+              ROUND((julianday('now') - julianday(s.started_at)) * 24 * 60) as session_minutes
+       FROM members m
+       LEFT JOIN activities a ON a.agent_id = m.agent_id
+       LEFT JOIN sessions s ON s.agent_id = m.agent_id AND s.ended_at IS NULL
+       WHERE m.last_heartbeat > datetime('now', '-' || ? || ' seconds')
+         AND m.host_tool IS NOT NULL
+         AND m.host_tool != 'unknown'
+       LIMIT 20`,
+      HEARTBEAT_ACTIVE_WINDOW_S,
+    )
+    .toArray();
+
+  const active_members: ActiveMemberSummary[] = activeMembers.map((row) => {
+    const r = row as Record<string, unknown>;
+    return {
+      agent_id: r.agent_id as string,
+      handle: (r.handle as string) || 'unknown',
+      host_tool: (r.host_tool as string) || inferHostToolFromAgentId(r.agent_id as string),
+      agent_surface: (r.agent_surface as string) || null,
+      files: safeParse(
+        (r.files as string) || '[]',
+        'queryTeamSummary active_members files',
+        [] as string[],
+        log,
+      ),
+      summary: (r.summary as string) || null,
+      session_minutes: r.session_minutes != null ? (r.session_minutes as number) : null,
+    };
+  });
+
   return {
     ok: true,
     active_agents: ((active[0] as Record<string, unknown>)?.c as number) || 0,
@@ -305,6 +342,7 @@ export function queryTeamSummary(sql: SqlStorage): TeamSummary & TelemetryBreakd
     memory_count: ((memoriesCount[0] as Record<string, unknown>)?.c as number) || 0,
     live_sessions: ((live[0] as Record<string, unknown>)?.c as number) || 0,
     recent_sessions_24h: ((recent[0] as Record<string, unknown>)?.c as number) || 0,
+    active_members,
     ...getTelemetryBreakdown(sql),
   };
 }

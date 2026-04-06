@@ -258,6 +258,27 @@ const migrations: Migration[] = [
       );
     },
   },
+  {
+    name: '004_commands_table',
+    up(sql) {
+      sql.exec(`
+        CREATE TABLE IF NOT EXISTS commands (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          payload TEXT NOT NULL DEFAULT '{}',
+          sender_id TEXT NOT NULL,
+          sender_handle TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          claimed_by TEXT,
+          result TEXT,
+          created_at TEXT DEFAULT (datetime('now')),
+          claimed_at TEXT,
+          completed_at TEXT
+        )
+      `);
+      sql.exec('CREATE INDEX IF NOT EXISTS idx_commands_status ON commands(status, created_at)');
+    },
+  },
 ];
 
 export function ensureSchema(

@@ -12,6 +12,8 @@ export interface DetectRuntimeOptions {
   parentPid?: number;
   maxParentHops?: number;
   defaultTransport?: string;
+  /** MCP clientInfo.name from the initialization handshake. */
+  clientInfoName?: string;
 }
 
 export interface RuntimeIdentityLike {
@@ -71,8 +73,32 @@ function inferToolFromCommand(command = ''): string | null {
     if (aliases.some((alias) => includesAlias(command, alias))) {
       return tool.id;
     }
+
+    // Check command-string patterns (catches npm-installed tools: node /path/to/@scope/package/cli.js)
+    const patterns = tool.processDetection?.commandPatterns || [];
+    if (patterns.some((pat) => normalized.includes(pat.toLowerCase()))) {
+      return tool.id;
+    }
   }
 
+  return null;
+}
+
+/**
+ * Resolve a tool ID from an MCP clientInfo.name string.
+ * Matches case-insensitively against each tool's clientInfoNames registry.
+ */
+export function inferToolFromClientInfo(clientName: string): string | null {
+  if (!clientName) return null;
+  const normalized = clientName.toLowerCase().trim();
+  if (!normalized) return null;
+
+  for (const tool of HOST_INTEGRATIONS) {
+    const names = tool.clientInfoNames || [];
+    if (names.some((n) => n.toLowerCase() === normalized)) {
+      return tool.id;
+    }
+  }
   return null;
 }
 
@@ -89,6 +115,8 @@ function getDetectionConfidence(source: RuntimeIdentity['detectionSource']): num
   switch (source) {
     case 'explicit':
       return 1;
+    case 'mcp-client-info':
+      return 0.95;
     case 'parent-process':
       return 0.7;
     default:
@@ -116,6 +144,15 @@ export function detectRuntimeIdentity(
 
   let hostTool = explicitTool;
   let detectionSource: RuntimeIdentity['detectionSource'] = explicitTool ? 'explicit' : 'fallback';
+
+  // MCP clientInfo.name — the host tool declares itself during the MCP handshake.
+  if (!hostTool && options.clientInfoName) {
+    const fromClient = inferToolFromClientInfo(options.clientInfoName);
+    if (fromClient) {
+      hostTool = fromClient;
+      detectionSource = 'mcp-client-info';
+    }
+  }
 
   if (!hostTool) {
     let pid = options.parentPid ?? process.ppid;

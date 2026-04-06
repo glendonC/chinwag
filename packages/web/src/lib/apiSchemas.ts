@@ -180,6 +180,15 @@ export type ToolDirectoryEvaluation = z.infer<typeof toolDirectoryEvaluationSche
 
 // ── Team context response ───────────────────────────
 
+const daemonStatusSchema = z
+  .object({
+    connected: z.boolean().default(false),
+    available_tools: z.array(z.string()).default([]),
+  })
+  .default({ connected: false, available_tools: [] });
+
+export type DaemonStatus = z.infer<typeof daemonStatusSchema>;
+
 export const teamContextSchema = z
   .object({
     members: z.array(memberSchema).catch([]),
@@ -194,6 +203,7 @@ export const teamContextSchema = z
     surfaces_seen: z.array(surfaceMetricSchema).catch([]),
     models_seen: z.array(modelMetricSchema).catch([]),
     usage: z.record(z.number()).catch({}),
+    daemon: daemonStatusSchema,
   })
   .transform((context) => ({
     ...context,
@@ -204,6 +214,18 @@ export type TeamContext = z.infer<typeof teamContextSchema>;
 
 // ── Dashboard summary response ──────────────────────
 
+const activeMemberSchema = z.object({
+  agent_id: z.string(),
+  handle: z.string().default('unknown'),
+  host_tool: z.string().default('unknown'),
+  agent_surface: z.string().nullable().default(null),
+  files: z.array(z.string()).default([]),
+  summary: z.string().nullable().default(null),
+  session_minutes: z.number().nullable().default(null),
+});
+
+export type ActiveMember = z.infer<typeof activeMemberSchema>;
+
 const teamSummarySchema = z.object({
   team_id: z.string(),
   team_name: z.string().optional(),
@@ -213,6 +235,7 @@ const teamSummarySchema = z.object({
   total_members: z.number().default(0),
   live_sessions: z.number().default(0),
   recent_sessions_24h: z.number().default(0),
+  active_members: z.array(activeMemberSchema).default([]),
   hosts_configured: z.array(hostMetricSchema).default([]),
   surfaces_seen: z.array(surfaceMetricSchema).default([]),
   models_seen: z.array(modelMetricSchema).default([]),
@@ -272,6 +295,7 @@ export function createEmptyTeamContext(): TeamContext {
     surfaces_seen: [],
     models_seen: [],
     usage: {},
+    daemon: { connected: false, available_tools: [] },
   };
 }
 

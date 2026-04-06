@@ -50,6 +50,7 @@ export const MAX_FRAMEWORK_LENGTH = 50;
 export const MAX_TAG_LENGTH = 50;
 export const MAX_TAGS_PER_MEMORY = 10;
 export const MAX_NAME_LENGTH = 100;
+export const MAX_COMMAND_PAYLOAD_LENGTH = 2000;
 
 // --- Rate limits (per user per day) ---
 export const RATE_LIMIT_JOINS = 100;
@@ -60,6 +61,7 @@ export const RATE_LIMIT_MESSAGES = 200;
 export const RATE_LIMIT_LOCKS = 100;
 export const RATE_LIMIT_FILE_REPORTS = 500;
 export const RATE_LIMIT_SESSIONS = 50;
+export const RATE_LIMIT_COMMANDS = 50;
 export const RATE_LIMIT_EDITS = 1000;
 export const RATE_LIMIT_TEAMS = 5;
 export const RATE_LIMIT_ACCOUNTS_PER_IP = 3;
@@ -139,6 +141,7 @@ export const METRIC_KEYS = {
   MEMORIES_SAVED: 'memories_saved',
   CONFLICT_CHECKS: 'conflict_checks',
   CONFLICTS_FOUND: 'conflicts_found',
+  COMMANDS_SUBMITTED: 'commands_submitted',
 } as const;
 
 // --- Misc ---

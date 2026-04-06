@@ -73,6 +73,7 @@ interface UseProjectDataReturn {
   hostSummaries: UsageSummaryEntry[];
   surfaceSummaries: UsageSummaryEntry[];
   modelsSeen: ModelMetric[];
+  availableSpawnTools: string[];
   lastSynced: string | null;
   isLoading: boolean;
   isUnavailable: boolean;
@@ -164,6 +165,10 @@ export function useProjectData(): UseProjectDataReturn {
     () => contextData?.models_seen ?? [],
     [contextData?.models_seen],
   );
+  const availableSpawnTools = useMemo<string[]>(
+    () => contextData?.daemon?.available_tools ?? [],
+    [contextData?.daemon],
+  );
 
   const lastSynced = formatRelativeTime(lastUpdate);
   const isLoading = !hasCurrentContext && (contextStatus === 'idle' || contextStatus === 'loading');
@@ -212,6 +217,7 @@ export function useProjectData(): UseProjectDataReturn {
     hostSummaries,
     surfaceSummaries,
     modelsSeen,
+    availableSpawnTools,
 
     // View state
     lastSynced,

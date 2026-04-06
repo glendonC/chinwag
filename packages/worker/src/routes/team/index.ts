@@ -25,3 +25,4 @@ export {
 } from './memory.js';
 export { handleTeamClaimFiles, handleTeamReleaseFiles, handleTeamGetLocks } from './locks.js';
 export { handleTeamSendMessage, handleTeamGetMessages } from './messages.js';
+export { handleTeamSubmitCommand, handleTeamGetCommands } from './commands.js';

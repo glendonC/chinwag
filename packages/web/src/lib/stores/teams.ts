@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { type z } from 'zod';
 import { createStore, useStore } from 'zustand';
 import { api } from '../api.js';
 import { createEmptyUserTeams, userTeamsSchema, validateResponse } from '../apiSchemas.js';
@@ -131,5 +131,21 @@ export const teamActions = {
     if (target) body.target = target;
     await api('POST', `/teams/${teamId}/messages`, body, token);
     requestRefresh();
+  },
+
+  async submitCommand(
+    teamId: string,
+    type: 'spawn' | 'stop' | 'message',
+    payload: Record<string, unknown>,
+  ): Promise<{ ok?: boolean; id?: string; warning?: string; error?: string }> {
+    const { token } = authActions.getState();
+    const result = await api<{ ok?: boolean; id?: string; warning?: string; error?: string }>(
+      'POST',
+      `/teams/${teamId}/commands`,
+      { type, payload },
+      token,
+    );
+    requestRefresh();
+    return result;
   },
 };

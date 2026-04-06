@@ -49,6 +49,12 @@ import {
   enrichSessionModel as enrichSessionModelFn,
 } from './sessions.js';
 import { sendMessage as sendMessageFn, getMessages as getMessagesFn } from './messages.js';
+import {
+  submitCommand as submitCommandFn,
+  claimCommand as claimCommandFn,
+  completeCommand as completeCommandFn,
+  getPendingCommands as getPendingCommandsFn,
+} from './commands.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
 import {
   CONTEXT_CACHE_TTL_MS,
@@ -108,19 +114,43 @@ export class TeamDO extends DurableObject<Env> {
       return new Response('Not a member of this team', { status: 403 });
     }
 
-    const role = url.searchParams.get('role') === 'agent' ? 'agent' : 'watcher';
+    const roleParam = url.searchParams.get('role');
+    const role = roleParam === 'agent' ? 'agent' : roleParam === 'daemon' ? 'daemon' : 'watcher';
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
 
-    this.ctx.acceptWebSocket(server, [resolved, `role:${role}`]);
+    // Agents and daemons can report available spawn tools via query string — stored as
+    // WebSocket tags so they survive DO hibernation and can be queried for context responses.
+    const tags = [resolved, `role:${role}`];
+    if (role === 'agent' || role === 'daemon') {
+      const toolsParam = url.searchParams.get('tools');
+      if (toolsParam) {
+        for (const t of toolsParam.split(',')) {
+          const trimmed = t.trim();
+          if (trimmed) tags.push(`spawn:${trimmed}`);
+        }
+      }
+    }
 
-    // Agents: bump heartbeat on connect (WS keeps them alive going forward)
-    if (role === 'agent') {
+    this.ctx.acceptWebSocket(server, tags);
+
+    // Agents and daemons: bump heartbeat on connect (WS keeps them alive going forward)
+    if (role === 'agent' || role === 'daemon') {
       this.sql.exec(
         "UPDATE members SET last_heartbeat = datetime('now') WHERE agent_id = ?",
         resolved,
       );
       this.#broadcastToWatchers({ type: 'status_change', agent_id: resolved, status: 'active' });
+    }
+
+    // Spawn capability connect: notify watchers about available tools
+    const hasSpawnCapability = tags.some((t) => t.startsWith('spawn:'));
+    if (hasSpawnCapability) {
+      this.#broadcastToWatchers({
+        type: 'daemon_status',
+        connected: true,
+        available_tools: this.#getAvailableSpawnTools(),
+      });
     }
 
     // Send initial full context -- on failure, send error frame so client knows
@@ -133,6 +163,28 @@ export class TeamDO extends DurableObject<Env> {
         server.send(JSON.stringify({ type: 'error', message: 'Failed to load initial context' }));
       } catch {
         // Client may have already disconnected
+      }
+    }
+
+    // Executors (any socket with spawn capability): deliver pending commands
+    if (hasSpawnCapability) {
+      try {
+        const pending = getPendingCommandsFn(this.sql);
+        for (const cmd of pending.commands) {
+          const c = cmd as Record<string, unknown>;
+          if (c.status === 'pending') {
+            server.send(
+              JSON.stringify({
+                type: 'command',
+                id: c.id,
+                command_type: c.type,
+                payload: JSON.parse((c.payload as string) || '{}'),
+              }),
+            );
+          }
+        }
+      } catch (err) {
+        log.error('failed to send pending commands to daemon', { error: getErrorMessage(err) });
       }
     }
 
@@ -210,6 +262,40 @@ export class TeamDO extends DurableObject<Env> {
         if (!isDOError(result)) {
           this.#broadcastToWatchers({ type: 'file', agent_id: agentId, file: data.file });
         }
+      } else if (data.type === 'claim_command' && tags.some((t) => t.startsWith('spawn:'))) {
+        this.#ensureSchema();
+        const commandId = typeof data.id === 'string' ? data.id : '';
+        if (commandId) {
+          const result = claimCommandFn(this.sql, commandId, agentId);
+          ws.send(JSON.stringify({ type: 'claim_result', id: commandId, ...result }));
+          if (!isDOError(result)) {
+            this.#broadcastToWatchers({
+              type: 'command_status',
+              id: commandId,
+              status: 'claimed',
+              claimed_by: agentId,
+            });
+          }
+        }
+      } else if (data.type === 'command_result' && tags.some((t) => t.startsWith('spawn:'))) {
+        this.#ensureSchema();
+        const commandId = typeof data.id === 'string' ? data.id : '';
+        const cmdStatus = data.status === 'completed' ? 'completed' : 'failed';
+        const resultData =
+          typeof data.result === 'object' && data.result
+            ? (data.result as Record<string, unknown>)
+            : {};
+        if (commandId) {
+          const result = completeCommandFn(this.sql, commandId, agentId, cmdStatus, resultData);
+          if (!isDOError(result)) {
+            this.#broadcastToWatchers({
+              type: 'command_status',
+              id: commandId,
+              status: cmdStatus,
+              result: resultData,
+            });
+          }
+        }
       }
     } catch (err) {
       log.error('WebSocket message processing failed', {
@@ -244,7 +330,18 @@ export class TeamDO extends DurableObject<Env> {
       return;
     }
     const isAgent = tags.includes('role:agent');
-    const agentId = tags.find((t) => !t.startsWith('role:'));
+    const closingHasSpawn = tags.some((t) => t.startsWith('spawn:'));
+    const agentId = tags.find((t) => !t.startsWith('role:') && !t.startsWith('spawn:'));
+
+    // Spawn capability disconnect: recompute available tools for watchers
+    if (closingHasSpawn && agentId) {
+      const remaining = this.#getExecutorSockets().filter((s) => s !== ws);
+      this.#broadcastToWatchers({
+        type: 'daemon_status',
+        connected: remaining.length > 0,
+        available_tools: this.#getAvailableSpawnTools(),
+      });
+    }
 
     if (isAgent && agentId) {
       this.#ensureSchema();
@@ -318,6 +415,55 @@ export class TeamDO extends DurableObject<Env> {
     if (failures > 0) {
       log.warn('broadcast partial failure', { totalClients: sockets.length, failures });
     }
+  }
+
+  // -- Daemon command relay helpers --
+
+  /** All connected sockets with spawn capability (any role, identified by spawn:* tags). */
+  #getExecutorSockets(): WebSocket[] {
+    const executors: WebSocket[] = [];
+    for (const ws of this.ctx.getWebSockets()) {
+      try {
+        if (this.ctx.getTags(ws).some((t) => t.startsWith('spawn:'))) {
+          executors.push(ws);
+        }
+      } catch {
+        /* socket may be closing */
+      }
+    }
+    return executors;
+  }
+
+  #broadcastToExecutors(event: Record<string, unknown>): void {
+    const sockets = this.#getExecutorSockets();
+    if (!sockets.length) return;
+    const data = JSON.stringify(event);
+    for (const ws of sockets) {
+      try {
+        ws.send(data);
+      } catch {
+        /* client may have disconnected */
+      }
+    }
+  }
+
+  #hasExecutorConnected(): boolean {
+    return this.#getExecutorSockets().length > 0;
+  }
+
+  /** Collect available spawn tools from all connected daemon WebSocket tags. */
+  #getAvailableSpawnTools(): string[] {
+    const tools = new Set<string>();
+    for (const ws of this.#getExecutorSockets()) {
+      try {
+        for (const tag of this.ctx.getTags(ws)) {
+          if (tag.startsWith('spawn:')) tools.add(tag.slice(6));
+        }
+      } catch {
+        /* socket may be closing */
+      }
+    }
+    return [...tools];
   }
 
   // Evict stale members and prune old sessions -- at most once per minute.
@@ -492,10 +638,16 @@ export class TeamDO extends DurableObject<Env> {
         )
         .toArray();
 
+      // Daemon status — always fresh (computed from live WebSocket connections)
+      const daemon = {
+        connected: this.#hasExecutorConnected(),
+        available_tools: this.#getAvailableSpawnTools(),
+      };
+
       // Return cached team-wide context if fresh
       const now = Date.now();
       if (this.#contextCache && now < this.#contextCacheExpire) {
-        return { ...this.#contextCache, messages };
+        return { ...this.#contextCache, messages, daemon };
       }
 
       this.#maybeCleanup();
@@ -506,7 +658,7 @@ export class TeamDO extends DurableObject<Env> {
       this.#contextCache = teamContext;
       this.#contextCacheExpire = Date.now() + CONTEXT_CACHE_TTL_MS;
 
-      return { ...teamContext, messages };
+      return { ...teamContext, messages, daemon };
     });
   }
 
@@ -706,6 +858,52 @@ export class TeamDO extends DurableObject<Env> {
     return this.#withMember(agentId, ownerId, (resolved) =>
       getMessagesFn(this.sql, resolved, since),
     );
+  }
+
+  // -- Commands (daemon relay) --
+
+  async submitCommand(
+    agentId: string,
+    ownerId: string,
+    senderHandle: string,
+    type: string,
+    payload: Record<string, unknown>,
+  ): Promise<{ ok: true; id: string; warning?: string } | DOError> {
+    return this.#withMember(agentId, ownerId, () => {
+      const result = submitCommandFn(
+        this.sql,
+        type,
+        payload,
+        ownerId,
+        senderHandle,
+        this.#boundRecordMetric,
+      );
+      if (isDOError(result)) return result;
+
+      this.#broadcastToExecutors({
+        type: 'command',
+        id: result.id,
+        command_type: type,
+        payload,
+      });
+      this.#broadcastToWatchers({
+        type: 'command_status',
+        id: result.id,
+        status: 'pending',
+        command_type: type,
+        sender_handle: senderHandle,
+      });
+
+      const warning = this.#hasExecutorConnected() ? undefined : 'no_executor_connected';
+      return { ...result, ...(warning ? { warning } : {}) };
+    });
+  }
+
+  async getCommands(
+    agentId: string,
+    ownerId: string | null = null,
+  ): Promise<ReturnType<typeof getPendingCommandsFn> | DOError> {
+    return this.#withMember(agentId, ownerId, () => getPendingCommandsFn(this.sql));
   }
 
   // -- Summary (lightweight, for cross-project dashboard) --

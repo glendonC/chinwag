@@ -53,6 +53,7 @@ export default function ProjectView(_props: Props) {
     locks,
     conflicts,
     filesInPlay,
+    availableSpawnTools,
     toolSummaries,
     memories,
     memoryBreakdown,
@@ -204,6 +205,8 @@ export default function ProjectView(_props: Props) {
         {activeViz === 'agents' && (
           <div className={styles.vizPanel} role="tabpanel" id="panel-agents">
             <ProjectLiveTab
+              teamId={activeTeamId!}
+              teamName={projectLabel}
               sortedAgents={sortedAgents}
               offlineAgents={offlineAgents}
               conflicts={conflicts}
@@ -211,6 +214,7 @@ export default function ProjectView(_props: Props) {
               locks={locks}
               liveToolMix={liveToolMix}
               sessions={sessions as never[]}
+              availableSpawnTools={availableSpawnTools}
             />
           </div>
         )}

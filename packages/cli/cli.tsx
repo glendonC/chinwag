@@ -1,7 +1,8 @@
 import React, { useState, useEffect, Component } from 'react';
 import type { ReactNode, ErrorInfo } from 'react';
 import { render, Box, Text, useApp, useInput } from 'ink';
-import { basename } from 'path';
+import { basename, dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import { readFileSync } from 'fs';
 import { loadConfig, configExists, deleteConfig } from './lib/config.js';
 import type { ChinwagConfig } from './lib/config.js';
@@ -24,12 +25,14 @@ if (parseInt(process.version.slice(1)) < 22) {
   process.exit(1);
 }
 
+/** Bundled to dist/cli.js — resolve package.json as ../package.json from dist/, not relative to this source path. */
+const _CLI_ROOT = dirname(fileURLToPath(import.meta.url));
 let _PKG_VERSION = '0.1.0';
 try {
-  const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
+  const pkg = JSON.parse(readFileSync(join(_CLI_ROOT, '..', 'package.json'), 'utf-8'));
   _PKG_VERSION = pkg.version || _PKG_VERSION;
-} catch (err: unknown) {
-  log.error(formatError(err));
+} catch {
+  /* keep default version — e.g. mis-copied binary without package.json adjacent */
 }
 
 // Hand off to an MCP/hook/channel runtime module in the same process.

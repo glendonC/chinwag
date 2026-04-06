@@ -323,6 +323,48 @@
   white-space: nowrap;
 }
 
+/* Pill CTA — mirrors .hero-cta from landing page */
+.spawnBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  height: 30px;
+  padding: 0 4px 0 14px;
+  border-radius: 999px;
+  border: none;
+  background: var(--ink);
+  color: rgba(250, 250, 250, 0.94);
+  font-family: var(--sans);
+  font-size: 0.73rem;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.28s ease;
+}
+
+.spawnBtnArrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.13);
+  color: rgba(255, 255, 255, 0.72);
+  transition:
+    background 0.22s ease,
+    color 0.22s ease,
+    transform 0.22s var(--motion);
+}
+
+.spawnBtn:hover .spawnBtnArrow {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  transform: translate(1px, -1px);
+}
+
 .sectionBody {
   display: flex;
   flex-direction: column;

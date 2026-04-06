@@ -1,0 +1,139 @@
+/* Inline spawn form — table of spawnable tools */
+
+.form {
+  overflow: hidden;
+  animation: expandIn 0.2s var(--motion) both;
+}
+
+@keyframes expandIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tableWrap {
+  width: 100%;
+}
+
+.tableHead {
+  display: grid;
+  grid-template-columns: var(--spawn-grid);
+  gap: var(--space-sm);
+  padding: 0 12px 10px;
+}
+
+.th {
+  font-size: var(--text-2xs);
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+  color: var(--soft);
+}
+
+.thRight {
+  composes: th;
+  text-align: right;
+}
+
+.tableBody {
+  display: flex;
+  flex-direction: column;
+}
+
+.toolRow {
+  display: grid;
+  grid-template-columns: var(--spawn-grid);
+  gap: var(--space-sm);
+  align-items: center;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  transition: background 0.15s ease;
+  animation: rowReveal 0.25s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 45ms);
+}
+
+@keyframes rowReveal {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toolRow:hover {
+  background: var(--surface);
+}
+
+.toolRow:active {
+  background: var(--surface);
+  opacity: 0.7;
+}
+
+.tdTool {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-14);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.tdDesc {
+  font-size: var(--text-12);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tdType {
+  font-size: var(--text-11);
+  font-family: var(--mono);
+  color: var(--soft);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-action);
+}
+
+.tdAction {
+  text-align: right;
+  font-size: var(--text-11);
+  color: var(--soft);
+  transition: color 0.15s ease;
+}
+
+.toolRow:hover .tdAction {
+  color: var(--ink);
+}
+
+.error {
+  font-size: var(--text-11);
+  padding: 6px 12px;
+  color: var(--danger);
+}
+
+.empty {
+  font-size: var(--text-13);
+  color: var(--muted);
+  padding: var(--space-md) 0;
+}
+
+.empty code {
+  font-family: var(--mono);
+  font-size: var(--text-12);
+  color: var(--ink);
+}
