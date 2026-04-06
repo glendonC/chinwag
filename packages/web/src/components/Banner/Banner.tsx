@@ -29,12 +29,12 @@ export default function Banner({
       <div className={styles.body}>
         {eyebrow && <span className={styles.eyebrow}>{eyebrow}</span>}
         <span className={styles.text}>{children}</span>
+        {meta && <span className={styles.meta}>{meta}</span>}
         {actions?.map(({ label, onClick }) => (
           <button key={label} type="button" className={styles.action} onClick={onClick}>
             {label}
           </button>
         ))}
-        {meta && <span className={styles.meta}>{meta}</span>}
       </div>
 
       {onDismiss && (

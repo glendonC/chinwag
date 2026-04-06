@@ -1,5 +1,4 @@
-# SPA fallback for dashboard routes — all paths under /project, /tools,
-# /settings serve dashboard.html so the client-side router can handle them.
-/project/*  /dashboard.html  200
-/tools      /dashboard.html  200
-/settings   /dashboard.html  200
+# SPA fallback for dashboard routes — all paths under /dashboard
+# serve dashboard.html so the client-side router can handle them.
+/dashboard              /dashboard.html  200
+/dashboard/*            /dashboard.html  200

@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
 import { cpSync, existsSync, mkdirSync, readFileSync } from 'fs';
-import { join } from 'path';
+import { dirname, join } from 'path';
 import { homedir } from 'os';
 import { fileURLToPath } from 'url';
 import { api } from '../api.js';
@@ -33,30 +33,34 @@ import { ToolsScreen } from './ToolsScreen.jsx';
 
 const log = createLogger('customize');
 
+/** Same as cli bundle: entry is dist/cli.js, package root is one level up from dist/. */
+const _CLI_ROOT = dirname(fileURLToPath(import.meta.url));
+
 let PKG_VERSION = '0.1.0';
 try {
-  const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf-8'));
+  const pkg = JSON.parse(readFileSync(join(_CLI_ROOT, '..', 'package.json'), 'utf-8'));
   PKG_VERSION = pkg.version;
-} catch (err: unknown) {
-  log.error(formatError(err));
+} catch {
+  /* keep default — bundled path must resolve; missing file is non-fatal */
 }
 
 let VSCODE_EXTENSION = { publisher: 'chinwag', name: 'chinwag', version: PKG_VERSION };
-try {
-  const pkg = JSON.parse(
-    readFileSync(new URL('../../vscode/package.json', import.meta.url), 'utf-8'),
-  );
-  VSCODE_EXTENSION = {
-    publisher: pkg.publisher || 'chinwag',
-    name: pkg.name || 'chinwag',
-    version: pkg.version || PKG_VERSION,
-  };
-} catch (err: unknown) {
-  log.error(formatError(err));
+const vscodePkgPath = join(_CLI_ROOT, '..', 'vscode', 'package.json');
+if (existsSync(vscodePkgPath)) {
+  try {
+    const pkg = JSON.parse(readFileSync(vscodePkgPath, 'utf-8'));
+    VSCODE_EXTENSION = {
+      publisher: pkg.publisher || 'chinwag',
+      name: pkg.name || 'chinwag',
+      version: pkg.version || PKG_VERSION,
+    };
+  } catch {
+    /* keep defaults */
+  }
 }
 
 const IDE_COMMAND_SHORTCUT = process.platform === 'darwin' ? 'Cmd+Shift+P' : 'Ctrl+Shift+P';
-const IDE_EXTENSION_DIR = fileURLToPath(new URL('../../vscode/', import.meta.url));
+const IDE_EXTENSION_DIR = join(_CLI_ROOT, '..', 'vscode');
 
 // ── Shared types ─────────────────────────────────────
 

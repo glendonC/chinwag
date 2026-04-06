@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // router.ts is a singleton with module-level state, so we reset modules for each test.
 
-async function loadRouter(pathname = '/') {
+async function loadRouter(pathname = '/dashboard') {
   vi.resetModules();
   // Set the pathname before the module initializes
   Object.defineProperty(window, 'location', {
@@ -19,7 +19,12 @@ afterEach(() => {
 });
 
 describe('parseLocation', () => {
-  it('returns overview for root path', async () => {
+  it('returns overview for /dashboard path', async () => {
+    const { parseLocation } = await loadRouter('/dashboard');
+    expect(parseLocation()).toEqual({ view: 'overview', teamId: null });
+  });
+
+  it('returns overview for bare root path', async () => {
     const { parseLocation } = await loadRouter('/');
     expect(parseLocation()).toEqual({ view: 'overview', teamId: null });
   });
@@ -29,48 +34,44 @@ describe('parseLocation', () => {
     expect(parseLocation()).toEqual({ view: 'overview', teamId: null });
   });
 
-  it('returns settings view for /settings', async () => {
-    const { parseLocation } = await loadRouter('/settings');
+  it('returns settings view for /dashboard/settings', async () => {
+    const { parseLocation } = await loadRouter('/dashboard/settings');
     expect(parseLocation()).toEqual({ view: 'settings', teamId: null });
   });
 
-  it('returns tools view for /tools', async () => {
-    const { parseLocation } = await loadRouter('/tools');
+  it('returns tools view for /dashboard/tools', async () => {
+    const { parseLocation } = await loadRouter('/dashboard/tools');
     expect(parseLocation()).toEqual({ view: 'tools', teamId: null });
   });
 
-  it('returns project view with teamId for /project/:id', async () => {
-    const { parseLocation } = await loadRouter('/project/t_abc123');
+  it('returns project view with teamId for /dashboard/project/:id', async () => {
+    const { parseLocation } = await loadRouter('/dashboard/project/t_abc123');
     expect(parseLocation()).toEqual({ view: 'project', teamId: 't_abc123' });
   });
 
   it('accepts hyphens in teamId', async () => {
-    const { parseLocation } = await loadRouter('/project/my-team-id');
+    const { parseLocation } = await loadRouter('/dashboard/project/my-team-id');
     expect(parseLocation()).toEqual({ view: 'project', teamId: 'my-team-id' });
   });
 
   it('accepts underscores in teamId', async () => {
-    const { parseLocation } = await loadRouter('/project/team_123');
+    const { parseLocation } = await loadRouter('/dashboard/project/team_123');
     expect(parseLocation()).toEqual({ view: 'project', teamId: 'team_123' });
   });
 
-  it('falls through to overview for /project with no id', async () => {
-    const { parseLocation } = await loadRouter('/project');
+  it('falls through to overview for /dashboard/project with no id', async () => {
+    const { parseLocation } = await loadRouter('/dashboard/project');
     expect(parseLocation()).toEqual({ view: 'overview', teamId: null });
   });
 
-  it('rejects teamId with spaces (falls through to overview)', async () => {
-    const { parseLocation } = await loadRouter('/project/bad%20id');
-    // The segment after URL decode would be "bad id" which has a space,
-    // but pathname encoding varies. The regex test should reject it.
+  it('rejects teamId with invalid chars (falls through to overview)', async () => {
+    const { parseLocation } = await loadRouter('/dashboard/project/bad%20id');
     const result = parseLocation();
-    // /project/bad%20id -> segments: ['project', 'bad%20id']
-    // '%20' contains '%' which fails /^[\w-]+$/ test
     expect(result).toEqual({ view: 'overview', teamId: null });
   });
 
   it('returns overview for unknown paths', async () => {
-    const { parseLocation } = await loadRouter('/unknown/path');
+    const { parseLocation } = await loadRouter('/dashboard/unknown/path');
     expect(parseLocation()).toEqual({ view: 'overview', teamId: null });
   });
 
@@ -83,47 +84,58 @@ describe('parseLocation', () => {
     const { parseLocation } = await loadRouter('/dashboard.html/project/t_1');
     expect(parseLocation()).toEqual({ view: 'project', teamId: 't_1' });
   });
+
+  // Legacy routes without /dashboard prefix should still work
+  it('handles legacy /settings path', async () => {
+    const { parseLocation } = await loadRouter('/settings');
+    expect(parseLocation()).toEqual({ view: 'settings', teamId: null });
+  });
+
+  it('handles legacy /project/:id path', async () => {
+    const { parseLocation } = await loadRouter('/project/t_abc123');
+    expect(parseLocation()).toEqual({ view: 'project', teamId: 't_abc123' });
+  });
 });
 
 describe('navigate', () => {
-  it('pushes history state for overview', async () => {
-    const { navigate } = await loadRouter('/settings');
+  it('pushes /dashboard for overview', async () => {
+    const { navigate } = await loadRouter('/dashboard/settings');
     const pushSpy = vi.spyOn(window.history, 'pushState');
 
     navigate('overview');
 
-    expect(pushSpy).toHaveBeenCalledWith(null, '', '/');
+    expect(pushSpy).toHaveBeenCalledWith(null, '', '/dashboard');
   });
 
-  it('pushes history state for project with teamId', async () => {
-    const { navigate } = await loadRouter('/');
+  it('pushes /dashboard/project/:id for project', async () => {
+    const { navigate } = await loadRouter('/dashboard');
     const pushSpy = vi.spyOn(window.history, 'pushState');
 
     navigate('project', 't_abc');
 
-    expect(pushSpy).toHaveBeenCalledWith(null, '', '/project/t_abc');
+    expect(pushSpy).toHaveBeenCalledWith(null, '', '/dashboard/project/t_abc');
   });
 
-  it('pushes history state for tools', async () => {
-    const { navigate } = await loadRouter('/');
+  it('pushes /dashboard/tools for tools', async () => {
+    const { navigate } = await loadRouter('/dashboard');
     const pushSpy = vi.spyOn(window.history, 'pushState');
 
     navigate('tools');
 
-    expect(pushSpy).toHaveBeenCalledWith(null, '', '/tools');
+    expect(pushSpy).toHaveBeenCalledWith(null, '', '/dashboard/tools');
   });
 
-  it('pushes history state for settings', async () => {
-    const { navigate } = await loadRouter('/');
+  it('pushes /dashboard/settings for settings', async () => {
+    const { navigate } = await loadRouter('/dashboard');
     const pushSpy = vi.spyOn(window.history, 'pushState');
 
     navigate('settings');
 
-    expect(pushSpy).toHaveBeenCalledWith(null, '', '/settings');
+    expect(pushSpy).toHaveBeenCalledWith(null, '', '/dashboard/settings');
   });
 
   it('does not push if already at the same path', async () => {
-    const { navigate } = await loadRouter('/tools');
+    const { navigate } = await loadRouter('/dashboard/tools');
     const pushSpy = vi.spyOn(window.history, 'pushState');
 
     navigate('tools');
@@ -131,12 +143,12 @@ describe('navigate', () => {
     expect(pushSpy).not.toHaveBeenCalled();
   });
 
-  it('falls back to overview for project view without teamId', async () => {
-    const { navigate } = await loadRouter('/settings');
+  it('falls back to /dashboard for project view without teamId', async () => {
+    const { navigate } = await loadRouter('/dashboard/settings');
     const pushSpy = vi.spyOn(window.history, 'pushState');
 
     navigate('project', null);
 
-    expect(pushSpy).toHaveBeenCalledWith(null, '', '/');
+    expect(pushSpy).toHaveBeenCalledWith(null, '', '/dashboard');
   });
 });

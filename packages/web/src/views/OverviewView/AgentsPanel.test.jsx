@@ -46,32 +46,113 @@ afterEach(() => {
 });
 
 describe('AgentsPanel', () => {
-  it('shows empty message when no agent rows exist', async () => {
+  it('shows empty message when no live agents exist', async () => {
     const AgentsPanel = await loadAgentsPanel();
-    const { container, unmount } = renderComponent(AgentsPanel, { agentRows: [] });
+    const { container, unmount } = renderComponent(AgentsPanel, {
+      liveAgents: [],
+      selectTeam: () => {},
+    });
 
-    expect(container.textContent).toContain('No agent activity recorded yet');
-
+    expect(container.textContent).toContain('No agents running');
     unmount();
   });
 
-  it('renders agent rows with tool, project, and joins', async () => {
+  it('renders column headers', async () => {
     const AgentsPanel = await loadAgentsPanel();
     const { container, unmount } = renderComponent(AgentsPanel, {
-      agentRows: [
-        { tool: 'cursor', teamName: 'Project Alpha', teamId: 't_1', joins: 5 },
-        { tool: 'windsurf', teamName: 'Project Beta', teamId: 't_2', joins: 3 },
+      liveAgents: [
+        {
+          agent_id: 'cursor:abc',
+          handle: 'alice',
+          host_tool: 'cursor',
+          agent_surface: null,
+          files: [],
+          summary: null,
+          session_minutes: 5,
+          teamName: 'Alpha',
+          teamId: 't_1',
+        },
       ],
+      selectTeam: () => {},
     });
 
-    expect(container.textContent).toContain('Tool');
-    expect(container.textContent).toContain('Project');
-    expect(container.textContent).toContain('Sessions');
-    expect(container.textContent).toContain('Project Alpha');
-    expect(container.textContent).toContain('5');
-    expect(container.textContent).toContain('Project Beta');
-    expect(container.textContent).toContain('3');
+    expect(container.textContent).toContain('Agent');
+    expect(container.textContent).toContain('Owner');
+    expect(container.textContent).toContain('Activity');
+    expect(container.textContent).toContain('Session');
+    unmount();
+  });
 
+  it('shows tool name, owner handle, and activity', async () => {
+    const AgentsPanel = await loadAgentsPanel();
+    const { container, unmount } = renderComponent(AgentsPanel, {
+      liveAgents: [
+        {
+          agent_id: 'cursor:abc',
+          handle: 'alice',
+          host_tool: 'cursor',
+          agent_surface: null,
+          files: ['src/auth.ts'],
+          summary: null,
+          session_minutes: 15,
+          teamName: 'Alpha',
+          teamId: 't_1',
+        },
+      ],
+      selectTeam: () => {},
+    });
+
+    expect(container.textContent).toContain('Cursor');
+    expect(container.textContent).toContain('alice');
+    expect(container.textContent).toContain('auth.ts');
+    unmount();
+  });
+
+  it('extracts tool from agent_id prefix when host_tool is unknown', async () => {
+    const AgentsPanel = await loadAgentsPanel();
+    const { container, unmount } = renderComponent(AgentsPanel, {
+      liveAgents: [
+        {
+          agent_id: 'claude-code:abc123',
+          handle: 'bob',
+          host_tool: 'unknown',
+          agent_surface: null,
+          files: [],
+          summary: 'refactoring API',
+          session_minutes: 42,
+          teamName: 'chinwag',
+          teamId: 't_2',
+        },
+      ],
+      selectTeam: () => {},
+    });
+
+    expect(container.textContent).toContain('Claude Code');
+    expect(container.textContent).toContain('bob');
+    expect(container.textContent).toContain('refactoring API');
+    unmount();
+  });
+
+  it('shows idle when no activity', async () => {
+    const AgentsPanel = await loadAgentsPanel();
+    const { container, unmount } = renderComponent(AgentsPanel, {
+      liveAgents: [
+        {
+          agent_id: 'cursor:xyz',
+          handle: 'carol',
+          host_tool: 'cursor',
+          agent_surface: null,
+          files: [],
+          summary: null,
+          session_minutes: null,
+          teamName: 'Alpha',
+          teamId: 't_1',
+        },
+      ],
+      selectTeam: () => {},
+    });
+
+    expect(container.textContent).toContain('idle');
     unmount();
   });
 });

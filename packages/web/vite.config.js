@@ -5,7 +5,7 @@ import { readFileSync } from 'fs';
 
 /** Vite plugin: rewrite dashboard routes to dashboard.html in dev. */
 function dashboardFallback() {
-  const DASHBOARD_ROUTES = /^\/(project|tools|settings)(\/|$)/;
+  const DASHBOARD_ROUTES = /^\/(dashboard|project|tools|settings)(\/|$)/;
   return {
     name: 'dashboard-fallback',
     configureServer(server) {

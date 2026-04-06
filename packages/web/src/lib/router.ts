@@ -21,8 +21,13 @@ const listeners = new Set<Listener>();
 let currentRoute = parseLocation();
 
 export function parseLocation(): Route {
-  const path = window.location.pathname.replace(/\/dashboard\.html\/?/, '/');
+  const path = window.location.pathname
+    .replace(/\/dashboard\.html\/?/, '/dashboard/')
+    .replace(/\/+$/, '');
   const segments = path.split('/').filter(Boolean);
+
+  // Strip the /dashboard prefix — all dashboard routes live under it
+  if (segments[0] === 'dashboard') segments.shift();
 
   if (segments[0] === 'project' && segments[1]) {
     const teamId = segments[1].trim();
@@ -55,10 +60,10 @@ function getSnapshot() {
 /** Navigate to a new route, pushing a history entry. */
 export function navigate(view: Route['view'], teamId?: string | null) {
   let path: string;
-  if (view === 'project' && teamId) path = `/project/${teamId}`;
-  else if (view === 'tools') path = '/tools';
-  else if (view === 'settings') path = '/settings';
-  else path = '/';
+  if (view === 'project' && teamId) path = `/dashboard/project/${teamId}`;
+  else if (view === 'tools') path = '/dashboard/tools';
+  else if (view === 'settings') path = '/dashboard/settings';
+  else path = '/dashboard';
 
   if (window.location.pathname !== path) {
     window.history.pushState(null, '', path);
