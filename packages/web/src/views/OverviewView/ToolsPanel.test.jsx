@@ -47,24 +47,6 @@ async function loadToolsPanel() {
     DEG: 360,
   }));
 
-  // Mock useToolCatalog — ToolsPanel now calls this internally
-  vi.doMock('../../lib/useToolCatalog.js', () => ({
-    useToolCatalog: () => ({
-      catalog: [],
-      categories: {},
-      evaluations: [],
-      loading: false,
-      error: null,
-    }),
-  }));
-
-  // Mock DirectoryRow — it imports from ToolsView
-  vi.doMock('../ToolsView/DirectoryRow.js', () => ({
-    default: function MockDirectoryRow() {
-      return <div data-testid="directory-row" />;
-    },
-  }));
-
   const mod = await import('./ToolsPanel.js');
   return mod.default;
 }
@@ -75,16 +57,13 @@ afterEach(() => {
 });
 
 describe('ToolsPanel', () => {
-  it('shows empty hint when no arcs and no evaluations exist', async () => {
+  it('shows empty hint when no arcs and no tool usage', async () => {
     const ToolsPanel = await loadToolsPanel();
     const { container, unmount } = renderComponent(ToolsPanel, {
       arcs: [],
       toolUsage: [],
       uniqueTools: 0,
-      hostShare: [],
-      surfaceShare: [],
       summaries: [],
-      token: null,
     });
 
     expect(container.textContent).toContain('No tools connected yet');
@@ -126,8 +105,6 @@ describe('ToolsPanel', () => {
         { tool: 'windsurf', joins: 6, share: 0.4 },
       ],
       uniqueTools: 2,
-      hostShare: [],
-      surfaceShare: [],
       summaries: [
         {
           team_id: 't_1',
@@ -135,7 +112,6 @@ describe('ToolsPanel', () => {
           hosts_configured: [{ host_tool: 'cursor', joins: 5 }],
         },
       ],
-      token: null,
     });
 
     // Ring chart should be present
@@ -149,13 +125,10 @@ describe('ToolsPanel', () => {
     expect(container.textContent).toContain('40%');
     expect(container.textContent).toContain('6 sessions');
 
-    // Directory navigation affordance
-    expect(container.textContent).toContain('Directory');
-
     unmount();
   });
 
-  it('renders host and surface share sections', async () => {
+  it('shows project names in legend', async () => {
     const ToolsPanel = await loadToolsPanel();
     const { container, unmount } = renderComponent(ToolsPanel, {
       arcs: [
@@ -174,46 +147,16 @@ describe('ToolsPanel', () => {
       ],
       toolUsage: [{ tool: 'cursor', joins: 5, share: 1 }],
       uniqueTools: 1,
-      hostShare: [{ host_tool: 'cursor', share: 1, value: 5, projects: ['Alpha'] }],
-      surfaceShare: [{ agent_surface: 'claude-code', share: 0.5, value: 3, projects: ['Alpha'] }],
-      summaries: [],
-      token: null,
-    });
-
-    expect(container.textContent).toContain('Hosts');
-    expect(container.textContent).toContain('Agent surfaces');
-    expect(container.textContent).toContain('100%');
-    expect(container.textContent).toContain('50%');
-
-    unmount();
-  });
-
-  it('shows empty hints for host and surface when those arrays are empty but arcs exist', async () => {
-    const ToolsPanel = await loadToolsPanel();
-    const { container, unmount } = renderComponent(ToolsPanel, {
-      arcs: [
+      summaries: [
         {
-          tool: 'cursor',
-          share: 1,
-          joins: 5,
-          startDeg: 0,
-          sweepDeg: 356,
-          anchorX: 240,
-          anchorY: 130,
-          labelX: 255,
-          labelY: 130,
-          side: 'right',
+          team_id: 't_1',
+          team_name: 'Alpha',
+          hosts_configured: [{ host_tool: 'cursor', joins: 5 }],
         },
       ],
-      toolUsage: [{ tool: 'cursor', joins: 5, share: 1 }],
-      uniqueTools: 1,
-      hostShare: [],
-      surfaceShare: [{ agent_surface: 'claude-code', share: 1, value: 5, projects: ['x'] }],
-      summaries: [],
-      token: null,
     });
 
-    expect(container.textContent).toContain('No host telemetry yet');
+    expect(container.textContent).toContain('Alpha');
 
     unmount();
   });
@@ -237,10 +180,7 @@ describe('ToolsPanel', () => {
       ],
       toolUsage: [{ tool: 'cursor', joins: 1, share: 1 }],
       uniqueTools: 1,
-      hostShare: [],
-      surfaceShare: [],
       summaries: [],
-      token: null,
     });
 
     expect(container.textContent).toContain('1 session');

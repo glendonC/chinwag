@@ -38,11 +38,7 @@ function summarizeNames(items: Array<{ team_id?: string; team_name?: string }>):
   return summarizeList(names);
 }
 
-interface Props {
-  initialTab?: 'tools';
-}
-
-export default function OverviewView({ initialTab }: Props) {
+export default function OverviewView() {
   const { dashboardData, dashboardStatus, pollError, pollErrorData, lastUpdate } = usePollingStore(
     useShallow((s) => ({
       dashboardData: s.dashboardData,
@@ -53,7 +49,6 @@ export default function OverviewView({ initialTab }: Props) {
     })),
   );
   const user = useAuthStore((s) => s.user);
-  const token = useAuthStore((s) => s.token);
   const { teams, teamsError, selectTeam } = useTeamStore(
     useShallow((s) => ({
       teams: s.teams,
@@ -71,7 +66,7 @@ export default function OverviewView({ initialTab }: Props) {
     setActiveTab: setActiveViz,
     hint,
     ref: statsRef,
-  } = useTabs(OVERVIEW_TABS, initialTab);
+  } = useTabs(OVERVIEW_TABS);
   const [search, setSearch] = useState<string>('');
   const userColor = getColorHex(user?.color ?? '') || '#121317';
   const knownTeamCount = teams.length;
@@ -87,7 +82,7 @@ export default function OverviewView({ initialTab }: Props) {
     toolUsage,
     uniqueTools,
     arcs,
-    agentRows,
+    liveAgents,
   } = useOverviewData(summaries);
 
   const filteredProjects = useMemo(() => {
@@ -249,16 +244,13 @@ export default function OverviewView({ initialTab }: Props) {
             selectTeam={selectTeam}
           />
         )}
-        {activeViz === 'agents' && <AgentsPanel agentRows={agentRows} />}
+        {activeViz === 'agents' && <AgentsPanel liveAgents={liveAgents} selectTeam={selectTeam} />}
         {activeViz === 'tools' && (
           <ToolsPanel
             arcs={arcs}
             toolUsage={toolUsage}
             uniqueTools={uniqueTools}
-            hostShare={hostShare}
-            surfaceShare={surfaceShare}
             summaries={summaries}
-            token={token}
           />
         )}
         {activeViz === 'memories' && (

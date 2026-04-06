@@ -4,7 +4,7 @@ import {
   buildSurfaceJoinShare,
   type JoinShareEntry,
 } from '../../lib/toolAnalytics.js';
-import { getToolMeta } from '../../lib/toolMeta.js';
+import { isKnownTool } from '../../lib/toolMeta.js';
 import { arcPath, CX, CY, R, SW, GAP, DEG } from '../../lib/svgArcs.js';
 
 export { arcPath, CX, CY, R, SW, GAP, DEG };
@@ -14,6 +14,15 @@ interface TeamSummary {
   team_name?: string;
   active_agents?: number;
   memory_count?: number;
+  active_members?: Array<{
+    agent_id: string;
+    handle: string;
+    host_tool: string;
+    agent_surface: string | null;
+    files: string[];
+    summary: string | null;
+    session_minutes: number | null;
+  }>;
   hosts_configured?: Array<{ host_tool?: string; joins: number }>;
   [key: string]: unknown;
 }
@@ -34,11 +43,16 @@ export interface ArcEntry extends ToolUsageEntry {
   side: 'left' | 'right';
 }
 
-interface AgentRow {
-  tool: string;
+export interface LiveAgent {
+  agent_id: string;
+  handle: string;
+  host_tool: string;
+  agent_surface: string | null;
+  files: string[];
+  summary: string | null;
+  session_minutes: number | null;
   teamName: string;
   teamId: string;
-  joins: number;
 }
 
 interface UseOverviewDataReturn {
@@ -49,7 +63,7 @@ interface UseOverviewDataReturn {
   toolUsage: ToolUsageEntry[];
   uniqueTools: number;
   arcs: ArcEntry[];
-  agentRows: AgentRow[];
+  liveAgents: LiveAgent[];
 }
 
 export function useOverviewData(summaries: TeamSummary[]): UseOverviewDataReturn {
@@ -64,13 +78,13 @@ export function useOverviewData(summaries: TeamSummary[]): UseOverviewDataReturn
   const hostShare = useMemo(() => buildHostJoinShare(summaries), [summaries]);
   const surfaceShare = useMemo(() => buildSurfaceJoinShare(summaries), [summaries]);
 
+  // Ring chart: only known tools (no "unknown", "daemon", etc.)
   const toolUsage = useMemo((): ToolUsageEntry[] => {
     const totals = new Map<string, number>();
     for (const team of summaries)
       for (const { host_tool, joins } of team.hosts_configured || []) {
-        if (!host_tool) continue;
-        if (getToolMeta(host_tool).icon)
-          totals.set(host_tool, (totals.get(host_tool) || 0) + joins);
+        if (!host_tool || !isKnownTool(host_tool)) continue;
+        totals.set(host_tool, (totals.get(host_tool) || 0) + joins);
       }
     const entries = [...totals.entries()]
       .map(([tool, joins]) => ({ tool, joins }))
@@ -79,7 +93,15 @@ export function useOverviewData(summaries: TeamSummary[]): UseOverviewDataReturn
     return entries.map((e) => ({ ...e, share: total > 0 ? e.joins / total : 0 }));
   }, [summaries]);
 
-  const uniqueTools = toolUsage.length;
+  // Stat count: all unique tool identifiers (including unidentified)
+  const uniqueTools = useMemo(() => {
+    const all = new Set<string>();
+    for (const team of summaries)
+      for (const { host_tool } of team.hosts_configured || []) {
+        if (host_tool) all.add(host_tool);
+      }
+    return all.size;
+  }, [summaries]);
 
   const arcs = useMemo((): ArcEntry[] => {
     if (!toolUsage.length) return [];
@@ -106,19 +128,21 @@ export function useOverviewData(summaries: TeamSummary[]): UseOverviewDataReturn
     });
   }, [toolUsage]);
 
-  const agentRows = useMemo((): AgentRow[] => {
-    const rows: AgentRow[] = [];
-    for (const team of summaries)
-      for (const t of (team.hosts_configured || []).filter(
-        (t) => t.host_tool && getToolMeta(t.host_tool!).icon && t.joins > 0,
-      ))
-        rows.push({
-          tool: t.host_tool!,
-          teamName: team.team_name || team.team_id || '',
-          teamId: team.team_id || '',
-          joins: t.joins,
+  // Live agents from active_members — real member data, not telemetry aggregates
+  const liveAgents = useMemo((): LiveAgent[] => {
+    const agents: LiveAgent[] = [];
+    for (const team of summaries) {
+      const teamName = team.team_name || team.team_id || '';
+      const teamId = team.team_id || '';
+      for (const member of team.active_members || []) {
+        agents.push({
+          ...member,
+          teamName,
+          teamId,
         });
-    return rows.sort((a, b) => b.joins - a.joins);
+      }
+    }
+    return agents;
   }, [summaries]);
 
   return {
@@ -129,6 +153,6 @@ export function useOverviewData(summaries: TeamSummary[]): UseOverviewDataReturn
     toolUsage,
     uniqueTools,
     arcs,
-    agentRows,
+    liveAgents,
   };
 }

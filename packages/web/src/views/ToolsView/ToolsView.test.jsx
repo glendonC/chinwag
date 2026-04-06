@@ -42,6 +42,8 @@ async function loadToolsView(overrides = {}) {
     categoryShare: [],
     categoryList: [],
     connectedProjects: 0,
+    arcs: [],
+    uniqueTools: 0,
     filteredEvaluations: [],
     activeCategory: 'all',
     setActiveCategory: vi.fn(),
@@ -53,11 +55,19 @@ async function loadToolsView(overrides = {}) {
     setExpandedId: vi.fn(),
     showAll: false,
     setShowAll: vi.fn(),
+    hideConfigured: true,
+    setHideConfigured: vi.fn(),
+    isConfigured: () => false,
     ...overrides,
   };
 
   vi.doMock('./useToolsViewData.js', () => ({
     useToolsViewData: () => mockToolsViewData,
+    arcPath: () => 'M0 0',
+    CX: 130,
+    CY: 130,
+    R: 58,
+    SW: 13,
   }));
 
   vi.doMock('../../components/ViewHeader/ViewHeader.js', () => ({
@@ -66,13 +76,15 @@ async function loadToolsView(overrides = {}) {
     },
   }));
 
-  vi.doMock('../../components/StatCard/StatCard.js', () => ({
-    default: function MockStatCard({ label, value, hint }) {
-      return (
-        <div data-testid="stat-card">
-          {label}:{value}:{hint}
-        </div>
-      );
+  vi.doMock('../../components/Skeleton/Skeleton.js', () => ({
+    ShimmerText: function MockShimmerText({ children, as: Tag = 'span' }) {
+      return <Tag data-testid="shimmer-text">{children}</Tag>;
+    },
+    SkeletonStatGrid: function MockSkeletonStatGrid() {
+      return <div data-testid="skeleton-stat-grid" />;
+    },
+    SkeletonRows: function MockSkeletonRows() {
+      return <div data-testid="skeleton-rows" />;
     },
   }));
 
@@ -104,72 +116,55 @@ afterEach(() => {
 });
 
 describe('ToolsView', () => {
-  it('shows loading state when loading with no evaluations', async () => {
-    const ToolsView = await loadToolsView({ loading: true, evaluations: [] });
+  it('shows loading state when loading with no data', async () => {
+    const ToolsView = await loadToolsView({ loading: true, evaluations: [], toolShare: [] });
     const { container, unmount } = renderComponent(ToolsView, {});
 
-    expect(container.textContent).toContain('Loading tool directory');
+    expect(container.textContent).toContain('Loading your tools');
 
     unmount();
   });
 
-  it('renders header and stat cards when data is loaded', async () => {
+  it('renders header when data is loaded', async () => {
     const ToolsView = await loadToolsView({
-      toolShare: [{ tool: 'claude', value: 5, projects: ['proj1'] }],
-      hostShare: [{ host_tool: 'cursor', value: 3, share: 0.6, projects: ['proj1'] }],
-      surfaceShare: [],
-      connectedProjects: 2,
+      toolShare: [{ tool: 'claude', value: 5, share: 1, projects: ['proj1'] }],
+      arcs: [
+        {
+          tool: 'claude',
+          joins: 5,
+          share: 1,
+          startDeg: 0,
+          sweepDeg: 346,
+          labelX: 152,
+          labelY: 60,
+          anchorX: 145,
+          anchorY: 65,
+          side: 'right',
+        },
+      ],
+      uniqueTools: 1,
     });
     const { container, unmount } = renderComponent(ToolsView, {});
 
     expect(container.querySelector('[data-testid="view-header"]')?.textContent).toBe('Tools');
 
-    const statCards = container.querySelectorAll('[data-testid="stat-card"]');
-    expect(statCards.length).toBe(4);
-
-    // Configured count
-    expect(statCards[0].textContent).toContain('Configured');
-    expect(statCards[0].textContent).toContain('1');
-
-    // Projects count
-    expect(statCards[3].textContent).toContain('Projects');
-    expect(statCards[3].textContent).toContain('2');
-
     unmount();
   });
 
-  it('shows empty hint when no tools are configured', async () => {
-    const ToolsView = await loadToolsView({ toolShare: [] });
+  it('renders configured tools in stack zone', async () => {
+    const ToolsView = await loadToolsView({
+      toolShare: [
+        { tool: 'cursor', value: 8, share: 0.6, projects: ['proj1', 'proj2'] },
+        { tool: 'claude', value: 5, share: 0.4, projects: ['proj1'] },
+      ],
+      arcs: [],
+      uniqueTools: 2,
+    });
     const { container, unmount } = renderComponent(ToolsView, {});
 
-    expect(container.textContent).toContain('npx chinwag init');
-
-    unmount();
-  });
-
-  it('shows empty hint when no hosts are detected', async () => {
-    const ToolsView = await loadToolsView({ hostShare: [] });
-    const { container, unmount } = renderComponent(ToolsView, {});
-
-    expect(container.textContent).toContain('No host telemetry yet');
-
-    unmount();
-  });
-
-  it('shows empty hint when no surfaces are observed', async () => {
-    const ToolsView = await loadToolsView({ surfaceShare: [] });
-    const { container, unmount } = renderComponent(ToolsView, {});
-
-    expect(container.textContent).toContain('No extension-level surfaces');
-
-    unmount();
-  });
-
-  it('shows empty hint when no category data', async () => {
-    const ToolsView = await loadToolsView({ categoryShare: [] });
-    const { container, unmount } = renderComponent(ToolsView, {});
-
-    expect(container.textContent).toContain('No category data yet');
+    expect(container.textContent).toContain('Cursor');
+    expect(container.textContent).toContain('Claude Code');
+    expect(container.textContent).toContain('60%');
 
     unmount();
   });
@@ -186,7 +181,7 @@ describe('ToolsView', () => {
 
     const rows = container.querySelectorAll('[data-testid="directory-row"]');
     expect(rows.length).toBe(2);
-    expect(container.textContent).toContain('2 of 2 evaluated');
+    expect(container.textContent).toContain('2 of 2 tools');
 
     unmount();
   });
@@ -259,6 +254,15 @@ describe('ToolsView', () => {
     expect(container.textContent).toContain('Integrated');
     expect(container.textContent).toContain('Installable');
     expect(container.textContent).toContain('Listed');
+
+    unmount();
+  });
+
+  it('renders Not configured toggle', async () => {
+    const ToolsView = await loadToolsView();
+    const { container, unmount } = renderComponent(ToolsView, {});
+
+    expect(container.textContent).toContain('Not configured');
 
     unmount();
   });

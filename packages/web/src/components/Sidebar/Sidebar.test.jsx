@@ -77,9 +77,8 @@ describe('Sidebar', () => {
     const labels = [...buttons].map((b) => b.textContent.trim());
 
     expect(labels).toContain('Overview');
+    expect(labels).toContain('Tools');
     expect(labels).toContain('Settings');
-    // Tools nav was consolidated into Overview's Tools stat-tab
-    expect(labels).not.toContain('Tools');
 
     unmount();
   });

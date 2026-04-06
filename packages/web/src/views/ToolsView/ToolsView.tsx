@@ -1,41 +1,36 @@
+import { type CSSProperties } from 'react';
 import clsx from 'clsx';
-import { formatShare } from '../../lib/toolAnalytics.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
-import StatCard from '../../components/StatCard/StatCard.jsx';
+import { summarizeList } from '../../lib/summarize.js';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
 import ViewHeader from '../../components/ViewHeader/ViewHeader.jsx';
+import {
+  ShimmerText,
+  SkeletonStatGrid,
+  SkeletonRows,
+} from '../../components/Skeleton/Skeleton.jsx';
 import DirectoryRow from './DirectoryRow.jsx';
-import { summarizeList } from '../../lib/summarize.js';
-import { useToolsViewData } from './useToolsViewData.js';
+import { useToolsViewData, arcPath, CX, CY, R, SW } from './useToolsViewData.js';
 import styles from './ToolsView.module.css';
 
-interface VerdictOption {
-  value: string;
-  label: string;
-}
-
-const VERDICT_OPTIONS: VerdictOption[] = [
+const VERDICT_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'integrated', label: 'Integrated' },
   { value: 'installable', label: 'Installable' },
   { value: 'listed', label: 'Listed' },
-];
+] as const;
 
 const INITIAL_COUNT = 15;
 
-interface Props {}
-
-export default function ToolsView(_props: Props) {
+export default function ToolsView() {
   const {
     loading,
     evaluations,
     categories,
-    toolShare,
-    hostShare,
-    surfaceShare,
-    categoryShare,
     categoryList,
-    connectedProjects,
+    toolShare,
+    arcs,
+    uniqueTools,
     filteredEvaluations,
     activeCategory,
     setActiveCategory,
@@ -47,12 +42,22 @@ export default function ToolsView(_props: Props) {
     setExpandedId,
     showAll,
     setShowAll,
+    hideConfigured,
+    setHideConfigured,
+    isConfigured,
   } = useToolsViewData();
 
-  if (loading && evaluations.length === 0) {
+  if (loading && evaluations.length === 0 && toolShare.length === 0) {
     return (
       <div className={styles.page}>
-        <p className={styles.loadingText}>Loading tool directory...</p>
+        <section className={styles.header}>
+          <ViewHeader eyebrow="Across projects" title="" />
+          <ShimmerText as="h1" className={styles.heroTitle}>
+            Loading your tools
+          </ShimmerText>
+          <SkeletonStatGrid count={3} />
+        </section>
+        <SkeletonRows count={4} columns={5} />
       </div>
     );
   }
@@ -61,221 +66,248 @@ export default function ToolsView(_props: Props) {
     <div className={styles.page}>
       <ViewHeader eyebrow="Across projects" title="Tools" />
 
-      <div className={styles.hero}>
-        <StatCard
-          label="Configured"
-          value={toolShare.length}
-          tone={toolShare.length > 0 ? 'accent' : 'default'}
-          hint="tools"
-        />
-        <StatCard
-          label="Hosts"
-          value={hostShare.length}
-          tone={hostShare.length > 0 ? 'success' : 'default'}
-          hint="active footprint"
-        />
-        <StatCard
-          label="Surfaces"
-          value={surfaceShare.length}
-          tone={surfaceShare.length > 0 ? 'accent' : 'default'}
-          hint="agent layers"
-        />
-        <StatCard
-          label="Projects"
-          value={connectedProjects}
-          tone={connectedProjects > 0 ? 'success' : 'default'}
-          hint="connected"
-        />
-      </div>
-
-      <div className={styles.topGrid}>
-        <section className={styles.section}>
-          <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitleSmall}>Configured across projects</h2>
-            <span className={styles.sectionMeta}>Current stack footprint</span>
+      {/* ── Zone A: Your Stack ── */}
+      {uniqueTools === 0 ? (
+        <section className={styles.stackEmpty}>
+          <div className={styles.stackEmptyRing}>
+            <svg viewBox="0 0 260 260" className={styles.ringSvg}>
+              <circle cx={CX} cy={CY} r={R} fill="none" stroke="var(--ghost)" strokeWidth={SW} />
+              <text
+                x={CX}
+                y={CY - 2}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fill="var(--soft)"
+                fontSize="28"
+                fontWeight="200"
+                fontFamily="var(--display)"
+                letterSpacing="-0.06em"
+              >
+                {toolShare.length > 0 ? toolShare.length : 0}
+              </text>
+              <text
+                x={CX}
+                y={CY + 16}
+                textAnchor="middle"
+                fill="var(--soft)"
+                fontSize="8.5"
+                fontFamily="var(--mono)"
+                letterSpacing="0.1em"
+              >
+                {toolShare.length > 0 ? 'UNIDENTIFIED' : 'CONFIGURED'}
+              </text>
+            </svg>
           </div>
+          <div className={styles.stackEmptyCopy}>
+            <span className={styles.stackEmptyTitle}>
+              {toolShare.length > 0
+                ? `${toolShare.length} tool${toolShare.length === 1 ? '' : 's'} connected`
+                : 'No tools detected yet'}
+            </span>
+            <span className={styles.stackEmptyHint}>
+              {toolShare.length > 0 ? (
+                'Agents are connected but host tools were not identified. This resolves automatically on the next session.'
+              ) : (
+                <>
+                  Your stack appears here once agents connect. Run <code>npx chinwag init</code> in
+                  a project to get started.
+                </>
+              )}
+            </span>
+          </div>
+        </section>
+      ) : (
+        <section className={styles.stackZone}>
+          {/* Ring chart */}
+          {arcs.length > 0 && (
+            <div className={styles.ringWrap}>
+              <svg viewBox="0 0 260 260" className={styles.ringSvg}>
+                {arcs.map((arc) => {
+                  const meta = getToolMeta(arc.tool);
+                  return (
+                    <g key={arc.tool}>
+                      <path
+                        d={arcPath(CX, CY, R, arc.startDeg, arc.sweepDeg)}
+                        fill="none"
+                        stroke={meta.color}
+                        strokeWidth={SW}
+                        strokeLinecap="round"
+                        opacity="0.8"
+                      />
+                      <line
+                        x1={arc.anchorX}
+                        y1={arc.anchorY}
+                        x2={arc.labelX}
+                        y2={arc.labelY}
+                        stroke="var(--faint)"
+                        strokeWidth="1"
+                        strokeDasharray="2 3"
+                      />
+                      <text
+                        x={arc.labelX}
+                        y={arc.labelY - 4}
+                        textAnchor={arc.side === 'right' ? 'start' : 'end'}
+                        fill={meta.color}
+                        fontSize="16"
+                        fontWeight="400"
+                        fontFamily="var(--display)"
+                        letterSpacing="-0.04em"
+                      >
+                        {Math.round(arc.share * 100)}%
+                      </text>
+                      <text
+                        x={arc.labelX}
+                        y={arc.labelY + 10}
+                        textAnchor={arc.side === 'right' ? 'start' : 'end'}
+                        fill="var(--muted)"
+                        fontSize="9"
+                        fontFamily="var(--sans)"
+                        fontWeight="500"
+                      >
+                        {meta.label}
+                      </text>
+                    </g>
+                  );
+                })}
+                <text
+                  x={CX}
+                  y={CY - 2}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fill="var(--ink)"
+                  fontSize="28"
+                  fontWeight="200"
+                  fontFamily="var(--display)"
+                  letterSpacing="-0.06em"
+                >
+                  {uniqueTools}
+                </text>
+                <text
+                  x={CX}
+                  y={CY + 16}
+                  textAnchor="middle"
+                  fill="var(--muted)"
+                  fontSize="8.5"
+                  fontFamily="var(--mono)"
+                  letterSpacing="0.1em"
+                >
+                  CONFIGURED
+                </text>
+              </svg>
+            </div>
+          )}
 
-          {toolShare.length > 0 ? (
-            <div className={styles.list}>
-              {toolShare.map((tool) => (
-                <div key={tool.tool as string} className={styles.listRow}>
-                  <div className={styles.rowIdentity}>
-                    <ToolIcon tool={tool.tool as string} size={18} />
-                    <div className={styles.rowCopy}>
-                      <span className={styles.rowLabel}>
-                        {getToolMeta(tool.tool as string).label}
-                      </span>
-                      <span className={styles.rowMeta}>
+          {/* Configured tools list */}
+          <div className={styles.stackList}>
+            {toolShare.map((tool, i) => {
+              const meta = getToolMeta(tool.tool as string);
+              return (
+                <div
+                  key={tool.tool as string}
+                  className={styles.stackRow}
+                  style={{ '--row-index': i } as CSSProperties}
+                >
+                  <div className={styles.stackIdentity}>
+                    <ToolIcon tool={tool.tool as string} size={20} />
+                    <div className={styles.stackCopy}>
+                      <span className={styles.stackName}>{meta.label}</span>
+                      <span className={styles.stackProjects}>
                         {summarizeList(tool.projects as string[])}
                       </span>
                     </div>
                   </div>
-                  <span className={styles.rowValue}>{tool.value} joins</span>
+                  <span className={styles.stackShare}>{Math.round(tool.share * 100)}%</span>
+                  <span className={styles.stackJoins}>
+                    {tool.value} session{tool.value === 1 ? '' : 's'}
+                  </span>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p className={styles.emptyHint}>
-              Run <code>npx chinwag init</code> in a repo.
-            </p>
-          )}
+              );
+            })}
+          </div>
         </section>
+      )}
 
-        <div className={styles.analyticsStack}>
-          <section className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitleSmall}>Hosts</h2>
-              <span className={styles.sectionMeta}>Cross-project join share</span>
-            </div>
-
-            {hostShare.length > 0 ? (
-              <div className={styles.signalList}>
-                {hostShare.map((host) => (
-                  <div key={`host:${host.host_tool}`} className={styles.signalRow}>
-                    <div className={styles.rowIdentity}>
-                      <ToolIcon tool={host.host_tool as string} size={18} />
-                      <div className={styles.rowCopy}>
-                        <span className={styles.rowLabel}>
-                          {getToolMeta(host.host_tool as string).label}
-                        </span>
-                        <span className={styles.rowMeta}>
-                          {summarizeList(host.projects as string[])}
-                        </span>
-                      </div>
-                    </div>
-                    <div className={styles.signalValueBlock}>
-                      <span className={styles.signalValue}>{formatShare(host.share)}</span>
-                      <span className={styles.signalMeta}>{host.value} joins</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className={styles.emptyHint}>No host telemetry yet.</p>
-            )}
-          </section>
-
-          <section className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitleSmall}>Agent surfaces</h2>
-              <span className={styles.sectionMeta}>Observed across projects</span>
-            </div>
-
-            {surfaceShare.length > 0 ? (
-              <div className={styles.signalList}>
-                {surfaceShare.map((surface) => (
-                  <div key={`surface:${surface.agent_surface}`} className={styles.signalRow}>
-                    <div className={styles.rowIdentity}>
-                      <ToolIcon tool={surface.agent_surface as string} size={18} />
-                      <div className={styles.rowCopy}>
-                        <span className={styles.rowLabel}>
-                          {getToolMeta(surface.agent_surface as string).label}
-                        </span>
-                        <span className={styles.rowMeta}>
-                          {summarizeList(surface.projects as string[])}
-                        </span>
-                      </div>
-                    </div>
-                    <div className={styles.signalValueBlock}>
-                      <span className={styles.signalValue}>{formatShare(surface.share)}</span>
-                      <span className={styles.signalMeta}>{surface.value} joins</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className={styles.emptyHint}>
-                No extension-level surfaces have been observed yet.
-              </p>
-            )}
-          </section>
-
-          <section className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitleSmall}>By category</h2>
-              <span className={styles.sectionMeta}>Cross-project composition</span>
-            </div>
-
-            {categoryShare.length > 0 ? (
-              <div className={styles.list}>
-                {categoryShare.map((category) => (
-                  <div key={category.id} className={styles.listRow}>
-                    <span className={styles.rowLabel}>{category.label}</span>
-                    <span className={styles.rowValue}>{formatShare(category.share)}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className={styles.emptyHint}>No category data yet.</p>
-            )}
-          </section>
-        </div>
-      </div>
-
-      <section className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitleSmall}>Directory</h2>
-          <span className={styles.sectionMeta}>
-            {filteredEvaluations.length} of {evaluations.length} evaluated
-          </span>
-        </div>
-
-        <div className={styles.directoryControls}>
-          <div className={styles.filterRow}>
-            {VERDICT_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                className={clsx(
-                  styles.filterButton,
-                  activeVerdict === opt.value && styles.filterButtonActive,
-                )}
-                onClick={() => setActiveVerdict(opt.value)}
-              >
-                {opt.label}
-              </button>
-            ))}
-            <span className={styles.filterDivider} />
-            <button
-              className={clsx(
-                styles.filterButton,
-                activeCategory === 'all' && styles.filterButtonActive,
-              )}
-              onClick={() => setActiveCategory('all')}
-            >
-              All categories
-            </button>
-            {categoryList.map(([id, label]) => (
-              <button
-                key={id}
-                className={clsx(
-                  styles.filterButton,
-                  activeCategory === id && styles.filterButtonActive,
-                )}
-                onClick={() => setActiveCategory(id)}
-              >
-                {label}
-              </button>
-            ))}
+      {/* ── Zone B: Directory ── */}
+      <section className={styles.directoryZone}>
+        <div className={styles.directoryHeader}>
+          <div className={styles.directoryTitleRow}>
+            <h2 className={styles.directoryTitle}>Directory</h2>
+            <span className={styles.directoryMeta}>
+              {filteredEvaluations.length} of {evaluations.length} tools
+            </span>
           </div>
 
-          <input
-            type="text"
-            className={styles.searchInput}
-            placeholder="Search tools..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+          <div className={styles.directoryControls}>
+            <div className={styles.filterRow}>
+              {/* Stack filter — key differentiator */}
+              <button
+                className={clsx(styles.filterButton, hideConfigured && styles.filterButtonActive)}
+                onClick={() => setHideConfigured(!hideConfigured)}
+              >
+                Not configured
+              </button>
+              <span className={styles.filterDivider} />
+              {VERDICT_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  className={clsx(
+                    styles.filterButton,
+                    activeVerdict === opt.value && styles.filterButtonActive,
+                  )}
+                  onClick={() => setActiveVerdict(opt.value)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+              {categoryList.length > 0 && (
+                <>
+                  <span className={styles.filterDivider} />
+                  <button
+                    className={clsx(
+                      styles.filterButton,
+                      activeCategory === 'all' && styles.filterButtonActive,
+                    )}
+                    onClick={() => setActiveCategory('all')}
+                  >
+                    All categories
+                  </button>
+                  {categoryList.map(([id, label]) => (
+                    <button
+                      key={id}
+                      className={clsx(
+                        styles.filterButton,
+                        activeCategory === id && styles.filterButtonActive,
+                      )}
+                      onClick={() => setActiveCategory(id)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </>
+              )}
+            </div>
+
+            <input
+              type="text"
+              className={styles.searchInput}
+              placeholder="Search tools..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
         </div>
 
-        <div className={styles.directoryHeader}>
-          <span className={styles.dhName}>Tool</span>
-          <span className={styles.dhVerdict}>Verdict</span>
-          <span className={styles.dhMcp}>MCP</span>
-          <span className={styles.dhCategory}>Category</span>
-          <span className={styles.dhConfidence}>Confidence</span>
-          <span className={styles.dhTagline}>Summary</span>
+        {/* Column headers */}
+        <div className={styles.dirColHeader}>
+          <span>Tool</span>
+          <span>Verdict</span>
+          <span>MCP</span>
+          <span>Category</span>
+          <span>Confidence</span>
+          <span>Summary</span>
         </div>
 
+        {/* Directory list */}
         <div className={styles.directoryList}>
           {(showAll ? filteredEvaluations : filteredEvaluations.slice(0, INITIAL_COUNT)).map(
             (ev) => (
@@ -288,19 +320,19 @@ export default function ToolsView(_props: Props) {
               />
             ),
           )}
-          {filteredEvaluations.length === 0 ? (
+          {filteredEvaluations.length === 0 && (
             <p className={styles.emptyHint}>No tools match the current filters.</p>
-          ) : null}
-          {!showAll && filteredEvaluations.length > INITIAL_COUNT ? (
+          )}
+          {!showAll && filteredEvaluations.length > INITIAL_COUNT && (
             <button className={styles.showMoreButton} onClick={() => setShowAll(true)}>
               Show {filteredEvaluations.length - INITIAL_COUNT} more tools
             </button>
-          ) : null}
-          {showAll && filteredEvaluations.length > INITIAL_COUNT ? (
+          )}
+          {showAll && filteredEvaluations.length > INITIAL_COUNT && (
             <button className={styles.showMoreButton} onClick={() => setShowAll(false)}>
               Show less
             </button>
-          ) : null}
+          )}
         </div>
       </section>
     </div>

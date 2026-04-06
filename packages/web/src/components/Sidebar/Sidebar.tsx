@@ -13,6 +13,7 @@ export default function Sidebar({ activeView }: Props) {
   const teams = useTeamStore((s) => s.teams);
   const activeTeamId = useTeamStore((s) => s.activeTeamId);
   const overviewActive = activeView === 'overview';
+  const toolsActive = activeView === 'tools';
   const settingsActive = activeView === 'settings';
 
   const [mobileOpen, setMobileOpen] = useState<boolean>(false);
@@ -120,6 +121,37 @@ export default function Sidebar({ activeView }: Props) {
               />
             </svg>
             <span className={styles.navLabel}>Overview</span>
+          </button>
+          <button
+            type="button"
+            className={clsx(styles.navItem, toolsActive && styles.navItemActive)}
+            onClick={go('tools')}
+            aria-current={toolsActive ? 'page' : undefined}
+          >
+            <svg className={styles.navIcon} width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M9.5 6.5l4.1 4.1a1.4 1.4 0 0 1-2 2L7.5 8.5"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M7.5 8.5 4 12a1 1 0 0 1-1.4 0L2 11.4A1 1 0 0 1 2 10l3.5-3.5"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M5.5 6.5 9 3a2.5 2.5 0 0 1 4 1l-1.5 1.5L10 6l.5 1.5L9 9a2.5 2.5 0 0 1-1-4"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span className={styles.navLabel}>Tools</span>
           </button>
           <button
             type="button"

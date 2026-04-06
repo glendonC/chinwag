@@ -171,5 +171,18 @@ export function getToolMeta(toolId: string | null | undefined): ResolvedToolMeta
   };
 }
 
+/** Returns true if toolId resolves to a known AI coding tool (not a fallback). */
+export function isKnownTool(toolId: string | null | undefined): boolean {
+  const meta = getToolMeta(toolId);
+  // Known tools have an entry in TOOL_META (even without an icon SVG).
+  // Fallback-generated entries have icon: null AND aren't in the registry.
+  const normalized = normalizeToolId(toolId);
+  return (
+    !!TOOL_META[normalized] ||
+    !!ALIASES[normalized] ||
+    PARTIAL_MATCHES.some((pm) => normalized.includes(pm.substring))
+  );
+}
+
 // Exported for testing only
 export { TOOL_META, ALIASES, PARTIAL_MATCHES };

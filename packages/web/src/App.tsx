@@ -17,6 +17,7 @@ import ConnectView from './views/ConnectView/ConnectView.js';
 import OverviewView from './views/OverviewView/OverviewView.js';
 import ProjectView from './views/ProjectView/ProjectView.js';
 import SettingsView from './views/SettingsView/SettingsView.js';
+import ToolsView from './views/ToolsView/ToolsView.js';
 import Sidebar from './components/Sidebar/Sidebar.js';
 import Banner from './components/Banner/Banner.js';
 import RenderErrorBoundary from './components/RenderErrorBoundary/RenderErrorBoundary.js';
@@ -64,6 +65,7 @@ export default function App(): ReactNode {
     contextStatus,
     contextTeamId,
     pollError,
+    consecutiveFailures,
     lastUpdate,
   } = usePollingStore(
     useShallow((s) => ({
@@ -73,6 +75,7 @@ export default function App(): ReactNode {
       contextStatus: s.contextStatus,
       contextTeamId: s.contextTeamId,
       pollError: s.pollError,
+      consecutiveFailures: s.consecutiveFailures,
       lastUpdate: s.lastUpdate,
     })),
   );
@@ -87,7 +90,12 @@ export default function App(): ReactNode {
     contextTeamId === activeTeamId &&
     !!contextData;
   const errorDismissed = pollError && dismissedError === pollError;
-  const showError = pollError && !errorDismissed && (hasOverviewSnapshot || hasProjectSnapshot);
+  // Only show after 2+ consecutive failures — prevents flicker during dev server restarts
+  const showError =
+    pollError &&
+    !errorDismissed &&
+    consecutiveFailures >= 2 &&
+    (hasOverviewSnapshot || hasProjectSnapshot);
   const lastSynced = formatRelativeTime(lastUpdate);
 
   // Derive boot state — no effect sync needed
@@ -185,12 +193,6 @@ export default function App(): ReactNode {
           <div className={styles.bannerSlot}>
             <Banner
               variant="error"
-              eyebrow="Live sync paused"
-              meta={
-                lastSynced
-                  ? `Showing the last successful snapshot from ${lastSynced}.`
-                  : 'Showing the last successful snapshot.'
-              }
               actions={[{ label: 'Retry', onClick: forceRefresh }]}
               onDismiss={() => setDismissedError(pollError)}
             >
@@ -200,9 +202,14 @@ export default function App(): ReactNode {
         )}
 
         <div className={styles.content}>
-          {(activeView === 'overview' || activeView === 'tools') && (
+          {activeView === 'overview' && (
             <RenderErrorBoundary label="OverviewView" resetKey={activeView}>
-              <OverviewView initialTab={activeView === 'tools' ? 'tools' : undefined} />
+              <OverviewView />
+            </RenderErrorBoundary>
+          )}
+          {activeView === 'tools' && (
+            <RenderErrorBoundary label="ToolsView" resetKey={activeView}>
+              <ToolsView />
             </RenderErrorBoundary>
           )}
           {activeView === 'project' && (

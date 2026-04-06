@@ -22,6 +22,12 @@ import {
   configureHostIntegration,
 } from '@chinwag/shared/integration-doctor.js';
 import { bootstrap } from './dist/bootstrap.js';
+import { detectRuntimeIdentity, generateSessionAgentId } from './dist/identity.js';
+import {
+  detectSpawnableTools,
+  executeSpawnCommand,
+  executeStopCommand,
+} from './dist/command-executor.js';
 
 const log = createLogger('mcp');
 
@@ -41,7 +47,9 @@ async function main() {
     identityMode: 'session',
     onMissing: 'require-all',
   });
-  const { runtime, agentId, client, team, teamId } = ctx;
+  const { runtime, client, team, teamId } = ctx;
+  let currentAgentId = ctx.agentId;
+  const agentId = ctx.agentId; // initial ID for session registration
   const toolName = runtime.hostTool;
   const runtimeLabel = runtime.agentSurface
     ? `${runtime.hostTool}/${runtime.agentSurface}`
@@ -82,12 +90,29 @@ async function main() {
 
   const projectName = basename(process.cwd());
 
-  // 5. Join team and start WebSocket presence
+  // 5. Detect spawnable tools + initialize WebSocket manager reference
+  const spawnTools = detectSpawnableTools();
+  if (spawnTools.length > 0) {
+    log.info(`Spawnable tools: ${spawnTools.join(', ')}`);
+  }
   let wsManager = null;
-  if (state.teamId) {
+
+  // 6. Setup graceful shutdown (before MCP server so it covers all exit paths)
+  setupShutdownHandlers({
+    agentId,
+    state,
+    team,
+    onDisconnectWs: () => wsManager?.disconnect(),
+  });
+
+  // ── Team join helper — called once after identity is fully resolved ──
+  let teamJoined = false;
+  async function joinTeamOnce() {
+    if (teamJoined || !state.teamId) return;
+    teamJoined = true;
     try {
       await team.joinTeam(state.teamId, projectName);
-      log.info(`Auto-joined team ${state.teamId}`);
+      log.info(`Joined team ${state.teamId}`);
 
       try {
         const session = await team.startSession(state.teamId, profile.framework);
@@ -102,12 +127,62 @@ async function main() {
         log.warn(`Failed to start session: ${err.message}`);
       }
 
+      // Command handler: receives spawn/stop commands from web dashboard via TeamDO
+      const pendingClaims = new Map();
+      function handleWsMessage(data, ws) {
+        if (data.type === 'command' && spawnTools.length > 0) {
+          const commandId = data.id;
+          const commandType = data.command_type;
+          const payload = data.payload || {};
+
+          // Claim the command (first-claim-wins across all connected MCP servers)
+          const claimTimer = setTimeout(() => {
+            pendingClaims.delete(commandId);
+          }, 5000);
+          pendingClaims.set(commandId, { timer: claimTimer });
+          ws.send(JSON.stringify({ type: 'claim_command', id: commandId }));
+
+          // Execute after a brief delay to allow claim_result to arrive
+          // (optimistic execution — if claim fails, the result is harmless)
+          setTimeout(() => {
+            let result;
+            try {
+              if (commandType === 'spawn') {
+                result = executeSpawnCommand(payload, process.cwd());
+              } else if (commandType === 'stop') {
+                result = executeStopCommand(payload);
+              } else {
+                result = { error: `Unknown command type: ${commandType}` };
+              }
+            } catch (err) {
+              result = { error: String(err?.message || err) };
+            }
+
+            const status = result.error ? 'failed' : 'completed';
+            log.info(`Command ${commandId} ${status}`);
+            try {
+              ws.send(JSON.stringify({ type: 'command_result', id: commandId, status, result }));
+            } catch {
+              /* ws may have closed */
+            }
+          }, 100);
+        } else if (data.type === 'claim_result') {
+          const pending = pendingClaims.get(data.id);
+          if (pending) {
+            clearTimeout(pending.timer);
+            pendingClaims.delete(data.id);
+          }
+        }
+      }
+
       wsManager = createWebSocketManager({
         client,
         getApiUrl,
         teamId: state.teamId,
-        agentId,
+        agentId: currentAgentId,
         state,
+        spawnTools,
+        onMessage: handleWsMessage,
       });
       wsManager.connect();
     } catch (err) {
@@ -122,15 +197,7 @@ async function main() {
     }
   }
 
-  // 6. Setup graceful shutdown
-  setupShutdownHandlers({
-    agentId,
-    state,
-    team,
-    onDisconnectWs: wsManager ? () => wsManager.disconnect() : undefined,
-  });
-
-  // 7. Create and start MCP server
+  // 7. Create MCP server (tools are registered before join — they work with deferred team state)
   const server = new McpServer({
     name: 'chinwag',
     version: PKG.version,
@@ -149,6 +216,52 @@ This coordination prevents merge conflicts across tools and builds shared projec
   const integrationDoctor = { scanHostIntegrations, configureHostIntegration };
   registerTools(server, { team, state, profile, integrationDoctor });
   registerResources(server, profile);
+
+  // 8. Hook into MCP initialization to resolve identity, then join team.
+  //    The MCP handshake includes clientInfo.name — the most reliable signal for
+  //    which tool is hosting us. We defer the team join until this fires so the
+  //    first (and only) join carries the correct host_tool identity.
+  //    Fallback: if the handshake doesn't fire within 5s, join with whatever
+  //    identity we have (process-tree detection or the default).
+  const IDENTITY_TIMEOUT_MS = 5000;
+  let identityTimer = null;
+
+  if (state.teamId) {
+    identityTimer = setTimeout(() => {
+      if (!teamJoined) {
+        log.info('MCP handshake timeout — joining with pre-handshake identity');
+        joinTeamOnce();
+      }
+    }, IDENTITY_TIMEOUT_MS);
+  }
+
+  const lowLevelServer = server.server;
+  lowLevelServer.oninitialized = () => {
+    const clientVersion = lowLevelServer.getClientVersion();
+    if (identityTimer) clearTimeout(identityTimer);
+
+    if (clientVersion?.name) {
+      log.info(`MCP client: ${clientVersion.name} v${clientVersion.version || '?'}`);
+
+      // Resolve identity from clientInfo if not explicitly set
+      if (runtime.detectionSource !== 'explicit') {
+        const corrected = detectRuntimeIdentity(runtime.hostTool, {
+          clientInfoName: clientVersion.name,
+        });
+
+        if (corrected.hostTool !== runtime.hostTool) {
+          log.info(
+            `Identity resolved: ${runtime.hostTool} → ${corrected.hostTool} (via MCP clientInfo "${clientVersion.name}")`,
+          );
+          currentAgentId = generateSessionAgentId(ctx.config.token, corrected);
+          ctx.client.updateIdentity(currentAgentId, corrected);
+        }
+      }
+    }
+
+    // Join team with final resolved identity (first and only join)
+    joinTeamOnce();
+  };
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
