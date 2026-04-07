@@ -93,6 +93,23 @@
   color: var(--muted);
 }
 
+/* ── Two-column body ── */
+
+.body {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 56px;
+  align-items: start;
+}
+
+.narrative {
+  min-width: 0;
+}
+
+.dataSheet {
+  min-width: 0;
+}
+
 /* ── AI Summary ── */
 
 .summary {
@@ -127,9 +144,9 @@
 
 .statGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 28px 48px;
-  margin-bottom: 40px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px 28px;
+  margin-bottom: 32px;
 }
 
 .statCell {
@@ -159,8 +176,7 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  margin-bottom: 40px;
-  max-width: 360px;
+  margin-bottom: 32px;
 }
 
 .factRow {
@@ -246,8 +262,8 @@
 
 .metaSection {
   display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
+  flex-direction: column;
+  gap: 12px;
   margin-bottom: 32px;
 }
 
@@ -371,7 +387,12 @@ details[open] > .sourcesToggle::before {
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+  .body {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
   .statGrid {
     grid-template-columns: repeat(2, 1fr);
   }

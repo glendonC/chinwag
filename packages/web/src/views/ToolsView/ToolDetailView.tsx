@@ -1,13 +1,5 @@
 import { getToolMeta } from '../../lib/toolMeta.js';
-import {
-  computeSignalScore,
-  extractScoringInput,
-  scoreTier,
-  scoreTierColor,
-  formatStars,
-  DIMENSION_LABELS,
-  type SignalBreakdown,
-} from '../../lib/signalScore.js';
+import { formatStars } from '../../lib/signalScore.js';
 import type { ToolDirectoryEvaluation } from '../../lib/apiSchemas.js';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
 import { VerdictBadge } from './DirectoryRow.jsx';
@@ -42,34 +34,13 @@ function DemoEmbed({ url }: { url: string }) {
   );
 }
 
-function SignalScoreDisplay({ score }: { score: SignalBreakdown }) {
-  const tier = scoreTier(score.total);
-  const tierColor = scoreTierColor(score.total);
-  const dims = ['craft', 'activity', 'ecosystem', 'reach'] as const;
-
+/** Concrete fact row — only renders if value is present. */
+function Fact({ label, value }: { label: string; value: string | null | undefined }) {
+  if (!value) return null;
   return (
-    <div className={styles.scoreSection}>
-      <div className={styles.scoreHeader}>
-        <span className={styles.scoreTotal}>{score.total}</span>
-        <span className={styles.scoreTier} data-tier={tierColor}>
-          {tier}
-        </span>
-      </div>
-      <div className={styles.scoreBars}>
-        {dims.map((dim) => (
-          <div key={dim} className={styles.scoreRow}>
-            <span className={styles.scoreLabel}>{DIMENSION_LABELS[dim]}</span>
-            <div className={styles.scoreTrack}>
-              <div
-                className={styles.scoreFill}
-                data-dim={dim}
-                style={{ width: `${(score[dim] / 25) * 100}%` }}
-              />
-            </div>
-            <span className={styles.scoreValue}>{score[dim]}</span>
-          </div>
-        ))}
-      </div>
+    <div className={styles.factRow}>
+      <span className={styles.factLabel}>{label}</span>
+      <span className={styles.factValue}>{value}</span>
     </div>
   );
 }
@@ -93,10 +64,6 @@ export default function ToolDetailView({ evaluation, categories, onBack }: ToolD
   const githubStars = typeof md.github_stars === 'number' ? md.github_stars : null;
   const isOss = md.open_source === true || evExtra.open_source === 1;
   const demoUrl = typeof md.demo_url === 'string' ? md.demo_url : null;
-
-  // Signal score
-  const scoringInput = extractScoringInput(evExtra);
-  const score = computeSignalScore(scoringInput);
 
   return (
     <div className={styles.detail}>
@@ -125,114 +92,156 @@ export default function ToolDetailView({ evaluation, categories, onBack }: ToolD
         </div>
       </header>
 
-      {/* AI Summary — primary description */}
-      {(aiSummary || evaluation.tagline) && (
-        <p className={styles.summary}>{aiSummary || evaluation.tagline}</p>
-      )}
+      {/* Two-column body: narrative left, data right */}
+      <div className={styles.body}>
+        {/* ── Left column: narrative ── */}
+        <div className={styles.narrative}>
+          {/* AI Summary */}
+          {(aiSummary || evaluation.tagline) && (
+            <p className={styles.summary}>{aiSummary || evaluation.tagline}</p>
+          )}
 
-      {/* Strengths pills */}
-      {strengths.length > 0 && (
-        <div className={styles.strengths}>
-          {strengths.map((s, i) => (
-            <span key={i} className={styles.strength}>
-              {s}
-            </span>
-          ))}
-        </div>
-      )}
+          {/* Strengths pills */}
+          {strengths.length > 0 && (
+            <div className={styles.strengths}>
+              {strengths.map((s, i) => (
+                <span key={i} className={styles.strength}>
+                  {s}
+                </span>
+              ))}
+            </div>
+          )}
 
-      {/* Signal Score */}
-      <SignalScoreDisplay score={score} />
+          {/* Notable (fallback when no AI summary) */}
+          {typeof md.notable === 'string' && md.notable && !aiSummary && (
+            <p className={styles.summary}>{md.notable}</p>
+          )}
 
-      {/* Stat grid — key facts */}
-      <div className={styles.statGrid}>
-        <div className={styles.statCell}>
-          <span className={styles.statLabel}>Status</span>
-          <VerdictBadge verdict={evaluation.verdict} />
+          {/* Demo video */}
+          {demoUrl && (
+            <div className={styles.demoSection}>
+              <div className={styles.demoLabel}>Demo</div>
+              <DemoEmbed url={demoUrl} />
+            </div>
+          )}
+
+          {/* Setup CTA */}
+          <button className={styles.setupCta} disabled type="button">
+            Set up
+          </button>
         </div>
-        <div className={styles.statCell}>
-          <span className={styles.statLabel}>Category</span>
-          <span className={styles.statValue}>{categoryLabel || '\u2014'}</span>
-        </div>
-        {integrationType && (
-          <div className={styles.statCell}>
-            <span className={styles.statLabel}>Type</span>
-            <span className={styles.statValue}>{integrationType}</span>
+
+        {/* ── Right column: data sheet ── */}
+        <div className={styles.dataSheet}>
+          {/* Stat grid — primary classification */}
+          <div className={styles.statGrid}>
+            <div className={styles.statCell}>
+              <span className={styles.statLabel}>Status</span>
+              <VerdictBadge verdict={evaluation.verdict} />
+            </div>
+            <div className={styles.statCell}>
+              <span className={styles.statLabel}>Category</span>
+              <span className={styles.statValue}>{categoryLabel || '\u2014'}</span>
+            </div>
+            {integrationType && (
+              <div className={styles.statCell}>
+                <span className={styles.statLabel}>Type</span>
+                <span className={styles.statValue}>{integrationType}</span>
+              </div>
+            )}
+            {platform.length > 0 && (
+              <div className={styles.statCell}>
+                <span className={styles.statLabel}>Platform</span>
+                <span className={styles.statValue}>{platform.join(', ')}</span>
+              </div>
+            )}
+            {pricingDetail && (
+              <div className={styles.statCell}>
+                <span className={styles.statLabel}>Pricing</span>
+                <span className={styles.statValue}>{pricingDetail}</span>
+              </div>
+            )}
           </div>
-        )}
-        {platform.length > 0 && (
-          <div className={styles.statCell}>
-            <span className={styles.statLabel}>Platform</span>
-            <span className={styles.statValue}>{platform.join(', ')}</span>
+
+          {/* Concrete data sheet — every verifiable fact */}
+          <div className={styles.factSheet}>
+            <Fact label="Open source" value={isOss ? 'Yes' : 'No'} />
+            <Fact label="MCP support" value={evaluation.mcp_support ? 'Supported' : 'Not yet'} />
+            <Fact
+              label="GitHub stars"
+              value={githubStars != null ? formatStars(githubStars) : null}
+            />
+            <Fact
+              label="Updates"
+              value={typeof md.update_frequency === 'string' ? md.update_frequency : null}
+            />
+            <Fact
+              label="Documentation"
+              value={typeof md.documentation_quality === 'string' ? md.documentation_quality : null}
+            />
+            <Fact label="Pricing" value={pricingDetail || pricingTier} />
+            <Fact
+              label="Founded"
+              value={typeof md.founded_year === 'number' ? String(md.founded_year) : null}
+            />
+            <Fact label="Team" value={typeof md.team_size === 'string' ? md.team_size : null} />
+            <Fact
+              label="Funding"
+              value={
+                typeof md.funding_status === 'string'
+                  ? (md.funding_status as string).replace(/_/g, ' ')
+                  : null
+              }
+            />
+            <Fact
+              label="Users"
+              value={typeof md.user_count_estimate === 'string' ? md.user_count_estimate : null}
+            />
+            <Fact
+              label="Confidence"
+              value={typeof evExtra.confidence === 'string' ? evExtra.confidence : null}
+            />
           </div>
-        )}
-        {pricingDetail && (
-          <div className={styles.statCell}>
-            <span className={styles.statLabel}>Pricing</span>
-            <span className={styles.statValue}>{pricingDetail}</span>
+
+          {/* Metadata links */}
+          <div className={styles.metaSection}>
+            {typeof md.website === 'string' && md.website && (
+              <div className={styles.metaItem}>
+                <span className={styles.metaLabel}>Website</span>
+                <a
+                  href={md.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.metaLink}
+                >
+                  {md.website.replace(/^https?:\/\/(www\.)?/, '')}
+                </a>
+              </div>
+            )}
+            {typeof md.github === 'string' && md.github && (
+              <div className={styles.metaItem}>
+                <span className={styles.metaLabel}>GitHub</span>
+                <a
+                  href={md.github}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.metaLink}
+                >
+                  {md.github.replace('https://github.com/', '')}
+                </a>
+              </div>
+            )}
+            {typeof md.install_command === 'string' && md.install_command && (
+              <div className={styles.metaItem}>
+                <span className={styles.metaLabel}>Install</span>
+                <code className={styles.installCmd}>{md.install_command}</code>
+              </div>
+            )}
           </div>
-        )}
-        <div className={styles.statCell}>
-          <span className={styles.statLabel}>Confidence</span>
-          <span className={styles.statValue}>
-            {(typeof evExtra.confidence === 'string' && evExtra.confidence) || '\u2014'}
-          </span>
         </div>
       </div>
 
-      {/* Demo video */}
-      {demoUrl && (
-        <div className={styles.demoSection}>
-          <div className={styles.demoLabel}>Demo</div>
-          <DemoEmbed url={demoUrl} />
-        </div>
-      )}
-
-      {/* Setup CTA */}
-      <button className={styles.setupCta} disabled type="button">
-        Set up
-      </button>
-
-      {/* Notable */}
-      {typeof md.notable === 'string' && md.notable && !aiSummary && (
-        <p className={styles.summary}>{md.notable}</p>
-      )}
-
-      {/* Metadata links */}
-      <div className={styles.metaSection}>
-        {typeof md.website === 'string' && md.website && (
-          <div className={styles.metaItem}>
-            <span className={styles.metaLabel}>Website</span>
-            <a
-              href={md.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.metaLink}
-            >
-              {md.website.replace(/^https?:\/\/(www\.)?/, '')}
-            </a>
-          </div>
-        )}
-        {typeof md.github === 'string' && md.github && (
-          <div className={styles.metaItem}>
-            <span className={styles.metaLabel}>GitHub</span>
-            <a
-              href={md.github}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.metaLink}
-            >
-              {md.github.replace('https://github.com/', '')}
-            </a>
-          </div>
-        )}
-        {typeof md.install_command === 'string' && md.install_command && (
-          <div className={styles.metaItem}>
-            <span className={styles.metaLabel}>Install</span>
-            <code className={styles.installCmd}>{md.install_command}</code>
-          </div>
-        )}
-      </div>
+      {/* ── Full-width footer zone ── */}
 
       {/* Sources */}
       {sources && sources.length > 0 && (
