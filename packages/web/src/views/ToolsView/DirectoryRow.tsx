@@ -1,4 +1,5 @@
 import { getToolMeta } from '../../lib/toolMeta.js';
+import { scoreTierColor } from '../../lib/signalScore.js';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
 import styles from './ToolsView.module.css';
 
@@ -7,13 +8,13 @@ interface VerdictBadgeProps {
 }
 
 const VERDICT_MAP: Record<string, { className: string; label: string }> = {
-  integrated: { className: styles.verdictCompatible, label: 'Integrated' },
-  installable: { className: styles.verdictPartial, label: 'Installable' },
-  listed: { className: styles.verdictIncompatible, label: 'Listed' },
+  integrated: { className: styles.verdictCompatible, label: 'Supported' },
+  installable: { className: styles.verdictPartial, label: 'Available' },
+  listed: { className: styles.verdictIncompatible, label: 'Coming soon' },
   // Legacy verdicts from cached data
-  compatible: { className: styles.verdictCompatible, label: 'Integrated' },
-  partial: { className: styles.verdictPartial, label: 'Installable' },
-  incompatible: { className: styles.verdictIncompatible, label: 'Listed' },
+  compatible: { className: styles.verdictCompatible, label: 'Supported' },
+  partial: { className: styles.verdictPartial, label: 'Available' },
+  incompatible: { className: styles.verdictIncompatible, label: 'Coming soon' },
 };
 
 export function VerdictBadge({ verdict }: VerdictBadgeProps) {
@@ -40,15 +41,32 @@ interface Evaluation {
 interface DirectoryRowProps {
   evaluation: Evaluation;
   categories: Record<string, string>;
+  score: number;
   onSelect: () => void;
+  onHoverChange?: (evalId: string | null, x?: number, y?: number) => void;
 }
 
-export default function DirectoryRow({ evaluation, categories, onSelect }: DirectoryRowProps) {
+export default function DirectoryRow({
+  evaluation,
+  categories,
+  score,
+  onSelect,
+  onHoverChange,
+}: DirectoryRowProps) {
   const meta = getToolMeta(evaluation.id);
   const categoryLabel = categories[evaluation.category ?? ''] || evaluation.category || '';
+  const md = evaluation.metadata ?? {};
+  const pricingTier = typeof md.pricing_tier === 'string' ? md.pricing_tier : null;
+  const tierColor = scoreTierColor(score);
 
   return (
-    <button className={styles.directoryRow} onClick={onSelect} type="button">
+    <button
+      className={styles.directoryRow}
+      onClick={onSelect}
+      type="button"
+      onMouseEnter={(e) => onHoverChange?.(evaluation.id, e.clientX, e.clientY)}
+      onMouseLeave={() => onHoverChange?.(null)}
+    >
       <div className={styles.rowIdentity}>
         <ToolIcon
           tool={evaluation.id}
@@ -58,9 +76,11 @@ export default function DirectoryRow({ evaluation, categories, onSelect }: Direc
         <span className={styles.rowLabel}>{evaluation.name || meta.label}</span>
       </div>
       <VerdictBadge verdict={evaluation.verdict} />
-      <span className={styles.dirStub}>{'\u2014'}</span>
+      <span className={styles.dirScore} data-tier={tierColor}>
+        {score}
+      </span>
       <span className={styles.dirCategory}>{categoryLabel}</span>
-      <span className={styles.dirStub}>{'\u2014'}</span>
+      <span className={styles.dirPricing}>{pricingTier || '\u2014'}</span>
       <span className={styles.dirTagline}>
         {evaluation.tagline
           ? evaluation.tagline.length > 60
@@ -68,6 +88,7 @@ export default function DirectoryRow({ evaluation, categories, onSelect }: Direc
             : evaluation.tagline
           : ''}
       </span>
+      <span className={styles.viewButton}>View</span>
     </button>
   );
 }

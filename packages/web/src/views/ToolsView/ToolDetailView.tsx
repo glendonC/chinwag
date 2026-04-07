@@ -1,4 +1,13 @@
 import { getToolMeta } from '../../lib/toolMeta.js';
+import {
+  computeSignalScore,
+  extractScoringInput,
+  scoreTier,
+  scoreTierColor,
+  formatStars,
+  DIMENSION_LABELS,
+  type SignalBreakdown,
+} from '../../lib/signalScore.js';
 import type { ToolDirectoryEvaluation } from '../../lib/apiSchemas.js';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
 import { VerdictBadge } from './DirectoryRow.jsx';
@@ -10,6 +19,61 @@ interface ToolDetailViewProps {
   onBack: () => void;
 }
 
+function DemoEmbed({ url }: { url: string }) {
+  const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
+  if (isYouTube) {
+    const embedUrl = url
+      .replace('youtube.com/watch?v=', 'youtube.com/embed/')
+      .replace('youtu.be/', 'youtube.com/embed/');
+    return (
+      <iframe
+        src={`${embedUrl}?rel=0`}
+        className={styles.demoEmbed}
+        allow="accelerometer; autoplay; encrypted-media; gyroscope"
+        allowFullScreen
+        title="Product demo"
+      />
+    );
+  }
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className={styles.demoLink}>
+      Watch demo {'\u2192'}
+    </a>
+  );
+}
+
+function SignalScoreDisplay({ score }: { score: SignalBreakdown }) {
+  const tier = scoreTier(score.total);
+  const tierColor = scoreTierColor(score.total);
+  const dims = ['craft', 'activity', 'ecosystem', 'reach'] as const;
+
+  return (
+    <div className={styles.scoreSection}>
+      <div className={styles.scoreHeader}>
+        <span className={styles.scoreTotal}>{score.total}</span>
+        <span className={styles.scoreTier} data-tier={tierColor}>
+          {tier}
+        </span>
+      </div>
+      <div className={styles.scoreBars}>
+        {dims.map((dim) => (
+          <div key={dim} className={styles.scoreRow}>
+            <span className={styles.scoreLabel}>{DIMENSION_LABELS[dim]}</span>
+            <div className={styles.scoreTrack}>
+              <div
+                className={styles.scoreFill}
+                data-dim={dim}
+                style={{ width: `${(score[dim] / 25) * 100}%` }}
+              />
+            </div>
+            <span className={styles.scoreValue}>{score[dim]}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function ToolDetailView({ evaluation, categories, onBack }: ToolDetailViewProps) {
   const meta = getToolMeta(evaluation.id);
   const md = (evaluation.metadata ?? {}) as Record<string, unknown>;
@@ -19,9 +83,24 @@ export default function ToolDetailView({ evaluation, categories, onBack }: ToolD
     | Array<{ claim: string; citations?: Array<{ url: string; title?: string }> }>
     | undefined;
 
+  // Enrichment data
+  const aiSummary = typeof md.ai_summary === 'string' ? md.ai_summary : null;
+  const strengths = Array.isArray(md.strengths) ? (md.strengths as string[]).slice(0, 3) : [];
+  const pricingTier = typeof md.pricing_tier === 'string' ? md.pricing_tier : null;
+  const pricingDetail = typeof md.pricing_detail === 'string' ? md.pricing_detail : null;
+  const platform = Array.isArray(md.platform) ? (md.platform as string[]) : [];
+  const integrationType = typeof md.integration_type === 'string' ? md.integration_type : null;
+  const githubStars = typeof md.github_stars === 'number' ? md.github_stars : null;
+  const isOss = md.open_source === true || evExtra.open_source === 1;
+  const demoUrl = typeof md.demo_url === 'string' ? md.demo_url : null;
+
+  // Signal score
+  const scoringInput = extractScoringInput(evExtra);
+  const score = computeSignalScore(scoringInput);
+
   return (
     <div className={styles.detail}>
-      {/* Header — eyebrow as back nav, title at display scale */}
+      {/* Header — eyebrow back nav, title, badges */}
       <header className={styles.header}>
         <button className={styles.eyebrowBack} onClick={onBack} type="button">
           {'\u2190'} Directory
@@ -30,33 +109,69 @@ export default function ToolDetailView({ evaluation, categories, onBack }: ToolD
           <ToolIcon tool={evaluation.id} website={md.website as string | undefined} size={40} />
           <h1 className={styles.title}>{evaluation.name || meta.label}</h1>
         </div>
-        {evaluation.tagline && <p className={styles.tagline}>{evaluation.tagline}</p>}
+        <div className={styles.badges}>
+          {isOss && <span className={`${styles.badge} ${styles.badgeOss}`}>Open source</span>}
+          {evaluation.mcp_support && (
+            <span className={`${styles.badge} ${styles.badgeMcp}`}>MCP</span>
+          )}
+          {githubStars != null && githubStars > 0 && (
+            <span className={`${styles.badge} ${styles.badgeTier}`}>
+              {formatStars(githubStars)} stars
+            </span>
+          )}
+          {pricingTier && (
+            <span className={`${styles.badge} ${styles.badgeTier}`}>{pricingTier}</span>
+          )}
+        </div>
       </header>
 
-      {/* Stat grid */}
+      {/* AI Summary — primary description */}
+      {(aiSummary || evaluation.tagline) && (
+        <p className={styles.summary}>{aiSummary || evaluation.tagline}</p>
+      )}
+
+      {/* Strengths pills */}
+      {strengths.length > 0 && (
+        <div className={styles.strengths}>
+          {strengths.map((s, i) => (
+            <span key={i} className={styles.strength}>
+              {s}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Signal Score */}
+      <SignalScoreDisplay score={score} />
+
+      {/* Stat grid — key facts */}
       <div className={styles.statGrid}>
         <div className={styles.statCell}>
-          <span className={styles.statLabel}>Verdict</span>
+          <span className={styles.statLabel}>Status</span>
           <VerdictBadge verdict={evaluation.verdict} />
         </div>
         <div className={styles.statCell}>
           <span className={styles.statLabel}>Category</span>
           <span className={styles.statValue}>{categoryLabel || '\u2014'}</span>
         </div>
-        <div className={styles.statCell}>
-          <span className={styles.statLabel}>MCP</span>
-          <span className={styles.statValue}>
-            {evaluation.mcp_support ? 'Supported' : '\u2014'}
-          </span>
-        </div>
-        <div className={styles.statCell}>
-          <span className={styles.statLabel}>Pricing</span>
-          <span className={styles.statStub}>{'\u2014'}</span>
-        </div>
-        <div className={styles.statCell}>
-          <span className={styles.statLabel}>Setup</span>
-          <span className={styles.statStub}>{'\u2014'}</span>
-        </div>
+        {integrationType && (
+          <div className={styles.statCell}>
+            <span className={styles.statLabel}>Type</span>
+            <span className={styles.statValue}>{integrationType}</span>
+          </div>
+        )}
+        {platform.length > 0 && (
+          <div className={styles.statCell}>
+            <span className={styles.statLabel}>Platform</span>
+            <span className={styles.statValue}>{platform.join(', ')}</span>
+          </div>
+        )}
+        {pricingDetail && (
+          <div className={styles.statCell}>
+            <span className={styles.statLabel}>Pricing</span>
+            <span className={styles.statValue}>{pricingDetail}</span>
+          </div>
+        )}
         <div className={styles.statCell}>
           <span className={styles.statLabel}>Confidence</span>
           <span className={styles.statValue}>
@@ -65,14 +180,22 @@ export default function ToolDetailView({ evaluation, categories, onBack }: ToolD
         </div>
       </div>
 
+      {/* Demo video */}
+      {demoUrl && (
+        <div className={styles.demoSection}>
+          <div className={styles.demoLabel}>Demo</div>
+          <DemoEmbed url={demoUrl} />
+        </div>
+      )}
+
       {/* Setup CTA */}
       <button className={styles.setupCta} disabled type="button">
         Set up
       </button>
 
       {/* Notable */}
-      {typeof md.notable === 'string' && md.notable && (
-        <p className={styles.notable}>{md.notable}</p>
+      {typeof md.notable === 'string' && md.notable && !aiSummary && (
+        <p className={styles.summary}>{md.notable}</p>
       )}
 
       {/* Metadata links */}

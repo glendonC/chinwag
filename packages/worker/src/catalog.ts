@@ -24,4 +24,9 @@ export const CATEGORY_NAMES: Record<string, string> = {
   review: 'Code review',
   terminal: 'Terminal tools',
   docs: 'Documentation',
+  testing: 'Testing',
+  security: 'Security',
+  'design-to-code': 'Design-to-code',
+  refactoring: 'Refactoring',
+  debugging: 'Debugging',
 };

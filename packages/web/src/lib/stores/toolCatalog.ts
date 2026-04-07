@@ -100,7 +100,13 @@ async function fetchCatalog(token: string): Promise<void> {
     return;
   }
 
-  const request = api<ToolDirectoryResponse>('GET', '/tools/directory?limit=200', null, token)
+  const cacheBust = `_t=${Math.floor(Date.now() / 60000)}`; // refreshes every minute
+  const request = api<ToolDirectoryResponse>(
+    'GET',
+    `/tools/directory?limit=200&${cacheBust}`,
+    null,
+    token,
+  )
     .then((data) => {
       const evaluations = data.evaluations || [];
       const categories = data.categories || {};

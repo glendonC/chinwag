@@ -40,6 +40,7 @@ export async function deepSearchEvaluate(
   toolName: string,
   outputSchema: Record<string, unknown>,
   env: Env,
+  customSystemPrompt?: string,
 ): Promise<DeepSearchResult> {
   const apiKey = env.EXA_API_KEY;
   if (!apiKey) return { error: 'EXA_API_KEY not configured' };
@@ -47,6 +48,8 @@ export async function deepSearchEvaluate(
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), TIMEOUT);
+
+    const defaultPrompt = `You are evaluating "${toolName}" for compatibility with chinwag, an MCP-based coordination layer for AI dev tools. MCP (Model Context Protocol) is a JSON-RPC protocol — a tool "supports MCP" if it can connect to MCP servers via config files like .mcp.json. Be precise: if you cannot find evidence of a capability, use null, never guess.`;
 
     const res = await fetch(EXA_SEARCH_URL, {
       method: 'POST',
@@ -56,7 +59,7 @@ export async function deepSearchEvaluate(
         type: 'deep',
         numResults: 10,
         outputSchema,
-        systemPrompt: `You are evaluating "${toolName}" for compatibility with chinwag, an MCP-based coordination layer for AI dev tools. MCP (Model Context Protocol) is a JSON-RPC protocol — a tool "supports MCP" if it can connect to MCP servers via config files like .mcp.json. Be precise: if you cannot find evidence of a capability, use null, never guess.`,
+        systemPrompt: customSystemPrompt || defaultPrompt,
         contents: { text: true },
       }),
       signal: controller.signal,
@@ -83,6 +86,75 @@ export async function deepSearchEvaluate(
   } catch (err) {
     const e = err as Error & { name: string };
     return { error: e.name === 'AbortError' ? 'Exa search timed out' : e.message };
+  }
+}
+
+/**
+ * Find a product demo video for a tool — any platform, not restricted to one host.
+ * Searches for official demos, walkthroughs, and product tours across the web.
+ */
+export async function findDemoVideo(toolName: string, env: Env): Promise<string | null> {
+  const apiKey = env.EXA_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30_000);
+
+    const res = await fetch(EXA_SEARCH_URL, {
+      method: 'POST',
+      headers: headers(apiKey),
+      body: JSON.stringify({
+        query: `${toolName} product demo video walkthrough how it works`,
+        type: 'neural',
+        numResults: 5,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+
+    const data: any = await res.json();
+    const results = data.results || [];
+
+    // Video-hosting signals — any URL containing these is likely a playable video
+    const videoSignals = [
+      'youtube.com/watch',
+      'youtu.be/',
+      'vimeo.com/',
+      'loom.com/share',
+      'twitter.com/i/status',
+      'x.com/i/status',
+      '/demo',
+      '/walkthrough',
+      '/tour',
+      '.mp4',
+      '.webm',
+    ];
+
+    const toolLower = toolName.toLowerCase().split(/\s+/)[0];
+
+    // First pass: find a video URL that references the tool by name
+    for (const r of results) {
+      if (!r.url) continue;
+      const urlLower = r.url.toLowerCase();
+      const titleLower = (r.title || '').toLowerCase();
+      const isVideo = videoSignals.some((s) => urlLower.includes(s));
+      const mentionsTool = titleLower.includes(toolLower) || urlLower.includes(toolLower);
+      if (isVideo && mentionsTool) return r.url;
+    }
+
+    // Second pass: any video URL from results
+    for (const r of results) {
+      if (!r.url) continue;
+      const urlLower = r.url.toLowerCase();
+      if (videoSignals.some((s) => urlLower.includes(s))) return r.url;
+    }
+
+    return null;
+  } catch {
+    return null;
   }
 }
 

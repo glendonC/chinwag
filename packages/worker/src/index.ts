@@ -39,6 +39,10 @@ import {
   handleTriggerEvaluation,
   handleBatchEvaluate,
   handleAdminDelete,
+  handleDiscover,
+  handleBatchEnrich,
+  handleBatchFindVideos,
+  handleBatchCredibility,
 } from './routes/directory.js';
 import {
   handleTeamActivity,
@@ -144,6 +148,15 @@ const routeDefinitions: RouteDefinition[] = [
   { method: 'GET', path: '/tools/catalog', handler: handleToolCatalog, auth: false },
   { method: 'GET', path: '/tools/directory', handler: handleListDirectory, auth: false },
   { method: 'POST', path: '/tools/batch-evaluate', handler: handleBatchEvaluate, auth: false },
+  { method: 'POST', path: '/tools/discover', handler: handleDiscover, auth: false },
+  { method: 'POST', path: '/tools/batch-enrich', handler: handleBatchEnrich, auth: false },
+  { method: 'POST', path: '/tools/batch-find-videos', handler: handleBatchFindVideos, auth: false },
+  {
+    method: 'POST',
+    path: '/tools/batch-credibility',
+    handler: handleBatchCredibility,
+    auth: false,
+  },
   { method: 'POST', path: '/tools/admin-delete', handler: handleAdminDelete, auth: false },
   { method: 'GET', path: '/tools/directory/:id', handler: handleGetDirectoryEntry, auth: false },
   { method: 'GET', path: '/auth/github', handler: handleGithubAuth, auth: false },

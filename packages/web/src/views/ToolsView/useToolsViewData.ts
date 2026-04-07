@@ -20,6 +20,7 @@ import {
   type CategoryEntry,
 } from '../../lib/toolAnalytics.js';
 import { normalizeToolId, isKnownTool } from '../../lib/toolMeta.js';
+import { computeSignalScore, extractScoringInput } from '../../lib/signalScore.js';
 import {
   arcPath,
   CX,
@@ -61,6 +62,8 @@ export interface ArcEntry {
   labeled: boolean;
 }
 
+export type SortOption = 'score' | 'name' | 'stars';
+
 export interface ToolsViewData {
   token: string | null;
   loading: boolean;
@@ -82,6 +85,8 @@ export interface ToolsViewData {
   setActiveVerdict: (v: string) => void;
   searchQuery: string;
   setSearchQuery: (v: string) => void;
+  sortBy: SortOption;
+  setSortBy: (v: SortOption) => void;
   selectedToolId: string | null;
   selectedEvaluation: ToolDirectoryEvaluation | null;
   selectTool: (id: string | null) => void;
@@ -90,6 +95,7 @@ export interface ToolsViewData {
   hideConfigured: boolean;
   setHideConfigured: (v: boolean) => void;
   isConfigured: (toolId: string) => boolean;
+  getScore: (ev: ToolDirectoryEvaluation) => number;
 }
 
 export function useToolsViewData(): ToolsViewData {
@@ -100,6 +106,7 @@ export function useToolsViewData(): ToolsViewData {
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [activeVerdict, setActiveVerdict] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [sortBy, setSortBy] = useState<SortOption>('score');
   const [showAll, setShowAll] = useState<boolean>(false);
 
   // URL-synced tool selection for spatial navigation
@@ -170,7 +177,7 @@ export function useToolsViewData(): ToolsViewData {
   }, [userToolIds, userHostIds, seenSurfaceIds]);
 
   // Categories the user already has tools in — for relevance sorting
-  const userCategoryIds = useMemo(() => {
+  const _userCategoryIds = useMemo(() => {
     const ids = new Set<string>();
     for (const tool of toolShare) {
       const match = catalog.find(
@@ -256,6 +263,21 @@ export function useToolsViewData(): ToolsViewData {
 
   const uniqueTools = knownToolShare.length;
 
+  // Score cache — compute once per evaluation set, reuse for sort + display
+  const scoreCache = useMemo(() => {
+    const cache = new Map<string, number>();
+    for (const ev of evaluations) {
+      const input = extractScoringInput(ev as Record<string, unknown>);
+      cache.set(ev.id, computeSignalScore(input).total);
+    }
+    return cache;
+  }, [evaluations]);
+
+  const getScore = useCallback(
+    (ev: ToolDirectoryEvaluation) => scoreCache.get(ev.id) ?? 0,
+    [scoreCache],
+  );
+
   // Filtered + sorted directory evaluations
   const filteredEvaluations = useMemo(() => {
     let result = evaluations;
@@ -282,19 +304,29 @@ export function useToolsViewData(): ToolsViewData {
     }
 
     return [...result].sort((a, b) => {
-      // When showing only non-configured, sort by category relevance first
-      if (hideConfigured) {
-        const aRelevant = a.category && userCategoryIds.has(a.category) ? 1 : 0;
-        const bRelevant = b.category && userCategoryIds.has(b.category) ? 1 : 0;
-        if (aRelevant !== bRelevant) return bRelevant - aRelevant;
-      } else {
-        // When showing all, configured tools come first
+      // When showing all, configured tools always come first
+      if (!hideConfigured) {
         const aConfigured = isConfigured(a.id) ? 1 : 0;
         const bConfigured = isConfigured(b.id) ? 1 : 0;
         if (aConfigured !== bConfigured) return bConfigured - aConfigured;
       }
 
-      // Then by verdict quality
+      // Primary sort dimension
+      if (sortBy === 'score') {
+        const diff = (scoreCache.get(b.id) ?? 0) - (scoreCache.get(a.id) ?? 0);
+        if (diff !== 0) return diff;
+      } else if (sortBy === 'stars') {
+        const aMd = (a.metadata ?? {}) as Record<string, unknown>;
+        const bMd = (b.metadata ?? {}) as Record<string, unknown>;
+        const aStars = typeof aMd.github_stars === 'number' ? aMd.github_stars : 0;
+        const bStars = typeof bMd.github_stars === 'number' ? bMd.github_stars : 0;
+        const diff = bStars - aStars;
+        if (diff !== 0) return diff;
+      } else if (sortBy === 'name') {
+        return (a.name || '').localeCompare(b.name || '');
+      }
+
+      // Tiebreak: verdict quality then name
       const aV = VERDICT_ORDER[a.verdict ?? ''] ?? 3;
       const bV = VERDICT_ORDER[b.verdict ?? ''] ?? 3;
       if (aV !== bV) return aV - bV;
@@ -305,7 +337,8 @@ export function useToolsViewData(): ToolsViewData {
     evaluations,
     hideConfigured,
     isConfigured,
-    userCategoryIds,
+    sortBy,
+    scoreCache,
     activeCategory,
     activeVerdict,
     searchQuery,
@@ -332,6 +365,8 @@ export function useToolsViewData(): ToolsViewData {
     setActiveVerdict,
     searchQuery,
     setSearchQuery,
+    sortBy,
+    setSortBy,
     selectedToolId,
     selectedEvaluation: evaluations.find((ev) => ev.id === selectedToolId) ?? null,
     selectTool,
@@ -340,5 +375,6 @@ export function useToolsViewData(): ToolsViewData {
     hideConfigured,
     setHideConfigured,
     isConfigured,
+    getScore,
   };
 }
