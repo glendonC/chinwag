@@ -28,8 +28,7 @@ const CLAIM_LABELS: Record<string, string> = {
 };
 
 const PROVENANCE_LABELS: Record<string, string> = {
-  discovery: 'Web research',
-  seed: 'Editorial review',
+  chinwag: 'chinwag directory',
 };
 
 interface ToolDetailViewProps {

@@ -1907,7 +1907,7 @@ function buildEvaluation(tool: SeedTool) {
     in_registry: 0,
     evaluated_at: new Date().toISOString(),
     confidence: 'medium' as const,
-    evaluated_by: 'seed:research',
+    evaluated_by: 'chinwag',
     data_passes: {
       core: { completed_at: new Date().toISOString(), success: true },
     },
