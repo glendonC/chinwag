@@ -17,7 +17,7 @@ interface Props {
   website?: string;
   /** Backend-resolved icon URL from evaluation metadata (icon_url field). */
   iconUrl?: string;
-  /** Exa-discovered favicon URL from evaluation metadata. */
+  /** Favicon URL from evaluation metadata. */
   favicon?: string;
   /** Brand color extracted from the tool's icon (metadata.brand_color). */
   brandColor?: string;
@@ -81,7 +81,7 @@ export default function ToolIcon({
     );
   }
 
-  // 3. Exa-discovered favicon from metadata
+  // 3. Favicon from metadata
   if (favicon) {
     return (
       <span className={classes} style={{ width: size, height: size }} aria-hidden={ariaHidden}>

@@ -28,7 +28,7 @@ const CLAIM_LABELS: Record<string, string> = {
 };
 
 const PROVENANCE_LABELS: Record<string, string> = {
-  'exa:deep-search': 'Web research',
+  discovery: 'Web research',
   seed: 'Editorial review',
 };
 

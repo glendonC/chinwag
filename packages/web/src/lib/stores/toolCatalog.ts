@@ -28,6 +28,7 @@ export interface CatalogItem {
 interface ToolDirectoryResponse {
   evaluations?: ToolDirectoryEvaluation[];
   categories?: Record<string, string>;
+  total?: number;
 }
 
 /** Map a directory evaluation to the catalog display shape used by ToolsView. */
@@ -47,6 +48,7 @@ interface ToolCatalogState {
   catalog: CatalogItem[];
   categories: Record<string, string>;
   evaluations: ToolDirectoryEvaluation[];
+  total: number;
   loading: boolean;
   error: Error | null;
   /** Token that produced the current cache — invalidates on auth change */
@@ -59,6 +61,7 @@ const toolCatalogStore = createStore<ToolCatalogState>(() => ({
   catalog: [],
   categories: {},
   evaluations: [],
+  total: 0,
   loading: true,
   error: null,
   /** Token that produced the current cache — invalidates on auth change */
@@ -83,6 +86,7 @@ async function fetchCatalog(token: string): Promise<void> {
       catalog: [],
       categories: {},
       evaluations: [],
+      total: 0,
       loading: true,
       error: null,
       _cachedForToken: null,
@@ -101,37 +105,50 @@ async function fetchCatalog(token: string): Promise<void> {
   }
 
   const cacheBust = `_t=${Math.floor(Date.now() / 60000)}`; // refreshes every minute
-  const request = api<ToolDirectoryResponse>(
-    'GET',
-    `/tools/directory?limit=200&${cacheBust}`,
-    null,
-    token,
-  )
-    .then((data) => {
-      const evaluations = data.evaluations || [];
-      const categories = data.categories || {};
-      const catalog = evaluations.map(evaluationToCatalogItem);
-      toolCatalogStore.setState({
-        catalog,
-        categories,
-        evaluations,
-        loading: false,
-        error: null,
-        _cachedForToken: token,
-        _inflight: null,
-      });
-    })
-    .catch((error: Error) => {
-      toolCatalogStore.setState({
-        catalog: [],
-        categories: {},
-        evaluations: [],
-        loading: false,
-        error,
-        _cachedForToken: null,
-        _inflight: null,
-      });
+  const request = (async () => {
+    // Paginate — API caps at 200 per page
+    const PAGE = 200;
+    let allEvaluations: ToolDirectoryEvaluation[] = [];
+    let categories: Record<string, string> = {};
+    let total = 0;
+
+    for (let offset = 0; ; offset += PAGE) {
+      const data = await api<ToolDirectoryResponse>(
+        'GET',
+        `/tools/directory?limit=${PAGE}&offset=${offset}&completeness=listing&${cacheBust}`,
+        null,
+        token,
+      );
+      const page = data.evaluations || [];
+      categories = { ...categories, ...(data.categories || {}) };
+      if (data.total != null) total = data.total;
+      allEvaluations = allEvaluations.concat(page);
+      if (page.length < PAGE) break; // last page
+    }
+
+    const catalog = allEvaluations.map(evaluationToCatalogItem);
+    toolCatalogStore.setState({
+      catalog,
+      categories,
+      evaluations: allEvaluations,
+      total,
+      loading: false,
+      error: null,
+      _cachedForToken: token,
+      _inflight: null,
     });
+  })().catch((error: Error) => {
+    toolCatalogStore.setState({
+      catalog: [],
+      categories: {},
+      evaluations: [],
+      total: 0,
+      loading: false,
+      error,
+      _cachedForToken: null,
+      _inflight: null,
+    });
+  });
 
   toolCatalogStore.setState({ _inflight: request });
   await request;
@@ -143,6 +160,7 @@ function resetCatalogState(): void {
     catalog: [],
     categories: {},
     evaluations: [],
+    total: 0,
     loading: true,
     error: null,
     _cachedForToken: null,
