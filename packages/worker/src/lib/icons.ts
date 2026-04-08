@@ -11,21 +11,21 @@ const KV_TTL = 30 * 24 * 60 * 60; // 30 days
 
 interface IconResolution {
   icon_url: string;
-  icon_source: 'exa-favicon' | 'exa-image' | 'google' | 'clearbit';
+  icon_source: 'favicon' | 'image' | 'google' | 'clearbit';
 }
 
 /**
  * Resolve the best available icon URL for a tool.
- * Tries Exa search results, Google Favicons, and Clearbit in order.
+ * Tries metadata favicon/image, Google Favicons, and Clearbit in order.
  */
 export async function resolveIconUrl(
   metadata: Record<string, unknown>,
 ): Promise<IconResolution | null> {
   if (typeof metadata.favicon === 'string' && metadata.favicon) {
-    return { icon_url: metadata.favicon, icon_source: 'exa-favicon' };
+    return { icon_url: metadata.favicon, icon_source: 'favicon' };
   }
   if (typeof metadata.image === 'string' && metadata.image) {
-    return { icon_url: metadata.image, icon_source: 'exa-image' };
+    return { icon_url: metadata.image, icon_source: 'image' };
   }
 
   const website = typeof metadata.website === 'string' ? metadata.website : null;

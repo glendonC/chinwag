@@ -7,26 +7,41 @@ import {
 // MCP-configurable tools are derived from the shared canonical registry so
 // runtime integration and discovery cannot drift apart.
 //
-// Discovery-only tools (Goose, Warp, CodeRabbit, etc.) are NOT hardcoded here.
-// They live in the evaluation DB, seeded via the Exa Deep Search pipeline on
-// first deploy and refreshable via POST /tools/batch-evaluate.
-// See seed-evaluations.ts for the seed list.
+// Discovery-only tools live in the evaluation DB, populated via admin import
+// scripts (scripts/import-seed-tools.ts, scripts/merge-enrichment.ts).
+// New tools are added via community submissions or periodic agent research sweeps.
 
 export const TOOL_CATALOG = [
   ...buildHostIntegrationCatalogEntries(),
   ...buildAgentSurfaceCatalogEntries(),
 ];
 
+// 13 browse categories — derived from 6-agent research + 3-agent challenge process.
+//
+// Architecture: categories (primary, one per tool) + tags (secondary, multiple per tool).
+// Tags live in evaluation metadata as string[]. When a tag accumulates 8+ tools,
+// it can be promoted to a full category without restructuring.
+//
+// Mental model mapping (6 developer super-buckets → 14 browse categories):
+//   Write Code   → editors, coding-agents
+//   Verify Code  → code-quality, security, testing
+//   Build AI     → ai-models, ai-frameworks
+//   Get Data     → data-search, databases
+//   Ship Code    → infrastructure
+//   Work Locally → terminal-cli
+//   Create & Collaborate → documentation, collaboration
 export const CATEGORY_NAMES: Record<string, string> = {
-  'coding-agent': 'Coding agents',
-  ide: 'IDEs',
-  voice: 'Voice-to-code',
-  review: 'Code review',
-  terminal: 'Terminal tools',
-  docs: 'Documentation',
-  testing: 'Testing',
+  editors: 'Editors',
+  'coding-agents': 'Coding Agents',
+  'code-quality': 'Code Quality',
   security: 'Security',
-  'design-to-code': 'Design-to-code',
-  refactoring: 'Refactoring',
-  debugging: 'Debugging',
+  testing: 'Testing',
+  'ai-models': 'AI Models',
+  'ai-frameworks': 'AI Frameworks',
+  'data-search': 'Data & Search',
+  databases: 'Databases',
+  infrastructure: 'Infrastructure',
+  'terminal-cli': 'Terminal & CLI',
+  documentation: 'Documentation',
+  collaboration: 'Collaboration',
 };

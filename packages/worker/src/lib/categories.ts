@@ -13,68 +13,26 @@ const CACHE_TTL = 300; // 5 minutes edge cache
 export interface CategoryEntry {
   label: string;
   description: string;
+  /** Search query for finding tools in this category (used by admin scripts). */
   discoveryQuery: string;
   addedAt: string;
   addedBy: 'seed' | 'admin';
 }
 
-// Expanded seed categories — includes original 11 plus common gaps.
-const SEED_CATEGORIES: Record<string, CategoryEntry> = {
-  ...Object.fromEntries(
-    Object.entries(CATEGORY_NAMES).map(([id, label]) => [
-      id,
-      {
-        label,
-        description: `${label} for AI-assisted development`,
-        discoveryQuery: `best ${label.toLowerCase()} AI developer tools 2024`,
-        addedAt: new Date().toISOString(),
-        addedBy: 'seed' as const,
-      },
-    ]),
-  ),
-  'ai-assistant': {
-    label: 'AI Assistants',
-    description: 'General-purpose AI assistants used in development workflows',
-    discoveryQuery: 'AI assistant developer productivity tool 2024',
-    addedAt: new Date().toISOString(),
-    addedBy: 'seed',
-  },
-  'image-gen': {
-    label: 'Image Generation',
-    description: 'AI image and visual generation tools used in development',
-    discoveryQuery: 'AI image generation tool developer creative workflow 2024',
-    addedAt: new Date().toISOString(),
-    addedBy: 'seed',
-  },
-  devops: {
-    label: 'DevOps & CI/CD',
-    description: 'AI-powered DevOps, CI/CD, and deployment tools',
-    discoveryQuery: 'AI DevOps CI CD deployment developer tool 2024',
-    addedAt: new Date().toISOString(),
-    addedBy: 'seed',
-  },
-  database: {
-    label: 'Database Tools',
-    description: 'AI tools for database management, queries, and optimization',
-    discoveryQuery: 'AI database query optimization developer tool 2024',
-    addedAt: new Date().toISOString(),
-    addedBy: 'seed',
-  },
-  monitoring: {
-    label: 'Monitoring',
-    description: 'AI-powered monitoring, observability, and alerting tools',
-    discoveryQuery: 'AI monitoring observability developer tool 2024',
-    addedAt: new Date().toISOString(),
-    addedBy: 'seed',
-  },
-  infrastructure: {
-    label: 'Infrastructure',
-    description: 'AI infrastructure and cloud management tools',
-    discoveryQuery: 'AI infrastructure cloud management developer tool 2024',
-    addedAt: new Date().toISOString(),
-    addedBy: 'seed',
-  },
-};
+// Seed categories — auto-built from CATEGORY_NAMES in catalog.ts.
+// New categories added to CATEGORY_NAMES are auto-merged into KV on next access.
+const SEED_CATEGORIES: Record<string, CategoryEntry> = Object.fromEntries(
+  Object.entries(CATEGORY_NAMES).map(([id, label]) => [
+    id,
+    {
+      label,
+      description: `${label} for AI-assisted development`,
+      discoveryQuery: `best ${label.toLowerCase()} developer tools 2025`,
+      addedAt: new Date().toISOString(),
+      addedBy: 'seed' as const,
+    },
+  ]),
+);
 
 /**
  * Get the full category registry from KV. Seeds on first access.
@@ -85,8 +43,17 @@ export async function getCategories(env: Env): Promise<Record<string, CategoryEn
     type: 'json',
     cacheTtl: CACHE_TTL,
   });
+
   if (cached && typeof cached === 'object') {
-    return cached as Record<string, CategoryEntry>;
+    const existing = cached as Record<string, CategoryEntry>;
+    // Merge any new seed categories added in code since last KV write
+    const seedKeys = Object.keys(SEED_CATEGORIES);
+    const missing = seedKeys.filter((k) => !existing[k]);
+    if (missing.length > 0) {
+      for (const k of missing) existing[k] = SEED_CATEGORIES[k];
+      await env.AUTH_KV.put(KV_KEY_REGISTRY, JSON.stringify(existing));
+    }
+    return existing;
   }
 
   // First access — seed from defaults
@@ -105,43 +72,6 @@ export async function getCategoryNames(env: Env): Promise<Record<string, string>
     names[id] = entry.label;
   }
   return names;
-}
-
-/**
- * Get the list of valid category IDs (including 'other' fallback).
- */
-export async function getValidCategories(env: Env): Promise<string[]> {
-  const registry = await getCategories(env);
-  return [...Object.keys(registry), 'other'];
-}
-
-/**
- * Log a suggested category from Exa for admin review.
- */
-export async function logSuggestedCategory(
-  env: Env,
-  slug: string,
-  label: string,
-  suggestedBy: string,
-): Promise<void> {
-  const raw = await env.AUTH_KV.get(KV_KEY_PENDING, { type: 'json' });
-  const pending = (raw && typeof raw === 'object' ? raw : {}) as Record<
-    string,
-    { label: string; suggestedBy: string; suggestedAt: string; count: number }
-  >;
-
-  if (pending[slug]) {
-    pending[slug].count++;
-  } else {
-    pending[slug] = {
-      label,
-      suggestedBy,
-      suggestedAt: new Date().toISOString(),
-      count: 1,
-    };
-  }
-
-  await env.AUTH_KV.put(KV_KEY_PENDING, JSON.stringify(pending));
 }
 
 /**

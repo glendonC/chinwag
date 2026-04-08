@@ -131,6 +131,7 @@ interface ListFilters {
   category?: string | null;
   mcp_support?: number | null;
   in_registry?: number | null;
+  completeness?: string | null;
   limit?: number;
   offset?: number;
 }
@@ -138,7 +139,7 @@ interface ListFilters {
 export function listEvaluations(
   sql: SqlStorage,
   filters: ListFilters = {},
-): { ok: true; evaluations: ParsedEvaluation[] } {
+): { ok: true; evaluations: ParsedEvaluation[]; total: number } {
   const conditions: string[] = [];
   const params: unknown[] = [];
 
@@ -158,6 +159,12 @@ export function listEvaluations(
     conditions.push('in_registry = ?');
     params.push(filters.in_registry);
   }
+  if (filters.completeness === 'listing') {
+    conditions.push("json_extract(data_passes, '$.core.success') = 1");
+  } else if (filters.completeness === 'full') {
+    conditions.push("json_extract(data_passes, '$.core.success') = 1");
+    conditions.push("json_extract(data_passes, '$.enrichment.success') = 1");
+  }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
   const limit = Math.min(filters.limit || 100, 200);
@@ -172,7 +179,16 @@ export function listEvaluations(
     )
     .toArray();
 
-  return { ok: true, evaluations: rows.map((r) => parseEvaluation(r as Record<string, unknown>)) };
+  const countRows = sql
+    .exec(`SELECT COUNT(*) as total FROM tool_evaluations ${where}`, ...params)
+    .toArray();
+  const total = ((countRows[0] as Record<string, unknown>)?.total as number) || 0;
+
+  return {
+    ok: true,
+    evaluations: rows.map((r) => parseEvaluation(r as Record<string, unknown>)),
+    total,
+  };
 }
 
 export function searchEvaluations(
@@ -196,11 +212,6 @@ export function searchEvaluations(
 export function deleteEvaluation(sql: SqlStorage, toolId: string): { ok: true; deleted: boolean } {
   sql.exec('DELETE FROM tool_evaluations WHERE id = ?', toolId);
   return { ok: true, deleted: sqlChanges(sql) > 0 };
-}
-
-export function hasEvaluations(sql: SqlStorage): { ok: true; count: number } {
-  const rows = sql.exec('SELECT COUNT(*) as count FROM tool_evaluations').toArray();
-  return { ok: true, count: (rows[0] as { count: number }).count };
 }
 
 function parseEvaluation(row: Record<string, unknown>): ParsedEvaluation {
