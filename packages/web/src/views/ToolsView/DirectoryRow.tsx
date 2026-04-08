@@ -1,5 +1,5 @@
 import { getToolMeta } from '../../lib/toolMeta.js';
-import { scoreTierColor } from '../../lib/signalScore.js';
+import { formatStars } from '../../lib/signalScore.js';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
 import styles from './ToolsView.module.css';
 
@@ -41,7 +41,6 @@ interface Evaluation {
 interface DirectoryRowProps {
   evaluation: Evaluation;
   categories: Record<string, string>;
-  score: number;
   onSelect: () => void;
   onHoverChange?: (evalId: string | null, x?: number, y?: number) => void;
 }
@@ -49,7 +48,6 @@ interface DirectoryRowProps {
 export default function DirectoryRow({
   evaluation,
   categories,
-  score,
   onSelect,
   onHoverChange,
 }: DirectoryRowProps) {
@@ -57,7 +55,7 @@ export default function DirectoryRow({
   const categoryLabel = categories[evaluation.category ?? ''] || evaluation.category || '';
   const md = evaluation.metadata ?? {};
   const pricingTier = typeof md.pricing_tier === 'string' ? md.pricing_tier : null;
-  const tierColor = scoreTierColor(score);
+  const githubStars = typeof md.github_stars === 'number' ? md.github_stars : null;
 
   return (
     <button
@@ -71,13 +69,16 @@ export default function DirectoryRow({
         <ToolIcon
           tool={evaluation.id}
           website={evaluation.metadata?.website as string | undefined}
+          iconUrl={evaluation.metadata?.icon_url as string | undefined}
+          favicon={evaluation.metadata?.favicon as string | undefined}
+          brandColor={evaluation.metadata?.brand_color as string | undefined}
           size={18}
         />
         <span className={styles.rowLabel}>{evaluation.name || meta.label}</span>
       </div>
       <VerdictBadge verdict={evaluation.verdict} />
-      <span className={styles.dirScore} data-tier={tierColor}>
-        {score}
+      <span className={styles.dirStars}>
+        {githubStars != null && githubStars > 0 ? formatStars(githubStars) : '\u2014'}
       </span>
       <span className={styles.dirCategory}>{categoryLabel}</span>
       <span className={styles.dirPricing}>{pricingTier || '\u2014'}</span>

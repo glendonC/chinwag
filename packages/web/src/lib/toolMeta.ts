@@ -17,6 +17,16 @@ interface PartialMatch {
   key: string;
 }
 
+/** Derive a deterministic HSL color from a string so every unknown tool gets a unique color. */
+function deriveColor(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
+  }
+  const hue = ((hash % 360) + 360) % 360;
+  return `hsl(${hue}, 55%, 50%)`;
+}
+
 const TOOL_META: Record<string, ToolMetaEntry> = {
   // Tools with SVG icons
   claude: { label: 'Claude Code', icon: '/assets/claude-code.svg', color: '#d9773c' },
@@ -158,7 +168,7 @@ export function getToolMeta(toolId: string | null | undefined): ResolvedToolMeta
     }
   }
 
-  // Fallback: auto-format the name
+  // Fallback: auto-format the name, derive a unique color from the tool ID
   const pretty = String(toolId || 'tool')
     .replace(/[-_]/g, ' ')
     .replace(/\b\w/g, (char) => char.toUpperCase());
@@ -167,7 +177,7 @@ export function getToolMeta(toolId: string | null | undefined): ResolvedToolMeta
     id: normalized || 'tool',
     label: pretty,
     icon: null,
-    color: '#6366f1',
+    color: deriveColor(normalized || 'tool'),
   };
 }
 

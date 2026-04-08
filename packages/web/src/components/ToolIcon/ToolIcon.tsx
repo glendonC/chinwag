@@ -15,6 +15,12 @@ function faviconUrl(website: string | undefined): string | null {
 interface Props {
   tool: string;
   website?: string;
+  /** Backend-resolved icon URL from evaluation metadata (icon_url field). */
+  iconUrl?: string;
+  /** Exa-discovered favicon URL from evaluation metadata. */
+  favicon?: string;
+  /** Brand color extracted from the tool's icon (metadata.brand_color). */
+  brandColor?: string;
   size?: number;
   monochrome?: boolean;
   className?: string;
@@ -24,6 +30,9 @@ interface Props {
 export default function ToolIcon({
   tool,
   website,
+  iconUrl,
+  favicon,
+  brandColor,
   size = 18,
   monochrome = false,
   className = '',
@@ -32,7 +41,7 @@ export default function ToolIcon({
   const meta = getToolMeta(tool);
   const classes = clsx(styles.icon, monochrome && styles.monochrome, className);
 
-  // 1. Local SVG (highest quality — hand-curated)
+  // 1. Local SVG (highest quality — hand-curated, 13 tools)
   if (meta.icon) {
     if (monochrome) {
       return (
@@ -63,7 +72,25 @@ export default function ToolIcon({
     );
   }
 
-  // 2. Google favicon service — works for any domain, always returns an icon
+  // 2. Backend-resolved icon (cached in KV, resolved at evaluation time)
+  if (iconUrl) {
+    return (
+      <span className={classes} style={{ width: size, height: size }} aria-hidden={ariaHidden}>
+        <img src={iconUrl} alt="" className={styles.favicon} />
+      </span>
+    );
+  }
+
+  // 3. Exa-discovered favicon from metadata
+  if (favicon) {
+    return (
+      <span className={classes} style={{ width: size, height: size }} aria-hidden={ariaHidden}>
+        <img src={favicon} alt="" className={styles.favicon} />
+      </span>
+    );
+  }
+
+  // 4. Google favicon service — fallback for tools with a website but no cached icon
   const gFavicon = faviconUrl(website);
   if (gFavicon) {
     return (
@@ -73,11 +100,12 @@ export default function ToolIcon({
     );
   }
 
-  // 3. Letter fallback
+  // 5. Letter fallback — use brand color from metadata if available, else toolMeta color
+  const fallbackColor = brandColor || meta.color;
   return (
     <span
       className={clsx(classes, styles.fallback)}
-      style={{ width: size, height: size, backgroundColor: meta.color }}
+      style={{ width: size, height: size, backgroundColor: fallbackColor }}
       aria-hidden={ariaHidden}
     >
       {meta.label.slice(0, 1)}

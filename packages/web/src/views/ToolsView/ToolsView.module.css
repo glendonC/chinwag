@@ -569,7 +569,7 @@
 .tooltip {
   position: fixed;
   z-index: 100;
-  width: 340px;
+  width: 400px;
   min-height: 200px;
   padding: 20px;
   display: flex;

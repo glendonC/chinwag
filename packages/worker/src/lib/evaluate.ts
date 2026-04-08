@@ -6,14 +6,13 @@
 
 import type { Env } from '../types.js';
 import { deepSearchEvaluate } from './search.js';
+import { getValidCategories, getCategoryNames, logSuggestedCategory } from './categories.js';
+import { resolveAndCacheIcon } from './icons.js';
 
 // Verdicts describe integration depth, not quality. Every tool belongs in the directory.
 // - integrated: chinwag coordinates with it (MCP support)
 // - installable: chinwag can help set it up (has CLI/install command)
 // - listed: chinwag tells you about it (discovery, no direct integration yet)
-// Imported dynamically from catalog to avoid drift. Fallback to 'other' for unknowns.
-import { CATEGORY_NAMES } from '../catalog.js';
-const VALID_CATEGORIES = [...Object.keys(CATEGORY_NAMES), 'other'];
 
 type Verdict = 'integrated' | 'installable' | 'listed';
 type Tier = 'managed' | 'connected' | 'installable' | 'listed';
@@ -55,6 +54,7 @@ interface EvaluationMetadata {
   pricing_detail: string | null;
   github_stars: number | null;
   demo_url: string | null;
+  brand_color: string | null;
   last_updated: string | null;
   // Credibility fields (populated by third Exa pass)
   founded_year: number | null;
@@ -86,54 +86,59 @@ interface Evaluation {
   evaluated_at: string;
   confidence: Confidence;
   evaluated_by: string;
+  data_passes: Record<string, { completed_at: string; success: boolean }>;
 }
 
-// JSON Schema (draft-07) sent to Exa's outputSchema parameter.
-// Exa fills this in from crawled pages and provides per-field grounding.
+// Build the core evaluation schema dynamically with live categories from KV.
 // Exa Deep Search limits outputSchema to 10 properties.
-// We ask for the 10 most important fields, then derive the rest.
-const EVALUATION_SCHEMA: Record<string, unknown> = {
-  type: 'object',
-  properties: {
-    name: { type: 'string', description: 'Official product name' },
-    tagline: { type: 'string', description: 'One-line description from their website' },
-    category: {
-      type: 'string',
-      enum: VALID_CATEGORIES,
-      description: `Tool category: ${Object.entries(CATEGORY_NAMES)
-        .map(([k, v]) => `${k} (${v})`)
-        .join(', ')}, or other`,
+function buildEvaluationSchema(
+  validCategories: string[],
+  categoryNames: Record<string, string>,
+): Record<string, unknown> {
+  return {
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: 'Official product name' },
+      tagline: { type: 'string', description: 'One-line description from their website' },
+      category: {
+        type: 'string',
+        enum: validCategories,
+        description: `Tool category: ${Object.entries(categoryNames)
+          .map(([k, v]) => `${k} (${v})`)
+          .join(', ')}, or other`,
+      },
+      mcp_support: {
+        type: ['boolean', 'null'],
+        description:
+          'Does this tool support MCP (Model Context Protocol)? true ONLY if docs explicitly mention MCP servers, .mcp.json, or model context protocol. null if not mentioned.',
+      },
+      has_cli: {
+        type: ['boolean', 'null'],
+        description:
+          'Does this tool have a CLI binary you can run from a terminal? null if unknown.',
+      },
+      open_source: {
+        type: ['boolean', 'null'],
+        description: 'Is this tool open source (GitHub/GitLab repo available)? null if unknown.',
+      },
+      website: { type: ['string', 'null'], description: 'Official website URL' },
+      github: {
+        type: ['string', 'null'],
+        description: 'GitHub/GitLab repository URL if open source, else null',
+      },
+      install_command: {
+        type: ['string', 'null'],
+        description: 'Primary install command (brew install, npm i -g, etc.) or null',
+      },
+      notable: {
+        type: ['string', 'null'],
+        description:
+          'One sentence: what makes this tool unique and how it relates to AI-assisted development',
+      },
     },
-    mcp_support: {
-      type: ['boolean', 'null'],
-      description:
-        'Does this tool support MCP (Model Context Protocol)? true ONLY if docs explicitly mention MCP servers, .mcp.json, or model context protocol. null if not mentioned.',
-    },
-    has_cli: {
-      type: ['boolean', 'null'],
-      description: 'Does this tool have a CLI binary you can run from a terminal? null if unknown.',
-    },
-    open_source: {
-      type: ['boolean', 'null'],
-      description: 'Is this tool open source (GitHub/GitLab repo available)? null if unknown.',
-    },
-    website: { type: ['string', 'null'], description: 'Official website URL' },
-    github: {
-      type: ['string', 'null'],
-      description: 'GitHub/GitLab repository URL if open source, else null',
-    },
-    install_command: {
-      type: ['string', 'null'],
-      description: 'Primary install command (brew install, npm i -g, etc.) or null',
-    },
-    notable: {
-      type: ['string', 'null'],
-      description:
-        'One sentence: what makes this tool unique and how it relates to AI-assisted development',
-    },
-  },
-  required: ['name', 'category'],
-};
+    required: ['name', 'category'],
+  };
+}
 
 // Second-pass enrichment schema — product details, pricing, strengths.
 // Runs as a separate Exa Deep Search call because outputSchema is capped at 10 fields.
@@ -180,6 +185,11 @@ const ENRICHMENT_SCHEMA: Record<string, unknown> = {
       type: ['string', 'null'],
       description:
         'URL to an official product demo video (YouTube, Vimeo, or direct video link). null if none found.',
+    },
+    brand_color: {
+      type: ['string', 'null'],
+      description:
+        'Primary brand hex color from the website (theme-color meta tag, CSS variables, or dominant logo color). Format: "#rrggbb". null if unknown.',
     },
   },
   required: [],
@@ -309,6 +319,10 @@ async function runEnrichment(
     pricing_detail: typeof out.pricing_detail === 'string' ? out.pricing_detail : null,
     github_stars: typeof out.github_stars === 'number' ? out.github_stars : null,
     demo_url: typeof out.demo_url === 'string' ? out.demo_url : null,
+    brand_color:
+      typeof out.brand_color === 'string' && /^#[0-9a-fA-F]{6}$/.test(out.brand_color)
+        ? out.brand_color.toLowerCase()
+        : null,
   };
 }
 
@@ -344,11 +358,41 @@ function deriveConfidence(grounding: unknown[]): Confidence {
   return 'low';
 }
 
+// Human-readable labels for Exa grounding field names.
+// Used in sources display so users see "MCP protocol support" instead of "mcp_support".
+const FIELD_CLAIM_MAP: Record<string, string> = {
+  name: 'Product name',
+  tagline: 'Description',
+  category: 'Tool category',
+  mcp_support: 'MCP protocol support',
+  has_cli: 'CLI available',
+  open_source: 'Open source status',
+  website: 'Official website',
+  github: 'Source repository',
+  install_command: 'Installation method',
+  notable: 'Key differentiator',
+  ai_summary: 'Product summary',
+  strengths: 'Key strengths',
+  integration_type: 'Integration type',
+  platforms: 'Platform support',
+  pricing_tier: 'Pricing model',
+  pricing_detail: 'Pricing details',
+  github_stars: 'GitHub stars',
+  demo_url: 'Demo video',
+  founded_year: 'Founded year',
+  team_size: 'Team size',
+  funding_status: 'Funding status',
+  update_frequency: 'Update frequency',
+  user_count_estimate: 'User count',
+  notable_users: 'Notable users',
+  documentation_quality: 'Documentation',
+};
+
 // Map Exa grounding to our sources format
 function mapGrounding(grounding: unknown[]): EvaluationSource[] {
   if (!grounding || !Array.isArray(grounding)) return [];
   return (grounding as GroundingEntry[]).map((g) => ({
-    claim: g.field,
+    claim: FIELD_CLAIM_MAP[g.field] || g.field,
     citations: (g.citations || []).map((c) => ({ url: c.url, title: c.title })),
     confidence: g.confidence || 'low',
   }));
@@ -364,6 +408,7 @@ function toEvaluation(
   output: any,
   grounding: unknown[],
   searchResults: SearchResult[],
+  validCategories: string[],
 ): Evaluation {
   const { verdict, tier } = deriveVerdict(output);
   const confidence = deriveConfidence(grounding);
@@ -378,7 +423,7 @@ function toEvaluation(
     id: generateId(output.name),
     name: output.name,
     tagline: output.tagline || null,
-    category: VALID_CATEGORIES.includes(output.category) ? output.category : 'other',
+    category: validCategories.includes(output.category) ? output.category : 'other',
     mcp_support: toBool(output.mcp_support),
     has_cli: toBool(output.has_cli),
     hooks_support: null, // Not in Exa schema — derived from registry if known
@@ -405,6 +450,7 @@ function toEvaluation(
       pricing_detail: null,
       github_stars: null,
       demo_url: null,
+      brand_color: null,
       last_updated: null,
       // Credibility fields — populated by third pass, null until then
       founded_year: null,
@@ -420,6 +466,9 @@ function toEvaluation(
     evaluated_at: new Date().toISOString(),
     confidence,
     evaluated_by: 'exa:deep-search',
+    data_passes: {
+      core: { completed_at: new Date().toISOString(), success: true },
+    },
   };
 }
 
@@ -434,23 +483,48 @@ export async function evaluateTool(
   const input = nameOrUrl.trim();
 
   try {
+    // Fetch live categories from KV for dynamic schema
+    const validCategories = await getValidCategories(env);
+    const categoryNames = await getCategoryNames(env);
+    const evaluationSchema = buildEvaluationSchema(validCategories, categoryNames);
+
     // Pass 1: Core evaluation — name, category, MCP, CLI, website, etc.
-    const result = await deepSearchEvaluate(input, EVALUATION_SCHEMA, env);
+    const result = await deepSearchEvaluate(input, evaluationSchema, env);
 
     if ('error' in result) return { error: result.error };
     if (!result.output) return { error: 'Exa returned no output' };
     if (!(result.output as any).name) return { error: 'Exa output missing tool name' };
 
-    const evaluation = toEvaluation(result.output, result.grounding, result.results || []);
+    const evaluation = toEvaluation(
+      result.output,
+      result.grounding,
+      result.results || [],
+      validCategories,
+    );
+
+    // Resolve and cache icon from search results / website
+    await resolveAndCacheIcon(
+      evaluation.id,
+      evaluation.metadata as unknown as Record<string, unknown>,
+      env,
+    );
 
     // Pass 2: Enrichment — strengths, pricing, platforms, demo, ai_summary
     const enrichment = await runEnrichment(evaluation.name, env);
+    evaluation.data_passes.enrichment = {
+      completed_at: new Date().toISOString(),
+      success: enrichment !== null,
+    };
     if (enrichment) {
       Object.assign(evaluation.metadata, enrichment);
     }
 
     // Pass 3: Credibility — team, funding, maintenance, sustainability signals
     const credibility = await runCredibilityPass(evaluation.name, env);
+    evaluation.data_passes.credibility = {
+      completed_at: new Date().toISOString(),
+      success: credibility !== null,
+    };
     if (credibility) {
       Object.assign(evaluation.metadata, credibility);
     }

@@ -1,4 +1,4 @@
-import { type CSSProperties, useState, useEffect, useCallback, useMemo } from 'react';
+import { type CSSProperties, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import clsx from 'clsx';
 import { getToolMeta } from '../../lib/toolMeta.js';
 import { summarizeList } from '../../lib/summarize.js';
@@ -55,9 +55,10 @@ export default function ToolsView() {
     setShowAll,
     hideConfigured,
     setHideConfigured,
-    getScore,
+    isConfigured,
   } = useToolsViewData();
 
+  const pageRef = useRef<HTMLDivElement>(null);
   const [hoveredTool, setHoveredTool] = useState<string | null>(null);
   const [hoveredDirId, setHoveredDirId] = useState<string | null>(null);
   const [showDemo, setShowDemo] = useState(false);
@@ -85,7 +86,7 @@ export default function ToolsView() {
   const tooltipStyle = useMemo(() => {
     const pos = displayPos;
     if (!pos) return undefined;
-    const w = 340;
+    const w = 400;
     const gap = 24;
     const vw = typeof window !== 'undefined' ? window.innerWidth : 1400;
     const vh = typeof window !== 'undefined' ? window.innerHeight : 900;
@@ -104,6 +105,19 @@ export default function ToolsView() {
     }
     return { left, bottom: vh - pos.y, top: 'auto' } as CSSProperties;
   }, [displayPos, showDemo]);
+
+  // Scroll to top when entering/leaving detail view — scroll container is .main (parent), not window
+  useEffect(() => {
+    let el = pageRef.current?.parentElement;
+    while (el) {
+      const { overflowY } = getComputedStyle(el);
+      if (overflowY === 'auto' || overflowY === 'scroll') {
+        el.scrollTop = 0;
+        break;
+      }
+      el = el.parentElement;
+    }
+  }, [shifted]);
 
   // Escape key closes detail view
   useEffect(() => {
@@ -150,7 +164,7 @@ export default function ToolsView() {
   }
 
   return (
-    <div className={styles.page}>
+    <div ref={pageRef} className={styles.page}>
       <div className={clsx(styles.track, shifted && styles.trackShifted)}>
         {/* ── List panel ── */}
         <div className={styles.listPanel}>
@@ -497,6 +511,7 @@ export default function ToolsView() {
             <ToolDetailView
               evaluation={selectedEvaluation}
               categories={categories}
+              isConfigured={isConfigured(selectedEvaluation.id)}
               onBack={() => selectTool(null)}
             />
           )}
@@ -531,12 +546,24 @@ export default function ToolsView() {
                 showTooltip && styles.tooltipVisible,
                 showDemo && demoUrl && styles.tooltipInteractive,
               )}
-              style={{ ...tooltipStyle, '--tool-color': meta.color } as CSSProperties}
+              style={
+                {
+                  ...tooltipStyle,
+                  '--tool-color': (md.brand_color as string) || meta.color,
+                } as CSSProperties
+              }
               aria-hidden="true"
             >
               {/* 1. Header */}
               <div className={styles.tooltipHeader}>
-                <ToolIcon tool={ev.id} website={md.website as string | undefined} size={28} />
+                <ToolIcon
+                  tool={ev.id}
+                  website={md.website as string | undefined}
+                  iconUrl={md.icon_url as string | undefined}
+                  favicon={md.favicon as string | undefined}
+                  brandColor={md.brand_color as string | undefined}
+                  size={28}
+                />
                 <span className={styles.tooltipName}>{ev.name || meta.label}</span>
               </div>
 

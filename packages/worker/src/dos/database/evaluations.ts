@@ -24,6 +24,7 @@ interface EvaluationInput {
   evaluated_at: string;
   confidence?: string;
   evaluated_by?: string | null;
+  data_passes?: string | Record<string, unknown>;
 }
 
 interface ParsedEvaluation {
@@ -46,6 +47,7 @@ interface ParsedEvaluation {
   evaluated_at: string;
   confidence: string;
   evaluated_by: string | null;
+  data_passes: Record<string, unknown>;
 }
 
 /** Upsert a tool evaluation. */
@@ -62,10 +64,14 @@ export function saveEvaluation(sql: SqlStorage, evaluation: EvaluationInput): { 
     typeof evaluation.blocking_issues === 'string'
       ? evaluation.blocking_issues
       : JSON.stringify(evaluation.blocking_issues ?? []);
+  const dataPasses =
+    typeof evaluation.data_passes === 'string'
+      ? evaluation.data_passes
+      : JSON.stringify(evaluation.data_passes ?? {});
 
   sql.exec(
-    `INSERT INTO tool_evaluations (id, name, tagline, category, mcp_support, has_cli, hooks_support, channel_support, process_detectable, open_source, verdict, integration_tier, blocking_issues, metadata, sources, in_registry, evaluated_at, confidence, evaluated_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO tool_evaluations (id, name, tagline, category, mcp_support, has_cli, hooks_support, channel_support, process_detectable, open_source, verdict, integration_tier, blocking_issues, metadata, sources, in_registry, evaluated_at, confidence, evaluated_by, data_passes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        name = excluded.name,
        tagline = excluded.tagline,
@@ -84,7 +90,8 @@ export function saveEvaluation(sql: SqlStorage, evaluation: EvaluationInput): { 
        in_registry = excluded.in_registry,
        evaluated_at = excluded.evaluated_at,
        confidence = excluded.confidence,
-       evaluated_by = excluded.evaluated_by`,
+       evaluated_by = excluded.evaluated_by,
+       data_passes = excluded.data_passes`,
     evaluation.id,
     evaluation.name,
     evaluation.tagline ?? null,
@@ -104,6 +111,7 @@ export function saveEvaluation(sql: SqlStorage, evaluation: EvaluationInput): { 
     evaluation.evaluated_at,
     evaluation.confidence ?? 'medium',
     evaluation.evaluated_by ?? null,
+    dataPasses,
   );
 
   return { ok: true };
@@ -201,5 +209,6 @@ function parseEvaluation(row: Record<string, unknown>): ParsedEvaluation {
     metadata: JSON.parse((row.metadata as string) || '{}'),
     sources: JSON.parse((row.sources as string) || '[]'),
     blocking_issues: JSON.parse((row.blocking_issues as string) || '[]'),
+    data_passes: JSON.parse((row.data_passes as string) || '{}'),
   } as ParsedEvaluation;
 }

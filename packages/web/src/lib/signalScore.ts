@@ -1,38 +1,19 @@
-// Signal Score — transparent, fair credibility ranking for the tool directory.
+// Internal ranking function for "Recommended" sort in the directory.
+// Not surfaced as a visible score — users see concrete facts, not a number.
 //
-// Design principle: things any builder controls should dominate.
-// A well-maintained solo project with good docs and MCP support can
-// score 75+ without any funding, stars, or enterprise customers.
-//
-// Four dimensions, each 0–25, total 0–100:
-//   Craft      — documentation, demo, pricing clarity, product polish
-//   Activity   — maintenance frequency, open source, recent updates
-//   Ecosystem  — MCP support, CLI, platform breadth, integration depth
-//   Reach      — adoption signals (stars, users). Clearly labeled as
-//                "reach" not "quality" — it's the audience dimension,
-//                not the merit dimension. Never penalizes absence.
+// Weighs things any builder controls (docs, maintenance, MCP support)
+// heavily, so a well-maintained solo project scores well without
+// needing funding or a massive user base.
 
-export interface SignalBreakdown {
+interface SignalBreakdown {
   total: number;
   craft: number;
   activity: number;
   ecosystem: number;
   reach: number;
+  /** True when enrichment data exists — used as sort tiebreaker so unenriched tools aren't unfairly penalized. */
+  dataComplete: boolean;
 }
-
-export const DIMENSION_LABELS: Record<keyof Omit<SignalBreakdown, 'total'>, string> = {
-  craft: 'Craft',
-  activity: 'Activity',
-  ecosystem: 'Ecosystem',
-  reach: 'Reach',
-};
-
-export const DIMENSION_DESCRIPTIONS: Record<keyof Omit<SignalBreakdown, 'total'>, string> = {
-  craft: 'Documentation, demos, pricing clarity',
-  activity: 'Maintenance, updates, open source',
-  ecosystem: 'MCP, CLI, platform breadth',
-  reach: 'Stars, users, adoption',
-};
 
 interface ScoringInput {
   github_stars?: number | null;
@@ -63,9 +44,9 @@ export function extractScoringInput(ev: Record<string, unknown>): ScoringInput {
   const md = (ev.metadata ?? {}) as Record<string, unknown>;
   return {
     github_stars: typeof md.github_stars === 'number' ? md.github_stars : null,
-    open_source: ev.open_source ?? md.open_source ?? null,
-    mcp_support: ev.mcp_support ?? null,
-    has_cli: ev.has_cli ?? null,
+    open_source: (ev.open_source ?? md.open_source ?? null) as boolean | number | null,
+    mcp_support: (ev.mcp_support ?? null) as boolean | number | string | null,
+    has_cli: (ev.has_cli ?? null) as boolean | number | null,
     pricing_tier: (md.pricing_tier as string) || null,
     pricing_detail: (md.pricing_detail as string) || null,
     platform: Array.isArray(md.platform) ? (md.platform as string[]) : null,
@@ -150,8 +131,6 @@ export function computeSignalScore(input: ScoringInput): SignalBreakdown {
   ecosystem = Math.min(Math.round(ecosystem), 25);
 
   // ── Reach (0–25): adoption signals — bonus, never a penalty ──
-  // This dimension is clearly labeled "reach" on the UI so users
-  // understand it measures audience size, not product quality.
   let reach = 0;
   const stars = input.github_stars ?? 0;
   if (stars > 0) {
@@ -163,29 +142,22 @@ export function computeSignalScore(input: ScoringInput): SignalBreakdown {
   if (input.notable_users) reach += 2;
   reach = Math.min(Math.round(reach), 25);
 
+  // Flag whether enrichment data exists — tools without it shouldn't be buried below
+  // genuinely low-scoring tools just because enrichment fields are null.
+  const dataComplete = !!(
+    input.ai_summary ||
+    input.update_frequency ||
+    input.documentation_quality
+  );
+
   return {
     total: craft + activity + ecosystem + reach,
     craft,
     activity,
     ecosystem,
     reach,
+    dataComplete,
   };
-}
-
-/** Human-readable tier label from total score. */
-export function scoreTier(total: number): string {
-  if (total >= 70) return 'Established';
-  if (total >= 45) return 'Growing';
-  if (total >= 25) return 'Emerging';
-  return 'New';
-}
-
-/** Short color class name for the tier. */
-export function scoreTierColor(total: number): string {
-  if (total >= 70) return 'high';
-  if (total >= 45) return 'mid';
-  if (total >= 25) return 'low';
-  return 'minimal';
 }
 
 /** Format stars count: 1200 → "1.2k", 45000 → "45k" */

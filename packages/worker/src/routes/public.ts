@@ -1,6 +1,7 @@
 import type { Env, User } from '../types.js';
 import { resolveRuntimeTargets } from '@chinwag/shared/runtime-profile.js';
-import { TOOL_CATALOG, CATEGORY_NAMES } from '../catalog.js';
+import { TOOL_CATALOG } from '../catalog.js';
+import { getCategoryNames } from '../lib/categories.js';
 import { getDB, getLobby, rpc } from '../lib/env.js';
 import { json } from '../lib/http.js';
 import { createLogger } from '../lib/logger.js';
@@ -131,7 +132,8 @@ export const handleToolCatalog = publicRoute(async ({ request, env }) => {
       tools = TOOL_CATALOG;
     }
 
-    return json({ tools, categories: CATEGORY_NAMES }, 200, {
+    const categories = await getCategoryNames(env);
+    return json({ tools, categories }, 200, {
       'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
     });
   });

@@ -1,4 +1,10 @@
+/* ── Detail view: zone-based single-column layout ── */
+
 .detail {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  max-width: 680px;
   padding-top: 8px;
   animation: detailEnter 0.3s var(--motion) both;
   animation-delay: 0.15s;
@@ -15,13 +21,12 @@
   }
 }
 
-/* ── Header: eyebrow back + display title ── */
+/* ── Zone 1: Hero ── */
 
 .header {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-bottom: var(--space-xl);
 }
 
 .eyebrowBack {
@@ -63,71 +68,52 @@
   text-wrap: balance;
 }
 
-.badges {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-top: 4px;
-}
-
-.badge {
+.configuredBadge {
   font-family: var(--mono);
   font-size: var(--text-10);
   font-weight: 500;
   letter-spacing: 0.04em;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: var(--ghost);
-  text-transform: uppercase;
-}
-
-.badgeOss {
   color: var(--success);
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.badgeMcp {
-  color: var(--accent);
+/* ── Zone 2: Quick Facts ── */
+
+.quickFacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 40px;
 }
 
-.badgeTier {
-  color: var(--muted);
+.quickFact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-/* ── Two-column body ── */
-
-.body {
-  display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: 56px;
-  align-items: start;
+.quickFactLabel {
+  font-family: var(--mono);
+  font-size: var(--text-10);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-table);
+  color: var(--soft);
 }
 
-.narrative {
-  min-width: 0;
+.quickFactValue {
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--ink);
+  text-transform: capitalize;
 }
 
-.dataSheet {
-  min-width: 0;
-}
-
-/* ── AI Summary ── */
-
-.summary {
-  font-size: var(--text-md);
-  color: var(--muted);
-  margin: 0 0 32px;
-  max-width: 52ch;
-  line-height: 1.6;
-  font-weight: 300;
-}
-
-/* ── Strengths pills ── */
+/* ── Zone 3: Strengths ── */
 
 .strengths {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 36px;
 }
 
 .strength {
@@ -140,80 +126,51 @@
   white-space: nowrap;
 }
 
-/* ── Stat grid ── */
+/* ── Zone 4: Summary ── */
 
-.statGrid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px 28px;
-  margin-bottom: 32px;
+.summary {
+  font-size: var(--text-md);
+  color: var(--muted);
+  margin: 0;
+  max-width: 60ch;
+  line-height: 1.6;
+  font-weight: 300;
 }
 
-.statCell {
+/* ── Zone 5: Links ── */
+
+.links {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.statLabel {
-  font-family: var(--mono);
-  font-size: var(--text-10);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-table);
-  color: var(--soft);
-}
-
-.statValue {
-  font-size: var(--text-sm);
-  font-weight: 400;
-  color: var(--ink);
-  text-transform: capitalize;
-}
-
-/* ── Fact sheet — concrete data points ── */
-
-.factSheet {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  margin-bottom: 32px;
-}
-
-.factRow {
-  display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 24px;
   align-items: baseline;
-  padding: 8px 0;
 }
 
-.factLabel {
+.link {
   font-family: var(--mono);
-  font-size: var(--text-10);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-table);
-  color: var(--soft);
-}
-
-.factValue {
-  font-size: var(--text-sm);
+  font-size: var(--text-11);
+  color: var(--accent);
+  text-decoration: none;
   font-weight: 400;
-  color: var(--ink);
-  text-transform: capitalize;
 }
 
-/* ── Demo video ── */
+.link:hover {
+  text-decoration: underline;
+}
+
+.installCmd {
+  font-family: var(--mono);
+  font-size: var(--text-11);
+  color: var(--muted);
+  background: var(--ghost);
+  padding: 3px 8px;
+  border-radius: var(--radius-xs);
+}
+
+/* ── Zone 6: Demo ── */
 
 .demoSection {
-  margin-bottom: 36px;
-}
-
-.demoLabel {
-  font-family: var(--mono);
-  font-size: var(--text-10);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-table);
-  color: var(--soft);
-  margin-bottom: 10px;
+  max-width: 640px;
 }
 
 .demoEmbed {
@@ -239,73 +196,29 @@
   text-decoration: underline;
 }
 
-/* ── Setup CTA ── */
+/* ── Zone 7: Provenance ── */
 
-.setupCta {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 28px;
-  margin-bottom: 40px;
-  background: var(--ghost);
-  color: var(--soft);
-  border: none;
-  border-radius: 999px;
-  font-family: var(--sans);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-/* ── Metadata links ── */
-
-.metaSection {
+.provenance {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 32px;
-}
-
-.metaItem {
-  display: flex;
-  align-items: baseline;
   gap: 8px;
+  padding-top: 8px;
 }
 
-.metaLabel {
+.provenanceText {
   font-family: var(--mono);
   font-size: var(--text-10);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   color: var(--soft);
 }
 
-.metaLink {
-  font-family: var(--mono);
-  font-size: var(--text-11);
-  color: var(--accent);
-  text-decoration: none;
-  font-weight: 400;
+.provenanceSep {
+  opacity: 0.4;
 }
 
-.metaLink:hover {
-  text-decoration: underline;
-}
-
-.installCmd {
-  font-family: var(--mono);
-  font-size: var(--text-11);
-  color: var(--muted);
-  background: var(--ghost);
-  padding: 3px 8px;
-  border-radius: var(--radius-xs);
-}
-
-/* ── Sources ── */
+/* Sources */
 
 .sourcesCollapsible {
-  margin-bottom: 24px;
+  /* no margin — contained within provenance zone */
 }
 
 .sourcesToggle {
@@ -342,7 +255,7 @@ details[open] > .sourcesToggle::before {
   font-family: var(--mono);
   font-size: var(--text-10);
   color: var(--soft);
-  min-width: 80px;
+  min-width: 100px;
   flex-shrink: 0;
 }
 
@@ -364,21 +277,6 @@ details[open] > .sourcesToggle::before {
   text-decoration: underline;
 }
 
-/* ── Footer ── */
-
-.footer {
-  display: flex;
-  gap: 16px;
-  align-items: baseline;
-  padding-top: 16px;
-}
-
-.footerMeta {
-  font-family: var(--mono);
-  font-size: var(--text-10);
-  color: var(--soft);
-}
-
 /* ── Responsive ── */
 
 @media (prefers-reduced-motion: reduce) {
@@ -388,16 +286,11 @@ details[open] > .sourcesToggle::before {
 }
 
 @media (max-width: 768px) {
-  .body {
-    grid-template-columns: 1fr;
-    gap: 40px;
-  }
-
-  .statGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
   .titleRow {
     gap: 12px;
+  }
+
+  .quickFacts {
+    gap: 16px 28px;
   }
 }

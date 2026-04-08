@@ -113,6 +113,49 @@ const migrations: Migration[] = [
       sql.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_github_id ON users(github_id)');
     },
   },
+  {
+    name: '003_data_passes',
+    up(sql) {
+      // Track which evaluation passes (core/enrichment/credibility) have completed per tool.
+      try {
+        sql.exec("ALTER TABLE tool_evaluations ADD COLUMN data_passes TEXT DEFAULT '{}'");
+      } catch (err) {
+        if (!getErrorMessage(err).toLowerCase().includes('duplicate column name')) throw err;
+      }
+
+      // Backfill existing evaluations based on data heuristics.
+      // All existing tools have at least core data (name, category, verdict exist).
+      const now = new Date().toISOString();
+      sql.exec(
+        `UPDATE tool_evaluations
+         SET data_passes = json_object('core', json_object('completed_at', evaluated_at, 'success', json('true')))
+         WHERE data_passes = '{}'`,
+      );
+
+      // Tools with ai_summary in metadata had enrichment pass succeed.
+      sql.exec(
+        `UPDATE tool_evaluations
+         SET data_passes = json_set(data_passes,
+           '$.enrichment', json_object('completed_at', evaluated_at, 'success', json('true'))
+         )
+         WHERE json_extract(metadata, '$.ai_summary') IS NOT NULL
+           AND json_extract(metadata, '$.ai_summary') != 'null'`,
+      );
+
+      // Tools with any credibility field had credibility pass succeed.
+      sql.exec(
+        `UPDATE tool_evaluations
+         SET data_passes = json_set(data_passes,
+           '$.credibility', json_object('completed_at', evaluated_at, 'success', json('true'))
+         )
+         WHERE json_extract(metadata, '$.founded_year') IS NOT NULL
+           OR json_extract(metadata, '$.team_size') IS NOT NULL
+           OR json_extract(metadata, '$.funding_status') IS NOT NULL
+           OR json_extract(metadata, '$.update_frequency') IS NOT NULL
+           OR json_extract(metadata, '$.documentation_quality') IS NOT NULL`,
+      );
+    },
+  },
 ];
 
 export function ensureSchema(sql: SqlStorage, transact: <T>(fn: () => T) => T): void {

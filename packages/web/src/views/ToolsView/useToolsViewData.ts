@@ -265,16 +265,17 @@ export function useToolsViewData(): ToolsViewData {
 
   // Score cache — compute once per evaluation set, reuse for sort + display
   const scoreCache = useMemo(() => {
-    const cache = new Map<string, number>();
+    const cache = new Map<string, { total: number; dataComplete: boolean }>();
     for (const ev of evaluations) {
       const input = extractScoringInput(ev as Record<string, unknown>);
-      cache.set(ev.id, computeSignalScore(input).total);
+      const { total, dataComplete } = computeSignalScore(input);
+      cache.set(ev.id, { total, dataComplete });
     }
     return cache;
   }, [evaluations]);
 
   const getScore = useCallback(
-    (ev: ToolDirectoryEvaluation) => scoreCache.get(ev.id) ?? 0,
+    (ev: ToolDirectoryEvaluation) => scoreCache.get(ev.id)?.total ?? 0,
     [scoreCache],
   );
 
@@ -313,8 +314,14 @@ export function useToolsViewData(): ToolsViewData {
 
       // Primary sort dimension
       if (sortBy === 'score') {
-        const diff = (scoreCache.get(b.id) ?? 0) - (scoreCache.get(a.id) ?? 0);
+        const aEntry = scoreCache.get(a.id);
+        const bEntry = scoreCache.get(b.id);
+        const diff = (bEntry?.total ?? 0) - (aEntry?.total ?? 0);
         if (diff !== 0) return diff;
+        // Tiebreak: tools with complete enrichment data rank above incomplete at same score
+        const aComplete = aEntry?.dataComplete ? 1 : 0;
+        const bComplete = bEntry?.dataComplete ? 1 : 0;
+        if (aComplete !== bComplete) return bComplete - aComplete;
       } else if (sortBy === 'stars') {
         const aMd = (a.metadata ?? {}) as Record<string, unknown>;
         const bMd = (b.metadata ?? {}) as Record<string, unknown>;
