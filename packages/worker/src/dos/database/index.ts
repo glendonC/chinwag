@@ -26,6 +26,7 @@ import {
   listEvaluations as listEvalsFn,
   searchEvaluations as searchEvalsFn,
   deleteEvaluation as deleteEvalFn,
+  getDirectoryStats as getDirectoryStatsFn,
 } from './evaluations.js';
 
 const ADJECTIVES = [
@@ -536,6 +537,11 @@ export class DatabaseDO extends DurableObject<Env> {
     return deleteEvalFn(this.sql, toolId);
   }
 
+  async getDirectoryStats(): Promise<ReturnType<typeof getDirectoryStatsFn>> {
+    this.#ensureSchema();
+    return getDirectoryStatsFn(this.sql);
+  }
+
   // -- User teams --
 
   async addUserTeam(
@@ -569,6 +575,103 @@ export class DatabaseDO extends DurableObject<Env> {
   async removeUserTeam(userId: string, teamId: string): Promise<{ ok: true }> {
     this.#ensureSchema();
     this.sql.exec('DELETE FROM user_teams WHERE user_id = ? AND team_id = ?', userId, teamId);
+    return { ok: true };
+  }
+
+  // -- Tool suggestions --
+
+  async saveSuggestion(
+    suggestion: { name: string; url?: string | null; note?: string | null },
+    userId: string,
+    userHandle: string,
+  ): Promise<DOResult<{ ok: true; suggestion_id: string }>> {
+    this.#ensureSchema();
+
+    const name = suggestion.name.trim();
+
+    // Duplicate check against existing tool evaluations (case-insensitive)
+    const existingTool = this.sql
+      .exec('SELECT 1 FROM tool_evaluations WHERE LOWER(name) = LOWER(?)', name)
+      .toArray();
+    if (existingTool.length > 0) {
+      return { error: 'This tool already exists in the directory', code: 'CONFLICT' };
+    }
+
+    // Duplicate check against pending suggestions (case-insensitive)
+    const existingSuggestion = this.sql
+      .exec(
+        "SELECT 1 FROM tool_suggestions WHERE LOWER(name) = LOWER(?) AND status = 'pending'",
+        name,
+      )
+      .toArray();
+    if (existingSuggestion.length > 0) {
+      return {
+        error: 'This tool has already been suggested and is pending review',
+        code: 'CONFLICT',
+      };
+    }
+
+    const id = crypto.randomUUID();
+    this.sql.exec(
+      `INSERT INTO tool_suggestions (id, name, url, note, suggested_by, suggested_by_handle)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      id,
+      name,
+      suggestion.url || null,
+      suggestion.note || null,
+      userId,
+      userHandle,
+    );
+
+    return { ok: true, suggestion_id: id };
+  }
+
+  async listSuggestions(
+    status = 'pending',
+    limit = 50,
+  ): Promise<{ ok: true; suggestions: Record<string, unknown>[]; total: number }> {
+    this.#ensureSchema();
+
+    const suggestions = this.sql
+      .exec(
+        `SELECT id, name, url, note, suggested_by_handle, status, reject_reason, reviewed_at, created_at
+         FROM tool_suggestions WHERE status = ? ORDER BY created_at DESC LIMIT ?`,
+        status,
+        limit,
+      )
+      .toArray() as unknown as Record<string, unknown>[];
+
+    const totalRows = this.sql
+      .exec('SELECT COUNT(*) as count FROM tool_suggestions WHERE status = ?', status)
+      .toArray();
+    const total = ((totalRows[0] as Record<string, unknown>)?.count as number) || 0;
+
+    return { ok: true, suggestions, total };
+  }
+
+  async reviewSuggestion(
+    id: string,
+    action: 'approve' | 'reject',
+    rejectReason?: string | null,
+  ): Promise<DOResult<{ ok: true }>> {
+    this.#ensureSchema();
+
+    const rows = this.sql.exec('SELECT status FROM tool_suggestions WHERE id = ?', id).toArray();
+    if (rows.length === 0) {
+      return { error: 'Suggestion not found', code: 'NOT_FOUND' };
+    }
+    if ((rows[0] as Record<string, unknown>).status !== 'pending') {
+      return { error: 'Suggestion has already been reviewed', code: 'CONFLICT' };
+    }
+
+    const status = action === 'approve' ? 'approved' : 'rejected';
+    this.sql.exec(
+      `UPDATE tool_suggestions SET status = ?, reject_reason = ?, reviewed_at = datetime('now') WHERE id = ?`,
+      status,
+      action === 'reject' ? rejectReason || null : null,
+      id,
+    );
+
     return { ok: true };
   }
 

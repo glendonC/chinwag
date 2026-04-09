@@ -37,6 +37,7 @@ import {
 } from './routes/user/index.js';
 import {
   handleListDirectory,
+  handleDirectoryStats,
   handleGetDirectoryEntry,
   handleAdminImport,
   handleAdminDelete,
@@ -45,7 +46,12 @@ import {
   handleGetIcon,
   handleBatchResolveIcons,
   handleBatchExtractColors,
+  handleSuggestTool,
+  handleListSuggestions,
+  handleReviewSuggestion,
+  handleReportStale,
 } from './routes/directory.js';
+import { runPulseCheck } from './lib/pulse.js';
 import {
   handleTeamActivity,
   handleTeamClaimFiles,
@@ -167,7 +173,21 @@ const routeDefinitions: RouteDefinition[] = [
   },
   { method: 'POST', path: '/tools/admin-import', handler: handleAdminImport, auth: false },
   { method: 'POST', path: '/tools/admin-delete', handler: handleAdminDelete, auth: false },
+  { method: 'GET', path: '/tools/directory/stats', handler: handleDirectoryStats, auth: false },
   { method: 'GET', path: '/tools/directory/:id', handler: handleGetDirectoryEntry, auth: false },
+  {
+    method: 'POST',
+    path: '/tools/directory/:id/report-stale',
+    handler: handleReportStale,
+    auth: false,
+  },
+  { method: 'GET', path: '/tools/suggestions', handler: handleListSuggestions, auth: false },
+  {
+    method: 'POST',
+    path: '/tools/suggestions/:id/review',
+    handler: handleReviewSuggestion,
+    auth: false,
+  },
   { method: 'GET', path: '/auth/github', handler: handleGithubAuth, auth: false },
   { method: 'GET', path: '/auth/github/callback', handler: handleGithubCallback, auth: false },
   {
@@ -200,6 +220,7 @@ const routeDefinitions: RouteDefinition[] = [
   { method: 'POST', path: '/auth/ws-ticket', handler: handleGetWsTicket },
   { method: 'POST', path: '/auth/github/link', handler: handleGithubLink },
   { method: 'POST', path: '/teams', handler: handleCreateTeam },
+  { method: 'POST', path: '/tools/suggest', handler: handleSuggestTool },
 
   // Authenticated — WebSocket upgrades (return directly, skip CORS headers)
   { method: 'GET', path: '/ws/chat', handler: handleChatUpgrade },
@@ -250,6 +271,10 @@ function isWebSocketRoute(path: string): boolean {
 }
 
 export default {
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(runPulseCheck(env));
+  },
+
   async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const method = request.method;

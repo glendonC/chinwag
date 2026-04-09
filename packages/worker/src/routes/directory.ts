@@ -1,7 +1,7 @@
 import { getDB, rpc } from '../lib/env.js';
 import { json, parseBody } from '../lib/http.js';
 import { createLogger } from '../lib/logger.js';
-import { requireJson, withIpRateLimit } from '../lib/validation.js';
+import { requireJson, withRateLimit, withIpRateLimit } from '../lib/validation.js';
 import {
   getCategoryNames,
   getCategories,
@@ -15,8 +15,8 @@ import {
   extractBrandColorFromCache,
   extractColorWithAI,
 } from '../lib/icons.js';
-import { publicRoute } from '../lib/middleware.js';
-import { RATE_LIMIT_ADMIN_BATCH_PER_IP } from '../lib/constants.js';
+import { authedJsonRoute, publicRoute } from '../lib/middleware.js';
+import { RATE_LIMIT_ADMIN_BATCH_PER_IP, RATE_LIMIT_SUGGESTIONS } from '../lib/constants.js';
 
 const log = createLogger('routes.directory');
 
@@ -43,6 +43,13 @@ const CACHE_HEADERS = {
   'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600',
 };
 
+export const handleDirectoryStats = publicRoute(async ({ env }) => {
+  const db = getDB(env);
+  const result = rpc(await db.getDirectoryStats());
+  const categories = await getCategoryNames(env);
+  return json({ ...result, categories }, 200, CACHE_HEADERS);
+});
+
 export const handleListDirectory = publicRoute(async ({ request, env }) => {
   const url = new URL(request.url);
   const q = url.searchParams.get('q') || null;
@@ -60,6 +67,9 @@ export const handleListDirectory = publicRoute(async ({ request, env }) => {
   const registryRaw = url.searchParams.get('in_registry');
   const in_registry = registryRaw != null ? parseInt(registryRaw, 10) : null;
 
+  const sortRaw = url.searchParams.get('sort');
+  const sort = sortRaw === 'stars' || sortRaw === 'recent' ? sortRaw : 'name';
+
   const db = getDB(env);
 
   // completeness filter: 'any' (default) = all tools, 'listing' = core pass completed,
@@ -75,6 +85,7 @@ export const handleListDirectory = publicRoute(async ({ request, env }) => {
           mcp_support,
           in_registry,
           completeness: completeness !== 'any' ? completeness : null,
+          sort,
           limit,
           offset,
         }),
@@ -343,5 +354,110 @@ export const handleBatchExtractColors = publicRoute(async ({ request, env }) => 
       },
       200,
     );
+  });
+});
+
+// ── Tool suggestion endpoints ──
+
+export const handleSuggestTool = authedJsonRoute(async ({ env, user, body }) => {
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  if (!name || name.length > 100) {
+    return json({ error: 'name is required (1-100 characters)' }, 400);
+  }
+
+  const url = typeof body.url === 'string' ? body.url.trim() : null;
+  if (url) {
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        return json({ error: 'url must use http or https' }, 400);
+      }
+    } catch {
+      return json({ error: 'url must be a valid URL' }, 400);
+    }
+  }
+
+  const note = typeof body.note === 'string' ? body.note.trim() : null;
+  if (note && note.length > 500) {
+    return json({ error: 'note must be 500 characters or less' }, 400);
+  }
+
+  const db = getDB(env);
+
+  return withRateLimit(
+    db,
+    `suggest:${user.id}`,
+    RATE_LIMIT_SUGGESTIONS,
+    'Suggestion limit reached. Try again later.',
+    async () => {
+      const result = rpc(await db.saveSuggestion({ name, url, note }, user.id, user.handle));
+      if ('error' in result && result.error) {
+        return json({ error: result.error }, 409);
+      }
+      return json({ ok: true, suggestion_id: (result as any).suggestion_id }, 201);
+    },
+  );
+});
+
+export const handleListSuggestions = publicRoute(async ({ request, env }) => {
+  const url = new URL(request.url);
+  const adminKey = url.searchParams.get('admin_key');
+  if (!getAdminKey(env) || !timingSafeEqual(adminKey, getAdminKey(env))) {
+    return json({ error: 'Forbidden' }, 403);
+  }
+
+  const status = url.searchParams.get('status') || 'pending';
+
+  const db = getDB(env);
+  const result = rpc(await db.listSuggestions(status));
+  return json({ suggestions: result.suggestions, total: result.total });
+});
+
+export const handleReviewSuggestion = publicRoute(async ({ request, env, params }) => {
+  const body = await parseBody(request);
+  const parseErr = requireJson(body);
+  if (parseErr) return parseErr;
+
+  const b = body as Record<string, unknown>;
+  if (!getAdminKey(env) || !timingSafeEqual(b.admin_key, getAdminKey(env))) {
+    return json({ error: 'Forbidden' }, 403);
+  }
+
+  const id = params[0];
+  const action = b.action;
+  if (action !== 'approve' && action !== 'reject') {
+    return json({ error: "action must be 'approve' or 'reject'" }, 400);
+  }
+
+  const rejectReason =
+    action === 'reject' && typeof b.reject_reason === 'string' ? b.reject_reason.trim() : null;
+
+  const db = getDB(env);
+  const result = rpc(await db.reviewSuggestion(id, action, rejectReason));
+  if ('error' in result && result.error) {
+    const status =
+      (result as any).code === 'NOT_FOUND' ? 404 : (result as any).code === 'CONFLICT' ? 409 : 400;
+    return json({ error: result.error }, status);
+  }
+  return json({ ok: true });
+});
+
+// ── Data freshness endpoints ──
+
+// Public report-stale -- allows users to flag a tool as potentially outdated.
+// Rate limited by IP to prevent abuse (10 reports per IP per day).
+export const handleReportStale = publicRoute(async ({ request, env, params }) => {
+  return withIpRateLimit(request, env, 'report-stale', 10, async () => {
+    const toolId = params[0];
+    const db = getDB(env);
+
+    const existing = rpc(await db.getEvaluation(toolId));
+    if (!existing.evaluation) return json({ error: 'Tool not found' }, 404);
+
+    const ev = existing.evaluation as Record<string, any>;
+    const md = { ...ev.metadata, reported_stale_at: new Date().toISOString() };
+    await db.saveEvaluation({ ...ev, metadata: md });
+
+    return json({ ok: true }, 200);
   });
 });

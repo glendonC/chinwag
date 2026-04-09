@@ -132,6 +132,7 @@ interface ListFilters {
   mcp_support?: number | null;
   in_registry?: number | null;
   completeness?: string | null;
+  sort?: string | null;
   limit?: number;
   offset?: number;
 }
@@ -170,9 +171,23 @@ export function listEvaluations(
   const limit = Math.min(filters.limit || 100, 200);
   const offset = filters.offset || 0;
 
+  let orderBy: string;
+  switch (filters.sort) {
+    case 'stars':
+      orderBy =
+        "ORDER BY CAST(json_extract(metadata, '$.github_stars') AS INTEGER) DESC NULLS LAST, name ASC";
+      break;
+    case 'recent':
+      orderBy = 'ORDER BY evaluated_at DESC';
+      break;
+    default:
+      orderBy = 'ORDER BY name ASC';
+      break;
+  }
+
   const rows = sql
     .exec(
-      `SELECT * FROM tool_evaluations ${where} ORDER BY name ASC LIMIT ? OFFSET ?`,
+      `SELECT * FROM tool_evaluations ${where} ${orderBy} LIMIT ? OFFSET ?`,
       ...params,
       limit,
       offset,
@@ -195,7 +210,7 @@ export function searchEvaluations(
   sql: SqlStorage,
   query: string,
   limit = 20,
-): { ok: true; evaluations: ParsedEvaluation[] } {
+): { ok: true; evaluations: ParsedEvaluation[]; total: number } {
   const pattern = `%${query}%`;
   const rows = sql
     .exec(
@@ -206,12 +221,65 @@ export function searchEvaluations(
     )
     .toArray();
 
-  return { ok: true, evaluations: rows.map((r) => parseEvaluation(r as Record<string, unknown>)) };
+  const countRows = sql
+    .exec(
+      'SELECT COUNT(*) as total FROM tool_evaluations WHERE name LIKE ? OR tagline LIKE ?',
+      pattern,
+      pattern,
+    )
+    .toArray();
+  const total = ((countRows[0] as Record<string, unknown>)?.total as number) || 0;
+
+  return {
+    ok: true,
+    evaluations: rows.map((r) => parseEvaluation(r as Record<string, unknown>)),
+    total,
+  };
 }
 
 export function deleteEvaluation(sql: SqlStorage, toolId: string): { ok: true; deleted: boolean } {
   sql.exec('DELETE FROM tool_evaluations WHERE id = ?', toolId);
   return { ok: true, deleted: sqlChanges(sql) > 0 };
+}
+
+export function getDirectoryStats(sql: SqlStorage): {
+  ok: true;
+  total: number;
+  categoryCounts: Record<string, number>;
+  verdictCounts: Record<string, number>;
+} {
+  const totalRows = sql
+    .exec(
+      "SELECT COUNT(*) as total FROM tool_evaluations WHERE json_extract(data_passes, '$.core.success') = 1",
+    )
+    .toArray();
+  const total = ((totalRows[0] as Record<string, unknown>)?.total as number) || 0;
+
+  const catRows = sql
+    .exec(
+      "SELECT category, COUNT(*) as count FROM tool_evaluations WHERE json_extract(data_passes, '$.core.success') = 1 GROUP BY category",
+    )
+    .toArray();
+  const categoryCounts: Record<string, number> = {};
+  for (const row of catRows) {
+    const r = row as Record<string, unknown>;
+    const cat = (r.category as string) || 'uncategorized';
+    categoryCounts[cat] = r.count as number;
+  }
+
+  const verdictRows = sql
+    .exec(
+      "SELECT verdict, COUNT(*) as count FROM tool_evaluations WHERE json_extract(data_passes, '$.core.success') = 1 GROUP BY verdict",
+    )
+    .toArray();
+  const verdictCounts: Record<string, number> = {};
+  for (const row of verdictRows) {
+    const r = row as Record<string, unknown>;
+    const verdict = (r.verdict as string) || 'unknown';
+    verdictCounts[verdict] = r.count as number;
+  }
+
+  return { ok: true, total, categoryCounts, verdictCounts };
 }
 
 function parseEvaluation(row: Record<string, unknown>): ParsedEvaluation {

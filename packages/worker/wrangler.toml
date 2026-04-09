@@ -2,6 +2,10 @@ name = "chinwag-api"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
 
+# Weekly pulse check -- verifies tool directory data freshness (GitHub stars, website status)
+[triggers]
+crons = ["0 3 * * 1"]
+
 # Workers Observability — logs + traces persisted to CF dashboard
 # View at: dash.cloudflare.com → Workers & Pages → chinwag-api → Observability
 [observability]
