@@ -14,7 +14,6 @@ import { authActions } from './auth.js';
 import { teamActions, clearJoinedCache } from './teams.js';
 import { requestRefresh, setRefreshHandler } from './refresh.js';
 import { closeWebSocket, connectTeamWebSocket, setPollingBridge } from './websocket.js';
-import { navigate } from '../router.js';
 import { type PollingState, type DataStatus, buildContextReadyPatch } from './pollingTypes.js';
 
 /**
@@ -204,17 +203,19 @@ async function poll(): Promise<void> {
     }
     // Member was evicted server-side (stale heartbeat). Clear the join
     // cache so the next poll cycle re-joins before fetching context.
-    // After repeated 403s, eject to overview — the team is gone or
-    // we've been permanently removed.
+    // After repeated 403s, stop polling entirely — the user sees the
+    // ProjectView error state ("Project unavailable") with a Retry button.
     if (apiErr.status === 403 && snapshotTeamId) {
       clearJoinedCache(snapshotTeamId);
       const { consecutiveFailures } = pollingStore.getState();
       if (consecutiveFailures >= 2) {
-        teamActions.selectTeam(null);
-        navigate('overview');
         stopPolling();
-        await teamActions.loadTeams(false);
-        startPolling();
+        pollingStore.setState({
+          pollError: 'You are no longer a member of this project.',
+          consecutiveFailures: MAX_CONSECUTIVE_FAILURES,
+          contextStatus: 'error' as DataStatus,
+          contextTeamId: snapshotTeamId,
+        });
         return;
       }
     }
