@@ -7,9 +7,9 @@ import {
 // MCP-configurable tools are derived from the shared canonical registry so
 // runtime integration and discovery cannot drift apart.
 //
-// Discovery-only tools live in the evaluation DB, populated via admin import
-// scripts (scripts/import-seed-tools.ts, scripts/merge-enrichment.ts).
-// New tools are added via community submissions or periodic agent research sweeps.
+// Discovery-only tools live in the evaluation DB, managed via the admin-import
+// endpoint. New tools enter via POST /tools/suggest (user submissions) or
+// direct admin import. Weekly cron pulse checks keep data fresh.
 
 export const TOOL_CATALOG = [
   ...buildHostIntegrationCatalogEntries(),

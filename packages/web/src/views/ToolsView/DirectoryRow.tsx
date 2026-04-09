@@ -11,10 +11,6 @@ const VERDICT_MAP: Record<string, { className: string; label: string }> = {
   integrated: { className: styles.verdictCompatible, label: 'Supported' },
   installable: { className: styles.verdictPartial, label: 'Available' },
   listed: { className: styles.verdictIncompatible, label: 'Coming soon' },
-  // Legacy verdicts from cached data
-  compatible: { className: styles.verdictCompatible, label: 'Supported' },
-  partial: { className: styles.verdictPartial, label: 'Available' },
-  incompatible: { className: styles.verdictIncompatible, label: 'Coming soon' },
 };
 
 export function VerdictBadge({ verdict }: VerdictBadgeProps) {

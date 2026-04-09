@@ -136,6 +136,8 @@ export interface Memory {
   text: string;
   /** JSON-parsed from stored JSON array */
   tags: string[];
+  /** JSON-parsed from stored JSON array — project-defined categories */
+  categories: string[];
   /** User handle of the memory author */
   handle: string;
   /** Host tool that created this memory (e.g. "claude-code") */
@@ -144,6 +146,17 @@ export interface Memory {
   agent_model: string | null;
   created_at: string;
   updated_at: string;
+  last_accessed_at: string | null;
+}
+
+// ── Memory categories ──
+
+export interface MemoryCategory {
+  id: string;
+  name: string;
+  description: string;
+  color: string | null;
+  created_at: string;
 }
 
 // ── Locks ──
@@ -392,7 +405,6 @@ export interface Env {
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
   ADMIN_KEY?: string;
-  EXA_API_KEY?: string;
 }
 
 // ── Parsed request body (from parseBody) ──

@@ -34,9 +34,8 @@ function timingSafeEqual(a: unknown, b: unknown): boolean {
   return result === 0;
 }
 
-// Resolve admin key — production may still use the old EXA_API_KEY secret name.
-function getAdminKey(env: { ADMIN_KEY?: string; EXA_API_KEY?: string }): string | undefined {
-  return env.ADMIN_KEY || env.EXA_API_KEY;
+function getAdminKey(env: { ADMIN_KEY?: string }): string | undefined {
+  return env.ADMIN_KEY;
 }
 
 const CACHE_HEADERS = {
