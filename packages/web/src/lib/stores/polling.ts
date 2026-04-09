@@ -132,7 +132,7 @@ async function poll(): Promise<void> {
         { fallback: createEmptyDashboardSummary },
       );
       if (validated.failed_teams?.length && validated.failed_teams.length > 0) {
-        await teamActions.loadTeams();
+        await teamActions.loadTeams(false);
       }
       if (teamActions.getState().activeTeamId !== null) return;
       // Sync sidebar teams if the dashboard shows teams the store doesn't know about
@@ -140,7 +140,7 @@ async function poll(): Promise<void> {
       const hasMismatch =
         validated.teams.length !== knownIds.size ||
         validated.teams.some((t) => !knownIds.has(t.team_id));
-      if (hasMismatch) teamActions.loadTeams();
+      if (hasMismatch) teamActions.loadTeams(false);
       pollingStore.setState({
         dashboardData: validated,
         dashboardStatus: 'ready',
@@ -203,13 +203,23 @@ async function poll(): Promise<void> {
     }
     // Member was evicted server-side (stale heartbeat). Clear the join
     // cache so the next poll cycle re-joins before fetching context.
+    // After repeated 403s, eject to overview — the team is gone or
+    // we've been permanently removed.
     if (apiErr.status === 403 && snapshotTeamId) {
       clearJoinedCache(snapshotTeamId);
+      const { consecutiveFailures } = pollingStore.getState();
+      if (consecutiveFailures >= 2) {
+        teamActions.selectTeam(null);
+        stopPolling();
+        await teamActions.loadTeams(false);
+        startPolling();
+        return;
+      }
     }
     if (teamActions.getState().activeTeamId !== snapshotTeamId) return;
     const failedTeams = apiErr.data?.failed_teams;
     if (snapshotTeamId === null && failedTeams && failedTeams.length > 0) {
-      await teamActions.loadTeams();
+      await teamActions.loadTeams(false);
     }
     const pollError = formatError(err);
     const pollErrorData = (apiErr.data || null) as DashboardSummary | null;
@@ -244,9 +254,16 @@ async function poll(): Promise<void> {
 
 setRefreshHandler(poll);
 
+/** Max consecutive failures before polling stops entirely (circuit breaker). */
+const MAX_CONSECUTIVE_FAILURES = 20;
+
 function restartPolling(): void {
+  // Don't restart if auth is gone or failures have exceeded the circuit breaker
+  const { token } = authActions.getState();
+  const { consecutiveFailures } = pollingStore.getState();
+  if (!token || consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) return;
   stopPollTimer();
-  const delay = pollingStore.getState().consecutiveFailures >= 3 ? SLOW_POLL_MS : POLL_MS;
+  const delay = consecutiveFailures >= 3 ? SLOW_POLL_MS : POLL_MS;
   pollState.pollTimer = setInterval(poll, delay);
 }
 

@@ -227,8 +227,8 @@ export async function connectTeamWebSocket(teamId: string): Promise<void> {
         reconcileTimer = null;
       }
       reconcileDelay = RECONCILE_INITIAL_MS;
-      // Fall back to polling if we're still on this team
-      if (teamActions.getState().activeTeamId === teamId) {
+      // Fall back to polling if we're still on this team AND still authenticated
+      if (teamActions.getState().activeTeamId === teamId && authActions.getState().token) {
         reconnectAttempt++;
         setConnectionState({ status: 'reconnecting', attempt: reconnectAttempt });
         pollingBridge.restartPolling();

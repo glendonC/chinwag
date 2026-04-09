@@ -38,7 +38,7 @@ interface TeamState {
   teams: Team[];
   activeTeamId: string | null;
   teamsError: string | null;
-  loadTeams: () => Promise<void>;
+  loadTeams: (autoSelect?: boolean) => Promise<void>;
   selectTeam: (teamId: string | null) => void;
   ensureJoined: (teamId: string) => Promise<void>;
 }
@@ -50,9 +50,12 @@ const teamStore = createStore<TeamState>((set) => ({
 
   /**
    * Load all teams for the current user.
-   * Auto-selects overview if 2+ teams, or the single team if only 1.
+   * On boot (autoSelect=true, the default): auto-selects the single team
+   * if there's exactly one, otherwise overview.
+   * On refresh (autoSelect=false): updates the team list but preserves the
+   * current activeTeamId to avoid fighting with the URL sync effect.
    */
-  async loadTeams() {
+  async loadTeams(autoSelect = true) {
     const { token } = authActions.getState();
     syncJoinedTeamsCache(token);
     try {
@@ -61,11 +64,22 @@ const teamStore = createStore<TeamState>((set) => ({
         fallback: createEmptyUserTeams(),
       }) as UserTeams;
       const teamList = result.teams || [];
-      set({
-        teams: teamList,
-        activeTeamId: teamList.length === 1 ? teamList[0].team_id : null,
-        teamsError: null,
-      });
+      const teamIds = new Set(teamList.map((t) => t.team_id));
+      if (autoSelect) {
+        set({
+          teams: teamList,
+          activeTeamId: teamList.length === 1 ? teamList[0].team_id : null,
+          teamsError: null,
+        });
+      } else {
+        // Preserve activeTeamId if the team still exists; clear if it was removed
+        set((state) => ({
+          teams: teamList,
+          activeTeamId:
+            state.activeTeamId && teamIds.has(state.activeTeamId) ? state.activeTeamId : null,
+          teamsError: null,
+        }));
+      }
     } catch (err) {
       set({
         teams: [],
@@ -112,7 +126,7 @@ export function clearJoinedCache(teamId: string): void {
 /** Direct access — use outside components */
 export const teamActions = {
   getState: (): TeamState => teamStore.getState(),
-  loadTeams: (): Promise<void> => teamStore.getState().loadTeams(),
+  loadTeams: (autoSelect?: boolean): Promise<void> => teamStore.getState().loadTeams(autoSelect),
   selectTeam: (id: string | null): void => teamStore.getState().selectTeam(id),
   ensureJoined: (id: string): Promise<void> => teamStore.getState().ensureJoined(id),
   subscribe: teamStore.subscribe,
