@@ -18,6 +18,8 @@ export {
 export {
   handleGetUserTeams,
   handleDashboardSummary,
+  handleUserAnalytics,
+  handleUserSessions,
   handleChatUpgrade,
   handleCreateTeam,
 } from './teams.js';

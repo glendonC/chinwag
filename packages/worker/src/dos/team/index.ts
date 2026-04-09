@@ -47,10 +47,11 @@ import {
   recordEdit as recordEditFn,
   reportOutcome as reportOutcomeFn,
   getSessionHistory,
+  getSessionsInRange as getSessionsInRangeFn,
   getEditHistory as getEditHistoryFn,
   enrichSessionModel as enrichSessionModelFn,
 } from './sessions.js';
-import type { EditEntry } from './sessions.js';
+import type { EditEntry, SessionRecord } from './sessions.js';
 import {
   getAnalytics as getAnalyticsFn,
   getExtendedAnalytics as getExtendedAnalyticsFn,
@@ -972,6 +973,21 @@ export class TeamDO extends DurableObject<Env> {
     ownerId: string | null = null,
   ): Promise<ReturnType<typeof getPendingCommandsFn> | DOError> {
     return this.#withMember(agentId, ownerId, () => getPendingCommandsFn(this.sql));
+  }
+
+  // -- Session timeline (individual session records for swimlane visualization) --
+
+  async getSessionsInRange(
+    ownerId: string,
+    fromDate: string,
+    toDate: string,
+  ): Promise<{ ok: true; sessions: SessionRecord[] } | DOError> {
+    this.#ensureSchema();
+    const ownerRow = this.sql
+      .exec('SELECT 1 FROM members WHERE owner_id = ? LIMIT 1', ownerId)
+      .toArray();
+    if (ownerRow.length === 0) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
+    return { ok: true, sessions: getSessionsInRangeFn(this.sql, fromDate, toDate) };
   }
 
   // -- Extended analytics (cross-project dashboard) --

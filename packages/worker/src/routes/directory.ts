@@ -34,6 +34,11 @@ function timingSafeEqual(a: unknown, b: unknown): boolean {
   return result === 0;
 }
 
+// Resolve admin key — production may still use the old EXA_API_KEY secret name.
+function getAdminKey(env: { ADMIN_KEY?: string; EXA_API_KEY?: string }): string | undefined {
+  return env.ADMIN_KEY || env.EXA_API_KEY;
+}
+
 const CACHE_HEADERS = {
   'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600',
 };
@@ -109,7 +114,7 @@ export const handleAdminImport = publicRoute(async ({ request, env }) => {
 
     const b = body as Record<string, unknown>;
     const { evaluations, admin_key } = b;
-    if (!env.ADMIN_KEY || !timingSafeEqual(admin_key, env.ADMIN_KEY))
+    if (!getAdminKey(env) || !timingSafeEqual(admin_key, getAdminKey(env)))
       return json({ error: 'Forbidden' }, 403);
     if (!Array.isArray(evaluations) || evaluations.length === 0)
       return json({ error: 'evaluations array required' }, 400);
@@ -133,7 +138,7 @@ export const handleAdminDelete = publicRoute(async ({ request, env }) => {
 
     const b = body as Record<string, unknown>;
     const { ids, admin_key } = b;
-    if (!env.ADMIN_KEY || !timingSafeEqual(admin_key, env.ADMIN_KEY))
+    if (!getAdminKey(env) || !timingSafeEqual(admin_key, getAdminKey(env)))
       return json({ error: 'Forbidden' }, 403);
     if (!Array.isArray(ids) || ids.length === 0) return json({ error: 'ids array required' }, 400);
 
@@ -161,7 +166,7 @@ export const handlePromoteCategory = publicRoute(async ({ request, env }) => {
   if (parseErr) return parseErr;
   const b = body as Record<string, unknown>;
   const { admin_key, slug, label, description, discoveryQuery } = b;
-  if (!env.ADMIN_KEY || !timingSafeEqual(admin_key, env.ADMIN_KEY))
+  if (!getAdminKey(env) || !timingSafeEqual(admin_key, getAdminKey(env)))
     return json({ error: 'Forbidden' }, 403);
   if (typeof slug !== 'string' || typeof label !== 'string')
     return json({ error: 'slug and label required' }, 400);
@@ -224,7 +229,7 @@ export const handleBatchResolveIcons = publicRoute(async ({ request, env }) => {
 
     const b = body as Record<string, unknown>;
     const { admin_key, limit: rawLimit } = b;
-    if (!env.ADMIN_KEY || !timingSafeEqual(admin_key, env.ADMIN_KEY))
+    if (!getAdminKey(env) || !timingSafeEqual(admin_key, getAdminKey(env)))
       return json({ error: 'Forbidden' }, 403);
 
     const batchLimit = Math.min(typeof rawLimit === 'number' ? rawLimit : 50, 50);
@@ -282,7 +287,7 @@ export const handleBatchExtractColors = publicRoute(async ({ request, env }) => 
 
     const b = body as Record<string, unknown>;
     const { admin_key, limit: rawLimit } = b;
-    if (!env.ADMIN_KEY || !timingSafeEqual(admin_key, env.ADMIN_KEY))
+    if (!getAdminKey(env) || !timingSafeEqual(admin_key, getAdminKey(env)))
       return json({ error: 'Forbidden' }, 403);
 
     const batchLimit = Math.min(typeof rawLimit === 'number' ? rawLimit : 50, 50);

@@ -251,6 +251,75 @@ export function getSessionHistory(
   };
 }
 
+export interface SessionRecord {
+  id: string;
+  agent_id: string;
+  handle: string;
+  host_tool: string;
+  agent_surface: string | null;
+  agent_model: string | null;
+  started_at: string;
+  ended_at: string | null;
+  edit_count: number;
+  files_touched: string[];
+  conflicts_hit: number;
+  memories_saved: number;
+  outcome: string | null;
+  outcome_summary: string | null;
+  lines_added: number;
+  lines_removed: number;
+  duration_minutes: number;
+}
+
+export function getSessionsInRange(
+  sql: SqlStorage,
+  fromDate: string,
+  toDate: string,
+): SessionRecord[] {
+  const rows = sql
+    .exec(
+      `SELECT id, agent_id, handle, host_tool, agent_surface, agent_model,
+              started_at, ended_at, edit_count, files_touched, conflicts_hit,
+              memories_saved, outcome, outcome_summary, lines_added, lines_removed,
+              ROUND((julianday(COALESCE(ended_at, datetime('now'))) - julianday(started_at)) * 24 * 60) as duration_minutes
+       FROM sessions
+       WHERE started_at >= ? AND started_at < datetime(?, '+1 day')
+       ORDER BY started_at ASC
+       LIMIT 500`,
+      fromDate,
+      toDate,
+    )
+    .toArray();
+
+  return rows.map((row) => {
+    const r = row as Record<string, unknown>;
+    return {
+      id: r.id as string,
+      agent_id: r.agent_id as string,
+      handle: r.handle as string,
+      host_tool: r.host_tool as string,
+      agent_surface: (r.agent_surface as string) || null,
+      agent_model: (r.agent_model as string) || null,
+      started_at: r.started_at as string,
+      ended_at: (r.ended_at as string) || null,
+      edit_count: (r.edit_count as number) || 0,
+      files_touched: safeParse(
+        (r.files_touched as string) || '[]',
+        `getSessionsInRange id=${r.id} files_touched`,
+        [] as string[],
+        log,
+      ),
+      conflicts_hit: (r.conflicts_hit as number) || 0,
+      memories_saved: (r.memories_saved as number) || 0,
+      outcome: (r.outcome as string) || null,
+      outcome_summary: (r.outcome_summary as string) || null,
+      lines_added: (r.lines_added as number) || 0,
+      lines_removed: (r.lines_removed as number) || 0,
+      duration_minutes: (r.duration_minutes as number) || 0,
+    };
+  });
+}
+
 export interface EditEntry {
   id: string;
   session_id: string;

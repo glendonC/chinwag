@@ -174,6 +174,48 @@ export interface TeamAnalytics {
   daily_metrics: DailyMetricEntry[];
 }
 
+export interface HourlyBucket {
+  hour: number;
+  dow: number;
+  sessions: number;
+  edits: number;
+}
+
+export interface ToolHourlyBucket {
+  host_tool: string;
+  hour: number;
+  dow: number;
+  sessions: number;
+  edits: number;
+}
+
+export interface ToolDailyTrend {
+  host_tool: string;
+  day: string;
+  sessions: number;
+  edits: number;
+  lines_added: number;
+  lines_removed: number;
+  avg_duration_min: number;
+}
+
+export interface ModelOutcome {
+  agent_model: string;
+  outcome: string;
+  count: number;
+  avg_duration_min: number;
+  total_edits: number;
+}
+
+export interface UserAnalytics extends TeamAnalytics {
+  hourly_distribution: HourlyBucket[];
+  tool_hourly: ToolHourlyBucket[];
+  tool_daily: ToolDailyTrend[];
+  model_outcomes: ModelOutcome[];
+  teams_included: number;
+  degraded: boolean;
+}
+
 export interface HostJoinMetric {
   host_tool: string;
   joins: number;

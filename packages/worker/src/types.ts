@@ -392,6 +392,7 @@ export interface Env {
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
   ADMIN_KEY?: string;
+  EXA_API_KEY?: string;
 }
 
 // ── Parsed request body (from parseBody) ──
