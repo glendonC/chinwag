@@ -36,7 +36,12 @@ export const MESSAGE_EXPIRY_HOURS = 1;
 
 // --- Capacity caps ---
 export const ACTIVITY_MAX_FILES = 50;
-export const MEMORY_MAX_COUNT = 500;
+export const MEMORY_MAX_COUNT = 2000;
+export const MEMORY_CATEGORY_MAX_COUNT = 20;
+export const MAX_CATEGORY_NAME_LENGTH = 50;
+export const MAX_CATEGORY_DESCRIPTION_LENGTH = 500;
+export const TAG_PROMOTION_THRESHOLD = 10;
+export const LAST_ACCESSED_THROTTLE_MS = 3600_000; // 1 hour — writes cost 20x reads
 export const LOCK_CLAIM_MAX_FILES = 20;
 
 // --- String length limits ---
@@ -64,6 +69,7 @@ export const RATE_LIMIT_FILE_REPORTS = 500;
 export const RATE_LIMIT_SESSIONS = 50;
 export const RATE_LIMIT_COMMANDS = 50;
 export const RATE_LIMIT_EDITS = 1000;
+export const RATE_LIMIT_CATEGORIES = 50;
 export const RATE_LIMIT_TEAMS = 5;
 export const RATE_LIMIT_ACCOUNTS_PER_IP = 3;
 export const RATE_LIMIT_EVALUATIONS = 5;

@@ -9,6 +9,7 @@ import type {
   ActiveMemberSummary,
   ContextLockEntry,
   Memory,
+  MemoryCategory,
   SessionInfo,
 } from '../../types.js';
 import {
@@ -113,7 +114,7 @@ export function queryTeamContext(
 
   const memories: Memory[] = sql
     .exec(
-      `SELECT id, text, tags, handle, host_tool, agent_surface, agent_model, created_at, updated_at
+      `SELECT id, text, tags, categories, handle, host_tool, agent_surface, agent_model, session_id, created_at, updated_at, last_accessed_at
      FROM memories
      ORDER BY updated_at DESC, created_at DESC
      LIMIT 20`,
@@ -126,6 +127,12 @@ export function queryTeamContext(
         tags: safeParse(
           (row.tags as string) || '[]',
           `queryTeamContext memory=${row.id} tags`,
+          [] as string[],
+          log,
+        ),
+        categories: safeParse(
+          (row.categories as string) || '[]',
+          `queryTeamContext memory=${row.id} categories`,
           [] as string[],
           log,
         ),
@@ -222,12 +229,20 @@ export function queryTeamContext(
 
   const telemetry = getTelemetryBreakdown(sql);
 
+  const memoryCategories: MemoryCategory[] = sql
+    .exec(
+      `SELECT id, name, description, color, created_at
+       FROM memory_categories ORDER BY name ASC`,
+    )
+    .toArray() as unknown as MemoryCategory[];
+
   return {
     ok: true,
     members: memberList,
     conflicts,
     locks,
     memories,
+    memory_categories: memoryCategories,
     ...telemetry,
     recentSessions: recentSessions.map((s) => {
       const row = s as Record<string, unknown>;

@@ -117,6 +117,11 @@ export const teamActions = {
   ensureJoined: (id: string): Promise<void> => teamStore.getState().ensureJoined(id),
   subscribe: teamStore.subscribe,
 
+  /** Inject demo teams (for ?demo=1 visual testing). */
+  setDemoTeams(teams: Team[], activeTeamId: string): void {
+    teamStore.setState({ teams, activeTeamId, teamsError: null });
+  },
+
   async updateMemory(teamId: string, id: string, text?: string, tags?: string[]): Promise<void> {
     const { token } = authActions.getState();
     const body: Record<string, unknown> = { id };
@@ -129,6 +134,42 @@ export const teamActions = {
   async deleteMemory(teamId: string, id: string): Promise<void> {
     const { token } = authActions.getState();
     await api('DELETE', `/teams/${teamId}/memory`, { id }, token);
+    requestRefresh();
+  },
+
+  async createCategory(
+    teamId: string,
+    name: string,
+    description?: string,
+    color?: string,
+  ): Promise<void> {
+    const { token } = authActions.getState();
+    const body: Record<string, unknown> = { name };
+    if (description !== undefined) body.description = description;
+    if (color !== undefined) body.color = color;
+    await api('POST', `/teams/${teamId}/categories`, body, token);
+    requestRefresh();
+  },
+
+  async updateCategory(
+    teamId: string,
+    id: string,
+    name?: string,
+    description?: string,
+    color?: string,
+  ): Promise<void> {
+    const { token } = authActions.getState();
+    const body: Record<string, unknown> = { id };
+    if (name !== undefined) body.name = name;
+    if (description !== undefined) body.description = description;
+    if (color !== undefined) body.color = color;
+    await api('PUT', `/teams/${teamId}/categories`, body, token);
+    requestRefresh();
+  },
+
+  async deleteCategory(teamId: string, id: string): Promise<void> {
+    const { token } = authActions.getState();
+    await api('DELETE', `/teams/${teamId}/categories`, { id }, token);
     requestRefresh();
   },
 

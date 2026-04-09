@@ -136,7 +136,7 @@ export interface Memory {
   text: string;
   /** JSON-parsed from stored JSON array */
   tags: string[];
-  /** JSON-parsed from stored JSON array — project-defined categories */
+  /** JSON-parsed from stored JSON array — project-defined categories (dormant) */
   categories: string[];
   /** User handle of the memory author */
   handle: string;
@@ -144,6 +144,10 @@ export interface Memory {
   host_tool: string;
   agent_surface: string | null;
   agent_model: string | null;
+  /** Session that created this memory */
+  session_id: string | null;
+  /** SHA-256 of normalized text for exact dedup */
+  text_hash: string | null;
   created_at: string;
   updated_at: string;
   last_accessed_at: string | null;
@@ -296,6 +300,8 @@ export interface TeamContext {
   locks: ContextLockEntry[];
   /** Includes both new and aliased field names */
   memories: Memory[];
+  /** Per-project memory categories */
+  memory_categories: MemoryCategory[];
   /** Includes extra `tool` field */
   recentSessions: SessionInfo[];
   tools_configured: Array<{ host_tool: string; joins: number }>;

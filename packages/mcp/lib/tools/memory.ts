@@ -52,6 +52,11 @@ const searchMemorySchema = z.object({
     .max(TAG_LIST_MAX)
     .optional()
     .describe('Filter by tags (returns memories matching ANY of the listed tags)'),
+  session_id: z.string().optional().describe('Filter by session ID'),
+  agent_id: z.string().optional().describe('Filter by agent ID'),
+  handle: z.string().optional().describe('Filter by author handle'),
+  after: z.string().optional().describe('Only memories created after this ISO date'),
+  before: z.string().optional().describe('Only memories created before this ISO date'),
   limit: z.number().min(1).max(SEARCH_LIMIT_MAX).optional().describe('Max results (default 20)'),
 });
 type SearchMemoryArgs = z.infer<typeof searchMemorySchema>;
@@ -60,6 +65,13 @@ const deleteMemorySchema = z.object({
   id: z.string().describe('Memory ID to delete (UUID format, get from chinwag_search_memory)'),
 });
 type DeleteMemoryArgs = z.infer<typeof deleteMemorySchema>;
+
+const batchDeleteSchema = z.object({
+  ids: z.array(z.string()).max(100).optional().describe('Memory IDs to delete'),
+  tags: z.array(z.string()).optional().describe('Delete memories matching ANY of these tags'),
+  before: z.string().optional().describe('Delete memories created before this ISO date'),
+});
+type BatchDeleteArgs = z.infer<typeof batchDeleteSchema>;
 
 export function registerMemoryTools(
   addTool: AddToolFn,
@@ -137,9 +149,16 @@ export function registerMemoryTools(
     withTeam(
       deps,
       async (args) => {
-        const { query, tags, limit } = args as SearchMemoryArgs;
+        const { query, tags, session_id, agent_id, handle, after, before, limit } =
+          args as SearchMemoryArgs;
         const result = await withTimeout(
-          team.searchMemories(state.teamId!, query, tags, limit),
+          team.searchMemories(state.teamId!, query, tags, undefined, limit, {
+            sessionId: session_id,
+            agentId: agent_id,
+            handle,
+            after,
+            before,
+          }),
           API_TIMEOUT_MS,
         );
         const memories = safeArray<MemoryInfo>(result, 'memories');
@@ -177,6 +196,50 @@ export function registerMemoryTools(
           };
         }
         return { content: [{ type: 'text' as const, text: `Memory ${id} deleted.` }] };
+      },
+      { skipPreamble: true },
+    ),
+  );
+
+  addTool(
+    'chinwag_delete_memories_batch',
+    {
+      description:
+        'Delete multiple memories at once. Provide IDs, tags, and/or a before-date filter. Use this for bulk cleanup of outdated or redundant knowledge.',
+      inputSchema: batchDeleteSchema,
+    },
+    withTeam(
+      deps,
+      async (args) => {
+        const { ids, tags, before } = args as BatchDeleteArgs;
+        if (!ids?.length && !tags?.length && !before) {
+          return {
+            content: [
+              { type: 'text' as const, text: 'Provide at least one of ids, tags, or before.' },
+            ],
+            isError: true,
+          };
+        }
+        const filter: Record<string, unknown> = {};
+        if (ids?.length) filter.ids = ids;
+        if (tags?.length) filter.tags = tags;
+        if (before) filter.before = before;
+        const result = await withTimeout(
+          team.deleteMemoriesBatch(
+            state.teamId!,
+            filter as { ids?: string[]; tags?: string[]; before?: string },
+          ),
+          API_TIMEOUT_MS,
+        );
+        if (!result.ok) {
+          return {
+            content: [{ type: 'text' as const, text: `Batch delete failed: ${result.error}` }],
+            isError: true,
+          };
+        }
+        return {
+          content: [{ type: 'text' as const, text: `Deleted ${result.deleted || 0} memories.` }],
+        };
       },
       { skipPreamble: true },
     ),

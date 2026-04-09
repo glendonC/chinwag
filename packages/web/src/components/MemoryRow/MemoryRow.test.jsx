@@ -1,293 +1,176 @@
-import { describe, expect, it } from 'vitest';
-import { rowReducer, initState } from './MemoryRow.tsx';
+// @vitest-environment jsdom
 
-// ---------------------------------------------------------------------------
-// initState
-// ---------------------------------------------------------------------------
+import React from 'react';
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-describe('initState', () => {
-  it('initializes in view mode with memory text and joined tags', () => {
-    const state = initState({ id: 'm1', text: 'hello', tags: ['a', 'b'] });
-    expect(state).toEqual({
-      mode: 'view',
-      editText: 'hello',
-      editTags: 'a, b',
-      error: null,
-    });
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+// Mock dependencies that use browser APIs or complex imports
+vi.mock('../../lib/toolMeta.js', () => ({
+  getToolMeta: (tool) =>
+    tool === 'claude-code' ? { label: 'Claude Code', color: '#6366f1', icon: null } : null,
+}));
+
+vi.mock('../ToolIcon/ToolIcon.js', () => ({
+  default: () => null,
+}));
+
+import MemoryRow from './MemoryRow.tsx';
+
+function renderRow(props) {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const root = createRoot(container);
+
+  act(() => {
+    root.render(<MemoryRow {...props} />);
   });
 
-  it('handles missing tags', () => {
-    const state = initState({ id: 'm2', text: 'no tags' });
-    expect(state.editTags).toBe('');
-  });
+  return {
+    container,
+    unmount() {
+      act(() => root.unmount());
+      container.remove();
+    },
+    click(text) {
+      const el = findByText(container, text);
+      if (!el) throw new Error(`Could not find element with text "${text}"`);
+      act(() => el.click());
+    },
+  };
+}
 
-  it('handles empty tags array', () => {
-    const state = initState({ id: 'm3', text: 'empty', tags: [] });
-    expect(state.editTags).toBe('');
-  });
+function findByText(container, text) {
+  // eslint-disable-next-line no-undef
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  while (walker.nextNode()) {
+    if (walker.currentNode.textContent.trim() === text) {
+      return walker.currentNode.parentElement;
+    }
+  }
+  // Also check buttons/spans with exact textContent
+  for (const el of container.querySelectorAll('button, span')) {
+    if (el.textContent.trim() === text) return el;
+  }
+  return null;
+}
+
+function makeMemory(overrides = {}) {
+  return {
+    id: 'm1',
+    text: 'Use Redis for caching',
+    tags: ['infra', 'cache'],
+    categories: ['architecture'],
+    handle: 'alice',
+    host_tool: 'claude-code',
+    agent_model: 'claude-sonnet-4-5-20250514',
+    created_at: '2026-04-01T10:00:00Z',
+    updated_at: '2026-04-01T12:00:00Z',
+    last_accessed_at: '2026-04-02T08:00:00Z',
+    ...overrides,
+  };
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  document.body.innerHTML = '';
 });
 
 // ---------------------------------------------------------------------------
-// rowReducer
-// ---------------------------------------------------------------------------
 
-function viewState(overrides = {}) {
-  return {
-    mode: 'view',
-    editText: 'original',
-    editTags: 'tag1',
-    error: null,
-    ...overrides,
-  };
-}
-
-function editingState(overrides = {}) {
-  return {
-    mode: 'editing',
-    editText: 'edited',
-    editTags: 'tag1, tag2',
-    error: null,
-    ...overrides,
-  };
-}
-
-function savingState(overrides = {}) {
-  return {
-    mode: 'saving',
-    editText: 'edited',
-    editTags: 'tag1, tag2',
-    error: null,
-    ...overrides,
-  };
-}
-
-function confirmingDeleteState(overrides = {}) {
-  return {
-    mode: 'confirming-delete',
-    editText: 'original',
-    editTags: 'tag1',
-    error: null,
-    ...overrides,
-  };
-}
-
-describe('rowReducer', () => {
-  // --- START_EDIT ---
-  describe('START_EDIT', () => {
-    it('transitions from view to editing with provided text and tags', () => {
-      const result = rowReducer(viewState(), {
-        type: 'START_EDIT',
-        text: 'new text',
-        tags: 'new, tags',
-      });
-      expect(result.mode).toBe('editing');
-      expect(result.editText).toBe('new text');
-      expect(result.editTags).toBe('new, tags');
-      expect(result.error).toBeNull();
-    });
-
-    it('is a no-op from editing mode', () => {
-      const state = editingState();
-      const result = rowReducer(state, { type: 'START_EDIT', text: 'x', tags: 'y' });
-      expect(result).toBe(state);
-    });
-
-    it('is a no-op from saving mode', () => {
-      const state = savingState();
-      const result = rowReducer(state, { type: 'START_EDIT', text: 'x', tags: 'y' });
-      expect(result).toBe(state);
-    });
-
-    it('is a no-op from confirming-delete mode', () => {
-      const state = confirmingDeleteState();
-      const result = rowReducer(state, { type: 'START_EDIT', text: 'x', tags: 'y' });
-      expect(result).toBe(state);
-    });
+describe('MemoryRow — collapsed state', () => {
+  it('renders memory text', () => {
+    const { container, unmount } = renderRow({ memory: makeMemory() });
+    expect(container.textContent).toContain('Use Redis for caching');
+    unmount();
   });
 
-  // --- CANCEL_EDIT ---
-  describe('CANCEL_EDIT', () => {
-    it('transitions from editing back to view', () => {
-      const result = rowReducer(editingState({ error: 'old error' }), { type: 'CANCEL_EDIT' });
-      expect(result.mode).toBe('view');
-      expect(result.error).toBeNull();
-    });
-
-    it('is a no-op from view mode', () => {
-      const state = viewState();
-      const result = rowReducer(state, { type: 'CANCEL_EDIT' });
-      expect(result).toBe(state);
-    });
-
-    it('is a no-op from saving mode', () => {
-      const state = savingState();
-      const result = rowReducer(state, { type: 'CANCEL_EDIT' });
-      expect(result).toBe(state);
-    });
+  it('shows top tags inline (max 3)', () => {
+    const { container, unmount } = renderRow({ memory: makeMemory() });
+    expect(findByText(container, 'infra')).not.toBeNull();
+    expect(findByText(container, 'cache')).not.toBeNull();
+    unmount();
   });
 
-  // --- SET_TEXT ---
-  describe('SET_TEXT', () => {
-    it('updates editText in editing mode', () => {
-      const result = rowReducer(editingState(), { type: 'SET_TEXT', value: 'updated' });
-      expect(result.editText).toBe('updated');
+  it('shows overflow count for 4+ tags', () => {
+    const { container, unmount } = renderRow({
+      memory: makeMemory({ tags: ['a', 'b', 'c', 'd'] }),
     });
-
-    it('is a no-op from view mode', () => {
-      const state = viewState();
-      const result = rowReducer(state, { type: 'SET_TEXT', value: 'x' });
-      expect(result).toBe(state);
-    });
-
-    it('is a no-op from saving mode', () => {
-      const state = savingState();
-      const result = rowReducer(state, { type: 'SET_TEXT', value: 'x' });
-      expect(result).toBe(state);
-    });
+    expect(findByText(container, '+1')).not.toBeNull();
+    unmount();
   });
 
-  // --- SET_TAGS ---
-  describe('SET_TAGS', () => {
-    it('updates editTags in editing mode', () => {
-      const result = rowReducer(editingState(), { type: 'SET_TAGS', value: 'new, tags' });
-      expect(result.editTags).toBe('new, tags');
-    });
+  it('does not show model when collapsed', () => {
+    const { container, unmount } = renderRow({ memory: makeMemory() });
+    expect(findByText(container, 'claude-sonnet-4-5-20250514')).toBeNull();
+    unmount();
+  });
+});
 
-    it('is a no-op from view mode', () => {
-      const state = viewState();
-      const result = rowReducer(state, { type: 'SET_TAGS', value: 'x' });
-      expect(result).toBe(state);
-    });
+describe('MemoryRow — expanded state', () => {
+  it('shows tags on expand', () => {
+    const r = renderRow({ memory: makeMemory() });
+    r.click('Use Redis for caching');
+    expect(findByText(r.container, 'infra')).not.toBeNull();
+    expect(findByText(r.container, 'cache')).not.toBeNull();
+    r.unmount();
   });
 
-  // --- SET_ERROR ---
-  describe('SET_ERROR', () => {
-    it('sets error in editing mode', () => {
-      const result = rowReducer(editingState(), { type: 'SET_ERROR', error: 'Bad input' });
-      expect(result.error).toBe('Bad input');
-      expect(result.mode).toBe('editing');
-    });
-
-    it('is a no-op from view mode', () => {
-      const state = viewState();
-      const result = rowReducer(state, { type: 'SET_ERROR', error: 'nope' });
-      expect(result).toBe(state);
-    });
+  it('shows model on expand', () => {
+    const r = renderRow({ memory: makeMemory() });
+    r.click('Use Redis for caching');
+    expect(findByText(r.container, 'claude-sonnet-4-5-20250514')).not.toBeNull();
+    r.unmount();
   });
 
-  // --- REQUEST_DELETE ---
-  describe('REQUEST_DELETE', () => {
-    it('transitions from view to confirming-delete', () => {
-      const result = rowReducer(viewState(), { type: 'REQUEST_DELETE' });
-      expect(result.mode).toBe('confirming-delete');
-    });
+  it('collapses on second click', () => {
+    const r = renderRow({ memory: makeMemory() });
+    r.click('Use Redis for caching');
+    expect(findByText(r.container, 'claude-sonnet-4-5-20250514')).not.toBeNull();
+    r.click('Use Redis for caching');
+    expect(findByText(r.container, 'claude-sonnet-4-5-20250514')).toBeNull();
+    r.unmount();
+  });
+});
 
-    it('is a no-op from editing mode', () => {
-      const state = editingState();
-      const result = rowReducer(state, { type: 'REQUEST_DELETE' });
-      expect(result).toBe(state);
-    });
+describe('MemoryRow — delete', () => {
+  it('shows delete when expanded and onDelete provided', () => {
+    const r = renderRow({ memory: makeMemory(), onDelete: vi.fn() });
+    r.click('Use Redis for caching');
+    expect(findByText(r.container, 'Delete')).not.toBeNull();
+    r.unmount();
   });
 
-  // --- CANCEL_DELETE ---
-  describe('CANCEL_DELETE', () => {
-    it('transitions from confirming-delete back to view', () => {
-      const result = rowReducer(confirmingDeleteState(), { type: 'CANCEL_DELETE' });
-      expect(result.mode).toBe('view');
-    });
-
-    it('is a no-op from view mode', () => {
-      const state = viewState();
-      const result = rowReducer(state, { type: 'CANCEL_DELETE' });
-      expect(result).toBe(state);
-    });
+  it('requires confirmation', () => {
+    const onDelete = vi.fn();
+    const r = renderRow({ memory: makeMemory(), onDelete });
+    r.click('Use Redis for caching');
+    r.click('Delete');
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(findByText(r.container, 'Confirm delete?')).not.toBeNull();
+    r.unmount();
   });
 
-  // --- START_SAVE ---
-  describe('START_SAVE', () => {
-    it('transitions from editing to saving', () => {
-      const result = rowReducer(editingState({ error: 'old' }), { type: 'START_SAVE' });
-      expect(result.mode).toBe('saving');
-      expect(result.error).toBeNull();
-    });
-
-    it('transitions from confirming-delete to saving', () => {
-      const result = rowReducer(confirmingDeleteState(), { type: 'START_SAVE' });
-      expect(result.mode).toBe('saving');
-    });
-
-    it('is a no-op from view mode', () => {
-      const state = viewState();
-      const result = rowReducer(state, { type: 'START_SAVE' });
-      expect(result).toBe(state);
-    });
-
-    it('is a no-op from saving mode (already saving)', () => {
-      const state = savingState();
-      const result = rowReducer(state, { type: 'START_SAVE' });
-      expect(result).toBe(state);
-    });
+  it('no delete button without onDelete', () => {
+    const r = renderRow({ memory: makeMemory() });
+    r.click('Use Redis for caching');
+    expect(findByText(r.container, 'Delete')).toBeNull();
+    r.unmount();
   });
+});
 
-  // --- SAVE_SUCCESS ---
-  describe('SAVE_SUCCESS', () => {
-    it('transitions from saving back to view', () => {
-      const result = rowReducer(savingState(), { type: 'SAVE_SUCCESS' });
-      expect(result.mode).toBe('view');
+describe('MemoryRow — no text editing', () => {
+  it('has no textarea or edit button', () => {
+    const r = renderRow({
+      memory: makeMemory(),
+      onUpdate: vi.fn(),
+      onDelete: vi.fn(),
     });
-
-    it('is a no-op from editing mode', () => {
-      const state = editingState();
-      const result = rowReducer(state, { type: 'SAVE_SUCCESS' });
-      expect(result).toBe(state);
-    });
-  });
-
-  // --- SAVE_ERROR ---
-  describe('SAVE_ERROR', () => {
-    it('transitions from saving back to editing with error', () => {
-      const result = rowReducer(savingState(), { type: 'SAVE_ERROR', error: 'Network error' });
-      expect(result.mode).toBe('editing');
-      expect(result.error).toBe('Network error');
-    });
-
-    it('is a no-op from editing mode', () => {
-      const state = editingState();
-      const result = rowReducer(state, { type: 'SAVE_ERROR', error: 'err' });
-      expect(result).toBe(state);
-    });
-  });
-
-  // --- DELETE_SUCCESS ---
-  describe('DELETE_SUCCESS', () => {
-    it('returns state unchanged (component will unmount)', () => {
-      const state = savingState();
-      const result = rowReducer(state, { type: 'DELETE_SUCCESS' });
-      expect(result).toBe(state);
-    });
-  });
-
-  // --- DELETE_ERROR ---
-  describe('DELETE_ERROR', () => {
-    it('transitions from saving back to view with error', () => {
-      const result = rowReducer(savingState(), { type: 'DELETE_ERROR', error: 'Delete failed' });
-      expect(result.mode).toBe('view');
-      expect(result.error).toBe('Delete failed');
-    });
-
-    it('is a no-op from editing mode', () => {
-      const state = editingState();
-      const result = rowReducer(state, { type: 'DELETE_ERROR', error: 'err' });
-      expect(result).toBe(state);
-    });
-  });
-
-  // --- Default case ---
-  describe('unknown action', () => {
-    it('returns state unchanged for unknown action types', () => {
-      const state = viewState();
-      const result = rowReducer(state, { type: 'UNKNOWN_ACTION' });
-      expect(result).toBe(state);
-    });
+    r.click('Use Redis for caching');
+    expect(r.container.querySelector('textarea')).toBeNull();
+    expect(findByText(r.container, 'Edit')).toBeNull();
+    r.unmount();
   });
 });

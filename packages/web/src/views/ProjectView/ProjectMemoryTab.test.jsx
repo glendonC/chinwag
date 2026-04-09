@@ -61,7 +61,6 @@ describe('ProjectMemoryTab states', () => {
     const { container, unmount } = renderComponent(ProjectMemoryTab, {
       memories: [],
       memoryBreakdown: [],
-      onUpdateMemory: vi.fn(),
       onDeleteMemory: vi.fn(),
     });
 
@@ -83,7 +82,6 @@ describe('ProjectMemoryTab states', () => {
         ['decision', 1],
         ['bug', 1],
       ],
-      onUpdateMemory: vi.fn(),
       onDeleteMemory: vi.fn(),
     });
 

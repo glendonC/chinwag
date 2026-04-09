@@ -35,7 +35,18 @@ import {
   searchMemories as searchMemoriesFn,
   updateMemory as updateMemoryFn,
   deleteMemory as deleteMemoryFn,
+  deleteMemoriesBatch as deleteMemoriesBatchFn,
+  type SearchFilters,
+  type BatchDeleteFilter,
 } from './memory.js';
+import {
+  createCategory as createCategoryFn,
+  listCategories as listCategoriesFn,
+  updateCategory as updateCategoryFn,
+  deleteCategory as deleteCategoryFn,
+  getCategoryNames as getCategoryNamesFn,
+  getPromotableTags as getPromotableTagsFn,
+} from './categories.js';
 import {
   claimFiles as claimFilesFn,
   releaseFiles as releaseFilesFn,
@@ -789,9 +800,12 @@ export class TeamDO extends DurableObject<Env> {
     agentId: string,
     text: string,
     tags: string[],
+    categories: string[] | null = null,
     handle: string,
     runtime: Record<string, unknown> | null = null,
     ownerId: string | null = null,
+    textHash: string | null = null,
+    embedding: ArrayBuffer | null = null,
   ): Promise<ReturnType<typeof saveMemoryFn> | DOError> {
     return this.#withMember(agentId, ownerId, (resolved) => {
       const result = saveMemoryFn(
@@ -799,12 +813,15 @@ export class TeamDO extends DurableObject<Env> {
         resolved,
         text,
         tags,
+        categories,
         handle,
         runtime,
         this.#boundRecordMetric,
         this.#transact,
+        textHash,
+        embedding,
       );
-      if (!isDOError(result)) {
+      if (!isDOError(result) && !('code' in result && result.code === 'DUPLICATE')) {
         this.#broadcastToWatchers({ type: 'memory', text, tags });
       }
       return result;
@@ -815,10 +832,14 @@ export class TeamDO extends DurableObject<Env> {
     agentId: string,
     query: string | null,
     tags: string[] | null,
+    categories: string[] | null = null,
     limit = 20,
     ownerId: string | null = null,
+    filters: Omit<SearchFilters, 'query' | 'tags' | 'categories' | 'limit'> = {},
   ): Promise<ReturnType<typeof searchMemoriesFn> | DOError> {
-    return this.#withMember(agentId, ownerId, () => searchMemoriesFn(this.sql, query, tags, limit));
+    return this.#withMember(agentId, ownerId, () =>
+      searchMemoriesFn(this.sql, { query, tags, categories, limit, ...filters }),
+    );
   }
 
   async updateMemory(
@@ -839,6 +860,78 @@ export class TeamDO extends DurableObject<Env> {
     ownerId: string | null = null,
   ): Promise<DOResult<{ ok: true }> | DOError> {
     return this.#withMember(agentId, ownerId, () => deleteMemoryFn(this.sql, memoryId));
+  }
+
+  async deleteMemoriesBatch(
+    agentId: string,
+    filter: BatchDeleteFilter,
+    ownerId: string | null = null,
+  ): Promise<DOResult<{ ok: true; deleted: number }> | DOError> {
+    return this.#withMember(agentId, ownerId, () =>
+      deleteMemoriesBatchFn(this.sql, filter, this.#transact),
+    );
+  }
+
+  // -- Memory Categories --
+
+  async createCategory(
+    agentId: string,
+    name: string,
+    description: string,
+    color: string | null = null,
+    embedding: ArrayBuffer | null = null,
+    ownerId: string | null = null,
+  ): Promise<DOResult<{ ok: true; id: string }> | DOError> {
+    return this.#withMember(agentId, ownerId, () =>
+      createCategoryFn(this.sql, name, description, color, embedding),
+    );
+  }
+
+  async listCategories(
+    agentId: string,
+    ownerId: string | null = null,
+  ): Promise<ReturnType<typeof listCategoriesFn> | DOError> {
+    return this.#withMember(agentId, ownerId, () => listCategoriesFn(this.sql));
+  }
+
+  async getCategoryNames(
+    agentId: string,
+    ownerId: string | null = null,
+  ): Promise<{ ok: true; names: string[] } | DOError> {
+    return this.#withMember(agentId, ownerId, () => ({
+      ok: true as const,
+      names: getCategoryNamesFn(this.sql),
+    }));
+  }
+
+  async updateCategory(
+    agentId: string,
+    categoryId: string,
+    name: string | undefined,
+    description: string | undefined,
+    color: string | undefined,
+    embedding: ArrayBuffer | null | undefined,
+    ownerId: string | null = null,
+  ): Promise<DOResult<{ ok: true }> | DOError> {
+    return this.#withMember(agentId, ownerId, () =>
+      updateCategoryFn(this.sql, categoryId, name, description, color, embedding),
+    );
+  }
+
+  async deleteCategory(
+    agentId: string,
+    categoryId: string,
+    ownerId: string | null = null,
+  ): Promise<DOResult<{ ok: true }> | DOError> {
+    return this.#withMember(agentId, ownerId, () => deleteCategoryFn(this.sql, categoryId));
+  }
+
+  async getPromotableTags(
+    agentId: string,
+    threshold: number,
+    ownerId: string | null = null,
+  ): Promise<ReturnType<typeof getPromotableTagsFn> | DOError> {
+    return this.#withMember(agentId, ownerId, () => getPromotableTagsFn(this.sql, threshold));
   }
 
   // -- File Locks --

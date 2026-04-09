@@ -210,6 +210,7 @@ describe('updateMemory', () => {
       agentId,
       'Original text about the config',
       ['config'],
+      null,
       'alice',
       ownerId,
     );
@@ -227,7 +228,7 @@ describe('updateMemory', () => {
     );
     expect(res.ok).toBe(true);
 
-    const search = await team().searchMemories(agentId, 'Updated text', null, 10, ownerId);
+    const search = await team().searchMemories(agentId, 'Updated text', null, null, 10, ownerId);
     expect(search.memories.length).toBeGreaterThan(0);
     expect(search.memories[0].text).toBe('Updated text about the config');
   });
@@ -236,7 +237,7 @@ describe('updateMemory', () => {
     const res = await team().updateMemory(agentId, memoryId, undefined, ['decision'], ownerId);
     expect(res.ok).toBe(true);
 
-    const search = await team().searchMemories(agentId, null, ['decision'], 10, ownerId);
+    const search = await team().searchMemories(agentId, null, ['decision'], null, 10, ownerId);
     expect(search.memories.some((m) => m.id === memoryId)).toBe(true);
   });
 
@@ -244,7 +245,14 @@ describe('updateMemory', () => {
     const res = await team().updateMemory(agentId, memoryId, 'Both updated', ['pattern'], ownerId);
     expect(res.ok).toBe(true);
 
-    const search = await team().searchMemories(agentId, 'Both updated', ['pattern'], 10, ownerId);
+    const search = await team().searchMemories(
+      agentId,
+      'Both updated',
+      ['pattern'],
+      null,
+      10,
+      ownerId,
+    );
     expect(search.memories.length).toBeGreaterThan(0);
   });
 
@@ -278,6 +286,7 @@ describe('memory team access', () => {
       authorAgent,
       'Author-owned memory',
       ['config'],
+      null,
       'alice',
       authorOwner,
     );
@@ -316,6 +325,7 @@ describe('memory ownership across tool sessions', () => {
       cursorAgent,
       'Shared owner memory',
       ['pattern'],
+      null,
       'alice',
       ownerId,
     );
@@ -351,6 +361,7 @@ describe('getSummary', () => {
       agent1,
       'Summary test memory about indexing',
       ['config'],
+      null,
       'alice',
       owner1,
     );
@@ -545,13 +556,13 @@ describe('Memory pruning', () => {
     }
 
     // Query all memories
-    const result = await team().searchMemories(agentId, null, null, 50, ownerId);
+    const result = await team().searchMemories(agentId, null, null, null, 50, ownerId);
     // We can only get 50 at a time, but the total should be <= 100
     // The important thing: the system didn't crash and did prune
     expect(result.memories.length).toBeLessThanOrEqual(50);
 
     // Also verify via a second page: total count should be capped
-    const result2 = await team().searchMemories(agentId, null, ['config'], 50, ownerId);
+    const result2 = await team().searchMemories(agentId, null, ['config'], null, 50, ownerId);
     expect(result2.memories.length).toBeLessThanOrEqual(50);
   });
 });
@@ -572,6 +583,7 @@ describe('Memory fuzzy dedup extended', () => {
       agentId,
       'The API rate limit should be configured to 100 requests per minute',
       ['config'],
+      null,
       'alice',
       ownerId,
     );
@@ -583,6 +595,7 @@ describe('Memory fuzzy dedup extended', () => {
       agentId,
       'The API rate limit should be configured to 100 requests per minute for safety',
       ['config'],
+      null,
       'alice',
       ownerId,
     );
@@ -596,6 +609,7 @@ describe('Memory fuzzy dedup extended', () => {
       agentId,
       'Always use TypeScript strict mode in production builds',
       ['pattern'],
+      null,
       'alice',
       ownerId,
     );
@@ -605,6 +619,7 @@ describe('Memory fuzzy dedup extended', () => {
       agentId,
       'Database connection pools should timeout after 30 seconds',
       ['config'],
+      null,
       'alice',
       ownerId,
     );
@@ -651,7 +666,14 @@ describe('saveMemory validation', () => {
   });
 
   it('rejects non-member', async () => {
-    const res = await team().saveMemory('cursor:unknown', 'Text', ['config'], 'alice', 'bad-owner');
+    const res = await team().saveMemory(
+      'cursor:unknown',
+      'Text',
+      ['config'],
+      null,
+      'alice',
+      'bad-owner',
+    );
     expect(res.error).toContain('Not a member');
   });
 });
@@ -723,6 +745,7 @@ describe('getContext extended', () => {
       agent1,
       'Context test memory about shared module architecture',
       ['decision'],
+      null,
       'alice',
       owner1,
     );
@@ -892,6 +915,7 @@ describe('Session lifecycle', () => {
       agentId,
       'Session lifecycle test memory about session counting mechanism',
       ['pattern'],
+      null,
       'alice',
       ownerId,
     );
@@ -917,6 +941,7 @@ describe('Telemetry tracking', () => {
       agentId,
       'Telemetry test memory with unique content for the test',
       ['config'],
+      null,
       'alice',
       ownerId,
     );

@@ -228,6 +228,7 @@ interface WithTeamRateLimitOpts {
   rateLimitMax: number;
   rateLimitMsg: string;
   successStatus?: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   action: (team: DurableObjectStub<TeamDO>, agentId: string, runtime: AgentRuntime) => Promise<any>;
 }
 
@@ -257,7 +258,11 @@ export async function withTeamRateLimit({
 
   return withRateLimit(db, `${rateLimitKey}:${user.id}`, rateLimitMax, rateLimitMsg, async () => {
     const result = await action(team, agentId, runtime);
-    if (result.error) return json({ error: result.error }, teamErrorStatus(result));
+    if (result.error) {
+      // Pass through extra fields (e.g., existingId/existingText for duplicates)
+      const { ok: _ok, ...errorPayload } = result;
+      return json(errorPayload, teamErrorStatus(result));
+    }
     return json(result, successStatus);
   });
 }

@@ -8,10 +8,12 @@ import {
   stopPolling,
   resetPollingState,
   forceRefresh,
+  injectDemoData,
 } from './lib/stores/polling.js';
 import { formatRelativeTime } from './lib/relativeTime.js';
 import { getErrorMessage } from './lib/errorHelpers.js';
 import { useRoute, parseLocation, type Route } from './lib/router.js';
+import { isDemoMode } from './lib/demoData.js';
 
 import ConnectView from './views/ConnectView/ConnectView.js';
 import OverviewView from './views/OverviewView/OverviewView.js';
@@ -96,29 +98,46 @@ export default function App(): ReactNode {
     !errorDismissed &&
     consecutiveFailures >= 2 &&
     (hasOverviewSnapshot || hasProjectSnapshot);
-  const lastSynced = formatRelativeTime(lastUpdate);
+  const _lastSynced = formatRelativeTime(lastUpdate);
 
   // Derive boot state — no effect sync needed
+  const demo = isDemoMode();
   const bootState: BootState = !bootCompleted
     ? 'loading'
-    : isAuthenticated
+    : isAuthenticated || demo
       ? 'ready'
       : 'unauthenticated';
 
   // Reset polling data when auth drops (external store action, not setState)
   useEffect(() => {
-    if (bootCompleted && !isAuthenticated) resetPollingState();
-  }, [bootCompleted, isAuthenticated]);
+    if (bootCompleted && !isAuthenticated && !demo) resetPollingState();
+  }, [bootCompleted, isAuthenticated, demo]);
 
   useEffect(() => {
-    if (bootState === 'ready' && isAuthenticated) {
+    if (bootState === 'ready' && isAuthenticated && !demo) {
       startPolling();
     }
-  }, [activeTeamId, bootState, isAuthenticated]);
+  }, [activeTeamId, bootState, isAuthenticated, demo]);
 
   useEffect(() => {
     async function boot(): Promise<void> {
       setBootError(null);
+
+      // Demo mode: bypass auth, inject synthetic data
+      if (isDemoMode()) {
+        const { createDemoContext, DEMO_TEAMS } = await import('./lib/demoData.js');
+        const demoTeamId = DEMO_TEAMS[0].team_id;
+        teamActions.setDemoTeams(
+          DEMO_TEAMS as Array<{ team_id: string; team_name?: string }>,
+          demoTeamId,
+        );
+        injectDemoData(demoTeamId, createDemoContext());
+        // Navigate to the project view so the memory tab is accessible
+        history.replaceState(null, '', `/dashboard/project/${demoTeamId}?demo=1`);
+        setBootCompleted(true);
+        return;
+      }
+
       let t = authActions.readTokenFromHash();
       // Clean up non-token hash params (e.g. github_linked=1)
       if (!t && window.location.hash) {
@@ -148,13 +167,13 @@ export default function App(): ReactNode {
 
   // Sync team store with URL: if URL says project/:id, select that team
   useEffect(() => {
-    if (!bootCompleted || !isAuthenticated) return;
+    if (!bootCompleted || (!isAuthenticated && !demo)) return;
     if (route.view === 'project' && route.teamId && route.teamId !== activeTeamId) {
       teamActions.selectTeam(route.teamId);
     } else if (route.view !== 'project' && activeTeamId !== null) {
       teamActions.selectTeam(null);
     }
-  }, [route.view, route.teamId, activeTeamId, bootCompleted, isAuthenticated]);
+  }, [route.view, route.teamId, activeTeamId, bootCompleted, isAuthenticated, demo]);
 
   const activeView: Route['view'] =
     route.view === 'project' && !route.teamId

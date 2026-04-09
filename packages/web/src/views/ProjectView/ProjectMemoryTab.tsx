@@ -8,14 +8,12 @@ import styles from './ProjectView.module.css';
 interface ProjectMemoryTabProps {
   memories: Memory[];
   memoryBreakdown: [string, number][];
-  onUpdateMemory: (id: string, text?: string, tags?: string[]) => Promise<void>;
   onDeleteMemory: (id: string) => Promise<void>;
 }
 
 export default function ProjectMemoryTab({
   memories,
   memoryBreakdown,
-  onUpdateMemory,
   onDeleteMemory,
 }: ProjectMemoryTabProps) {
   const [search, setSearch] = useState('');
@@ -28,7 +26,9 @@ export default function ProjectMemoryTab({
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter(
-        (m) => m.text.toLowerCase().includes(q) || (m.tags || []).some((t) => t.includes(q)),
+        (m) =>
+          m.text.toLowerCase().includes(q) ||
+          (m.tags || []).some((t) => t.toLowerCase().includes(q)),
       );
     }
     return list;
@@ -41,7 +41,8 @@ export default function ProjectMemoryTab({
   return (
     <div>
       <div className={styles.memoryControls}>
-        {(memories.length > 3 || allTags.length > 0) && (
+        {/* Search — matches text and tags */}
+        {memories.length > 3 && (
           <input
             type="text"
             value={search}
@@ -50,6 +51,8 @@ export default function ProjectMemoryTab({
             className={styles.searchInput}
           />
         )}
+
+        {/* Tag-frequency pills — primary navigation */}
         {allTags.length > 0 && (
           <div className={styles.tagFilters}>
             {activeTag && (
@@ -78,12 +81,7 @@ export default function ProjectMemoryTab({
       <div className={styles.sectionBody}>
         {filtered.length > 0 ? (
           filtered.map((memory) => (
-            <MemoryRow
-              key={memory.id}
-              memory={memory}
-              onUpdate={onUpdateMemory}
-              onDelete={onDeleteMemory}
-            />
+            <MemoryRow key={memory.id} memory={memory} onDelete={onDeleteMemory} />
           ))
         ) : (
           <p className={styles.emptyHint}>No matches.</p>

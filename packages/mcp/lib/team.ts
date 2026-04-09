@@ -55,6 +55,14 @@ export interface TeamActivityHandlers {
   reportFile(teamId: string, file: string): Promise<OkResult>;
 }
 
+export interface SearchMemoryFilters {
+  sessionId?: string;
+  agentId?: string;
+  handle?: string;
+  after?: string;
+  before?: string;
+}
+
 /** Shared memory: save, search, update, delete. */
 export interface TeamMemoryHandlers {
   saveMemory(teamId: string, text: string, tags?: string[]): Promise<OkResult>;
@@ -62,10 +70,16 @@ export interface TeamMemoryHandlers {
     teamId: string,
     query?: string,
     tags?: string[],
+    categories?: string[],
     limit?: number,
+    filters?: SearchMemoryFilters,
   ): Promise<MemorySearchResult>;
   updateMemory(teamId: string, id: string, text?: string, tags?: string[]): Promise<OkResult>;
   deleteMemory(teamId: string, id: string): Promise<OkResult>;
+  deleteMemoriesBatch(
+    teamId: string,
+    filter: { ids?: string[]; tags?: string[]; before?: string },
+  ): Promise<OkResult & { deleted?: number }>;
 }
 
 /** Coordination: file locks, messaging, sessions. */
@@ -146,12 +160,18 @@ export function teamHandlers(client: ApiClient): TeamHandlers {
       return client.post(`/teams/${teamId}/memory`, { text, tags: tags || [] });
     },
 
-    async searchMemories(teamId, query, tags, limit) {
+    async searchMemories(teamId, query, tags, categories, limit, filters) {
       validateTeam(teamId);
       const params = new URLSearchParams();
       if (query) params.set('q', query);
       if (tags?.length) params.set('tags', tags.join(','));
+      if (categories?.length) params.set('categories', categories.join(','));
       if (limit) params.set('limit', String(limit));
+      if (filters?.sessionId) params.set('session_id', filters.sessionId);
+      if (filters?.agentId) params.set('agent_id', filters.agentId);
+      if (filters?.handle) params.set('handle', filters.handle);
+      if (filters?.after) params.set('after', filters.after);
+      if (filters?.before) params.set('before', filters.before);
       const qs = params.toString();
       return client.get(`/teams/${teamId}/memory${qs ? '?' + qs : ''}`);
     },
@@ -167,6 +187,11 @@ export function teamHandlers(client: ApiClient): TeamHandlers {
     async deleteMemory(teamId, id) {
       validateTeam(teamId);
       return client.del(`/teams/${teamId}/memory`, { id });
+    },
+
+    async deleteMemoriesBatch(teamId, filter) {
+      validateTeam(teamId);
+      return client.del(`/teams/${teamId}/memory/batch`, filter);
     },
 
     async claimFiles(teamId, files) {

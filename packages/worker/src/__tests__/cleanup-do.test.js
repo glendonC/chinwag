@@ -27,6 +27,7 @@ describe('Cleanup — data consistency across multiple cycles', () => {
       agent1,
       'Important decision about architecture',
       ['arch'],
+      null,
       'alice',
       owner1,
     );
@@ -36,7 +37,7 @@ describe('Cleanup — data consistency across multiple cycles', () => {
 
     // Agent 2: partial state
     await team().updateActivity(agent2, ['src/c.js'], 'Reading', owner2);
-    await team().saveMemory(agent2, 'Bob contribution to memory', ['config'], 'bob', owner2);
+    await team().saveMemory(agent2, 'Bob contribution to memory', ['config'], null, 'bob', owner2);
   });
 
   it('all data survives repeated cleanup triggers', async () => {
@@ -110,6 +111,7 @@ describe('Cleanup — leave closes active session', () => {
       agent2,
       'Alice left, noting for record',
       ['notes'],
+      null,
       'bob',
       owner2,
     );
@@ -127,7 +129,7 @@ describe('Cleanup — getSummary triggers cleanup', () => {
   it('setup: join and add state', async () => {
     await team().join(agentId, ownerId, 'alice', 'cursor');
     await team().startSession(agentId, 'alice', 'react', ownerId);
-    await team().saveMemory(agentId, 'Summary test memory', ['test'], 'alice', ownerId);
+    await team().saveMemory(agentId, 'Summary test memory', ['test'], null, 'alice', ownerId);
   });
 
   it('getSummary returns valid summary and does not corrupt state', async () => {
@@ -217,6 +219,7 @@ describe('Cleanup — memories persist after author leaves', () => {
       author,
       'Important architecture decision: use event sourcing',
       ['architecture', 'decision'],
+      null,
       'alice',
       authorOwner,
     );
@@ -227,14 +230,28 @@ describe('Cleanup — memories persist after author leaves', () => {
   });
 
   it('memories survive author departure and are searchable', async () => {
-    const search = await team().searchMemories(reader, 'event sourcing', null, 10, readerOwner);
+    const search = await team().searchMemories(
+      reader,
+      'event sourcing',
+      null,
+      null,
+      10,
+      readerOwner,
+    );
     expect(search.memories.length).toBe(1);
     expect(search.memories[0].text).toContain('event sourcing');
     expect(search.memories[0].handle).toBe('alice');
   });
 
   it('remaining member can update departed author memory', async () => {
-    const search = await team().searchMemories(reader, 'event sourcing', null, 1, readerOwner);
+    const search = await team().searchMemories(
+      reader,
+      'event sourcing',
+      null,
+      null,
+      1,
+      readerOwner,
+    );
     const memId = search.memories[0].id;
 
     const update = await team().updateMemory(
@@ -248,14 +265,14 @@ describe('Cleanup — memories persist after author leaves', () => {
   });
 
   it('remaining member can delete departed author memory', async () => {
-    const search = await team().searchMemories(reader, 'CQRS', null, 1, readerOwner);
+    const search = await team().searchMemories(reader, 'CQRS', null, null, 1, readerOwner);
     const memId = search.memories[0].id;
 
     const del = await team().deleteMemory(reader, memId, readerOwner);
     expect(del.ok).toBe(true);
 
     // Verify deletion
-    const searchAfter = await team().searchMemories(reader, 'CQRS', null, 10, readerOwner);
+    const searchAfter = await team().searchMemories(reader, 'CQRS', null, null, 10, readerOwner);
     expect(searchAfter.memories.length).toBe(0);
   });
 });

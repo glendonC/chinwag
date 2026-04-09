@@ -56,6 +56,7 @@ function createMockTeam() {
     releaseFiles: vi.fn().mockResolvedValue({ ok: true }),
     sendMessage: vi.fn().mockResolvedValue({ ok: true }),
     reportModel: vi.fn().mockResolvedValue({ ok: true }),
+    deleteMemoriesBatch: vi.fn().mockResolvedValue({ ok: true, deleted: 0 }),
   };
 }
 
@@ -347,7 +348,13 @@ describe('memory tools (unit)', () => {
         tags: ['config'],
         limit: 5,
       });
-      expect(team.searchMemories).toHaveBeenCalledWith('t_mem', 'redis', ['config'], 5);
+      expect(team.searchMemories).toHaveBeenCalledWith('t_mem', 'redis', ['config'], undefined, 5, {
+        sessionId: undefined,
+        agentId: undefined,
+        handle: undefined,
+        after: undefined,
+        before: undefined,
+      });
     });
 
     it('returns "no memories" when API returns error object (no .memories property)', async () => {
@@ -368,7 +375,20 @@ describe('memory tools (unit)', () => {
     it('works with empty parameters', async () => {
       team.searchMemories.mockResolvedValue({ memories: [] });
       await collector.callTool('chinwag_search_memory', {});
-      expect(team.searchMemories).toHaveBeenCalledWith('t_mem', undefined, undefined, undefined);
+      expect(team.searchMemories).toHaveBeenCalledWith(
+        't_mem',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        {
+          sessionId: undefined,
+          agentId: undefined,
+          handle: undefined,
+          after: undefined,
+          before: undefined,
+        },
+      );
     });
   });
 

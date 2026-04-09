@@ -21,6 +21,7 @@ describe('Memory search — LIKE wildcard escape', () => {
       agentId,
       'CPU usage should stay below 80% at all times',
       ['ops'],
+      null,
       'alice',
       ownerId,
     );
@@ -30,22 +31,30 @@ describe('Memory search — LIKE wildcard escape', () => {
       agentId,
       'Use snake_case for database column names',
       ['convention'],
+      null,
       'alice',
       ownerId,
     );
 
     // Memory that would match % wildcard if not escaped
-    await team().saveMemory(agentId, 'CPU usage monitoring is critical', ['ops'], 'alice', ownerId);
+    await team().saveMemory(
+      agentId,
+      'CPU usage monitoring is critical',
+      ['ops'],
+      null,
+      'alice',
+      ownerId,
+    );
   });
 
   it('searching for text with % matches literally, not as wildcard', async () => {
-    const res = await team().searchMemories(agentId, '80%', null, 10, ownerId);
+    const res = await team().searchMemories(agentId, '80%', null, null, 10, ownerId);
     expect(res.memories.length).toBe(1);
     expect(res.memories[0].text).toContain('80%');
   });
 
   it('searching for text with _ matches literally, not as wildcard', async () => {
-    const res = await team().searchMemories(agentId, 'snake_case', null, 10, ownerId);
+    const res = await team().searchMemories(agentId, 'snake_case', null, null, 10, ownerId);
     expect(res.memories.length).toBe(1);
     expect(res.memories[0].text).toContain('snake_case');
   });
@@ -65,6 +74,7 @@ describe('Memory search — limit capping', () => {
         agentId,
         `Limit cap memory entry ${i}`,
         ['limit-test'],
+        null,
         'alice',
         ownerId,
       );
@@ -73,20 +83,20 @@ describe('Memory search — limit capping', () => {
 
   it('limit is capped at 50 even if higher is requested', async () => {
     // Request 100 but cap should be 50
-    const res = await team().searchMemories(agentId, null, ['limit-test'], 100, ownerId);
+    const res = await team().searchMemories(agentId, null, ['limit-test'], null, 100, ownerId);
     expect(res.ok).toBe(true);
     // We only have 10, so all should be returned
     expect(res.memories.length).toBe(10);
   });
 
   it('limit of 0 or negative is capped at 1', async () => {
-    const res = await team().searchMemories(agentId, null, ['limit-test'], 0, ownerId);
+    const res = await team().searchMemories(agentId, null, ['limit-test'], null, 0, ownerId);
     expect(res.ok).toBe(true);
     expect(res.memories.length).toBe(1);
   });
 
   it('specific limit returns at most that many results', async () => {
-    const res = await team().searchMemories(agentId, null, ['limit-test'], 3, ownerId);
+    const res = await team().searchMemories(agentId, null, ['limit-test'], null, 3, ownerId);
     expect(res.ok).toBe(true);
     expect(res.memories.length).toBe(3);
   });
@@ -106,6 +116,7 @@ describe('Memory search — combined query and tag filtering', () => {
       agentId,
       'Always use HTTPS for API endpoints',
       ['security', 'api'],
+      null,
       'alice',
       ownerId,
     );
@@ -114,6 +125,7 @@ describe('Memory search — combined query and tag filtering', () => {
       agentId,
       'API rate limiting should be 100 req/min',
       ['api', 'config'],
+      null,
       'alice',
       ownerId,
     );
@@ -122,6 +134,7 @@ describe('Memory search — combined query and tag filtering', () => {
       agentId,
       'Database backups run at midnight',
       ['ops', 'database'],
+      null,
       'alice',
       ownerId,
     );
@@ -129,30 +142,30 @@ describe('Memory search — combined query and tag filtering', () => {
 
   it('search with both query and tags returns intersection', async () => {
     // Search for "API" text with "security" tag — should find only the HTTPS one
-    const res = await team().searchMemories(agentId, 'API', ['security'], 10, ownerId);
+    const res = await team().searchMemories(agentId, 'API', ['security'], null, 10, ownerId);
     expect(res.memories.length).toBe(1);
     expect(res.memories[0].text).toContain('HTTPS');
   });
 
   it('search with query only', async () => {
-    const res = await team().searchMemories(agentId, 'API', null, 10, ownerId);
+    const res = await team().searchMemories(agentId, 'API', null, null, 10, ownerId);
     expect(res.memories.length).toBe(2);
   });
 
   it('search with tags only', async () => {
-    const res = await team().searchMemories(agentId, null, ['ops'], 10, ownerId);
+    const res = await team().searchMemories(agentId, null, ['ops'], null, 10, ownerId);
     expect(res.memories.length).toBe(1);
     expect(res.memories[0].text).toContain('Database backups');
   });
 
   it('search with no query and no tags returns all (up to limit)', async () => {
-    const res = await team().searchMemories(agentId, null, null, 10, ownerId);
+    const res = await team().searchMemories(agentId, null, null, null, 10, ownerId);
     expect(res.memories.length).toBe(3);
   });
 
   it('search with multiple tags matches ANY (OR semantics)', async () => {
     // Tags use OR: memories with EITHER "security" OR "ops"
-    const res = await team().searchMemories(agentId, null, ['security', 'ops'], 10, ownerId);
+    const res = await team().searchMemories(agentId, null, ['security', 'ops'], null, 10, ownerId);
     expect(res.memories.length).toBe(2);
     const texts = res.memories.map((m) => m.text);
     expect(texts.some((t) => t.includes('HTTPS'))).toBe(true);
@@ -172,20 +185,27 @@ describe('Memory — empty and null tags', () => {
   });
 
   it('save memory with empty tags array succeeds', async () => {
-    const res = await team().saveMemory(agentId, 'Memory with no tags', [], 'alice', ownerId);
+    const res = await team().saveMemory(agentId, 'Memory with no tags', [], null, 'alice', ownerId);
     expect(res.ok).toBe(true);
     expect(res.id).toBeDefined();
 
-    const search = await team().searchMemories(agentId, 'no tags', null, 10, ownerId);
+    const search = await team().searchMemories(agentId, 'no tags', null, null, 10, ownerId);
     expect(search.memories.length).toBe(1);
     expect(search.memories[0].tags).toEqual([]);
   });
 
   it('save memory with null tags coerces to empty array', async () => {
-    const res = await team().saveMemory(agentId, 'Memory with null tags', null, 'alice', ownerId);
+    const res = await team().saveMemory(
+      agentId,
+      'Memory with null tags',
+      null,
+      null,
+      'alice',
+      ownerId,
+    );
     expect(res.ok).toBe(true);
 
-    const search = await team().searchMemories(agentId, 'null tags', null, 10, ownerId);
+    const search = await team().searchMemories(agentId, 'null tags', null, null, 10, ownerId);
     expect(search.memories.length).toBe(1);
     expect(search.memories[0].tags).toEqual([]);
   });
@@ -209,7 +229,14 @@ describe('Memory — access control', () => {
   });
 
   it('searchMemories rejects non-member', async () => {
-    const res = await team().searchMemories('cursor:nonexistent', 'test', null, 10, 'bad-owner');
+    const res = await team().searchMemories(
+      'cursor:nonexistent',
+      'test',
+      null,
+      null,
+      10,
+      'bad-owner',
+    );
     expect(res.error).toBeTruthy();
   });
 
@@ -230,13 +257,13 @@ describe('Memory — ordering by updated_at', () => {
     await team().join(agentId, ownerId, 'alice', 'cursor');
 
     // Save in order: oldest first
-    await team().saveMemory(agentId, 'First memory saved', ['order'], 'alice', ownerId);
-    await team().saveMemory(agentId, 'Second memory saved', ['order'], 'alice', ownerId);
-    await team().saveMemory(agentId, 'Third memory saved', ['order'], 'alice', ownerId);
+    await team().saveMemory(agentId, 'First memory saved', ['order'], null, 'alice', ownerId);
+    await team().saveMemory(agentId, 'Second memory saved', ['order'], null, 'alice', ownerId);
+    await team().saveMemory(agentId, 'Third memory saved', ['order'], null, 'alice', ownerId);
   });
 
   it('search results are ordered most recent first', async () => {
-    const res = await team().searchMemories(agentId, null, ['order'], 10, ownerId);
+    const res = await team().searchMemories(agentId, null, ['order'], null, 10, ownerId);
     expect(res.memories.length).toBe(3);
     // Most recently saved should be first
     expect(res.memories[0].text).toBe('Third memory saved');
@@ -245,13 +272,13 @@ describe('Memory — ordering by updated_at', () => {
 
   it('updated memory is findable by new text', async () => {
     // Update the first (oldest) memory
-    const search = await team().searchMemories(agentId, 'First memory', null, 10, ownerId);
+    const search = await team().searchMemories(agentId, 'First memory', null, null, 10, ownerId);
     const firstId = search.memories[0].id;
 
     await team().updateMemory(agentId, firstId, 'First memory saved (updated)', undefined, ownerId);
 
     // Updated memory should be findable by new text
-    const res = await team().searchMemories(agentId, 'updated', ['order'], 10, ownerId);
+    const res = await team().searchMemories(agentId, 'updated', ['order'], null, 10, ownerId);
     expect(res.memories.length).toBe(1);
     expect(res.memories[0].text).toBe('First memory saved (updated)');
     expect(res.memories[0].id).toBe(firstId);
@@ -261,6 +288,7 @@ describe('Memory — ordering by updated_at', () => {
       agentId,
       'First memory saved',
       ['order'],
+      null,
       10,
       ownerId,
     );
@@ -288,12 +316,20 @@ describe('Memory — model inheritance from session', () => {
       agentId,
       'Memory that should inherit session model',
       ['model-test'],
+      null,
       'alice',
       ownerId,
     );
     expect(save.ok).toBe(true);
 
-    const search = await team().searchMemories(agentId, 'inherit session model', null, 10, ownerId);
+    const search = await team().searchMemories(
+      agentId,
+      'inherit session model',
+      null,
+      null,
+      10,
+      ownerId,
+    );
     expect(search.memories.length).toBe(1);
     expect(search.memories[0].agent_model).toBe('claude-3-opus');
   });

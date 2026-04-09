@@ -32,6 +32,15 @@ export const handleTeamSaveMemory = teamJsonRoute(async ({ body, user, env, team
   // Tags are short — blocklist is sufficient
   if (tags.some((t) => isBlocked(t))) return json({ error: 'Content blocked' }, 400);
 
+  // Validate categories (string array, optional)
+  let categories: string[] | null = null;
+  if (body.categories !== undefined) {
+    if (!Array.isArray(body.categories)) return json({ error: 'categories must be an array' }, 400);
+    categories = body.categories.filter(
+      (c: unknown): c is string => typeof c === 'string' && c.trim().length > 0,
+    );
+  }
+
   const modResult = await checkContent(text, env);
   if (modResult.blocked) {
     if (modResult.reason === 'moderation_unavailable') {
@@ -44,6 +53,31 @@ export const handleTeamSaveMemory = teamJsonRoute(async ({ body, user, env, team
     return json({ error: 'Content blocked' }, 400);
   }
 
+  // Compute text hash for exact dedup (SHA-256 of normalized text)
+  let textHash: string | null = null;
+  try {
+    const normalized = text.trim().toLowerCase().replace(/\s+/g, ' ');
+    const data = new TextEncoder().encode(normalized);
+    const hashBuf = await crypto.subtle.digest('SHA-256', data);
+    textHash = [...new Uint8Array(hashBuf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  } catch {
+    // Non-critical — proceed without hash dedup
+  }
+
+  // Generate embedding for near-dedup (bge-small-en-v1.5, 384 dims)
+  let embedding: ArrayBuffer | null = null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (env.AI as any).run('@cf/baai/bge-small-en-v1.5', {
+      text: [text],
+    });
+    if (result?.data?.[0]) {
+      embedding = new Float32Array(result.data[0]).buffer as ArrayBuffer;
+    }
+  } catch {
+    // Non-critical — proceed without embedding dedup
+  }
+
   return withTeamRateLimit({
     request,
     user,
@@ -54,7 +88,17 @@ export const handleTeamSaveMemory = teamJsonRoute(async ({ body, user, env, team
     rateLimitMsg: 'Memory save limit reached (20/day). Try again tomorrow.',
     successStatus: 201,
     action: (team, agentId, runtime) =>
-      team.saveMemory(agentId, text, tags, user.handle, runtime, user.id),
+      team.saveMemory(
+        agentId,
+        text,
+        tags,
+        categories,
+        user.handle,
+        runtime,
+        user.id,
+        textHash,
+        embedding,
+      ),
   });
 });
 
@@ -89,7 +133,31 @@ export const handleTeamSearchMemory = teamRoute(async ({ request, agentId, team,
         .slice(0, MEMORY_SEARCH_MAX_TAGS)
     : null;
 
-  return doResult(team.searchMemories(agentId, query, tags, limit, user.id), 'searchMemories');
+  const categoriesParam = url.searchParams.get('categories');
+  const categories = categoriesParam
+    ? categoriesParam
+        .split(',')
+        .map((c) => c.trim())
+        .filter(Boolean)
+    : null;
+
+  // Richer filters: session_id, agent_id, handle, date range
+  const sessionId = url.searchParams.get('session_id') || null;
+  const filterAgentId = url.searchParams.get('agent_id') || null;
+  const filterHandle = url.searchParams.get('handle') || null;
+  const after = url.searchParams.get('after') || null;
+  const before = url.searchParams.get('before') || null;
+
+  return doResult(
+    team.searchMemories(agentId, query, tags, categories, limit, user.id, {
+      sessionId,
+      agentId: filterAgentId,
+      handle: filterHandle,
+      after,
+      before,
+    }),
+    'searchMemories',
+  );
 });
 
 export const handleTeamUpdateMemory = teamJsonRoute(
@@ -160,6 +228,40 @@ export const handleTeamDeleteMemory = teamJsonRoute(
       rateLimitMax: RATE_LIMIT_MEMORY_DELETES,
       rateLimitMsg: 'Memory delete limit reached (50/day). Try again tomorrow.',
       action: (team, agentId) => team.deleteMemory(agentId, id, user.id),
+    });
+  },
+);
+
+export const handleTeamDeleteMemoryBatch = teamJsonRoute(
+  async ({ body, user, env, teamId, request }) => {
+    const filter: Record<string, unknown> = {};
+
+    if (Array.isArray(body.ids)) {
+      const ids = body.ids.filter((id: unknown): id is string => typeof id === 'string');
+      if (ids.length === 0) return json({ error: 'ids array must not be empty' }, 400);
+      if (ids.length > 100) return json({ error: 'Maximum 100 ids per batch delete' }, 400);
+      filter.ids = ids;
+    }
+    if (Array.isArray(body.tags)) {
+      filter.tags = body.tags.filter((t: unknown): t is string => typeof t === 'string');
+    }
+    if (typeof body.before === 'string') {
+      filter.before = body.before;
+    }
+
+    if (!filter.ids && !filter.tags && !filter.before) {
+      return json({ error: 'At least one filter required (ids, tags, or before)' }, 400);
+    }
+
+    return withTeamRateLimit({
+      request,
+      user,
+      env,
+      teamId,
+      rateLimitKey: 'memory_delete',
+      rateLimitMax: RATE_LIMIT_MEMORY_DELETES,
+      rateLimitMsg: 'Memory delete limit reached (50/day). Try again tomorrow.',
+      action: (team, agentId) => team.deleteMemoriesBatch(agentId, filter, user.id),
     });
   },
 );

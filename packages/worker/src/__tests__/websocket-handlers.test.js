@@ -677,7 +677,7 @@ describe('Initial context delivery on WebSocket connect', () => {
     await team().join(agent1, owner1, 'alice', 'cursor');
     await team().join(agent2, owner2, 'bob', 'claude');
     await team().updateActivity(agent1, ['src/pre-existing.js'], 'Before connect', owner1);
-    await team().saveMemory(agent1, 'Test memory', ['pattern'], 'alice', null, owner1);
+    await team().saveMemory(agent1, 'Test memory', ['pattern'], null, 'alice', null, owner1);
   });
 
   it('getContext includes pre-existing activity from other agents', async () => {

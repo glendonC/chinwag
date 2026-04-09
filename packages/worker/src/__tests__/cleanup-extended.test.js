@@ -69,7 +69,7 @@ describe('getContext triggers cleanup safely', () => {
   it('setup: join and add data', async () => {
     await team().join(agentId, ownerId, 'alice', 'cursor');
     await team().updateActivity(agentId, ['src/safe.js'], 'Safe activity', ownerId);
-    await team().saveMemory(agentId, 'Context cleanup test', ['test'], 'alice', ownerId);
+    await team().saveMemory(agentId, 'Context cleanup test', ['test'], null, 'alice', ownerId);
     await team().startSession(agentId, 'alice', 'react', ownerId);
   });
 
@@ -156,7 +156,7 @@ describe('getSummary after cleanup', () => {
     await team().join(agent2, owner2, 'bob', 'claude');
 
     await team().startSession(agent1, 'alice', 'react', owner1);
-    await team().saveMemory(agent1, 'Summary test memory', ['config'], 'alice', owner1);
+    await team().saveMemory(agent1, 'Summary test memory', ['config'], null, 'alice', owner1);
     await team().updateActivity(agent1, ['src/summary.js'], 'Working', owner1);
     await team().updateActivity(agent2, ['src/summary.js'], 'Also working', owner2);
   });
@@ -221,7 +221,7 @@ describe('Rapid cleanup triggers', () => {
   it('setup: join with data', async () => {
     await team().join(agentId, ownerId, 'alice', 'cursor');
     await team().updateActivity(agentId, ['src/rapid.js'], 'Rapid test', ownerId);
-    await team().saveMemory(agentId, 'Rapid cleanup memory', ['test'], 'alice', ownerId);
+    await team().saveMemory(agentId, 'Rapid cleanup memory', ['test'], null, 'alice', ownerId);
   });
 
   it('10 rapid getContext calls all succeed without data loss', async () => {

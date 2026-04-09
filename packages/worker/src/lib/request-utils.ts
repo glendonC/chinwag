@@ -74,6 +74,7 @@ export function teamErrorStatus(result: { error: string; code?: string }): numbe
       return 404;
     case 'AGENT_CLAIMED':
     case 'CONFLICT':
+    case 'DUPLICATE':
       return 409;
     case 'INTERNAL':
       return 500;

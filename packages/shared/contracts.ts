@@ -93,9 +93,20 @@ export interface TeamMemory extends AgentMetadata {
   id: string;
   text: string;
   tags: string[];
+  categories: string[];
   handle?: string | null;
+  session_id?: string | null;
   created_at?: string;
   updated_at?: string;
+  last_accessed_at?: string | null;
+}
+
+export interface MemoryCategory {
+  id: string;
+  name: string;
+  description: string;
+  color: string | null;
+  created_at: string;
 }
 
 export interface TeamMessage extends AgentMetadata {
@@ -145,6 +156,9 @@ export interface DailyTrend {
   lines_added: number;
   lines_removed: number;
   avg_duration_min: number;
+  completed?: number;
+  abandoned?: number;
+  failed?: number;
 }
 
 export interface OutcomeCount {
@@ -207,11 +221,18 @@ export interface ModelOutcome {
   total_edits: number;
 }
 
+export interface ToolOutcome {
+  host_tool: string;
+  outcome: string;
+  count: number;
+}
+
 export interface UserAnalytics extends TeamAnalytics {
   hourly_distribution: HourlyBucket[];
   tool_hourly: ToolHourlyBucket[];
   tool_daily: ToolDailyTrend[];
   model_outcomes: ModelOutcome[];
+  tool_outcomes: ToolOutcome[];
   teams_included: number;
   degraded: boolean;
 }
@@ -381,6 +402,7 @@ export interface MemoryDeltaEvent {
   id?: string;
   text: string;
   tags?: string[];
+  categories?: string[];
   handle?: string;
   host_tool?: string;
   created_at?: string;

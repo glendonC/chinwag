@@ -66,6 +66,7 @@ describe('Membership', () => {
       runtimeAgent,
       'Structured runtime memory',
       ['runtime'],
+      null,
       'alice',
       { hostTool: 'cursor', agentSurface: 'cline', transport: 'mcp', tier: 'connected' },
       runtimeOwner,
@@ -235,6 +236,7 @@ describe('Memory', () => {
       agentId,
       'Always run tests before deploying',
       ['pattern'],
+      null,
       'alice',
       ownerId,
     );
@@ -244,13 +246,20 @@ describe('Memory', () => {
   });
 
   it('searchMemories finds saved memory', async () => {
-    const res = await team().searchMemories(agentId, 'tests before deploying', null, 10, ownerId);
+    const res = await team().searchMemories(
+      agentId,
+      'tests before deploying',
+      null,
+      null,
+      10,
+      ownerId,
+    );
     expect(res.memories.length).toBeGreaterThan(0);
     expect(res.memories[0].text).toContain('Always run tests before deploying');
   });
 
   it('searchMemories filters by tags', async () => {
-    const res = await team().searchMemories(agentId, null, ['pattern'], 10, ownerId);
+    const res = await team().searchMemories(agentId, null, ['pattern'], null, 10, ownerId);
     expect(res.memories.length).toBeGreaterThan(0);
     expect(res.memories.every((m) => m.tags.includes('pattern'))).toBe(true);
   });
@@ -264,6 +273,7 @@ describe('Memory', () => {
       agentId,
       'Always run tests before deploying',
       null,
+      null,
       10,
       ownerId,
     );
@@ -276,6 +286,7 @@ describe('Memory', () => {
       agentId,
       'The database connection pool should be sized at 10',
       ['config'],
+      null,
       'alice',
       ownerId,
     );
@@ -287,6 +298,7 @@ describe('Memory', () => {
       agentId,
       'The database connection pool should be sized at 10 connections',
       ['config'],
+      null,
       'alice',
       ownerId,
     );

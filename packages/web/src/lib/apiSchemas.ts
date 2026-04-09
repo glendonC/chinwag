@@ -50,12 +50,23 @@ const memorySchema = z.object({
   id: z.string(),
   text: z.string(),
   tags: z.array(z.string()).default([]),
+  categories: z.array(z.string()).default([]),
   handle: z.string().nullable().optional(),
   host_tool: z.string().nullable().optional(),
   agent_surface: z.string().nullable().optional(),
   agent_model: z.string().nullable().optional(),
+  session_id: z.string().nullable().optional(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
+  last_accessed_at: z.string().nullable().optional(),
+});
+
+const memoryCategorySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().default(''),
+  color: z.string().nullable().optional(),
+  created_at: z.string().optional(),
 });
 
 const lockSchema = z.object({
@@ -172,6 +183,7 @@ export type SurfaceMetric = z.infer<typeof surfaceMetricSchema>;
 export type ModelMetric = z.infer<typeof modelMetricSchema>;
 export type Member = z.infer<typeof memberSchema>;
 export type Memory = z.infer<typeof memorySchema>;
+export type MemoryCategory = z.infer<typeof memoryCategorySchema>;
 export type Lock = z.infer<typeof lockSchema>;
 export type Message = z.infer<typeof messageSchema>;
 export type Session = z.infer<typeof sessionSchema>;
@@ -197,6 +209,7 @@ export const teamContextSchema = z
   .object({
     members: z.array(memberSchema).catch([]),
     memories: z.array(memorySchema).catch([]),
+    memory_categories: z.array(memoryCategorySchema).catch([]),
     locks: z.array(lockSchema).catch([]),
     messages: z.array(messageSchema).catch([]),
     recentSessions: z.array(sessionSchema).catch([]),
@@ -299,6 +312,9 @@ const dailyTrendSchema = z.object({
   lines_added: z.number().default(0),
   lines_removed: z.number().default(0),
   avg_duration_min: z.number().default(0),
+  completed: z.number().default(0),
+  abandoned: z.number().default(0),
+  failed: z.number().default(0),
 });
 
 const outcomeCountSchema = z.object({
@@ -389,9 +405,16 @@ const modelOutcomeSchema = z.object({
   total_edits: z.number().default(0),
 });
 
+const toolOutcomeSchema = z.object({
+  host_tool: z.string(),
+  outcome: z.string(),
+  count: z.number().default(0),
+});
+
 export const userAnalyticsSchema = teamAnalyticsSchema.extend({
   hourly_distribution: z.array(hourlyBucketSchema).default([]),
   model_outcomes: z.array(modelOutcomeSchema).default([]),
+  tool_outcomes: z.array(toolOutcomeSchema).default([]),
   teams_included: z.number().default(0),
   degraded: z.boolean().default(false),
 });
@@ -406,6 +429,7 @@ export function createEmptyUserAnalytics(): UserAnalytics {
     period_days: 30,
     hourly_distribution: [],
     model_outcomes: [],
+    tool_outcomes: [],
     teams_included: 0,
     degraded: false,
   };
@@ -415,6 +439,7 @@ export function createEmptyTeamContext(): TeamContext {
   return {
     members: [],
     memories: [],
+    memory_categories: [],
     locks: [],
     messages: [],
     recentSessions: [],

@@ -291,6 +291,7 @@ function applyMemory(ctx: TeamContext, event: MemoryDeltaEvent, maxMemories: num
     id: event.id || `memory:${Date.now()}`,
     text: event.text,
     tags: event.tags || [],
+    categories: event.categories || [],
     handle: event.handle,
     host_tool: event.host_tool,
     created_at: event.created_at || new Date().toISOString(),

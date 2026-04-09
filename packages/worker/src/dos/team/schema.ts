@@ -307,7 +307,41 @@ const migrations: Migration[] = [
     },
   },
   {
-    name: '006_edit_log',
+    name: '006_memory_categories',
+    up(sql) {
+      // Per-project memory categories — admin-defined, agent-assigned on save.
+      // Each category has a precomputed embedding (bge-small-en-v1.5, 384 dims)
+      // for future semantic matching and dedup validation.
+      sql.exec(`
+        CREATE TABLE IF NOT EXISTS memory_categories (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL UNIQUE,
+          description TEXT NOT NULL DEFAULT '',
+          color TEXT DEFAULT NULL,
+          embedding BLOB DEFAULT NULL,
+          created_at TEXT DEFAULT (datetime('now'))
+        )
+      `);
+
+      // Add categories column to memories table for agent-assigned classification
+      addColumnIfMissing(sql, 'memories', "categories TEXT DEFAULT '[]'");
+
+      // Track tag frequency for tag-to-category promotion suggestions
+      sql.exec(`
+        CREATE TABLE IF NOT EXISTS tag_stats (
+          tag TEXT PRIMARY KEY,
+          use_count INTEGER DEFAULT 1,
+          first_seen TEXT DEFAULT (datetime('now')),
+          last_seen TEXT DEFAULT (datetime('now'))
+        )
+      `);
+
+      // last_accessed_at for memory decay/lifecycle (throttled updates)
+      addColumnIfMissing(sql, 'memories', 'last_accessed_at TEXT DEFAULT NULL');
+    },
+  },
+  {
+    name: '007_edit_log',
     up(sql) {
       sql.exec(`
         CREATE TABLE IF NOT EXISTS edits (
@@ -325,6 +359,68 @@ const migrations: Migration[] = [
       sql.exec('CREATE INDEX IF NOT EXISTS idx_edits_session ON edits(session_id)');
       sql.exec('CREATE INDEX IF NOT EXISTS idx_edits_file ON edits(file_path, created_at)');
       sql.exec('CREATE INDEX IF NOT EXISTS idx_edits_created ON edits(created_at)');
+    },
+  },
+  {
+    name: '008_memory_session_and_filters',
+    up(sql) {
+      // Link memories to the session that created them
+      addColumnIfMissing(sql, 'memories', 'session_id TEXT DEFAULT NULL');
+      // Indexes for richer query filters (agent_id, handle already used in WHERE)
+      sql.exec('CREATE INDEX IF NOT EXISTS idx_memories_agent ON memories(agent_id)');
+      sql.exec('CREATE INDEX IF NOT EXISTS idx_memories_handle ON memories(handle)');
+      sql.exec('CREATE INDEX IF NOT EXISTS idx_memories_session ON memories(session_id)');
+    },
+  },
+  {
+    name: '009_memory_fts5_dedup_embedding',
+    up(sql) {
+      // Hash for exact dedup (SHA-256 of normalized text)
+      addColumnIfMissing(sql, 'memories', 'text_hash TEXT DEFAULT NULL');
+
+      // Embedding for near-dedup and future semantic search (bge-small-en-v1.5, 384 dims)
+      addColumnIfMissing(sql, 'memories', 'embedding BLOB DEFAULT NULL');
+
+      // Unique index on text_hash — fast exact dedup lookup
+      sql.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_text_hash ON memories(text_hash)');
+
+      // FTS5 virtual table for full-text search with BM25 ranking.
+      // External content table pointing at memories — FTS5 doesn't store data,
+      // it indexes the memories table and uses triggers to stay in sync.
+      // tokenize: unicode61 with underscores and dots as token characters
+      // so snake_case and dotted.paths are indexed as single tokens.
+      sql.exec(`
+        CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+          text,
+          tags,
+          content=memories,
+          content_rowid=rowid,
+          tokenize='unicode61 tokenchars _.'
+        )
+      `);
+
+      // Sync triggers — keep FTS5 index in sync with memories table
+      sql.exec(`
+        CREATE TRIGGER IF NOT EXISTS memories_fts_ai AFTER INSERT ON memories BEGIN
+          INSERT INTO memories_fts(rowid, text, tags) VALUES (new.rowid, new.text, new.tags);
+        END
+      `);
+      sql.exec(`
+        CREATE TRIGGER IF NOT EXISTS memories_fts_ad AFTER DELETE ON memories BEGIN
+          INSERT INTO memories_fts(memories_fts, rowid, text, tags) VALUES ('delete', old.rowid, old.text, old.tags);
+        END
+      `);
+      sql.exec(`
+        CREATE TRIGGER IF NOT EXISTS memories_fts_au AFTER UPDATE ON memories BEGIN
+          INSERT INTO memories_fts(memories_fts, rowid, text, tags) VALUES ('delete', old.rowid, old.text, old.tags);
+          INSERT INTO memories_fts(rowid, text, tags) VALUES (new.rowid, new.text, new.tags);
+        END
+      `);
+
+      // Backfill FTS5 index from existing memories
+      sql.exec(
+        `INSERT INTO memories_fts(rowid, text, tags) SELECT rowid, text, tags FROM memories`,
+      );
     },
   },
 ];

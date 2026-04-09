@@ -158,7 +158,7 @@ describe('teamHandlers', () => {
 
   describe('searchMemories', () => {
     it('calls GET /teams/:id/memory with query params', async () => {
-      await team.searchMemories('t_abc', 'redis', ['config'], 5);
+      await team.searchMemories('t_abc', 'redis', ['config'], undefined, 5);
       expect(client.get).toHaveBeenCalledWith('/teams/t_abc/memory?q=redis&tags=config&limit=5');
     });
 
@@ -168,7 +168,7 @@ describe('teamHandlers', () => {
     });
 
     it('handles multiple tags', async () => {
-      await team.searchMemories('t_abc', 'test', ['config', 'redis'], 10);
+      await team.searchMemories('t_abc', 'test', ['config', 'redis'], undefined, 10);
       expect(client.get).toHaveBeenCalledWith(
         '/teams/t_abc/memory?q=test&tags=config%2Credis&limit=10',
       );

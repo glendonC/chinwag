@@ -1,11 +1,11 @@
 .row {
   display: flex;
   gap: 0;
-  padding: 20px 0;
+  padding: 16px 0;
 }
 
 .row + .row {
-  padding-top: 21px;
+  padding-top: 17px;
   background-image: linear-gradient(var(--hairline), var(--hairline));
   background-size: calc(100% - 18px) 1px;
   background-repeat: no-repeat;
@@ -26,31 +26,49 @@
   min-width: 0;
 }
 
-/* ── Read mode ── */
+/* ── Primary (always visible, clickable) ── */
+
+.primaryBtn {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.primaryBtn:hover .text {
+  color: var(--accent);
+}
 
 .text {
   font-size: var(--text-14);
   font-weight: 400;
   color: var(--ink);
   line-height: 1.55;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+  transition: color var(--motion-fast) ease;
 }
 
-.footer {
+.meta {
   display: flex;
   align-items: center;
-  gap: 0;
-  font-size: var(--text-11);
-  color: var(--muted);
+  justify-content: space-between;
+  gap: var(--space-md);
   flex-wrap: wrap;
-  row-gap: var(--space-xs);
+  row-gap: 4px;
 }
 
 .source {
   display: flex;
   align-items: center;
   gap: 5px;
-  flex: 1;
+  font-size: var(--text-11);
+  color: var(--muted);
   min-width: 0;
 }
 
@@ -60,172 +78,139 @@
 }
 
 .sep {
-  margin: 0 5px;
+  margin: 0 3px;
   opacity: 0.3;
 }
 
-.modelLabel {
-  font-family: var(--mono);
-  font-size: var(--text-10);
-  letter-spacing: 0.02em;
+.time {
+  white-space: nowrap;
 }
 
-.tag {
-  display: inline-block;
+/* Category pills — inline, max 2 + overflow */
+.cats {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.catPill {
+  display: inline-flex;
   font-family: var(--mono);
   font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: var(--tracking-action);
-  padding: 1px 6px;
+  padding: 2px 7px;
   border-radius: 3px;
-  background: var(--ghost);
-  color: var(--soft);
-  margin-right: var(--space-xs);
+  border: 1px solid var(--hairline);
+  color: var(--accent);
+  background: transparent;
 }
 
-.actions {
+.catOverflow {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--soft);
+  letter-spacing: 0.02em;
+}
+
+/* ── Detail (expanded, one click away) ── */
+
+.detail {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ghost);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detailRow {
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: var(--text-11);
+  color: var(--muted);
+}
+
+.detailLabel {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-action);
+  color: var(--soft);
   flex-shrink: 0;
 }
 
-.btnText {
-  display: inline-flex;
+.detailValue {
+  font-size: var(--text-11);
+  color: var(--muted);
+}
+
+.detailPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Tags — ghost/outlined, visually subordinate to categories */
+.tag {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-action);
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: var(--ghost);
+  color: var(--soft);
+}
+
+/* ── Detail actions ── */
+
+.detailActions {
+  display: flex;
   align-items: center;
-  background: none;
-  border: none;
-  padding: 2px 6px;
+  gap: var(--space-sm);
+  margin-top: 4px;
+}
+
+.detailError {
+  font-size: var(--text-11);
+  color: var(--danger);
+}
+
+.btnAction {
   font-family: var(--mono);
   font-size: var(--text-10);
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 3px;
+  border: none;
+  background: none;
   color: var(--muted);
   cursor: pointer;
-  border-radius: 3px;
   transition: color var(--motion-fast) ease;
 }
 
-.btnText:hover {
-  color: var(--ink);
-}
-
-.btnDelete {
-  composes: btnText;
-}
-
-.btnDelete:hover {
+.btnAction:hover {
   color: var(--danger);
 }
 
-.confirmLabel {
-  color: var(--danger);
-}
-
-.actionSep {
-  margin: 0 1px;
-  opacity: 0.3;
-  font-size: var(--text-10);
-  color: var(--muted);
-}
-
-/* ── Edit mode ── */
-
-.editForm {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-
-.editTagsInput {
-  font-family: var(--mono);
-  font-size: var(--text-11);
-  padding: 6px 10px;
-  border: none;
-  border-radius: var(--radius-xs);
-  background: var(--ghost);
-  color: var(--ink);
-  outline: none;
-  width: 100%;
-  max-width: 320px;
-}
-
-.editTagsInput:focus {
-  box-shadow: 0 0 0 2px var(--accent);
-}
-
-.editTextarea {
-  font-family: var(--sans);
-  font-size: var(--text-14);
-  color: var(--ink);
-  background: var(--ghost);
-  border: none;
-  border-radius: var(--radius-md);
-  padding: 10px 12px;
-  resize: vertical;
-  outline: none;
-  line-height: 1.5;
-}
-
-.editTextarea:focus {
-  box-shadow: 0 0 0 2px var(--accent);
-}
-
-.editError {
-  font-size: var(--text-11);
-  color: var(--danger);
-}
-
-.editFooter {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-}
-
-.editAuthor {
-  font-size: var(--text-11);
-  color: var(--muted);
-}
-
-.editActions {
-  display: flex;
-  gap: var(--space-xs);
-}
-
-.btnSave,
-.btnCancel {
-  font-family: var(--sans);
-  font-size: var(--text-12);
-  font-weight: 400;
-  padding: 6px 14px;
-  border-radius: var(--radius-pill);
-  cursor: pointer;
-  border: none;
-}
-
-.btnSave {
-  background: var(--accent);
-  color: #fff;
-}
-
-.btnSave:disabled {
+.btnAction:disabled {
   opacity: 0.4;
   cursor: default;
 }
 
-.btnCancel {
-  background: none;
-  color: var(--muted);
-}
-
-.btnCancel:hover {
-  color: var(--ink);
-}
-
-.btnCancel:disabled {
-  opacity: 0.4;
-  cursor: default;
+.btnDanger {
+  composes: btnAction;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
 }

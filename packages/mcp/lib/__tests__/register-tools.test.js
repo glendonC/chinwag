@@ -53,6 +53,7 @@ function createFakeTeam() {
     claimFiles: vi.fn().mockResolvedValue({ claimed: [], blocked: [] }),
     releaseFiles: vi.fn().mockResolvedValue({ ok: true }),
     sendMessage: vi.fn().mockResolvedValue({ ok: true }),
+    deleteMemoriesBatch: vi.fn().mockResolvedValue({ ok: true, deleted: 0 }),
   };
 }
 
@@ -115,8 +116,8 @@ describe('registerTools', () => {
     registerTools(server, { team, state, profile, integrationDoctor });
   });
 
-  it('registers all 14 tools', () => {
-    expect(server._tools.size).toBe(14);
+  it('registers all 15 tools', () => {
+    expect(server._tools.size).toBe(15);
     const expected = [
       'chinwag_scan_integrations',
       'chinwag_configure_integration',
@@ -561,7 +562,14 @@ describe('registerTools', () => {
         tags: ['config'],
         limit: 5,
       });
-      expect(team.searchMemories).toHaveBeenCalledWith('t_test123', 'redis', ['config'], 5);
+      expect(team.searchMemories).toHaveBeenCalledWith(
+        't_test123',
+        'redis',
+        ['config'],
+        undefined,
+        5,
+        expect.any(Object),
+      );
     });
 
     it('works with no parameters (empty search)', async () => {
@@ -572,6 +580,8 @@ describe('registerTools', () => {
         undefined,
         undefined,
         undefined,
+        undefined,
+        expect.any(Object),
       );
     });
   });

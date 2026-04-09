@@ -209,6 +209,30 @@
   color: var(--soft);
 }
 
+.categoryPill {
+  border: 1px solid var(--hairline);
+  background: transparent;
+  font-weight: 600;
+}
+
+.categoryPill:hover {
+  border-color: var(--accent);
+}
+
+.pillCount {
+  margin-left: 4px;
+  font-size: 9px;
+  font-weight: 400;
+  opacity: 0.6;
+}
+
+.categoryForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
 /* ── Overview: health + team ── */
 
 .issueList {

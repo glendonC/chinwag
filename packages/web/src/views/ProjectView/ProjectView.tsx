@@ -68,14 +68,6 @@ export default function ProjectView(_props: Props) {
   const { analytics, isLoading: analyticsLoading } = useTeamAnalytics(activeTeamId, 30);
   const { editHistory } = useEditHistory(activeTeamId, 7);
 
-  const handleUpdateMemory = useCallback(
-    async (id: string, text?: string, tags?: string[]) => {
-      if (!activeTeamId) return;
-      await teamActions.updateMemory(activeTeamId, id, text, tags);
-    },
-    [activeTeamId],
-  );
-
   const handleDeleteMemory = useCallback(
     async (id: string) => {
       if (!activeTeamId) return;
@@ -257,7 +249,6 @@ export default function ProjectView(_props: Props) {
             <ProjectMemoryTab
               memories={memories}
               memoryBreakdown={memoryBreakdown}
-              onUpdateMemory={handleUpdateMemory}
               onDeleteMemory={handleDeleteMemory}
             />
           </div>

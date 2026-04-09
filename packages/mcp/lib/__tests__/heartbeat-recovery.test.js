@@ -9,7 +9,11 @@ vi.mock('../context.js', () => ({
   clearContextCache: vi.fn(),
 }));
 
-import { teamPreamble, refreshContext, clearContextCache } from '../context.js';
+import {
+  teamPreamble,
+  refreshContext,
+  clearContextCache as _clearContextCache,
+} from '../context.js';
 
 // --- Fake MCP server that captures tool registrations ---
 
@@ -50,6 +54,7 @@ function createFakeTeam() {
     releaseFiles: vi.fn().mockResolvedValue({ ok: true }),
     sendMessage: vi.fn().mockResolvedValue({ ok: true }),
     reportModel: vi.fn().mockResolvedValue({ ok: true }),
+    deleteMemoriesBatch: vi.fn().mockResolvedValue({ ok: true, deleted: 0 }),
   };
 }
 

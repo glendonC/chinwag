@@ -60,7 +60,14 @@ describe('Cleanup — data integrity', () => {
   it('setup: join, add data', async () => {
     await team().join(agentId, ownerId, 'alice', 'cursor');
     await team().updateActivity(agentId, ['src/keep.js'], 'Active work', ownerId);
-    await team().saveMemory(agentId, 'Cleanup data test memory', ['config'], 'alice', ownerId);
+    await team().saveMemory(
+      agentId,
+      'Cleanup data test memory',
+      ['config'],
+      null,
+      'alice',
+      ownerId,
+    );
     await team().startSession(agentId, 'alice', 'react', ownerId);
     await team().claimFiles(agentId, ['src/locked.js'], 'alice', 'cursor', ownerId);
   });

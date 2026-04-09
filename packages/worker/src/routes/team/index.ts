@@ -24,7 +24,16 @@ export {
   handleTeamSearchMemory,
   handleTeamUpdateMemory,
   handleTeamDeleteMemory,
+  handleTeamDeleteMemoryBatch,
 } from './memory.js';
+export {
+  handleTeamCreateCategory,
+  handleTeamListCategories,
+  handleTeamCategoryNames,
+  handleTeamUpdateCategory,
+  handleTeamDeleteCategory,
+  handleTeamPromotableTags,
+} from './categories.js';
 export { handleTeamClaimFiles, handleTeamReleaseFiles, handleTeamGetLocks } from './locks.js';
 export { handleTeamSendMessage, handleTeamGetMessages } from './messages.js';
 export { handleTeamSubmitCommand, handleTeamGetCommands } from './commands.js';
