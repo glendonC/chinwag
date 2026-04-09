@@ -67,6 +67,7 @@ export const RATE_LIMIT_EDITS = 1000;
 export const RATE_LIMIT_TEAMS = 5;
 export const RATE_LIMIT_ACCOUNTS_PER_IP = 3;
 export const RATE_LIMIT_EVALUATIONS = 5;
+export const RATE_LIMIT_SUGGESTIONS = 5;
 export const RATE_LIMIT_WS_TICKETS = 100;
 
 // --- Rate limits (per IP per 24h window, public/unauthenticated endpoints) ---

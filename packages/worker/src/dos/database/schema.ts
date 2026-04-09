@@ -156,6 +156,26 @@ const migrations: Migration[] = [
       );
     },
   },
+  {
+    name: '004_tool_suggestions',
+    up(sql) {
+      sql.exec(`
+        CREATE TABLE IF NOT EXISTS tool_suggestions (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          url TEXT,
+          note TEXT,
+          suggested_by TEXT NOT NULL,
+          suggested_by_handle TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          reject_reason TEXT,
+          reviewed_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_suggestions_status ON tool_suggestions(status);
+      `);
+    },
+  },
 ];
 
 export function ensureSchema(sql: SqlStorage, transact: <T>(fn: () => T) => T): void {
