@@ -118,9 +118,9 @@ describe('writeHooksConfig', () => {
     const filePath = path.join(tmpDir, '.claude', 'settings.json');
     const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 
-    // Each event should have exactly one chinwag hook entry
+    // Each event should have chinwag hook entries
     expect(content.hooks.PreToolUse).toHaveLength(1);
-    expect(content.hooks.PostToolUse).toHaveLength(1);
+    expect(content.hooks.PostToolUse).toHaveLength(2); // Edit|Write + Read
     expect(content.hooks.SessionStart).toHaveLength(1);
   });
 

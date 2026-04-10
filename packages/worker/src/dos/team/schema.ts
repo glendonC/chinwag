@@ -541,6 +541,19 @@ const migrations: Migration[] = [
       }
     },
   },
+  {
+    name: '015_tool_calls_enrich',
+    up(sql) {
+      try {
+        sql.exec('ALTER TABLE tool_calls ADD COLUMN is_error INTEGER DEFAULT 0');
+        sql.exec('ALTER TABLE tool_calls ADD COLUMN error_preview TEXT DEFAULT NULL');
+        sql.exec('ALTER TABLE tool_calls ADD COLUMN input_preview TEXT DEFAULT NULL');
+        sql.exec('ALTER TABLE tool_calls ADD COLUMN duration_ms INTEGER DEFAULT NULL');
+      } catch (error) {
+        logMigrationError('015_tool_calls_enrich', error);
+      }
+    },
+  },
 ];
 
 export function ensureSchema(

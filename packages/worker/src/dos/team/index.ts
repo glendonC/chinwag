@@ -59,6 +59,7 @@ import {
   reportOutcome as reportOutcomeFn,
   recordTokenUsage as recordTokenUsageFn,
   recordToolCalls as recordToolCallsFn,
+  type ToolCallInput,
   getSessionHistory,
   getSessionsInRange as getSessionsInRangeFn,
   getEditHistory as getEditHistoryFn,
@@ -120,9 +121,10 @@ export class TeamDO extends DurableObject<Env> {
   }
 
   // -- WebSocket support (Hibernation API) --
-  // Two roles: 'agent' (MCP servers -- connection IS presence) and
+  // Three roles: 'agent' (MCP servers -- connection IS presence),
+  // 'daemon' (background services -- persistent, no user interaction), and
   // 'watcher' (dashboards -- observe only, no presence signal).
-  // Tags: [resolvedAgentId, 'role:agent'] or [resolvedAgentId, 'role:watcher']
+  // Tags: [resolvedAgentId, 'role:agent|daemon|watcher']
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
@@ -831,7 +833,7 @@ export class TeamDO extends DurableObject<Env> {
     sessionId: string,
     handle: string,
     hostTool: string,
-    calls: Array<{ tool: string; at: number }>,
+    calls: ToolCallInput[],
     ownerId: string | null = null,
   ): Promise<{ ok: true; recorded: number } | DOError> {
     return this.#withMember(agentId, ownerId, (resolved) =>

@@ -306,13 +306,22 @@ export function recordTokenUsage(
 
 const MAX_TOOL_CALLS_BATCH = 500;
 
+export interface ToolCallInput {
+  tool: string;
+  at: number;
+  is_error?: boolean;
+  error_preview?: string;
+  input_preview?: string;
+  duration_ms?: number;
+}
+
 export function recordToolCalls(
   sql: SqlStorage,
   resolvedAgentId: string,
   sessionId: string,
   handle: string,
   hostTool: string,
-  calls: Array<{ tool: string; at: number }>,
+  calls: ToolCallInput[],
 ): { ok: true; recorded: number } {
   const capped = calls.slice(0, MAX_TOOL_CALLS_BATCH);
   let recorded = 0;
@@ -320,14 +329,18 @@ export function recordToolCalls(
     if (typeof call.tool !== 'string' || !call.tool) continue;
     const calledAt = new Date(call.at).toISOString().replace('T', ' ').replace('Z', '');
     sql.exec(
-      `INSERT INTO tool_calls (session_id, agent_id, handle, host_tool, tool, called_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO tool_calls (session_id, agent_id, handle, host_tool, tool, called_at, is_error, error_preview, input_preview, duration_ms)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       sessionId,
       resolvedAgentId,
       handle,
       hostTool,
       call.tool.slice(0, 100),
       calledAt,
+      call.is_error ? 1 : 0,
+      call.error_preview ? String(call.error_preview).slice(0, 200) : null,
+      call.input_preview ? String(call.input_preview).slice(0, 200) : null,
+      typeof call.duration_ms === 'number' ? Math.max(0, Math.round(call.duration_ms)) : null,
     );
     recorded++;
   }

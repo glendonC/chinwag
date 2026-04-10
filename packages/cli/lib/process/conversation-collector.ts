@@ -35,8 +35,18 @@ export interface TokenUsage {
   output_tokens: number;
 }
 
+export interface ToolCallEvent {
+  tool: string;
+  at: number;
+  is_error?: boolean;
+  error_preview?: string;
+  input_preview?: string;
+  duration_ms?: number;
+}
+
 type ConversationParser = (cwd: string, startedAt: number) => Promise<ConversationEvent[]>;
 type TokenParser = (cwd: string, startedAt: number) => Promise<TokenUsage | null>;
+type ToolCallParser = (cwd: string, startedAt: number) => Promise<ToolCallEvent[]>;
 
 // -- Parser Registries --
 // Adding a new tool = one parser function + one entry here + dataCapabilities flag in tool-registry.
@@ -48,6 +58,10 @@ const CONVERSATION_PARSERS: Record<string, ConversationParser> = {
 
 const TOKEN_PARSERS: Record<string, TokenParser> = {
   'claude-code': extractClaudeCodeTokenUsage,
+};
+
+const TOOL_CALL_PARSERS: Record<string, ToolCallParser> = {
+  'claude-code': parseClaudeCodeToolCalls,
 };
 
 // -- Public API --
@@ -145,88 +159,126 @@ export async function collectTokenUsage(
   }
 }
 
-// -- Claude Code parser --
+/**
+ * Collect and upload tool call events from a completed managed session.
+ * Extracts per-tool-call data (name, timing, errors) from structured logs.
+ */
+export async function collectToolCalls(
+  proc: ManagedProcess,
+  config: ChinwagConfig | null,
+  teamId: string | null,
+  sessionId: string | null,
+): Promise<void> {
+  if (!config?.token || !teamId || !sessionId) return;
+
+  const capabilities = getDataCapabilities(proc.toolId);
+  if (!capabilities.toolCallLogs) return;
+
+  const parser = TOOL_CALL_PARSERS[proc.toolId];
+  if (!parser) {
+    log.warn(`${proc.toolId} declares toolCallLogs capability but no parser is registered`);
+    return;
+  }
+
+  try {
+    const calls = await parser(proc.cwd, proc.startedAt);
+    if (calls.length === 0) return;
+
+    const client = api(config, { agentId: proc.agentId });
+    await client.post(`/teams/${teamId}/tool-calls`, {
+      session_id: sessionId,
+      calls,
+    });
+
+    const errors = calls.filter((c) => c.is_error).length;
+    log.info(
+      `uploaded ${calls.length} tool call events for session ${sessionId}` +
+        (errors > 0 ? ` (${errors} errors)` : ''),
+    );
+  } catch (err) {
+    log.warn(`tool call collection failed: ${err}`);
+  }
+}
+
+// -- Claude Code shared helpers --
 
 /**
- * Parse Claude Code JSONL conversation files.
- * Claude Code stores conversations in ~/.claude/projects/<project-hash>/
+ * Find the newest JSONL file for a Claude Code project.
+ * Claude Code stores sessions in ~/.claude/projects/<project-hash>/
  * where project-hash is the CWD path with / replaced by -.
- * We scope to the matching project directory to avoid picking up
- * conversation files from unrelated projects.
  */
-async function parseClaudeCodeConversation(
-  cwd: string,
-  startedAt: number,
-): Promise<ConversationEvent[]> {
+async function findNewestClaudeCodeJsonl(cwd: string, startedAt: number): Promise<string | null> {
   const projectsDir = join(homedir(), '.claude', 'projects');
 
   try {
     await stat(projectsDir);
   } catch {
-    return [];
+    return null;
   }
 
-  // Claude Code hashes project paths as: /Users/foo/bar → -Users-foo-bar
   const projectHash = cwd.replace(/\//g, '-');
 
-  try {
-    // First try the exact project directory
-    const candidates: string[] = [];
-    const projectDirs = await readdir(projectsDir);
+  const candidates: string[] = [];
+  const projectDirs = await readdir(projectsDir);
 
-    for (const dir of projectDirs) {
-      // Match the project hash — Claude Code uses the full path with - separators
-      if (dir === projectHash || dir.endsWith(projectHash)) {
-        candidates.push(dir);
-      }
+  for (const dir of projectDirs) {
+    if (dir === projectHash || dir.endsWith(projectHash)) {
+      candidates.push(dir);
     }
+  }
 
-    // If no exact match, fall back to all directories (but warn)
-    const dirsToSearch = candidates.length > 0 ? candidates : projectDirs;
-    if (candidates.length === 0) {
-      log.warn(`no exact project match for ${projectHash}, searching all projects`);
-    }
+  const dirsToSearch = candidates.length > 0 ? candidates : projectDirs;
+  if (candidates.length === 0) {
+    log.warn(`no exact project match for ${projectHash}, searching all projects`);
+  }
 
-    let newestFile: string | null = null;
-    let newestMtime = 0;
+  let newestFile: string | null = null;
+  let newestMtime = 0;
 
-    for (const dir of dirsToSearch) {
-      const dirPath = join(projectsDir, dir);
-      const dirStat = await stat(dirPath).catch(() => null);
-      if (!dirStat?.isDirectory()) continue;
+  for (const dir of dirsToSearch) {
+    const dirPath = join(projectsDir, dir);
+    const dirStat = await stat(dirPath).catch(() => null);
+    if (!dirStat?.isDirectory()) continue;
 
-      // Search subdirectories (session UUIDs) within the project dir
-      const entries = await readdir(dirPath).catch(() => []);
-      for (const entry of entries) {
-        const entryPath = join(dirPath, entry);
-        const entryStat = await stat(entryPath).catch(() => null);
+    const entries = await readdir(dirPath).catch(() => []);
+    for (const entry of entries) {
+      const entryPath = join(dirPath, entry);
+      const entryStat = await stat(entryPath).catch(() => null);
 
-        if (entryStat?.isDirectory()) {
-          // Session subdirectory — look for JSONL files inside
-          const subFiles = await readdir(entryPath).catch(() => []);
-          for (const file of subFiles) {
-            if (!file.endsWith('.jsonl')) continue;
-            const filePath = join(entryPath, file);
-            const fileStat = await stat(filePath).catch(() => null);
-            if (!fileStat) continue;
-            if (fileStat.mtimeMs > startedAt && fileStat.mtimeMs > newestMtime) {
-              newestMtime = fileStat.mtimeMs;
-              newestFile = filePath;
-            }
+      if (entryStat?.isDirectory()) {
+        const subFiles = await readdir(entryPath).catch(() => []);
+        for (const file of subFiles) {
+          if (!file.endsWith('.jsonl')) continue;
+          const filePath = join(entryPath, file);
+          const fileStat = await stat(filePath).catch(() => null);
+          if (!fileStat) continue;
+          if (fileStat.mtimeMs > startedAt && fileStat.mtimeMs > newestMtime) {
+            newestMtime = fileStat.mtimeMs;
+            newestFile = filePath;
           }
-        } else if (entry.endsWith('.jsonl') && entryStat) {
-          // JSONL directly in project dir
-          if (entryStat.mtimeMs > startedAt && entryStat.mtimeMs > newestMtime) {
-            newestMtime = entryStat.mtimeMs;
-            newestFile = entryPath;
-          }
+        }
+      } else if (entry.endsWith('.jsonl') && entryStat) {
+        if (entryStat.mtimeMs > startedAt && entryStat.mtimeMs > newestMtime) {
+          newestMtime = entryStat.mtimeMs;
+          newestFile = entryPath;
         }
       }
     }
+  }
 
-    if (!newestFile) return [];
+  return newestFile;
+}
 
-    const content = await readFile(newestFile, 'utf-8');
+// -- Claude Code conversation parser --
+
+async function parseClaudeCodeConversation(
+  cwd: string,
+  startedAt: number,
+): Promise<ConversationEvent[]> {
+  try {
+    const file = await findNewestClaudeCodeJsonl(cwd, startedAt);
+    if (!file) return [];
+    const content = await readFile(file, 'utf-8');
     return parseClaudeCodeJsonl(content);
   } catch (err) {
     log.warn(`failed to read Claude Code conversations: ${err}`);
@@ -383,71 +435,16 @@ function parseAiderMarkdown(content: string): ConversationEvent[] {
 
 /**
  * Extract token usage from Claude Code JSONL conversation files.
- * Claude Code includes `usage` objects on assistant messages with
- * input_tokens and output_tokens fields.
- * Uses the same project directory discovery as parseClaudeCodeConversation.
  */
 async function extractClaudeCodeTokenUsage(
   cwd: string,
   startedAt: number,
 ): Promise<TokenUsage | null> {
-  const projectsDir = join(homedir(), '.claude', 'projects');
-
   try {
-    await stat(projectsDir);
-  } catch {
-    return null;
-  }
+    const file = await findNewestClaudeCodeJsonl(cwd, startedAt);
+    if (!file) return null;
 
-  const projectHash = cwd.replace(/\//g, '-');
-
-  try {
-    const projectDirs = await readdir(projectsDir);
-    const candidates: string[] = [];
-
-    for (const dir of projectDirs) {
-      if (dir === projectHash || dir.endsWith(projectHash)) {
-        candidates.push(dir);
-      }
-    }
-
-    const dirsToSearch = candidates.length > 0 ? candidates : projectDirs;
-    let newestFile: string | null = null;
-    let newestMtime = 0;
-
-    for (const dir of dirsToSearch) {
-      const dirPath = join(projectsDir, dir);
-      const dirStat = await stat(dirPath).catch(() => null);
-      if (!dirStat?.isDirectory()) continue;
-
-      const entries = await readdir(dirPath).catch(() => []);
-      for (const entry of entries) {
-        const entryPath = join(dirPath, entry);
-        const entryStat = await stat(entryPath).catch(() => null);
-
-        if (entryStat?.isDirectory()) {
-          const subFiles = await readdir(entryPath).catch(() => []);
-          for (const file of subFiles) {
-            if (!file.endsWith('.jsonl')) continue;
-            const filePath = join(entryPath, file);
-            const fileStat = await stat(filePath).catch(() => null);
-            if (fileStat && fileStat.mtimeMs > startedAt && fileStat.mtimeMs > newestMtime) {
-              newestMtime = fileStat.mtimeMs;
-              newestFile = filePath;
-            }
-          }
-        } else if (entry.endsWith('.jsonl') && entryStat) {
-          if (entryStat.mtimeMs > startedAt && entryStat.mtimeMs > newestMtime) {
-            newestMtime = entryStat.mtimeMs;
-            newestFile = entryPath;
-          }
-        }
-      }
-    }
-
-    if (!newestFile) return null;
-
-    const content = await readFile(newestFile, 'utf-8');
+    const content = await readFile(file, 'utf-8');
     let totalInput = 0;
     let totalOutput = 0;
 
@@ -471,5 +468,86 @@ async function extractClaudeCodeTokenUsage(
   } catch (err) {
     log.warn(`failed to extract Claude Code token usage: ${err}`);
     return null;
+  }
+}
+
+// -- Claude Code tool call parser --
+
+/**
+ * Extract per-tool-call events from Claude Code JSONL files.
+ * Each tool_use content block on assistant messages is paired with
+ * its matching tool_result on the subsequent user message.
+ */
+async function parseClaudeCodeToolCalls(cwd: string, startedAt: number): Promise<ToolCallEvent[]> {
+  try {
+    const file = await findNewestClaudeCodeJsonl(cwd, startedAt);
+    if (!file) return [];
+
+    const content = await readFile(file, 'utf-8');
+    const lines = content.split('\n').filter(Boolean);
+
+    // First pass: collect tool_use requests and tool_result responses
+    const requests = new Map<string, { name: string; timestamp: string; inputPreview: string }>();
+    const results = new Map<
+      string,
+      { timestamp: string; isError: boolean; errorPreview: string | null }
+    >();
+
+    for (const line of lines) {
+      try {
+        const entry = JSON.parse(line);
+        const contentBlocks = Array.isArray(entry.content)
+          ? entry.content
+          : entry.message?.content && Array.isArray(entry.message.content)
+            ? entry.message.content
+            : [];
+
+        for (const block of contentBlocks) {
+          if (block.type === 'tool_use' && block.id && block.name) {
+            const input = block.input || {};
+            const preview =
+              input.file_path || input.command?.slice(0, 200) || input.pattern || input.query || '';
+            requests.set(block.id, {
+              name: block.name,
+              timestamp: entry.timestamp || '',
+              inputPreview: String(preview).slice(0, 200),
+            });
+          } else if (block.type === 'tool_result' && block.tool_use_id) {
+            const isError = block.is_error === true;
+            const errorContent = isError ? String(block.content || '').slice(0, 200) : null;
+            results.set(block.tool_use_id, {
+              timestamp: entry.timestamp || '',
+              isError,
+              errorPreview: errorContent,
+            });
+          }
+        }
+      } catch {
+        // Skip malformed lines
+      }
+    }
+
+    // Pair requests with results
+    const events: ToolCallEvent[] = [];
+    for (const [id, req] of requests) {
+      const res = results.get(id);
+      const requestedAt = req.timestamp ? new Date(req.timestamp).getTime() : 0;
+      const completedAt = res?.timestamp ? new Date(res.timestamp).getTime() : 0;
+      const durationMs = requestedAt > 0 && completedAt > 0 ? completedAt - requestedAt : undefined;
+
+      events.push({
+        tool: req.name,
+        at: requestedAt || Date.now(),
+        is_error: res?.isError || false,
+        error_preview: res?.errorPreview || undefined,
+        input_preview: req.inputPreview || undefined,
+        duration_ms: durationMs && durationMs >= 0 ? durationMs : undefined,
+      });
+    }
+
+    return events;
+  } catch (err) {
+    log.warn(`failed to parse Claude Code tool calls: ${err}`);
+    return [];
   }
 }

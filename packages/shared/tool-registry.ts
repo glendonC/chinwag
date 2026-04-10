@@ -54,6 +54,8 @@ export interface DataCapabilities {
   conversationLogs?: boolean;
   /** Tool exposes token/usage data (input tokens, output tokens) in its logs. */
   tokenUsage?: boolean;
+  /** Tool writes structured logs from which per-tool-call events (name, timing, errors) can be parsed. */
+  toolCallLogs?: boolean;
 }
 
 export interface McpTool {
@@ -143,7 +145,7 @@ export const MCP_TOOLS: McpTool[] = [
         recoveryCommand: CLAUDE_AUTH_LOGIN,
       },
     ],
-    dataCapabilities: { conversationLogs: true, tokenUsage: true },
+    dataCapabilities: { conversationLogs: true, tokenUsage: true, toolCallLogs: true },
     catalog: {
       description: 'Terminal AI coding agent with hooks, channels, and agent teams',
       category: 'coding-agent',
