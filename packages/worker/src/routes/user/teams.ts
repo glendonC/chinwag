@@ -15,6 +15,7 @@ import {
   MAX_DASHBOARD_TEAMS,
   MAX_NAME_LENGTH,
 } from '../../lib/constants.js';
+import { getToolsWithCapability } from '@chinwag/shared/tool-registry.js';
 
 const log = createLogger('routes.user.teams');
 
@@ -196,6 +197,27 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
         stale_memories: 0,
         avg_memory_age_days: 0,
       },
+      period_comparison: {
+        current: {
+          completion_rate: 0,
+          avg_duration_min: 0,
+          stuckness_rate: 0,
+          memory_hit_rate: 0,
+          edit_velocity: 0,
+          total_sessions: 0,
+        },
+        previous: null,
+      },
+      token_usage: {
+        total_input_tokens: 0,
+        total_output_tokens: 0,
+        avg_input_per_session: 0,
+        avg_output_per_session: 0,
+        sessions_with_token_data: 0,
+        sessions_without_token_data: 0,
+        by_model: [],
+        by_tool: [],
+      },
       teams_included: 0,
       degraded: false,
     });
@@ -264,7 +286,16 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
       duration_count: number;
     }
   >();
-  const models = new Map<string, { count: number; total_edits: number; duration_sum: number }>();
+  const models = new Map<
+    string,
+    {
+      count: number;
+      total_edits: number;
+      duration_sum: number;
+      lines_added: number;
+      lines_removed: number;
+    }
+  >();
   const dailyMetrics = new Map<string, number>();
 
   // New analytics merge accumulators
@@ -339,6 +370,101 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
     age_sum: 0,
     age_count: 0,
   };
+
+  // Extended analytics merge accumulators (10 types previously missing)
+  const workTypeOutcomesAcc = new Map<
+    string,
+    { sessions: number; completed: number; abandoned: number; failed: number }
+  >();
+  const convEditAcc = new Map<
+    string,
+    { sessions: number; total_edits: number; total_lines: number; completed: number }
+  >();
+  const fileReworkAcc = new Map<string, { total_edits: number; failed_edits: number }>();
+  const dirHeatmapAcc = new Map<
+    string,
+    {
+      touch_count: number;
+      file_count: number;
+      total_lines: number;
+      rate_sum: number;
+      rate_count: number;
+    }
+  >();
+  const stucknessAcc = {
+    total_sessions: 0,
+    stuck_sessions: 0,
+    stuck_completed: 0,
+    stuck_total: 0,
+    normal_completed: 0,
+    normal_total: 0,
+  };
+  const fileOverlapAcc = { total_files: 0, overlapping_files: 0 };
+  const auditStalenessAcc = new Map<
+    string,
+    { last_edit: string; days_since: number; prior_edit_count: number }
+  >();
+  const firstEditAcc = {
+    sum_avg: 0,
+    sum_median: 0,
+    count: 0,
+    by_tool: new Map<string, { sum_avg: number; sessions: number }>(),
+  };
+  const memOutcomeAcc = new Map<string, { sessions: number; completed: number }>();
+  const topMemoriesAcc = new Map<
+    string,
+    {
+      text_preview: string;
+      access_count: number;
+      last_accessed_at: string | null;
+      created_at: string;
+    }
+  >();
+
+  // Period comparison accumulators
+  const periodCurrentAcc = {
+    completion_sum: 0,
+    duration_sum: 0,
+    stuck_sum: 0,
+    memory_hit_sum: 0,
+    velocity_sum: 0,
+    total_sessions_sum: 0,
+    count: 0,
+  };
+  const periodPreviousAcc = {
+    completion_sum: 0,
+    duration_sum: 0,
+    stuck_sum: 0,
+    memory_hit_sum: 0,
+    velocity_sum: 0,
+    total_sessions_sum: 0,
+    count: 0,
+  };
+
+  // Token usage accumulators
+  const tokenTotalAcc = { input: 0, output: 0, with_data: 0, without_data: 0 };
+  const tokenByModel = new Map<string, { input: number; output: number; sessions: number }>();
+  const tokenByTool = new Map<string, { input: number; output: number; sessions: number }>();
+
+  // Extended analytics accumulators (6 remaining types)
+  const scopeComplexityAcc = new Map<
+    string,
+    { sessions: number; edits_sum: number; duration_sum: number; completed: number }
+  >();
+  const promptEfficiencyAcc = new Map<string, { turns_sum: number; sessions: number }>();
+  const hourlyEffectivenessAcc = new Map<
+    number,
+    { sessions: number; completed: number; edits_sum: number }
+  >();
+  const outcomeTagsAcc = new Map<string, number>();
+  const toolHandoffsAcc = new Map<
+    string,
+    { file_count: number; completed: number; total: number }
+  >();
+  const outcomePredictorsAcc = new Map<string, { first_edit_sum: number; sessions: number }>();
+
+  // Active tools tracker for data_coverage computation
+  const activeToolsSet = new Set<string>();
 
   let included = 0;
   let failed = 0;
@@ -454,10 +580,18 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
 
     for (const m of (data.model_outcomes as Array<Record<string, unknown>>) || []) {
       const key = `${m.agent_model}:${m.outcome}`;
-      const existing = models.get(key) || { count: 0, total_edits: 0, duration_sum: 0 };
+      const existing = models.get(key) || {
+        count: 0,
+        total_edits: 0,
+        duration_sum: 0,
+        lines_added: 0,
+        lines_removed: 0,
+      };
       existing.count += (m.count as number) || 0;
       existing.total_edits += (m.total_edits as number) || 0;
       existing.duration_sum += ((m.avg_duration_min as number) || 0) * ((m.count as number) || 0);
+      existing.lines_added += (m.total_lines_added as number) || 0;
+      existing.lines_removed += (m.total_lines_removed as number) || 0;
       models.set(key, existing);
     }
 
@@ -647,6 +781,280 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
         memoryAcc.age_count += totalMem;
       }
     }
+
+    // Merge work type outcomes
+    for (const wo of (data.work_type_outcomes as Array<Record<string, unknown>>) || []) {
+      const key = wo.work_type as string;
+      const existing = workTypeOutcomesAcc.get(key) || {
+        sessions: 0,
+        completed: 0,
+        abandoned: 0,
+        failed: 0,
+      };
+      existing.sessions += (wo.sessions as number) || 0;
+      existing.completed += (wo.completed as number) || 0;
+      existing.abandoned += (wo.abandoned as number) || 0;
+      existing.failed += (wo.failed as number) || 0;
+      workTypeOutcomesAcc.set(key, existing);
+    }
+
+    // Merge conversation-edit correlation
+    for (const ce of (data.conversation_edit_correlation as Array<Record<string, unknown>>) || []) {
+      const key = ce.bucket as string;
+      const existing = convEditAcc.get(key) || {
+        sessions: 0,
+        total_edits: 0,
+        total_lines: 0,
+        completed: 0,
+      };
+      const sess = (ce.sessions as number) || 0;
+      existing.sessions += sess;
+      existing.total_edits += ((ce.avg_edits as number) || 0) * sess;
+      existing.total_lines += ((ce.avg_lines as number) || 0) * sess;
+      existing.completed += Math.round((((ce.completion_rate as number) || 0) / 100) * sess);
+      convEditAcc.set(key, existing);
+    }
+
+    // Merge file rework
+    for (const fr of (data.file_rework as Array<Record<string, unknown>>) || []) {
+      const key = fr.file as string;
+      const existing = fileReworkAcc.get(key) || { total_edits: 0, failed_edits: 0 };
+      existing.total_edits += (fr.total_edits as number) || 0;
+      existing.failed_edits += (fr.failed_edits as number) || 0;
+      fileReworkAcc.set(key, existing);
+    }
+
+    // Merge directory heatmap
+    for (const dh of (data.directory_heatmap as Array<Record<string, unknown>>) || []) {
+      const key = dh.directory as string;
+      const tc = (dh.touch_count as number) || 0;
+      const existing = dirHeatmapAcc.get(key) || {
+        touch_count: 0,
+        file_count: 0,
+        total_lines: 0,
+        rate_sum: 0,
+        rate_count: 0,
+      };
+      existing.touch_count += tc;
+      existing.file_count += (dh.file_count as number) || 0;
+      existing.total_lines += (dh.total_lines as number) || 0;
+      existing.rate_sum += ((dh.completion_rate as number) || 0) * tc;
+      existing.rate_count += tc;
+      dirHeatmapAcc.set(key, existing);
+    }
+
+    // Merge stuckness
+    const st = data.stuckness as Record<string, unknown> | undefined;
+    if (st) {
+      stucknessAcc.total_sessions += (st.total_sessions as number) || 0;
+      stucknessAcc.stuck_sessions += (st.stuck_sessions as number) || 0;
+      const stuckTotal = (st.stuck_sessions as number) || 0;
+      const normalTotal = ((st.total_sessions as number) || 0) - stuckTotal;
+      stucknessAcc.stuck_completed += Math.round(
+        (((st.stuck_completion_rate as number) || 0) / 100) * stuckTotal,
+      );
+      stucknessAcc.stuck_total += stuckTotal;
+      stucknessAcc.normal_completed += Math.round(
+        (((st.normal_completion_rate as number) || 0) / 100) * normalTotal,
+      );
+      stucknessAcc.normal_total += normalTotal;
+    }
+
+    // Merge file overlap
+    const fo = data.file_overlap as Record<string, unknown> | undefined;
+    if (fo) {
+      fileOverlapAcc.total_files += (fo.total_files as number) || 0;
+      fileOverlapAcc.overlapping_files += (fo.overlapping_files as number) || 0;
+    }
+
+    // Merge audit staleness
+    for (const as_ of (data.audit_staleness as Array<Record<string, unknown>>) || []) {
+      const key = as_.directory as string;
+      const existing = auditStalenessAcc.get(key);
+      if (!existing || ((as_.days_since as number) || 0) > existing.days_since) {
+        auditStalenessAcc.set(key, {
+          last_edit: (as_.last_edit as string) || '',
+          days_since: (as_.days_since as number) || 0,
+          prior_edit_count:
+            (existing?.prior_edit_count || 0) + ((as_.prior_edit_count as number) || 0),
+        });
+      } else {
+        existing.prior_edit_count += (as_.prior_edit_count as number) || 0;
+      }
+    }
+
+    // Merge first edit stats
+    const fe = data.first_edit_stats as Record<string, unknown> | undefined;
+    if (fe) {
+      const avg = (fe.avg_minutes_to_first_edit as number) || 0;
+      const med = (fe.median_minutes_to_first_edit as number) || 0;
+      const teamSessions =
+        ((data.completion_summary as Record<string, unknown> | undefined)
+          ?.total_sessions as number) || 1;
+      firstEditAcc.sum_avg += avg * teamSessions;
+      firstEditAcc.sum_median += med * teamSessions;
+      firstEditAcc.count += teamSessions;
+      for (const bt of (fe.by_tool as Array<Record<string, unknown>>) || []) {
+        const toolKey = bt.host_tool as string;
+        const existing = firstEditAcc.by_tool.get(toolKey) || { sum_avg: 0, sessions: 0 };
+        const btSess = (bt.sessions as number) || 0;
+        existing.sum_avg += ((bt.avg_minutes as number) || 0) * btSess;
+        existing.sessions += btSess;
+        firstEditAcc.by_tool.set(toolKey, existing);
+      }
+    }
+
+    // Merge memory outcome correlation
+    for (const mo of (data.memory_outcome_correlation as Array<Record<string, unknown>>) || []) {
+      const key = mo.bucket as string;
+      const existing = memOutcomeAcc.get(key) || { sessions: 0, completed: 0 };
+      existing.sessions += (mo.sessions as number) || 0;
+      existing.completed += (mo.completed as number) || 0;
+      memOutcomeAcc.set(key, existing);
+    }
+
+    // Merge top memories
+    for (const tm of (data.top_memories as Array<Record<string, unknown>>) || []) {
+      const id = tm.id as string;
+      if (!topMemoriesAcc.has(id)) {
+        topMemoriesAcc.set(id, {
+          text_preview: (tm.text_preview as string) || '',
+          access_count: (tm.access_count as number) || 0,
+          last_accessed_at: (tm.last_accessed_at as string) || null,
+          created_at: (tm.created_at as string) || '',
+        });
+      } else {
+        const existing = topMemoriesAcc.get(id)!;
+        existing.access_count += (tm.access_count as number) || 0;
+      }
+    }
+
+    // Merge period comparison (weighted average by total_sessions)
+    const pc = data.period_comparison as Record<string, unknown> | undefined;
+    if (pc) {
+      const cur = pc.current as Record<string, unknown> | undefined;
+      if (cur) {
+        const ts = (cur.total_sessions as number) || 0;
+        periodCurrentAcc.completion_sum += ((cur.completion_rate as number) || 0) * ts;
+        periodCurrentAcc.duration_sum += ((cur.avg_duration_min as number) || 0) * ts;
+        periodCurrentAcc.stuck_sum += ((cur.stuckness_rate as number) || 0) * ts;
+        periodCurrentAcc.memory_hit_sum += ((cur.memory_hit_rate as number) || 0) * ts;
+        periodCurrentAcc.velocity_sum += ((cur.edit_velocity as number) || 0) * ts;
+        periodCurrentAcc.total_sessions_sum += ts;
+        periodCurrentAcc.count++;
+      }
+      const prev = pc.previous as Record<string, unknown> | undefined;
+      if (prev) {
+        const ts = (prev.total_sessions as number) || 0;
+        periodPreviousAcc.completion_sum += ((prev.completion_rate as number) || 0) * ts;
+        periodPreviousAcc.duration_sum += ((prev.avg_duration_min as number) || 0) * ts;
+        periodPreviousAcc.stuck_sum += ((prev.stuckness_rate as number) || 0) * ts;
+        periodPreviousAcc.memory_hit_sum += ((prev.memory_hit_rate as number) || 0) * ts;
+        periodPreviousAcc.velocity_sum += ((prev.edit_velocity as number) || 0) * ts;
+        periodPreviousAcc.total_sessions_sum += ts;
+        periodPreviousAcc.count++;
+      }
+    }
+
+    // Merge token usage
+    const tu = data.token_usage as Record<string, unknown> | undefined;
+    if (tu) {
+      tokenTotalAcc.input += (tu.total_input_tokens as number) || 0;
+      tokenTotalAcc.output += (tu.total_output_tokens as number) || 0;
+      tokenTotalAcc.with_data += (tu.sessions_with_token_data as number) || 0;
+      tokenTotalAcc.without_data += (tu.sessions_without_token_data as number) || 0;
+      for (const m of (tu.by_model as Array<Record<string, unknown>>) || []) {
+        const key = m.agent_model as string;
+        const existing = tokenByModel.get(key) || { input: 0, output: 0, sessions: 0 };
+        existing.input += (m.input_tokens as number) || 0;
+        existing.output += (m.output_tokens as number) || 0;
+        existing.sessions += (m.sessions as number) || 0;
+        tokenByModel.set(key, existing);
+      }
+      for (const t of (tu.by_tool as Array<Record<string, unknown>>) || []) {
+        const key = t.host_tool as string;
+        const existing = tokenByTool.get(key) || { input: 0, output: 0, sessions: 0 };
+        existing.input += (t.input_tokens as number) || 0;
+        existing.output += (t.output_tokens as number) || 0;
+        existing.sessions += (t.sessions as number) || 0;
+        tokenByTool.set(key, existing);
+      }
+    }
+
+    // Merge scope complexity
+    for (const sc of (data.scope_complexity as Array<Record<string, unknown>>) || []) {
+      const key = sc.bucket as string;
+      const sess = (sc.sessions as number) || 0;
+      const existing = scopeComplexityAcc.get(key) || {
+        sessions: 0,
+        edits_sum: 0,
+        duration_sum: 0,
+        completed: 0,
+      };
+      existing.sessions += sess;
+      existing.edits_sum += ((sc.avg_edits as number) || 0) * sess;
+      existing.duration_sum += ((sc.avg_duration_min as number) || 0) * sess;
+      existing.completed += Math.round((((sc.completion_rate as number) || 0) / 100) * sess);
+      scopeComplexityAcc.set(key, existing);
+    }
+
+    // Merge prompt efficiency
+    for (const pe of (data.prompt_efficiency as Array<Record<string, unknown>>) || []) {
+      const key = pe.day as string;
+      const sess = (pe.sessions as number) || 0;
+      const existing = promptEfficiencyAcc.get(key) || { turns_sum: 0, sessions: 0 };
+      existing.turns_sum += ((pe.avg_turns_per_edit as number) || 0) * sess;
+      existing.sessions += sess;
+      promptEfficiencyAcc.set(key, existing);
+    }
+
+    // Merge hourly effectiveness
+    for (const he of (data.hourly_effectiveness as Array<Record<string, unknown>>) || []) {
+      const hour = (he.hour as number) || 0;
+      const sess = (he.sessions as number) || 0;
+      const existing = hourlyEffectivenessAcc.get(hour) || {
+        sessions: 0,
+        completed: 0,
+        edits_sum: 0,
+      };
+      existing.sessions += sess;
+      existing.completed += Math.round((((he.completion_rate as number) || 0) / 100) * sess);
+      existing.edits_sum += ((he.avg_edits as number) || 0) * sess;
+      hourlyEffectivenessAcc.set(hour, existing);
+    }
+
+    // Merge outcome tags
+    for (const ot of (data.outcome_tags as Array<Record<string, unknown>>) || []) {
+      const key = `${ot.tag}:${ot.outcome}`;
+      outcomeTagsAcc.set(key, (outcomeTagsAcc.get(key) || 0) + ((ot.count as number) || 0));
+    }
+
+    // Merge tool handoffs
+    for (const th of (data.tool_handoffs as Array<Record<string, unknown>>) || []) {
+      const key = `${th.from_tool}:${th.to_tool}`;
+      const fc = (th.file_count as number) || 0;
+      const existing = toolHandoffsAcc.get(key) || { file_count: 0, completed: 0, total: 0 };
+      existing.file_count += fc;
+      existing.total += fc;
+      existing.completed += Math.round((((th.handoff_completion_rate as number) || 0) / 100) * fc);
+      toolHandoffsAcc.set(key, existing);
+    }
+
+    // Merge outcome predictors
+    for (const op of (data.outcome_predictors as Array<Record<string, unknown>>) || []) {
+      const key = op.outcome as string;
+      const sess = (op.sessions as number) || 0;
+      const existing = outcomePredictorsAcc.get(key) || { first_edit_sum: 0, sessions: 0 };
+      existing.first_edit_sum += ((op.avg_first_edit_min as number) || 0) * sess;
+      existing.sessions += sess;
+      outcomePredictorsAcc.set(key, existing);
+    }
+
+    // Track active tools for data_coverage
+    for (const t of (data.tool_distribution as Array<Record<string, unknown>>) || []) {
+      const tool = t.host_tool as string;
+      if (tool && tool !== 'unknown') activeToolsSet.add(tool);
+    }
   }
 
   return json({
@@ -721,6 +1129,8 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
           count: v.count,
           avg_duration_min: v.count > 0 ? Math.round((v.duration_sum / v.count) * 10) / 10 : 0,
           total_edits: v.total_edits,
+          total_lines_added: v.lines_added,
+          total_lines_removed: v.lines_removed,
         };
       }),
     tool_outcomes: [...toolOutcomes.entries()]
@@ -879,6 +1289,250 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
           ? Math.round((memoryAcc.age_sum / memoryAcc.age_count) * 10) / 10
           : 0,
     },
+    work_type_outcomes: [...workTypeOutcomesAcc.entries()]
+      .sort(([, a], [, b]) => b.sessions - a.sessions)
+      .map(([work_type, v]) => ({
+        work_type,
+        sessions: v.sessions,
+        completed: v.completed,
+        abandoned: v.abandoned,
+        failed: v.failed,
+        completion_rate: v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
+      })),
+    conversation_edit_correlation: [...convEditAcc.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([bucket, v]) => ({
+        bucket,
+        sessions: v.sessions,
+        avg_edits: v.sessions > 0 ? Math.round(v.total_edits / v.sessions) : 0,
+        avg_lines: v.sessions > 0 ? Math.round(v.total_lines / v.sessions) : 0,
+        completion_rate: v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
+      })),
+    file_rework: [...fileReworkAcc.entries()]
+      .sort(
+        ([, a], [, b]) =>
+          (b.total_edits > 0 ? b.failed_edits / b.total_edits : 0) -
+          (a.total_edits > 0 ? a.failed_edits / a.total_edits : 0),
+      )
+      .slice(0, 20)
+      .map(([file, v]) => ({
+        file,
+        total_edits: v.total_edits,
+        failed_edits: v.failed_edits,
+        rework_ratio:
+          v.total_edits > 0 ? Math.round((v.failed_edits / v.total_edits) * 100) / 100 : 0,
+      })),
+    directory_heatmap: [...dirHeatmapAcc.entries()]
+      .sort(([, a], [, b]) => b.touch_count - a.touch_count)
+      .slice(0, 20)
+      .map(([directory, v]) => ({
+        directory,
+        touch_count: v.touch_count,
+        file_count: v.file_count,
+        total_lines: v.total_lines,
+        completion_rate: v.rate_count > 0 ? Math.round((v.rate_sum / v.rate_count) * 10) / 10 : 0,
+      })),
+    stuckness: {
+      total_sessions: stucknessAcc.total_sessions,
+      stuck_sessions: stucknessAcc.stuck_sessions,
+      stuckness_rate:
+        stucknessAcc.total_sessions > 0
+          ? Math.round((stucknessAcc.stuck_sessions / stucknessAcc.total_sessions) * 1000) / 10
+          : 0,
+      stuck_completion_rate:
+        stucknessAcc.stuck_total > 0
+          ? Math.round((stucknessAcc.stuck_completed / stucknessAcc.stuck_total) * 1000) / 10
+          : 0,
+      normal_completion_rate:
+        stucknessAcc.normal_total > 0
+          ? Math.round((stucknessAcc.normal_completed / stucknessAcc.normal_total) * 1000) / 10
+          : 0,
+    },
+    file_overlap: {
+      total_files: fileOverlapAcc.total_files,
+      overlapping_files: fileOverlapAcc.overlapping_files,
+      overlap_rate:
+        fileOverlapAcc.total_files > 0
+          ? Math.round((fileOverlapAcc.overlapping_files / fileOverlapAcc.total_files) * 1000) / 10
+          : 0,
+    },
+    audit_staleness: [...auditStalenessAcc.entries()]
+      .sort(([, a], [, b]) => b.days_since - a.days_since)
+      .slice(0, 20)
+      .map(([directory, v]) => ({
+        directory,
+        last_edit: v.last_edit,
+        days_since: v.days_since,
+        prior_edit_count: v.prior_edit_count,
+      })),
+    first_edit_stats: {
+      avg_minutes_to_first_edit:
+        firstEditAcc.count > 0
+          ? Math.round((firstEditAcc.sum_avg / firstEditAcc.count) * 10) / 10
+          : 0,
+      median_minutes_to_first_edit:
+        firstEditAcc.count > 0
+          ? Math.round((firstEditAcc.sum_median / firstEditAcc.count) * 10) / 10
+          : 0,
+      by_tool: [...firstEditAcc.by_tool.entries()]
+        .sort(([, a], [, b]) => b.sessions - a.sessions)
+        .map(([host_tool, v]) => ({
+          host_tool,
+          avg_minutes: v.sessions > 0 ? Math.round((v.sum_avg / v.sessions) * 10) / 10 : 0,
+          sessions: v.sessions,
+        })),
+    },
+    memory_outcome_correlation: [...memOutcomeAcc.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([bucket, v]) => ({
+        bucket,
+        sessions: v.sessions,
+        completed: v.completed,
+        completion_rate: v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
+      })),
+    top_memories: [...topMemoriesAcc.entries()]
+      .sort(([, a], [, b]) => b.access_count - a.access_count)
+      .slice(0, 20)
+      .map(([id, v]) => ({
+        id,
+        text_preview: v.text_preview,
+        access_count: v.access_count,
+        last_accessed_at: v.last_accessed_at,
+        created_at: v.created_at,
+      })),
+    period_comparison: (() => {
+      const cs = periodCurrentAcc.total_sessions_sum;
+      const ps = periodPreviousAcc.total_sessions_sum;
+      return {
+        current: {
+          completion_rate:
+            cs > 0 ? Math.round((periodCurrentAcc.completion_sum / cs) * 10) / 10 : 0,
+          avg_duration_min: cs > 0 ? Math.round((periodCurrentAcc.duration_sum / cs) * 10) / 10 : 0,
+          stuckness_rate: cs > 0 ? Math.round((periodCurrentAcc.stuck_sum / cs) * 10) / 10 : 0,
+          memory_hit_rate:
+            cs > 0 ? Math.round((periodCurrentAcc.memory_hit_sum / cs) * 10) / 10 : 0,
+          edit_velocity: cs > 0 ? Math.round((periodCurrentAcc.velocity_sum / cs) * 10) / 10 : 0,
+          total_sessions: cs,
+        },
+        previous:
+          periodPreviousAcc.count > 0
+            ? {
+                completion_rate:
+                  ps > 0 ? Math.round((periodPreviousAcc.completion_sum / ps) * 10) / 10 : 0,
+                avg_duration_min:
+                  ps > 0 ? Math.round((periodPreviousAcc.duration_sum / ps) * 10) / 10 : 0,
+                stuckness_rate:
+                  ps > 0 ? Math.round((periodPreviousAcc.stuck_sum / ps) * 10) / 10 : 0,
+                memory_hit_rate:
+                  ps > 0 ? Math.round((periodPreviousAcc.memory_hit_sum / ps) * 10) / 10 : 0,
+                edit_velocity:
+                  ps > 0 ? Math.round((periodPreviousAcc.velocity_sum / ps) * 10) / 10 : 0,
+                total_sessions: ps,
+              }
+            : null,
+      };
+    })(),
+    token_usage: {
+      total_input_tokens: tokenTotalAcc.input,
+      total_output_tokens: tokenTotalAcc.output,
+      avg_input_per_session:
+        tokenTotalAcc.with_data > 0 ? Math.round(tokenTotalAcc.input / tokenTotalAcc.with_data) : 0,
+      avg_output_per_session:
+        tokenTotalAcc.with_data > 0
+          ? Math.round(tokenTotalAcc.output / tokenTotalAcc.with_data)
+          : 0,
+      sessions_with_token_data: tokenTotalAcc.with_data,
+      sessions_without_token_data: tokenTotalAcc.without_data,
+      by_model: [...tokenByModel.entries()]
+        .sort(([, a], [, b]) => b.input - a.input)
+        .map(([agent_model, v]) => ({
+          agent_model,
+          input_tokens: v.input,
+          output_tokens: v.output,
+          sessions: v.sessions,
+        })),
+      by_tool: [...tokenByTool.entries()]
+        .sort(([, a], [, b]) => b.input - a.input)
+        .map(([host_tool, v]) => ({
+          host_tool,
+          input_tokens: v.input,
+          output_tokens: v.output,
+          sessions: v.sessions,
+        })),
+    },
+    scope_complexity: [...scopeComplexityAcc.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([bucket, v]) => ({
+        bucket,
+        sessions: v.sessions,
+        avg_edits: v.sessions > 0 ? Math.round(v.edits_sum / v.sessions) : 0,
+        avg_duration_min: v.sessions > 0 ? Math.round((v.duration_sum / v.sessions) * 10) / 10 : 0,
+        completion_rate: v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
+      })),
+    prompt_efficiency: [...promptEfficiencyAcc.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([day, v]) => ({
+        day,
+        avg_turns_per_edit: v.sessions > 0 ? Math.round((v.turns_sum / v.sessions) * 10) / 10 : 0,
+        sessions: v.sessions,
+      })),
+    hourly_effectiveness: [...hourlyEffectivenessAcc.entries()]
+      .sort(([a], [b]) => a - b)
+      .map(([hour, v]) => ({
+        hour,
+        sessions: v.sessions,
+        completion_rate: v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
+        avg_edits: v.sessions > 0 ? Math.round(v.edits_sum / v.sessions) : 0,
+      })),
+    outcome_tags: [...outcomeTagsAcc.entries()]
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 30)
+      .map(([key, count]) => {
+        const sep = key.lastIndexOf(':');
+        return { tag: key.slice(0, sep), outcome: key.slice(sep + 1), count };
+      }),
+    tool_handoffs: [...toolHandoffsAcc.entries()]
+      .sort(([, a], [, b]) => b.file_count - a.file_count)
+      .slice(0, 20)
+      .map(([key, v]) => {
+        const sep = key.indexOf(':');
+        return {
+          from_tool: key.slice(0, sep),
+          to_tool: key.slice(sep + 1),
+          file_count: v.file_count,
+          handoff_completion_rate:
+            v.total > 0 ? Math.round((v.completed / v.total) * 1000) / 10 : 0,
+        };
+      }),
+    outcome_predictors: [...outcomePredictorsAcc.entries()]
+      .sort(([, a], [, b]) => b.sessions - a.sessions)
+      .map(([outcome, v]) => ({
+        outcome,
+        avg_first_edit_min:
+          v.sessions > 0 ? Math.round((v.first_edit_sum / v.sessions) * 10) / 10 : 0,
+        sessions: v.sessions,
+      })),
+    data_coverage: (() => {
+      const allTools = [...activeToolsSet];
+      const capConversation = new Set(getToolsWithCapability('conversationLogs'));
+      const capTokens = new Set(getToolsWithCapability('tokenUsage'));
+      const reporting = allTools.filter((t) => capConversation.has(t) || capTokens.has(t));
+      const withoutData = allTools.filter((t) => !capConversation.has(t) && !capTokens.has(t));
+      const capsAvailable: string[] = [];
+      const capsMissing: string[] = [];
+      if (allTools.some((t) => capConversation.has(t))) capsAvailable.push('conversationLogs');
+      else if (allTools.length > 0) capsMissing.push('conversationLogs');
+      if (allTools.some((t) => capTokens.has(t))) capsAvailable.push('tokenUsage');
+      else if (allTools.length > 0) capsMissing.push('tokenUsage');
+      return {
+        tools_reporting: reporting,
+        tools_without_data: withoutData,
+        coverage_rate:
+          allTools.length > 0 ? Math.round((reporting.length / allTools.length) * 100) / 100 : 1,
+        capabilities_available: capsAvailable,
+        capabilities_missing: capsMissing,
+      };
+    })(),
     teams_included: included,
     degraded: failed > 0,
   });

@@ -1,7 +1,6 @@
 // Analytics aggregation queries for workflow intelligence.
 // All queries run on the sessions and daily_metrics tables within TeamDO.
 
-import { safeParse } from '../../lib/safe-parse.js';
 import { createLogger } from '../../lib/logger.js';
 import type {
   FileHeatmapEntry,
@@ -28,6 +27,25 @@ import type {
   ConflictCorrelation,
   EditVelocityTrend,
   MemoryUsageStats,
+  WorkTypeOutcome,
+  ConversationEditCorrelation,
+  FileReworkEntry,
+  DirectoryHeatmapEntry,
+  StucknessStats,
+  FileOverlapStats,
+  AuditStalenessEntry,
+  FirstEditStats,
+  MemoryOutcomeCorrelation,
+  MemoryAccessEntry,
+  ScopeComplexityBucket,
+  PromptEfficiencyTrend,
+  HourlyEffectiveness,
+  OutcomeTagCount,
+  ToolHandoff,
+  OutcomePredictor,
+  PeriodComparison,
+  PeriodMetrics,
+  TokenUsageStats,
 } from '@chinwag/shared/contracts.js';
 
 const log = createLogger('TeamDO.analytics');
@@ -319,7 +337,9 @@ function queryModelPerformance(sql: SqlStorage, days: number): ModelOutcome[] {
                 ROUND(AVG(
                   ROUND((julianday(COALESCE(ended_at, datetime('now'))) - julianday(started_at)) * 24 * 60)
                 ), 1) AS avg_duration_min,
-                COALESCE(SUM(edit_count), 0) AS total_edits
+                COALESCE(SUM(edit_count), 0) AS total_edits,
+                COALESCE(SUM(lines_added), 0) AS total_lines_added,
+                COALESCE(SUM(lines_removed), 0) AS total_lines_removed
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
            AND agent_model IS NOT NULL AND agent_model != ''
@@ -337,6 +357,8 @@ function queryModelPerformance(sql: SqlStorage, days: number): ModelOutcome[] {
         count: (row.count as number) || 0,
         avg_duration_min: (row.avg_duration_min as number) || 0,
         total_edits: (row.total_edits as number) || 0,
+        total_lines_added: (row.total_lines_added as number) || 0,
+        total_lines_removed: (row.total_lines_removed as number) || 0,
       };
     });
   } catch (err) {
@@ -1033,6 +1055,920 @@ function queryFileHeatmapEnhanced(sql: SqlStorage, days: number): FileHeatmapEnt
   }
 }
 
+// ── Extended analytics queries (phase 2) ─────────
+
+function queryWorkTypeOutcomes(sql: SqlStorage, days: number): WorkTypeOutcome[] {
+  try {
+    const rows = sql
+      .exec(
+        `SELECT
+           ${WORK_TYPE_CASE_VALUE} AS work_type,
+           COUNT(DISTINCT s.id) AS sessions,
+           SUM(CASE WHEN s.outcome = 'completed' THEN 1 ELSE 0 END) AS completed,
+           SUM(CASE WHEN s.outcome = 'abandoned' THEN 1 ELSE 0 END) AS abandoned,
+           SUM(CASE WHEN s.outcome = 'failed' THEN 1 ELSE 0 END) AS failed,
+           ROUND(CAST(SUM(CASE WHEN s.outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
+             / NULLIF(COUNT(DISTINCT s.id), 0) * 100, 1) AS completion_rate
+         FROM sessions s, json_each(s.files_touched) f
+         WHERE s.started_at > datetime('now', '-' || ? || ' days')
+           AND s.files_touched != '[]'
+         GROUP BY work_type
+         ORDER BY sessions DESC`,
+        days,
+      )
+      .toArray();
+
+    return rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      return {
+        work_type: row.work_type as string,
+        sessions: (row.sessions as number) || 0,
+        completed: (row.completed as number) || 0,
+        abandoned: (row.abandoned as number) || 0,
+        failed: (row.failed as number) || 0,
+        completion_rate: (row.completion_rate as number) || 0,
+      };
+    });
+  } catch (err) {
+    log.warn(`workTypeOutcomes query failed: ${err}`);
+    return [];
+  }
+}
+
+function queryConversationEditCorrelation(
+  sql: SqlStorage,
+  days: number,
+): ConversationEditCorrelation[] {
+  try {
+    const rows = sql
+      .exec(
+        `WITH session_turns AS (
+           SELECT session_id,
+                  SUM(CASE WHEN role = 'user' THEN 1 ELSE 0 END) AS user_turns
+           FROM conversation_events
+           WHERE created_at > datetime('now', '-' || ? || ' days')
+           GROUP BY session_id
+         )
+         SELECT
+           CASE
+             WHEN t.user_turns <= 5 THEN '1-5 turns'
+             WHEN t.user_turns <= 15 THEN '6-15 turns'
+             WHEN t.user_turns <= 30 THEN '16-30 turns'
+             ELSE '30+ turns'
+           END AS bucket,
+           COUNT(*) AS sessions,
+           ROUND(AVG(s.edit_count), 1) AS avg_edits,
+           ROUND(AVG(s.lines_added + s.lines_removed), 1) AS avg_lines,
+           ROUND(CAST(SUM(CASE WHEN s.outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
+             / NULLIF(COUNT(*), 0) * 100, 1) AS completion_rate
+         FROM session_turns t
+         JOIN sessions s ON s.id = t.session_id
+         GROUP BY bucket
+         ORDER BY
+           CASE bucket
+             WHEN '1-5 turns' THEN 1
+             WHEN '6-15 turns' THEN 2
+             WHEN '16-30 turns' THEN 3
+             ELSE 4
+           END`,
+        days,
+      )
+      .toArray();
+
+    return rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      return {
+        bucket: row.bucket as string,
+        sessions: (row.sessions as number) || 0,
+        avg_edits: (row.avg_edits as number) || 0,
+        avg_lines: (row.avg_lines as number) || 0,
+        completion_rate: (row.completion_rate as number) || 0,
+      };
+    });
+  } catch (err) {
+    log.warn(`conversationEditCorrelation query failed: ${err}`);
+    return [];
+  }
+}
+
+function queryFileRework(sql: SqlStorage, days: number): FileReworkEntry[] {
+  try {
+    const rows = sql
+      .exec(
+        `SELECT
+           e.file_path AS file,
+           COUNT(*) AS total_edits,
+           SUM(CASE WHEN s.outcome IN ('abandoned', 'failed') THEN 1 ELSE 0 END) AS failed_edits,
+           ROUND(CAST(SUM(CASE WHEN s.outcome IN ('abandoned', 'failed') THEN 1 ELSE 0 END) AS REAL)
+             / NULLIF(COUNT(*), 0) * 100, 1) AS rework_ratio
+         FROM edits e
+         JOIN sessions s ON s.id = e.session_id
+         WHERE e.created_at > datetime('now', '-' || ? || ' days')
+         GROUP BY e.file_path
+         HAVING total_edits >= 3 AND failed_edits >= 1
+         ORDER BY rework_ratio DESC
+         LIMIT 30`,
+        days,
+      )
+      .toArray();
+
+    return rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      return {
+        file: row.file as string,
+        total_edits: (row.total_edits as number) || 0,
+        failed_edits: (row.failed_edits as number) || 0,
+        rework_ratio: (row.rework_ratio as number) || 0,
+      };
+    });
+  } catch (err) {
+    log.warn(`fileRework query failed: ${err}`);
+    return [];
+  }
+}
+
+/** Extract directory from a file path (up to 3 segments deep). */
+function extractDirectory(filePath: string): string {
+  const parts = filePath.split('/').filter(Boolean);
+  // Keep up to 3 directory segments for meaningful grouping
+  const dirParts = parts.slice(0, Math.min(parts.length - 1, 3));
+  return dirParts.length > 0 ? dirParts.join('/') : '.';
+}
+
+function queryDirectoryHeatmap(sql: SqlStorage, days: number): DirectoryHeatmapEntry[] {
+  try {
+    // Query file-level data and roll up to directories in JS
+    // (SQLite lacks a clean dirname function)
+    const rows = sql
+      .exec(
+        `SELECT
+           value AS file,
+           COUNT(*) AS touch_count,
+           COALESCE(SUM(lines_added + lines_removed), 0) AS total_lines,
+           ROUND(CAST(SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
+             / NULLIF(COUNT(*), 0) * 100, 1) AS completion_rate
+         FROM sessions, json_each(sessions.files_touched)
+         WHERE started_at > datetime('now', '-' || ? || ' days')
+           AND files_touched != '[]'
+         GROUP BY value`,
+        days,
+      )
+      .toArray();
+
+    const dirMap = new Map<
+      string,
+      {
+        touch_count: number;
+        file_count: number;
+        total_lines: number;
+        completed_sum: number;
+        total_sum: number;
+      }
+    >();
+
+    for (const r of rows) {
+      const row = r as Record<string, unknown>;
+      const dir = extractDirectory(row.file as string);
+      const existing = dirMap.get(dir) || {
+        touch_count: 0,
+        file_count: 0,
+        total_lines: 0,
+        completed_sum: 0,
+        total_sum: 0,
+      };
+      const touches = (row.touch_count as number) || 0;
+      existing.touch_count += touches;
+      existing.file_count += 1;
+      existing.total_lines += (row.total_lines as number) || 0;
+      existing.completed_sum += ((row.completion_rate as number) || 0) * touches;
+      existing.total_sum += touches;
+      dirMap.set(dir, existing);
+    }
+
+    return [...dirMap.entries()]
+      .map(([directory, v]) => ({
+        directory,
+        touch_count: v.touch_count,
+        file_count: v.file_count,
+        total_lines: v.total_lines,
+        completion_rate:
+          v.total_sum > 0 ? Math.round((v.completed_sum / v.total_sum) * 10) / 10 : 0,
+      }))
+      .sort((a, b) => b.touch_count - a.touch_count)
+      .slice(0, 30);
+  } catch (err) {
+    log.warn(`directoryHeatmap query failed: ${err}`);
+    return [];
+  }
+}
+
+function queryStuckness(sql: SqlStorage, days: number): StucknessStats {
+  try {
+    const rows = sql
+      .exec(
+        `SELECT
+           COUNT(*) AS total_sessions,
+           SUM(CASE WHEN got_stuck = 1 THEN 1 ELSE 0 END) AS stuck_sessions,
+           ROUND(CAST(SUM(CASE WHEN got_stuck = 1 THEN 1 ELSE 0 END) AS REAL)
+             / NULLIF(COUNT(*), 0) * 100, 1) AS stuckness_rate,
+           ROUND(CAST(SUM(CASE WHEN got_stuck = 1 AND outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
+             / NULLIF(SUM(CASE WHEN got_stuck = 1 THEN 1 ELSE 0 END), 0) * 100, 1) AS stuck_completion_rate,
+           ROUND(CAST(SUM(CASE WHEN got_stuck = 0 AND outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
+             / NULLIF(SUM(CASE WHEN got_stuck = 0 THEN 1 ELSE 0 END), 0) * 100, 1) AS normal_completion_rate
+         FROM sessions
+         WHERE started_at > datetime('now', '-' || ? || ' days')`,
+        days,
+      )
+      .toArray();
+
+    if (rows.length === 0)
+      return {
+        total_sessions: 0,
+        stuck_sessions: 0,
+        stuckness_rate: 0,
+        stuck_completion_rate: 0,
+        normal_completion_rate: 0,
+      };
+
+    const row = rows[0] as Record<string, unknown>;
+    return {
+      total_sessions: (row.total_sessions as number) || 0,
+      stuck_sessions: (row.stuck_sessions as number) || 0,
+      stuckness_rate: (row.stuckness_rate as number) || 0,
+      stuck_completion_rate: (row.stuck_completion_rate as number) || 0,
+      normal_completion_rate: (row.normal_completion_rate as number) || 0,
+    };
+  } catch (err) {
+    log.warn(`stuckness query failed: ${err}`);
+    return {
+      total_sessions: 0,
+      stuck_sessions: 0,
+      stuckness_rate: 0,
+      stuck_completion_rate: 0,
+      normal_completion_rate: 0,
+    };
+  }
+}
+
+function queryFileOverlap(sql: SqlStorage, days: number): FileOverlapStats {
+  try {
+    const rows = sql
+      .exec(
+        `SELECT
+           COUNT(*) AS total_files,
+           SUM(CASE WHEN agents >= 2 THEN 1 ELSE 0 END) AS overlapping_files
+         FROM (
+           SELECT file_path, COUNT(DISTINCT handle) AS agents
+           FROM edits
+           WHERE created_at > datetime('now', '-' || ? || ' days')
+           GROUP BY file_path
+         )`,
+        days,
+      )
+      .toArray();
+
+    if (rows.length === 0) return { total_files: 0, overlapping_files: 0, overlap_rate: 0 };
+
+    const row = rows[0] as Record<string, unknown>;
+    const total = (row.total_files as number) || 0;
+    const overlapping = (row.overlapping_files as number) || 0;
+    return {
+      total_files: total,
+      overlapping_files: overlapping,
+      overlap_rate: total > 0 ? Math.round((overlapping / total) * 1000) / 10 : 0,
+    };
+  } catch (err) {
+    log.warn(`fileOverlap query failed: ${err}`);
+    return { total_files: 0, overlapping_files: 0, overlap_rate: 0 };
+  }
+}
+
+function queryAuditStaleness(sql: SqlStorage, days: number): AuditStalenessEntry[] {
+  try {
+    // Find directories with significant past activity that haven't been touched recently
+    const rows = sql
+      .exec(
+        `SELECT
+           file_path,
+           MAX(created_at) AS last_edit,
+           COUNT(*) AS edit_count
+         FROM edits
+         WHERE created_at > datetime('now', '-' || ? || ' days')
+         GROUP BY file_path
+         HAVING edit_count >= 3`,
+        days,
+      )
+      .toArray();
+
+    // Roll up to directory level and filter for stale ones
+    const dirMap = new Map<string, { last_edit: string; edit_count: number }>();
+
+    for (const r of rows) {
+      const row = r as Record<string, unknown>;
+      const dir = extractDirectory(row.file_path as string);
+      const existing = dirMap.get(dir);
+      const lastEdit = row.last_edit as string;
+      const editCount = (row.edit_count as number) || 0;
+
+      if (!existing || lastEdit > existing.last_edit) {
+        dirMap.set(dir, {
+          last_edit: lastEdit,
+          edit_count: (existing?.edit_count || 0) + editCount,
+        });
+      } else {
+        existing.edit_count += editCount;
+      }
+    }
+
+    const now = Date.now();
+    return [...dirMap.entries()]
+      .map(([directory, v]) => {
+        const daysSince = Math.round((now - new Date(v.last_edit + 'Z').getTime()) / 86400000);
+        return {
+          directory,
+          last_edit: v.last_edit,
+          days_since: daysSince,
+          prior_edit_count: v.edit_count,
+        };
+      })
+      .filter((e) => e.days_since >= 14 && e.prior_edit_count >= 5)
+      .sort((a, b) => b.days_since - a.days_since)
+      .slice(0, 20);
+  } catch (err) {
+    log.warn(`auditStaleness query failed: ${err}`);
+    return [];
+  }
+}
+
+function queryFirstEditStats(sql: SqlStorage, days: number): FirstEditStats {
+  const empty: FirstEditStats = {
+    avg_minutes_to_first_edit: 0,
+    median_minutes_to_first_edit: 0,
+    by_tool: [],
+  };
+  try {
+    // Overall stats
+    const overall = sql
+      .exec(
+        `SELECT
+           ROUND(AVG(
+             (julianday(first_edit_at) - julianday(started_at)) * 24 * 60
+           ), 1) AS avg_min
+         FROM sessions
+         WHERE started_at > datetime('now', '-' || ? || ' days')
+           AND first_edit_at IS NOT NULL`,
+        days,
+      )
+      .toArray();
+
+    // Median via sorted middle value
+    const medianRows = sql
+      .exec(
+        `SELECT ROUND((julianday(first_edit_at) - julianday(started_at)) * 24 * 60, 1) AS mins
+         FROM sessions
+         WHERE started_at > datetime('now', '-' || ? || ' days')
+           AND first_edit_at IS NOT NULL
+         ORDER BY mins`,
+        days,
+      )
+      .toArray();
+
+    let median = 0;
+    if (medianRows.length > 0) {
+      const midIdx = Math.floor(medianRows.length / 2);
+      median = ((medianRows[midIdx] as Record<string, unknown>).mins as number) || 0;
+    }
+
+    // By tool
+    const toolRows = sql
+      .exec(
+        `SELECT
+           host_tool,
+           ROUND(AVG(
+             (julianday(first_edit_at) - julianday(started_at)) * 24 * 60
+           ), 1) AS avg_minutes,
+           COUNT(*) AS sessions
+         FROM sessions
+         WHERE started_at > datetime('now', '-' || ? || ' days')
+           AND first_edit_at IS NOT NULL
+           AND host_tool IS NOT NULL AND host_tool != 'unknown'
+         GROUP BY host_tool
+         ORDER BY sessions DESC`,
+        days,
+      )
+      .toArray();
+
+    const avgMin = ((overall[0] as Record<string, unknown>)?.avg_min as number) || 0;
+
+    return {
+      avg_minutes_to_first_edit: avgMin,
+      median_minutes_to_first_edit: median,
+      by_tool: toolRows.map((r) => {
+        const row = r as Record<string, unknown>;
+        return {
+          host_tool: row.host_tool as string,
+          avg_minutes: (row.avg_minutes as number) || 0,
+          sessions: (row.sessions as number) || 0,
+        };
+      }),
+    };
+  } catch (err) {
+    log.warn(`firstEditStats query failed: ${err}`);
+    return empty;
+  }
+}
+
+function queryMemoryOutcomeCorrelation(sql: SqlStorage, days: number): MemoryOutcomeCorrelation[] {
+  try {
+    const rows = sql
+      .exec(
+        `SELECT
+           CASE WHEN memories_searched > 0 THEN 'used memory' ELSE 'no memory' END AS bucket,
+           COUNT(*) AS sessions,
+           SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS completed,
+           ROUND(CAST(SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
+             / NULLIF(COUNT(*), 0) * 100, 1) AS completion_rate
+         FROM sessions
+         WHERE started_at > datetime('now', '-' || ? || ' days')
+         GROUP BY bucket
+         ORDER BY bucket`,
+        days,
+      )
+      .toArray();
+
+    return rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      return {
+        bucket: row.bucket as string,
+        sessions: (row.sessions as number) || 0,
+        completed: (row.completed as number) || 0,
+        completion_rate: (row.completion_rate as number) || 0,
+      };
+    });
+  } catch (err) {
+    log.warn(`memoryOutcomeCorrelation query failed: ${err}`);
+    return [];
+  }
+}
+
+function queryTopMemories(sql: SqlStorage): MemoryAccessEntry[] {
+  try {
+    const rows = sql
+      .exec(
+        `SELECT id, text, access_count, last_accessed_at, created_at
+         FROM memories
+         WHERE access_count > 0
+         ORDER BY access_count DESC
+         LIMIT 20`,
+      )
+      .toArray();
+
+    return rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      const text = row.text as string;
+      return {
+        id: row.id as string,
+        text_preview: text.length > 120 ? text.slice(0, 120) + '...' : text,
+        access_count: (row.access_count as number) || 0,
+        last_accessed_at: (row.last_accessed_at as string) || null,
+        created_at: row.created_at as string,
+      };
+    });
+  } catch (err) {
+    log.warn(`topMemories query failed: ${err}`);
+    return [];
+  }
+}
+
+// ── Phase 3 analytics queries ─────────────────────
+
+function queryScopeComplexity(sql: SqlStorage, days: number): ScopeComplexityBucket[] {
+  try {
+    const rows = sql
+      .exec(
+        `SELECT
+           CASE
+             WHEN file_count = 1 THEN '1 file'
+             WHEN file_count <= 3 THEN '2-3 files'
+             WHEN file_count <= 7 THEN '4-7 files'
+             WHEN file_count <= 15 THEN '8-15 files'
+             ELSE '16+ files'
+           END AS bucket,
+           COUNT(*) AS sessions,
+           ROUND(AVG(edit_count), 1) AS avg_edits,
+           ROUND(AVG(
+             ROUND((julianday(COALESCE(ended_at, datetime('now'))) - julianday(started_at)) * 24 * 60)
+           ), 1) AS avg_duration_min,
+           ROUND(CAST(SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
+             / NULLIF(COUNT(*), 0) * 100, 1) AS completion_rate
+         FROM (
+           SELECT *, json_array_length(files_touched) AS file_count
+           FROM sessions
+           WHERE started_at > datetime('now', '-' || ? || ' days')
+             AND files_touched != '[]'
+         )
+         GROUP BY bucket
+         ORDER BY
+           CASE bucket
+             WHEN '1 file' THEN 1
+             WHEN '2-3 files' THEN 2
+             WHEN '4-7 files' THEN 3
+             WHEN '8-15 files' THEN 4
+             ELSE 5
+           END`,
+        days,
+      )
+      .toArray();
+
+    return rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      return {
+        bucket: row.bucket as string,
+        sessions: (row.sessions as number) || 0,
+        avg_edits: (row.avg_edits as number) || 0,
+        avg_duration_min: (row.avg_duration_min as number) || 0,
+        completion_rate: (row.completion_rate as number) || 0,
+      };
+    });
+  } catch (err) {
+    log.warn(`scopeComplexity query failed: ${err}`);
+    return [];
+  }
+}
+
+function queryPromptEfficiency(sql: SqlStorage, days: number): PromptEfficiencyTrend[] {
+  try {
+    const rows = sql
+      .exec(
+        `SELECT
+           date(ce.created_at) AS day,
+           ROUND(
+             CAST(SUM(CASE WHEN ce.role = 'user' THEN 1 ELSE 0 END) AS REAL)
+             / NULLIF(AVG(s.edit_count), 0),
+           1) AS avg_turns_per_edit,
+           COUNT(DISTINCT s.id) AS sessions
+         FROM conversation_events ce
+         JOIN sessions s ON s.id = ce.session_id
+         WHERE ce.created_at > datetime('now', '-' || ? || ' days')
+           AND s.edit_count > 0
+         GROUP BY date(ce.created_at)
+         ORDER BY day ASC`,
+        days,
+      )
+      .toArray();
+
+    return rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      return {
+        day: row.day as string,
+        avg_turns_per_edit: (row.avg_turns_per_edit as number) || 0,
+        sessions: (row.sessions as number) || 0,
+      };
+    });
+  } catch (err) {
+    log.warn(`promptEfficiency query failed: ${err}`);
+    return [];
+  }
+}
+
+function queryHourlyEffectiveness(sql: SqlStorage, days: number): HourlyEffectiveness[] {
+  try {
+    const rows = sql
+      .exec(
+        `SELECT
+           CAST(strftime('%H', started_at) AS INTEGER) AS hour,
+           COUNT(*) AS sessions,
+           ROUND(CAST(SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
+             / NULLIF(COUNT(*), 0) * 100, 1) AS completion_rate,
+           ROUND(AVG(edit_count), 1) AS avg_edits
+         FROM sessions
+         WHERE started_at > datetime('now', '-' || ? || ' days')
+         GROUP BY hour
+         ORDER BY hour`,
+        days,
+      )
+      .toArray();
+
+    return rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      return {
+        hour: (row.hour as number) || 0,
+        sessions: (row.sessions as number) || 0,
+        completion_rate: (row.completion_rate as number) || 0,
+        avg_edits: (row.avg_edits as number) || 0,
+      };
+    });
+  } catch (err) {
+    log.warn(`hourlyEffectiveness query failed: ${err}`);
+    return [];
+  }
+}
+
+function queryOutcomeTags(sql: SqlStorage, days: number): OutcomeTagCount[] {
+  try {
+    const rows = sql
+      .exec(
+        `SELECT
+           value AS tag,
+           COALESCE(outcome, 'unknown') AS outcome,
+           COUNT(*) AS count
+         FROM sessions, json_each(sessions.outcome_tags)
+         WHERE started_at > datetime('now', '-' || ? || ' days')
+           AND outcome_tags != '[]'
+         GROUP BY tag, outcome
+         ORDER BY count DESC
+         LIMIT 30`,
+        days,
+      )
+      .toArray();
+
+    return rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      return {
+        tag: row.tag as string,
+        outcome: row.outcome as string,
+        count: (row.count as number) || 0,
+      };
+    });
+  } catch (err) {
+    log.warn(`outcomeTags query failed: ${err}`);
+    return [];
+  }
+}
+
+function queryToolHandoffs(sql: SqlStorage, days: number): ToolHandoff[] {
+  try {
+    // Find files touched by different tools within 24h windows
+    const rows = sql
+      .exec(
+        `SELECT
+           a.host_tool AS from_tool,
+           b.host_tool AS to_tool,
+           COUNT(DISTINCT a.file_path) AS file_count,
+           ROUND(CAST(SUM(CASE WHEN s.outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
+             / NULLIF(COUNT(DISTINCT s.id), 0) * 100, 1) AS handoff_completion_rate
+         FROM edits a
+         JOIN edits b ON a.file_path = b.file_path
+           AND b.created_at > a.created_at
+           AND b.created_at < datetime(a.created_at, '+1 day')
+           AND a.host_tool != b.host_tool
+         JOIN sessions s ON s.id = b.session_id
+         WHERE a.created_at > datetime('now', '-' || ? || ' days')
+         GROUP BY from_tool, to_tool
+         HAVING file_count >= 2
+         ORDER BY file_count DESC
+         LIMIT 10`,
+        days,
+      )
+      .toArray();
+
+    return rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      return {
+        from_tool: row.from_tool as string,
+        to_tool: row.to_tool as string,
+        file_count: (row.file_count as number) || 0,
+        handoff_completion_rate: (row.handoff_completion_rate as number) || 0,
+      };
+    });
+  } catch (err) {
+    log.warn(`toolHandoffs query failed: ${err}`);
+    return [];
+  }
+}
+
+function queryOutcomePredictors(sql: SqlStorage, days: number): OutcomePredictor[] {
+  try {
+    const rows = sql
+      .exec(
+        `SELECT
+           COALESCE(outcome, 'unknown') AS outcome,
+           ROUND(AVG(
+             (julianday(first_edit_at) - julianday(started_at)) * 24 * 60
+           ), 1) AS avg_first_edit_min,
+           COUNT(*) AS sessions
+         FROM sessions
+         WHERE started_at > datetime('now', '-' || ? || ' days')
+           AND first_edit_at IS NOT NULL
+         GROUP BY outcome
+         ORDER BY sessions DESC`,
+        days,
+      )
+      .toArray();
+
+    return rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      return {
+        outcome: row.outcome as string,
+        avg_first_edit_min: (row.avg_first_edit_min as number) || 0,
+        sessions: (row.sessions as number) || 0,
+      };
+    });
+  } catch (err) {
+    log.warn(`outcomePredictors query failed: ${err}`);
+    return [];
+  }
+}
+
+// ── Period-over-period comparison ────────────────────
+// Computes current and previous period snapshots for core metrics.
+// Previous period is capped to session retention (30 days) to avoid
+// silently returning empty data for longer ranges.
+
+const SESSION_RETENTION_DAYS = 30;
+
+function queryPeriodComparison(sql: SqlStorage, days: number): PeriodComparison {
+  const effectiveDays = Math.min(days, SESSION_RETENTION_DAYS);
+
+  function queryPeriodMetrics(offsetStart: number, offsetEnd: number): PeriodMetrics | null {
+    try {
+      const rows = sql
+        .exec(
+          `SELECT
+             COUNT(*) AS total_sessions,
+             SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS completed,
+             ROUND(AVG(
+               ROUND((julianday(COALESCE(ended_at, datetime('now'))) - julianday(started_at)) * 24 * 60)
+             ), 1) AS avg_duration_min,
+             SUM(CASE WHEN got_stuck = 1 THEN 1 ELSE 0 END) AS stuck_sessions,
+             COALESCE(SUM(edit_count), 0) AS total_edits,
+             COALESCE(SUM(
+               CASE WHEN ended_at IS NOT NULL
+                 THEN ROUND((julianday(ended_at) - julianday(started_at)) * 24, 2)
+                 ELSE 0
+               END
+             ), 0) AS total_session_hours,
+             SUM(CASE WHEN memories_searched > 0 THEN 1 ELSE 0 END) AS sessions_with_memory
+           FROM sessions
+           WHERE started_at > datetime('now', '-' || ? || ' days')
+             AND started_at <= datetime('now', '-' || ? || ' days')`,
+          offsetStart,
+          offsetEnd,
+        )
+        .toArray();
+
+      const r = (rows[0] || {}) as Record<string, unknown>;
+      const total = (r.total_sessions as number) || 0;
+      if (total === 0) return null;
+
+      const completed = (r.completed as number) || 0;
+      const totalHours = (r.total_session_hours as number) || 0;
+      const totalEdits = (r.total_edits as number) || 0;
+      const stuck = (r.stuck_sessions as number) || 0;
+
+      // Memory hit rate from telemetry (best-effort)
+      let memoryHitRate = 0;
+      try {
+        const telRows = sql
+          .exec(
+            `SELECT
+               COALESCE((SELECT count FROM telemetry WHERE metric = 'memories_searched'), 0) AS searches,
+               COALESCE((SELECT count FROM telemetry WHERE metric = 'memories_search_hits'), 0) AS hits`,
+          )
+          .toArray();
+        const t = (telRows[0] || {}) as Record<string, unknown>;
+        const searches = (t.searches as number) || 0;
+        const hits = (t.hits as number) || 0;
+        memoryHitRate = searches > 0 ? Math.round((hits / searches) * 1000) / 10 : 0;
+      } catch {
+        // telemetry is best-effort
+      }
+
+      return {
+        completion_rate: Math.round((completed / total) * 1000) / 10,
+        avg_duration_min: (r.avg_duration_min as number) || 0,
+        stuckness_rate: Math.round((stuck / total) * 1000) / 10,
+        memory_hit_rate: memoryHitRate,
+        edit_velocity: totalHours > 0 ? Math.round((totalEdits / totalHours) * 10) / 10 : 0,
+        total_sessions: total,
+      };
+    } catch (err) {
+      log.warn(`periodMetrics query failed: ${err}`);
+      return null;
+    }
+  }
+
+  const current = queryPeriodMetrics(effectiveDays, 0);
+  const previous = queryPeriodMetrics(effectiveDays * 2, effectiveDays);
+
+  return {
+    current: current || {
+      completion_rate: 0,
+      avg_duration_min: 0,
+      stuckness_rate: 0,
+      memory_hit_rate: 0,
+      edit_velocity: 0,
+      total_sessions: 0,
+    },
+    previous,
+  };
+}
+
+// ── Token usage analytics ───────────────────────────
+
+function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats {
+  const empty: TokenUsageStats = {
+    total_input_tokens: 0,
+    total_output_tokens: 0,
+    avg_input_per_session: 0,
+    avg_output_per_session: 0,
+    sessions_with_token_data: 0,
+    sessions_without_token_data: 0,
+    by_model: [],
+    by_tool: [],
+  };
+
+  try {
+    // Totals — only count sessions that have token data (non-NULL)
+    const totals = sql
+      .exec(
+        `SELECT
+           COALESCE(SUM(input_tokens), 0) AS total_input,
+           COALESCE(SUM(output_tokens), 0) AS total_output,
+           COUNT(CASE WHEN input_tokens IS NOT NULL THEN 1 END) AS with_data,
+           COUNT(CASE WHEN input_tokens IS NULL THEN 1 END) AS without_data
+         FROM sessions
+         WHERE started_at > datetime('now', '-' || ? || ' days')`,
+        days,
+      )
+      .toArray();
+
+    const t = (totals[0] || {}) as Record<string, unknown>;
+    const totalInput = (t.total_input as number) || 0;
+    const totalOutput = (t.total_output as number) || 0;
+    const withData = (t.with_data as number) || 0;
+    const withoutData = (t.without_data as number) || 0;
+
+    if (withData === 0) {
+      return { ...empty, sessions_without_token_data: withoutData };
+    }
+
+    // By model
+    const modelRows = sql
+      .exec(
+        `SELECT agent_model,
+                COALESCE(SUM(input_tokens), 0) AS input_tokens,
+                COALESCE(SUM(output_tokens), 0) AS output_tokens,
+                COUNT(*) AS sessions
+         FROM sessions
+         WHERE started_at > datetime('now', '-' || ? || ' days')
+           AND input_tokens IS NOT NULL
+           AND agent_model IS NOT NULL AND agent_model != ''
+         GROUP BY agent_model
+         ORDER BY input_tokens DESC`,
+        days,
+      )
+      .toArray();
+
+    // By tool
+    const toolRows = sql
+      .exec(
+        `SELECT host_tool,
+                COALESCE(SUM(input_tokens), 0) AS input_tokens,
+                COALESCE(SUM(output_tokens), 0) AS output_tokens,
+                COUNT(*) AS sessions
+         FROM sessions
+         WHERE started_at > datetime('now', '-' || ? || ' days')
+           AND input_tokens IS NOT NULL
+           AND host_tool IS NOT NULL AND host_tool != 'unknown'
+         GROUP BY host_tool
+         ORDER BY input_tokens DESC`,
+        days,
+      )
+      .toArray();
+
+    return {
+      total_input_tokens: totalInput,
+      total_output_tokens: totalOutput,
+      avg_input_per_session: withData > 0 ? Math.round(totalInput / withData) : 0,
+      avg_output_per_session: withData > 0 ? Math.round(totalOutput / withData) : 0,
+      sessions_with_token_data: withData,
+      sessions_without_token_data: withoutData,
+      by_model: modelRows.map((r) => {
+        const row = r as Record<string, unknown>;
+        return {
+          agent_model: row.agent_model as string,
+          input_tokens: (row.input_tokens as number) || 0,
+          output_tokens: (row.output_tokens as number) || 0,
+          sessions: (row.sessions as number) || 0,
+        };
+      }),
+      by_tool: toolRows.map((r) => {
+        const row = r as Record<string, unknown>;
+        return {
+          host_tool: row.host_tool as string,
+          input_tokens: (row.input_tokens as number) || 0,
+          output_tokens: (row.output_tokens as number) || 0,
+          sessions: (row.sessions as number) || 0,
+        };
+      }),
+    };
+  } catch (err) {
+    log.warn(`tokenUsage query failed: ${err}`);
+    return empty;
+  }
+}
+
 export function getExtendedAnalytics(
   sql: SqlStorage,
   days: number,
@@ -1059,5 +1995,23 @@ export function getExtendedAnalytics(
     conflict_correlation: queryConflictCorrelation(sql, days),
     edit_velocity: queryEditVelocity(sql, days),
     memory_usage: queryMemoryUsage(sql, days),
+    work_type_outcomes: queryWorkTypeOutcomes(sql, days),
+    conversation_edit_correlation: queryConversationEditCorrelation(sql, days),
+    file_rework: queryFileRework(sql, days),
+    directory_heatmap: queryDirectoryHeatmap(sql, days),
+    stuckness: queryStuckness(sql, days),
+    file_overlap: queryFileOverlap(sql, days),
+    audit_staleness: queryAuditStaleness(sql, days),
+    first_edit_stats: queryFirstEditStats(sql, days),
+    memory_outcome_correlation: queryMemoryOutcomeCorrelation(sql, days),
+    top_memories: queryTopMemories(sql),
+    scope_complexity: queryScopeComplexity(sql, days),
+    prompt_efficiency: queryPromptEfficiency(sql, days),
+    hourly_effectiveness: queryHourlyEffectiveness(sql, days),
+    outcome_tags: queryOutcomeTags(sql, days),
+    tool_handoffs: queryToolHandoffs(sql, days),
+    outcome_predictors: queryOutcomePredictors(sql, days),
+    period_comparison: queryPeriodComparison(sql, days),
+    token_usage: queryTokenUsage(sql, days),
   };
 }

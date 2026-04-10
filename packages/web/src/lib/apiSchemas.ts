@@ -120,8 +120,14 @@ const sessionSchema = z
     duration_minutes: z.number().nullable().optional(),
     outcome: z.string().nullable().optional(),
     outcome_summary: z.string().nullable().optional(),
+    outcome_tags: z.array(z.string()).default([]),
     lines_added: z.number().default(0),
     lines_removed: z.number().default(0),
+    first_edit_at: z.string().nullable().optional(),
+    got_stuck: z.preprocess((v) => v === 1 || v === true, z.boolean()).default(false),
+    memories_searched: z.number().default(0),
+    input_tokens: z.number().nullable().optional(),
+    output_tokens: z.number().nullable().optional(),
   })
   .transform((session) => ({
     ...session,
@@ -407,6 +413,8 @@ const modelOutcomeSchema = z.object({
   count: z.number().default(0),
   avg_duration_min: z.number().default(0),
   total_edits: z.number().default(0),
+  total_lines_added: z.number().default(0),
+  total_lines_removed: z.number().default(0),
 });
 
 const toolOutcomeSchema = z.object({
@@ -537,6 +545,177 @@ const memoryUsageStatsSchema = z.object({
   avg_memory_age_days: z.number().default(0),
 });
 
+const workTypeOutcomeSchema = z.object({
+  work_type: z.string(),
+  sessions: z.number().default(0),
+  completed: z.number().default(0),
+  abandoned: z.number().default(0),
+  failed: z.number().default(0),
+  completion_rate: z.number().default(0),
+});
+
+const conversationEditCorrelationSchema = z.object({
+  bucket: z.string(),
+  sessions: z.number().default(0),
+  avg_edits: z.number().default(0),
+  avg_lines: z.number().default(0),
+  completion_rate: z.number().default(0),
+});
+
+const fileReworkEntrySchema = z.object({
+  file: z.string(),
+  total_edits: z.number().default(0),
+  failed_edits: z.number().default(0),
+  rework_ratio: z.number().default(0),
+});
+
+const directoryHeatmapEntrySchema = z.object({
+  directory: z.string(),
+  touch_count: z.number().default(0),
+  file_count: z.number().default(0),
+  total_lines: z.number().default(0),
+  completion_rate: z.number().default(0),
+});
+
+const stucknessStatsSchema = z.object({
+  total_sessions: z.number().default(0),
+  stuck_sessions: z.number().default(0),
+  stuckness_rate: z.number().default(0),
+  stuck_completion_rate: z.number().default(0),
+  normal_completion_rate: z.number().default(0),
+});
+
+const fileOverlapStatsSchema = z.object({
+  total_files: z.number().default(0),
+  overlapping_files: z.number().default(0),
+  overlap_rate: z.number().default(0),
+});
+
+const auditStalenessEntrySchema = z.object({
+  directory: z.string(),
+  last_edit: z.string(),
+  days_since: z.number().default(0),
+  prior_edit_count: z.number().default(0),
+});
+
+const firstEditStatsSchema = z.object({
+  avg_minutes_to_first_edit: z.number().default(0),
+  median_minutes_to_first_edit: z.number().default(0),
+  by_tool: z
+    .array(
+      z.object({
+        host_tool: z.string(),
+        avg_minutes: z.number().default(0),
+        sessions: z.number().default(0),
+      }),
+    )
+    .default([]),
+});
+
+const memoryOutcomeCorrelationSchema = z.object({
+  bucket: z.string(),
+  sessions: z.number().default(0),
+  completed: z.number().default(0),
+  completion_rate: z.number().default(0),
+});
+
+const memoryAccessEntrySchema = z.object({
+  id: z.string(),
+  text_preview: z.string(),
+  access_count: z.number().default(0),
+  last_accessed_at: z.string().nullable().default(null),
+  created_at: z.string(),
+});
+
+const scopeComplexityBucketSchema = z.object({
+  bucket: z.string(),
+  sessions: z.number().default(0),
+  avg_edits: z.number().default(0),
+  avg_duration_min: z.number().default(0),
+  completion_rate: z.number().default(0),
+});
+
+const promptEfficiencyTrendSchema = z.object({
+  day: z.string(),
+  avg_turns_per_edit: z.number().default(0),
+  sessions: z.number().default(0),
+});
+
+const hourlyEffectivenessSchema = z.object({
+  hour: z.number(),
+  sessions: z.number().default(0),
+  completion_rate: z.number().default(0),
+  avg_edits: z.number().default(0),
+});
+
+const outcomeTagCountSchema = z.object({
+  tag: z.string(),
+  count: z.number().default(0),
+  outcome: z.string(),
+});
+
+const toolHandoffSchema = z.object({
+  from_tool: z.string(),
+  to_tool: z.string(),
+  file_count: z.number().default(0),
+  handoff_completion_rate: z.number().default(0),
+});
+
+const outcomePredictorSchema = z.object({
+  outcome: z.string(),
+  avg_first_edit_min: z.number().default(0),
+  sessions: z.number().default(0),
+});
+
+const periodMetricsSchema = z.object({
+  completion_rate: z.number().default(0),
+  avg_duration_min: z.number().default(0),
+  stuckness_rate: z.number().default(0),
+  memory_hit_rate: z.number().default(0),
+  edit_velocity: z.number().default(0),
+  total_sessions: z.number().default(0),
+});
+
+const periodComparisonSchema = z.object({
+  current: periodMetricsSchema,
+  previous: periodMetricsSchema.nullable().default(null),
+});
+
+const tokenModelBreakdownSchema = z.object({
+  agent_model: z.string(),
+  input_tokens: z.number().default(0),
+  output_tokens: z.number().default(0),
+  sessions: z.number().default(0),
+});
+
+const tokenToolBreakdownSchema = z.object({
+  host_tool: z.string(),
+  input_tokens: z.number().default(0),
+  output_tokens: z.number().default(0),
+  sessions: z.number().default(0),
+});
+
+const tokenUsageStatsSchema = z.object({
+  total_input_tokens: z.number().default(0),
+  total_output_tokens: z.number().default(0),
+  avg_input_per_session: z.number().default(0),
+  avg_output_per_session: z.number().default(0),
+  sessions_with_token_data: z.number().default(0),
+  sessions_without_token_data: z.number().default(0),
+  by_model: z.array(tokenModelBreakdownSchema).default([]),
+  by_tool: z.array(tokenToolBreakdownSchema).default([]),
+});
+
+// ── Data coverage (capability-based) ──────────────
+
+const dataCoverageSchema = z.object({
+  tools_reporting: z.array(z.string()).default([]),
+  tools_without_data: z.array(z.string()).default([]),
+  coverage_rate: z.number().default(1),
+  capabilities_available: z.array(z.string()).default([]),
+  capabilities_missing: z.array(z.string()).default([]),
+});
+
 export const userAnalyticsSchema = teamAnalyticsSchema.extend({
   hourly_distribution: z.array(hourlyBucketSchema).default([]),
   tool_hourly: z.array(toolHourlyBucketSchema).default([]),
@@ -572,8 +751,60 @@ export const userAnalyticsSchema = teamAnalyticsSchema.extend({
     stale_memories: 0,
     avg_memory_age_days: 0,
   }),
+  work_type_outcomes: z.array(workTypeOutcomeSchema).default([]),
+  conversation_edit_correlation: z.array(conversationEditCorrelationSchema).default([]),
+  file_rework: z.array(fileReworkEntrySchema).default([]),
+  directory_heatmap: z.array(directoryHeatmapEntrySchema).default([]),
+  stuckness: stucknessStatsSchema.default({
+    total_sessions: 0,
+    stuck_sessions: 0,
+    stuckness_rate: 0,
+    stuck_completion_rate: 0,
+    normal_completion_rate: 0,
+  }),
+  file_overlap: fileOverlapStatsSchema.default({
+    total_files: 0,
+    overlapping_files: 0,
+    overlap_rate: 0,
+  }),
+  audit_staleness: z.array(auditStalenessEntrySchema).default([]),
+  first_edit_stats: firstEditStatsSchema.default({
+    avg_minutes_to_first_edit: 0,
+    median_minutes_to_first_edit: 0,
+    by_tool: [],
+  }),
+  memory_outcome_correlation: z.array(memoryOutcomeCorrelationSchema).default([]),
+  top_memories: z.array(memoryAccessEntrySchema).default([]),
+  scope_complexity: z.array(scopeComplexityBucketSchema).default([]),
+  prompt_efficiency: z.array(promptEfficiencyTrendSchema).default([]),
+  hourly_effectiveness: z.array(hourlyEffectivenessSchema).default([]),
+  outcome_tags: z.array(outcomeTagCountSchema).default([]),
+  tool_handoffs: z.array(toolHandoffSchema).default([]),
+  outcome_predictors: z.array(outcomePredictorSchema).default([]),
+  period_comparison: periodComparisonSchema.default({
+    current: {
+      completion_rate: 0,
+      avg_duration_min: 0,
+      stuckness_rate: 0,
+      memory_hit_rate: 0,
+      edit_velocity: 0,
+      total_sessions: 0,
+    },
+    previous: null,
+  }),
+  token_usage: tokenUsageStatsSchema.default({
+    total_input_tokens: 0,
+    total_output_tokens: 0,
+    avg_input_per_session: 0,
+    avg_output_per_session: 0,
+    sessions_with_token_data: 0,
+    sessions_without_token_data: 0,
+    by_model: [],
+    by_tool: [],
+  }),
   teams_included: z.number().default(0),
   degraded: z.boolean().default(false),
+  data_coverage: dataCoverageSchema.optional(),
 });
 
 export type UserAnalytics = z.infer<typeof userAnalyticsSchema>;
@@ -594,6 +825,95 @@ export type RetryPattern = z.infer<typeof retryPatternSchema>;
 export type ConflictCorrelation = z.infer<typeof conflictCorrelationSchema>;
 export type EditVelocityTrend = z.infer<typeof editVelocityTrendSchema>;
 export type MemoryUsageStats = z.infer<typeof memoryUsageStatsSchema>;
+export type WorkTypeOutcome = z.infer<typeof workTypeOutcomeSchema>;
+export type ConversationEditCorrelation = z.infer<typeof conversationEditCorrelationSchema>;
+export type FileReworkEntry = z.infer<typeof fileReworkEntrySchema>;
+export type DirectoryHeatmapEntry = z.infer<typeof directoryHeatmapEntrySchema>;
+export type StucknessStats = z.infer<typeof stucknessStatsSchema>;
+export type FileOverlapStats = z.infer<typeof fileOverlapStatsSchema>;
+export type AuditStalenessEntry = z.infer<typeof auditStalenessEntrySchema>;
+export type FirstEditStats = z.infer<typeof firstEditStatsSchema>;
+export type MemoryOutcomeCorrelation = z.infer<typeof memoryOutcomeCorrelationSchema>;
+export type MemoryAccessEntry = z.infer<typeof memoryAccessEntrySchema>;
+export type ScopeComplexityBucket = z.infer<typeof scopeComplexityBucketSchema>;
+export type PromptEfficiencyTrend = z.infer<typeof promptEfficiencyTrendSchema>;
+export type HourlyEffectiveness = z.infer<typeof hourlyEffectivenessSchema>;
+export type OutcomeTagCount = z.infer<typeof outcomeTagCountSchema>;
+export type ToolHandoff = z.infer<typeof toolHandoffSchema>;
+export type OutcomePredictor = z.infer<typeof outcomePredictorSchema>;
+export type PeriodMetrics = z.infer<typeof periodMetricsSchema>;
+export type PeriodComparison = z.infer<typeof periodComparisonSchema>;
+export type TokenModelBreakdown = z.infer<typeof tokenModelBreakdownSchema>;
+export type TokenToolBreakdown = z.infer<typeof tokenToolBreakdownSchema>;
+export type TokenUsageStats = z.infer<typeof tokenUsageStatsSchema>;
+export type DataCoverage = z.infer<typeof dataCoverageSchema>;
+
+// ── Conversation intelligence ────────────────────────
+
+const sentimentDistributionSchema = z.object({
+  sentiment: z.string(),
+  count: z.number().default(0),
+});
+
+const topicDistributionSchema = z.object({
+  topic: z.string(),
+  count: z.number().default(0),
+});
+
+const sentimentOutcomeCorrelationSchema = z.object({
+  dominant_sentiment: z.string(),
+  sessions: z.number().default(0),
+  completed: z.number().default(0),
+  abandoned: z.number().default(0),
+  failed: z.number().default(0),
+  completion_rate: z.number().default(0),
+});
+
+const conversationToolCoverageSchema = z.object({
+  supported_tools: z.array(z.string()).default([]),
+  unsupported_tools: z.array(z.string()).default([]),
+});
+
+export const conversationAnalyticsSchema = z.object({
+  ok: z.literal(true),
+  period_days: z.number(),
+  total_messages: z.number().default(0),
+  user_messages: z.number().default(0),
+  assistant_messages: z.number().default(0),
+  avg_user_char_count: z.number().default(0),
+  avg_assistant_char_count: z.number().default(0),
+  sentiment_distribution: z.array(sentimentDistributionSchema).default([]),
+  topic_distribution: z.array(topicDistributionSchema).default([]),
+  sentiment_outcome_correlation: z.array(sentimentOutcomeCorrelationSchema).default([]),
+  sessions_with_conversations: z.number().default(0),
+  tool_coverage: conversationToolCoverageSchema.default({
+    supported_tools: [],
+    unsupported_tools: [],
+  }),
+});
+
+export type ConversationAnalytics = z.infer<typeof conversationAnalyticsSchema>;
+export type SentimentDistribution = z.infer<typeof sentimentDistributionSchema>;
+export type TopicDistribution = z.infer<typeof topicDistributionSchema>;
+export type SentimentOutcomeCorrelation = z.infer<typeof sentimentOutcomeCorrelationSchema>;
+export type ConversationToolCoverage = z.infer<typeof conversationToolCoverageSchema>;
+
+export function createEmptyConversationAnalytics(): ConversationAnalytics {
+  return {
+    ok: true,
+    period_days: 30,
+    total_messages: 0,
+    user_messages: 0,
+    assistant_messages: 0,
+    avg_user_char_count: 0,
+    avg_assistant_char_count: 0,
+    sentiment_distribution: [],
+    topic_distribution: [],
+    sentiment_outcome_correlation: [],
+    sessions_with_conversations: 0,
+    tool_coverage: { supported_tools: [], unsupported_tools: [] },
+  };
+}
 
 export function createEmptyUserAnalytics(): UserAnalytics {
   return {
@@ -632,6 +952,57 @@ export function createEmptyUserAnalytics(): UserAnalytics {
       memories_updated_period: 0,
       stale_memories: 0,
       avg_memory_age_days: 0,
+    },
+    work_type_outcomes: [],
+    conversation_edit_correlation: [],
+    file_rework: [],
+    directory_heatmap: [],
+    stuckness: {
+      total_sessions: 0,
+      stuck_sessions: 0,
+      stuckness_rate: 0,
+      stuck_completion_rate: 0,
+      normal_completion_rate: 0,
+    },
+    file_overlap: {
+      total_files: 0,
+      overlapping_files: 0,
+      overlap_rate: 0,
+    },
+    audit_staleness: [],
+    first_edit_stats: {
+      avg_minutes_to_first_edit: 0,
+      median_minutes_to_first_edit: 0,
+      by_tool: [],
+    },
+    memory_outcome_correlation: [],
+    top_memories: [],
+    scope_complexity: [],
+    prompt_efficiency: [],
+    hourly_effectiveness: [],
+    outcome_tags: [],
+    tool_handoffs: [],
+    outcome_predictors: [],
+    period_comparison: {
+      current: {
+        completion_rate: 0,
+        avg_duration_min: 0,
+        stuckness_rate: 0,
+        memory_hit_rate: 0,
+        edit_velocity: 0,
+        total_sessions: 0,
+      },
+      previous: null,
+    },
+    token_usage: {
+      total_input_tokens: 0,
+      total_output_tokens: 0,
+      avg_input_per_session: 0,
+      avg_output_per_session: 0,
+      sessions_with_token_data: 0,
+      sessions_without_token_data: 0,
+      by_model: [],
+      by_tool: [],
     },
     teams_included: 0,
     degraded: false,

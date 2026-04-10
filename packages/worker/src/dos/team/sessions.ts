@@ -5,7 +5,7 @@ import type { DOResult, SessionInfo } from '../../types.js';
 import { normalizePath } from '../../lib/text-utils.js';
 import { createLogger } from '../../lib/logger.js';
 import { safeParse } from '../../lib/safe-parse.js';
-import { normalizeRuntimeMetadata } from './runtime.js';
+import { normalizeRuntimeMetadata, normalizeModelName } from './runtime.js';
 import { HEARTBEAT_STALE_WINDOW_S, ACTIVITY_MAX_FILES, METRIC_KEYS } from '../../lib/constants.js';
 import { sqlChanges, withTransaction } from '../../lib/validation.js';
 
@@ -64,19 +64,20 @@ export function enrichSessionModel(
   recordMetric: (metric: string) => void,
   transact: <T>(fn: () => T) => T,
 ): { ok: true } {
+  const normalized = normalizeModelName(model) || model;
   withTransaction(transact, () => {
     sql.exec(
       `UPDATE sessions SET agent_model = ? WHERE agent_id = ? AND ended_at IS NULL AND agent_model IS NULL`,
-      model,
+      normalized,
       resolvedAgentId,
     );
     sql.exec(
       `UPDATE members SET agent_model = ? WHERE agent_id = ? AND agent_model IS NULL`,
-      model,
+      normalized,
       resolvedAgentId,
     );
   });
-  recordMetric(`${METRIC_KEYS.MODEL_PREFIX}${model}`);
+  recordMetric(`${METRIC_KEYS.MODEL_PREFIX}${normalized}`);
   return { ok: true };
 }
 
@@ -140,6 +141,7 @@ export function reportOutcome(
   resolvedAgentId: string,
   outcome: string,
   summary: string | null,
+  outcomeTags?: string[] | null,
 ): DOResult<{ ok: true }> {
   if (!VALID_OUTCOMES.has(outcome))
     return {
@@ -147,10 +149,13 @@ export function reportOutcome(
       code: 'INVALID',
     };
 
+  const tags = Array.isArray(outcomeTags) ? JSON.stringify(outcomeTags.slice(0, 10)) : '[]';
+
   sql.exec(
-    `UPDATE sessions SET outcome = ?, outcome_summary = ? WHERE agent_id = ? AND ended_at IS NULL`,
+    `UPDATE sessions SET outcome = ?, outcome_summary = ?, outcome_tags = ? WHERE agent_id = ? AND ended_at IS NULL`,
     outcome,
     summary,
+    tags,
     resolvedAgentId,
   );
   if (sqlChanges(sql) === 0)
@@ -190,9 +195,9 @@ export function recordEdit(
     if (files.length > ACTIVITY_MAX_FILES) files = files.slice(-ACTIVITY_MAX_FILES);
   }
 
-  // Accumulate into session counters (existing behavior)
+  // Accumulate into session counters + set first_edit_at on the first edit
   sql.exec(
-    `UPDATE sessions SET edit_count = edit_count + 1, lines_added = lines_added + ?, lines_removed = lines_removed + ?, files_touched = ? WHERE id = ?`,
+    `UPDATE sessions SET edit_count = edit_count + 1, lines_added = lines_added + ?, lines_removed = lines_removed + ?, files_touched = ?, first_edit_at = COALESCE(first_edit_at, datetime('now')) WHERE id = ?`,
     linesAdded,
     linesRemoved,
     JSON.stringify(files),
@@ -266,9 +271,33 @@ export interface SessionRecord {
   memories_saved: number;
   outcome: string | null;
   outcome_summary: string | null;
+  outcome_tags: string[];
   lines_added: number;
   lines_removed: number;
   duration_minutes: number;
+  first_edit_at: string | null;
+  got_stuck: number;
+  memories_searched: number;
+  input_tokens: number | null;
+  output_tokens: number | null;
+}
+
+export function recordTokenUsage(
+  sql: SqlStorage,
+  resolvedAgentId: string,
+  sessionId: string,
+  inputTokens: number,
+  outputTokens: number,
+): { ok: true } | { error: string; code: string } {
+  sql.exec(
+    `UPDATE sessions SET input_tokens = COALESCE(input_tokens, 0) + ?, output_tokens = COALESCE(output_tokens, 0) + ?
+     WHERE id = ? AND agent_id = ?`,
+    inputTokens,
+    outputTokens,
+    sessionId,
+    resolvedAgentId,
+  );
+  return { ok: true };
 }
 
 export function getSessionsInRange(
@@ -280,7 +309,9 @@ export function getSessionsInRange(
     .exec(
       `SELECT id, agent_id, handle, host_tool, agent_surface, agent_model,
               started_at, ended_at, edit_count, files_touched, conflicts_hit,
-              memories_saved, outcome, outcome_summary, lines_added, lines_removed,
+              memories_saved, outcome, outcome_summary, outcome_tags,
+              lines_added, lines_removed, first_edit_at, got_stuck, memories_searched,
+              input_tokens, output_tokens,
               ROUND((julianday(COALESCE(ended_at, datetime('now'))) - julianday(started_at)) * 24 * 60) as duration_minutes
        FROM sessions
        WHERE started_at >= ? AND started_at < datetime(?, '+1 day')
@@ -313,9 +344,20 @@ export function getSessionsInRange(
       memories_saved: (r.memories_saved as number) || 0,
       outcome: (r.outcome as string) || null,
       outcome_summary: (r.outcome_summary as string) || null,
+      outcome_tags: safeParse(
+        (r.outcome_tags as string) || '[]',
+        `getSessionsInRange id=${r.id} outcome_tags`,
+        [] as string[],
+        log,
+      ),
       lines_added: (r.lines_added as number) || 0,
       lines_removed: (r.lines_removed as number) || 0,
       duration_minutes: (r.duration_minutes as number) || 0,
+      first_edit_at: (r.first_edit_at as string) || null,
+      got_stuck: (r.got_stuck as number) || 0,
+      memories_searched: (r.memories_searched as number) || 0,
+      input_tokens: (r.input_tokens as number) ?? null,
+      output_tokens: (r.output_tokens as number) ?? null,
     };
   });
 }

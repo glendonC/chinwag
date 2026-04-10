@@ -423,6 +423,99 @@ const migrations: Migration[] = [
       );
     },
   },
+  {
+    name: '010_conversation_events',
+    up(sql) {
+      // Conversation events — parsed messages from managed agent sessions.
+      // Captures user and assistant messages for interaction analytics:
+      // sentiment tracking, message length trends, topic classification,
+      // and correlation with session outcomes.
+      sql.exec(`
+        CREATE TABLE IF NOT EXISTS conversation_events (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL,
+          agent_id TEXT NOT NULL,
+          handle TEXT NOT NULL,
+          host_tool TEXT DEFAULT 'unknown',
+          role TEXT NOT NULL,
+          content TEXT NOT NULL,
+          char_count INTEGER NOT NULL DEFAULT 0,
+          sentiment TEXT DEFAULT NULL,
+          topic TEXT DEFAULT NULL,
+          sequence INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `);
+      sql.exec(
+        'CREATE INDEX IF NOT EXISTS idx_conversation_session ON conversation_events(session_id, sequence)',
+      );
+      sql.exec(
+        'CREATE INDEX IF NOT EXISTS idx_conversation_agent ON conversation_events(agent_id, created_at)',
+      );
+      sql.exec(
+        'CREATE INDEX IF NOT EXISTS idx_conversation_sentiment ON conversation_events(sentiment)',
+      );
+    },
+  },
+  {
+    name: '011_extended_analytics_columns',
+    up(sql) {
+      // Time-to-first-edit: set on first recordEdit() call per session
+      addColumnIfMissing(sql, 'sessions', 'first_edit_at TEXT DEFAULT NULL');
+
+      // Stuckness flag: set when 15-min heartbeat gap detected
+      addColumnIfMissing(sql, 'sessions', 'got_stuck INTEGER DEFAULT 0');
+
+      // Per-session memory search counter (mirrors memories_saved pattern)
+      addColumnIfMissing(sql, 'sessions', 'memories_searched INTEGER DEFAULT 0');
+
+      // Structured outcome reasons for aggregation
+      addColumnIfMissing(sql, 'sessions', "outcome_tags TEXT DEFAULT '[]'");
+
+      // Memory access frequency counter
+      addColumnIfMissing(sql, 'memories', 'access_count INTEGER DEFAULT 0');
+    },
+  },
+  {
+    name: '012_token_tracking',
+    up(sql) {
+      // Per-session token usage — nullable means "data not available for this tool"
+      // (distinct from 0 which means "measured zero tokens")
+      addColumnIfMissing(sql, 'sessions', 'input_tokens INTEGER DEFAULT NULL');
+      addColumnIfMissing(sql, 'sessions', 'output_tokens INTEGER DEFAULT NULL');
+    },
+  },
+  {
+    name: '013_normalize_model_names',
+    up(sql) {
+      // Backfill: strip date suffixes from stored model names for consistent grouping.
+      // E.g. "claude-sonnet-4-5-20250514" → "claude-sonnet-4-5"
+      // Only affects rows with an 8-digit date suffix pattern.
+      try {
+        for (const table of ['sessions', 'members'] as const) {
+          sql.exec(
+            `UPDATE ${table}
+             SET agent_model = SUBSTR(agent_model, 1, LENGTH(agent_model) - 9)
+             WHERE agent_model IS NOT NULL
+               AND LENGTH(agent_model) > 9
+               AND SUBSTR(agent_model, LENGTH(agent_model) - 8, 1) = '-'
+               AND CAST(SUBSTR(agent_model, LENGTH(agent_model) - 7) AS INTEGER) > 20200000`,
+          );
+        }
+        // Also normalize the telemetry model:* keys
+        sql.exec(
+          `UPDATE telemetry
+           SET metric = 'model:' || SUBSTR(SUBSTR(metric, 7), 1, LENGTH(SUBSTR(metric, 7)) - 9)
+           WHERE metric LIKE 'model:%'
+             AND LENGTH(metric) > 15
+             AND SUBSTR(metric, LENGTH(metric) - 8, 1) = '-'
+             AND CAST(SUBSTR(metric, LENGTH(metric) - 7) AS INTEGER) > 20200000`,
+        );
+      } catch (error) {
+        logMigrationError('013_normalize_model_names', error);
+      }
+    },
+  },
 ];
 
 export function ensureSchema(
