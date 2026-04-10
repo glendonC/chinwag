@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import clsx from 'clsx';
 import styles from './StatCard.module.css';
 
 interface Props {
@@ -9,14 +10,11 @@ interface Props {
 }
 
 export default function StatCard({ value, label, hint = '', tone = 'default' }: Props) {
-  const cls = [
-    styles.stat,
-    tone === 'accent' ? styles.accent : '',
-    tone === 'danger' ? styles.danger : '',
-    tone === 'success' ? styles.success : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const cls = clsx(styles.stat, {
+    [styles.accent]: tone === 'accent',
+    [styles.danger]: tone === 'danger',
+    [styles.success]: tone === 'success',
+  });
 
   return (
     <div className={cls} role="group" aria-label={`${value} ${label}`}>

@@ -5,14 +5,13 @@ import { getDB, getLobby, rpc } from '../../lib/env.js';
 import { json } from '../../lib/http.js';
 import { createLogger } from '../../lib/logger.js';
 import { sanitizeTags } from '../../lib/request-utils.js';
-import { authedRoute, authedJsonRoute } from '../../lib/middleware.js';
+import { authedRoute, authedJsonRoute, doResult } from '../../lib/middleware.js';
 import { MAX_STATUS_LENGTH, MAX_FRAMEWORK_LENGTH, VALID_COLORS_SET } from '../../lib/constants.js';
 
 const log = createLogger('routes.user.profile');
 
 export const handleUnlinkGithub = authedRoute(async ({ user, env }) => {
-  const result = rpc(await getDB(env).unlinkGithub(user.id));
-  return json(result);
+  return doResult(getDB(env).unlinkGithub(user.id), 'unlinkGithub');
 });
 
 export const handleUpdateHandle = authedJsonRoute(async ({ user, env, body }) => {
@@ -37,13 +36,7 @@ export const handleUpdateHandle = authedJsonRoute(async ({ user, env, body }) =>
     return json({ error: 'Content blocked' }, 400);
   }
 
-  const result = rpc(await getDB(env).updateHandle(user.id, handle));
-  if ('error' in result) {
-    log.warn(`updateHandle failed: ${result.error}`);
-    return json({ error: result.error }, 400);
-  }
-
-  return json(result);
+  return doResult(getDB(env).updateHandle(user.id, handle), 'updateHandle');
 });
 
 export const handleUpdateColor = authedJsonRoute(async ({ user, env, body }) => {
@@ -58,13 +51,7 @@ export const handleUpdateColor = authedJsonRoute(async ({ user, env, body }) => 
     );
   }
 
-  const result = rpc(await getDB(env).updateColor(user.id, color));
-  if ('error' in result) {
-    log.warn(`updateColor failed: ${result.error}`);
-    return json({ error: result.error }, 400);
-  }
-
-  return json(result);
+  return doResult(getDB(env).updateColor(user.id, color), 'updateColor');
 });
 
 export const handleSetStatus = authedJsonRoute(async ({ user, env, body }) => {
@@ -89,7 +76,7 @@ export const handleSetStatus = authedJsonRoute(async ({ user, env, body }) => {
   }
 
   const result = rpc(await getDB(env).setStatus(user.id, status));
-  if (result && typeof result === 'object' && 'error' in result) {
+  if ('error' in result) {
     log.warn(`setStatus failed: ${result.error}`);
     return json({ error: result.error }, 400);
   }
@@ -98,7 +85,7 @@ export const handleSetStatus = authedJsonRoute(async ({ user, env, body }) => {
 
 export const handleClearStatus = authedRoute(async ({ user, env }) => {
   const result = rpc(await getDB(env).setStatus(user.id, null));
-  if (result && typeof result === 'object' && 'error' in result) {
+  if ('error' in result) {
     log.warn(`clearStatus failed: ${result.error}`);
     return json({ error: result.error }, 400);
   }
@@ -108,7 +95,7 @@ export const handleClearStatus = authedRoute(async ({ user, env }) => {
 export const handleHeartbeat = authedRoute(async ({ request, user, env }) => {
   const country = request.headers.get('CF-IPCountry') || null;
   const result = rpc(await getLobby(env).heartbeat(user.handle, country));
-  if (result && typeof result === 'object' && 'error' in result) {
+  if ('error' in result) {
     log.warn(`heartbeat failed: ${result.error}`);
     return json({ error: result.error }, 500);
   }
@@ -125,10 +112,5 @@ export const handleUpdateAgentProfile = authedJsonRoute(async ({ user, env, body
     platforms: sanitizeTags(body.platforms),
   };
 
-  const result = rpc(await getDB(env).updateAgentProfile(user.id, profile));
-  if ('error' in result) {
-    log.warn(`updateAgentProfile failed: ${result.error}`);
-    return json({ error: result.error }, 400);
-  }
-  return json(result);
+  return doResult(getDB(env).updateAgentProfile(user.id, profile), 'updateAgentProfile');
 });
