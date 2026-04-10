@@ -1,25 +1,55 @@
 // Shared primitives used across other schema files.
 // Guards the UI layer against malformed backend data.
+// Base shapes imported from @chinwag/shared/contracts; client-specific
+// .default(), .catch(), .transform(), .preprocess() applied on top.
 
 import { z } from 'zod';
 
+import {
+  hostJoinMetricSchema as baseHostMetricSchema,
+  surfaceJoinMetricSchema as baseSurfaceMetricSchema,
+  modelMetricSchema as baseModelMetricSchema,
+  authenticatedUserSchema as baseUserSchema,
+  userTeamSchema as baseTeamSchema,
+  webSocketTicketResponseSchema as baseWsTicketSchema,
+  dashboardSummarySchema as baseDashboardSummarySchema,
+  userTeamsResponseSchema as baseUserTeamsSchema,
+} from '@chinwag/shared/contracts/dashboard.js';
+
+import {
+  type teamMemberSchema,
+  teamConflictSchema as baseConflictSchema,
+  teamLockSchema as baseLockSchema,
+  teamMemorySchema as baseMemorySchema,
+  memoryCategorySchema as baseMemoryCategorySchema,
+  teamMessageSchema as baseMessageSchema,
+  teamSessionSchema as baseSessionSchema,
+  agentMetadataSchema,
+  memberActivitySchema,
+} from '@chinwag/shared/contracts/team.js';
+
+import {
+  toolCatalogEntrySchema as baseToolCatalogEntrySchema,
+  toolDirectoryEvaluationSchema as baseToolDirectoryEvaluationSchema,
+} from '@chinwag/shared/contracts/tools.js';
+
 // ── Shared primitives ───────────────────────────────
 
-export const hostMetricSchema = z.object({
-  host_tool: z.string(),
+export const hostMetricSchema = baseHostMetricSchema.extend({
   joins: z.number().default(0),
 });
 
-export const surfaceMetricSchema = z.object({
-  agent_surface: z.string(),
+export const surfaceMetricSchema = baseSurfaceMetricSchema.extend({
   joins: z.number().default(0),
 });
 
-export const modelMetricSchema = z.object({
-  agent_model: z.string(),
+export const modelMetricSchema = baseModelMetricSchema.extend({
   count: z.number().default(0),
 });
 
+// memberSchema: web uses fewer fields than shared teamMemberSchema (no tool,
+// framework, seconds_since_update, minutes_since_update, signal_tier) and
+// adds color. Keep hand-written definition; verify key fields via type check.
 export const memberSchema = z.object({
   agent_id: z.string(),
   handle: z.string(),
@@ -40,51 +70,41 @@ export const memberSchema = z.object({
   session_minutes: z.number().nullable().optional(),
 });
 
-export const memorySchema = z.object({
-  id: z.string(),
-  text: z.string(),
+// Type-level check: verify key fields stay aligned with shared contract
+type _MemberContractCheck =
+  z.infer<typeof memberSchema> extends Pick<z.infer<typeof teamMemberSchema>, 'agent_id' | 'handle'>
+    ? true
+    : never;
+ 
+const _memberCheck: _MemberContractCheck = true;
+
+export const memorySchema = baseMemorySchema.extend({
   tags: z.array(z.string()).default([]),
   categories: z.array(z.string()).default([]),
-  handle: z.string().nullable().optional(),
-  host_tool: z.string().nullable().optional(),
-  agent_surface: z.string().nullable().optional(),
-  agent_model: z.string().nullable().optional(),
-  session_id: z.string().nullable().optional(),
-  created_at: z.string().optional(),
-  updated_at: z.string().optional(),
-  last_accessed_at: z.string().nullable().optional(),
 });
 
-export const memoryCategorySchema = z.object({
-  id: z.string(),
-  name: z.string(),
+export const memoryCategorySchema = baseMemoryCategorySchema.extend({
   description: z.string().default(''),
-  color: z.string().nullable().optional(),
   created_at: z.string().optional(),
 });
 
-export const lockSchema = z.object({
-  file_path: z.string(),
-  agent_id: z.string().optional(),
-  handle: z.string().nullable().optional(),
-  host_tool: z.string().nullable().optional(),
-  agent_surface: z.string().nullable().optional(),
-  minutes_held: z.number().nullable().optional(),
-});
+export const lockSchema = baseLockSchema
+  .pick({
+    file_path: true,
+    agent_id: true,
+    handle: true,
+    host_tool: true,
+    agent_surface: true,
+    minutes_held: true,
+  })
+  .extend({
+    agent_id: z.string().optional(),
+  });
 
-export const messageSchema = z
-  .object({
-    id: z.string().optional(),
-    agent_id: z.string().nullable().optional(),
-    handle: z.string().optional(),
-    from_handle: z.string().optional(),
-    host_tool: z.string().nullable().optional(),
-    from_host_tool: z.string().nullable().optional(),
-    from_tool: z.string().nullable().optional(),
-    agent_surface: z.string().nullable().optional(),
-    from_agent_surface: z.string().nullable().optional(),
-    text: z.string(),
-    created_at: z.string().optional(),
+// messageSchema: imports base shape but keeps .transform() for handle/host_tool
+// normalization. The `target` field is web-only.
+export const messageSchema = baseMessageSchema
+  .extend({
     target: z.string().nullable().optional(),
   })
   .transform((msg) => ({
@@ -94,34 +114,20 @@ export const messageSchema = z
     agent_surface: msg.agent_surface || msg.from_agent_surface || null,
   }));
 
-export const sessionSchema = z
-  .object({
-    id: z.string().optional(),
-    agent_id: z.string().optional(),
-    owner_handle: z.string().optional(),
-    handle: z.string().optional(),
-    framework: z.string().optional(),
+// sessionSchema: imports base shape but keeps .preprocess() for got_stuck
+// (SQLite returns 0/1) and .transform() for handle normalization.
+export const sessionSchema = baseSessionSchema
+  .extend({
     host_tool: z.string().default('unknown'),
-    agent_surface: z.string().nullable().optional(),
-    transport: z.string().nullable().optional(),
-    agent_model: z.string().nullable().optional(),
-    started_at: z.string(),
-    ended_at: z.string().nullable().optional(),
     edit_count: z.number().default(0),
     files_touched: z.array(z.string()).default([]),
     conflicts_hit: z.number().default(0),
     memories_saved: z.number().default(0),
-    duration_minutes: z.number().nullable().optional(),
-    outcome: z.string().nullable().optional(),
-    outcome_summary: z.string().nullable().optional(),
     outcome_tags: z.array(z.string()).default([]),
     lines_added: z.number().default(0),
     lines_removed: z.number().default(0),
-    first_edit_at: z.string().nullable().optional(),
     got_stuck: z.preprocess((v) => v === 1 || v === true, z.boolean()).default(false),
     memories_searched: z.number().default(0),
-    input_tokens: z.number().nullable().optional(),
-    output_tokens: z.number().nullable().optional(),
   })
   .transform((session) => ({
     ...session,
@@ -130,50 +136,31 @@ export const sessionSchema = z
     handle: session.handle || session.owner_handle || 'Agent',
   }));
 
-export const conflictSchema = z.object({
-  file: z.string(),
+export const conflictSchema = baseConflictSchema.extend({
   agents: z.array(z.string()).default([]),
 });
 
-export const teamSchema = z.object({
-  team_id: z.string(),
+export const teamSchema = baseTeamSchema.extend({
   team_name: z.string().optional(),
-  joined_at: z.string().optional(),
 });
 
-export const userSchema = z.object({
-  handle: z.string(),
-  color: z.string(),
+export const userSchema = baseUserSchema.extend({
   created_at: z.string().optional(),
   github_id: z.string().nullable().optional(),
   github_login: z.string().nullable().optional(),
   avatar_url: z.string().nullable().optional(),
 });
 
-export const wsTicketSchema = z.object({
-  ticket: z.string(),
-  expires_at: z.string().optional(),
-});
+export const wsTicketSchema = baseWsTicketSchema;
 
-export const toolCatalogEntrySchema = z.object({
-  id: z.string(),
-  name: z.string(),
+export const toolCatalogEntrySchema = baseToolCatalogEntrySchema.extend({
   category: z.string().optional(),
   description: z.string().optional(),
-  featured: z.boolean().optional(),
-  installCmd: z.string().nullable().optional(),
-  mcp_support: z.boolean().optional(),
 });
 
-export const toolDirectoryEvaluationSchema = z.object({
-  id: z.string(),
-  name: z.string(),
+export const toolDirectoryEvaluationSchema = baseToolDirectoryEvaluationSchema.extend({
   category: z.string().optional(),
   verdict: z.string().optional(),
-  tagline: z.string().optional(),
-  integration_tier: z.string().optional(),
-  mcp_support: z.union([z.boolean(), z.string()]).optional(),
-  metadata: z.record(z.unknown()).optional(),
 });
 
 // ── Inferred types from schemas ────────────────────

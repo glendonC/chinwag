@@ -1,20 +1,62 @@
 // Team and user analytics schemas.
+// Base shapes imported from @chinwag/shared/contracts/analytics.js;
+// client-specific .default() values applied for resilient UI rendering.
 
 import { z } from 'zod';
 
+import {
+  fileHeatmapEntrySchema as baseFileHeatmapEntrySchema,
+  dailyTrendSchema as baseDailyTrendSchema,
+  outcomeCountSchema as baseOutcomeCountSchema,
+  toolDistributionSchema as baseToolDistributionSchema,
+  dailyMetricEntrySchema as baseDailyMetricEntrySchema,
+  hourlyBucketSchema as baseHourlyBucketSchema,
+  modelOutcomeSchema as baseModelOutcomeSchema,
+  toolOutcomeSchema as baseToolOutcomeSchema,
+  toolHourlyBucketSchema as baseToolHourlyBucketSchema,
+  toolDailyTrendSchema as baseToolDailyTrendSchema,
+  completionSummarySchema as baseCompletionSummarySchema,
+  toolComparisonSchema as baseToolComparisonSchema,
+  workTypeDistributionSchema as baseWorkTypeDistributionSchema,
+  toolWorkTypeBreakdownSchema as baseToolWorkTypeBreakdownSchema,
+  fileChurnEntrySchema as baseFileChurnEntrySchema,
+  durationBucketSchema as baseDurationBucketSchema,
+  concurrentEditEntrySchema as baseConcurrentEditEntrySchema,
+  memberAnalyticsSchema as baseMemberAnalyticsSchema,
+  retryPatternSchema as baseRetryPatternSchema,
+  conflictCorrelationSchema as baseConflictCorrelationSchema,
+  editVelocityTrendSchema as baseEditVelocityTrendSchema,
+  memoryUsageStatsSchema as baseMemoryUsageStatsSchema,
+  workTypeOutcomeSchema as baseWorkTypeOutcomeSchema,
+  conversationEditCorrelationSchema as baseConversationEditCorrelationSchema,
+  fileReworkEntrySchema as baseFileReworkEntrySchema,
+  directoryHeatmapEntrySchema as baseDirectoryHeatmapEntrySchema,
+  stucknessStatsSchema as baseStucknessStatsSchema,
+  fileOverlapStatsSchema as baseFileOverlapStatsSchema,
+  auditStalenessEntrySchema as baseAuditStalenessEntrySchema,
+  firstEditStatsSchema as baseFirstEditStatsSchema,
+  memoryOutcomeCorrelationSchema as baseMemoryOutcomeCorrelationSchema,
+  memoryAccessEntrySchema as baseMemoryAccessEntrySchema,
+  scopeComplexityBucketSchema as baseScopeComplexityBucketSchema,
+  promptEfficiencyTrendSchema as basePromptEfficiencyTrendSchema,
+  hourlyEffectivenessSchema as baseHourlyEffectivenessSchema,
+  outcomeTagCountSchema as baseOutcomeTagCountSchema,
+  toolHandoffSchema as baseToolHandoffSchema,
+  outcomePredictorSchema as baseOutcomePredictorSchema,
+  periodMetricsSchema as basePeriodMetricsSchema,
+  tokenModelBreakdownSchema as baseTokenModelBreakdownSchema,
+  tokenToolBreakdownSchema as baseTokenToolBreakdownSchema,
+  dataCoverageSchema as baseDataCoverageSchema,
+  toolCallFrequencySchema as baseToolCallFrequencySchema,
+  toolCallErrorPatternSchema as baseToolCallErrorPatternSchema,
+  toolCallTimelineSchema as baseToolCallTimelineSchema,
+} from '@chinwag/shared/contracts/analytics.js';
+
 // ── Team analytics ──────────────────────────────────
 
-const fileHeatmapEntrySchema = z.object({
-  file: z.string(),
-  touch_count: z.number(),
-  work_type: z.string().optional(),
-  outcome_rate: z.number().optional(),
-  total_lines_added: z.number().optional(),
-  total_lines_removed: z.number().optional(),
-});
+const fileHeatmapEntrySchema = baseFileHeatmapEntrySchema;
 
-const dailyTrendSchema = z.object({
-  day: z.string(),
+const dailyTrendSchema = baseDailyTrendSchema.extend({
   sessions: z.number().default(0),
   edits: z.number().default(0),
   lines_added: z.number().default(0),
@@ -25,20 +67,16 @@ const dailyTrendSchema = z.object({
   failed: z.number().default(0),
 });
 
-const outcomeCountSchema = z.object({
-  outcome: z.string(),
+const outcomeCountSchema = baseOutcomeCountSchema.extend({
   count: z.number().default(0),
 });
 
-const toolDistributionSchema = z.object({
-  host_tool: z.string(),
+const toolDistributionSchema = baseToolDistributionSchema.extend({
   sessions: z.number().default(0),
   edits: z.number().default(0),
 });
 
-const dailyMetricEntrySchema = z.object({
-  date: z.string(),
-  metric: z.string(),
+const dailyMetricEntrySchema = baseDailyMetricEntrySchema.extend({
   count: z.number().default(0),
 });
 
@@ -73,16 +111,12 @@ export function createEmptyAnalytics(): TeamAnalytics {
 
 // ── User analytics (cross-project aggregate) ─────────
 
-const hourlyBucketSchema = z.object({
-  hour: z.number(),
-  dow: z.number(),
+const hourlyBucketSchema = baseHourlyBucketSchema.extend({
   sessions: z.number().default(0),
   edits: z.number().default(0),
 });
 
-const modelOutcomeSchema = z.object({
-  agent_model: z.string(),
-  outcome: z.string(),
+const modelOutcomeSchema = baseModelOutcomeSchema.extend({
   count: z.number().default(0),
   avg_duration_min: z.number().default(0),
   total_edits: z.number().default(0),
@@ -90,23 +124,16 @@ const modelOutcomeSchema = z.object({
   total_lines_removed: z.number().default(0),
 });
 
-const toolOutcomeSchema = z.object({
-  host_tool: z.string(),
-  outcome: z.string(),
+const toolOutcomeSchema = baseToolOutcomeSchema.extend({
   count: z.number().default(0),
 });
 
-const toolHourlyBucketSchema = z.object({
-  host_tool: z.string(),
-  hour: z.number(),
-  dow: z.number(),
+const toolHourlyBucketSchema = baseToolHourlyBucketSchema.extend({
   sessions: z.number().default(0),
   edits: z.number().default(0),
 });
 
-const toolDailyTrendSchema = z.object({
-  host_tool: z.string(),
-  day: z.string(),
+const toolDailyTrendSchema = baseToolDailyTrendSchema.extend({
   sessions: z.number().default(0),
   edits: z.number().default(0),
   lines_added: z.number().default(0),
@@ -114,7 +141,7 @@ const toolDailyTrendSchema = z.object({
   avg_duration_min: z.number().default(0),
 });
 
-const completionSummarySchema = z.object({
+const completionSummarySchema = baseCompletionSummarySchema.extend({
   total_sessions: z.number().default(0),
   completed: z.number().default(0),
   abandoned: z.number().default(0),
@@ -124,8 +151,7 @@ const completionSummarySchema = z.object({
   prev_completion_rate: z.number().nullable().default(null),
 });
 
-const toolComparisonSchema = z.object({
-  host_tool: z.string(),
+const toolComparisonSchema = baseToolComparisonSchema.extend({
   sessions: z.number().default(0),
   completed: z.number().default(0),
   abandoned: z.number().default(0),
@@ -137,8 +163,7 @@ const toolComparisonSchema = z.object({
   total_lines_removed: z.number().default(0),
 });
 
-const workTypeDistributionSchema = z.object({
-  work_type: z.string(),
+const workTypeDistributionSchema = baseWorkTypeDistributionSchema.extend({
   sessions: z.number().default(0),
   edits: z.number().default(0),
   lines_added: z.number().default(0),
@@ -146,33 +171,27 @@ const workTypeDistributionSchema = z.object({
   files: z.number().default(0),
 });
 
-const toolWorkTypeBreakdownSchema = z.object({
-  host_tool: z.string(),
-  work_type: z.string(),
+const toolWorkTypeBreakdownSchema = baseToolWorkTypeBreakdownSchema.extend({
   sessions: z.number().default(0),
   edits: z.number().default(0),
 });
 
-const fileChurnEntrySchema = z.object({
-  file: z.string(),
+const fileChurnEntrySchema = baseFileChurnEntrySchema.extend({
   session_count: z.number().default(0),
   total_edits: z.number().default(0),
   total_lines: z.number().default(0),
 });
 
-const durationBucketSchema = z.object({
-  bucket: z.string(),
+const durationBucketSchema = baseDurationBucketSchema.extend({
   count: z.number().default(0),
 });
 
-const concurrentEditEntrySchema = z.object({
-  file: z.string(),
+const concurrentEditEntrySchema = baseConcurrentEditEntrySchema.extend({
   agents: z.number().default(0),
   edit_count: z.number().default(0),
 });
 
-const memberAnalyticsSchema = z.object({
-  handle: z.string(),
+const memberAnalyticsSchema = baseMemberAnalyticsSchema.extend({
   sessions: z.number().default(0),
   completed: z.number().default(0),
   abandoned: z.number().default(0),
@@ -185,29 +204,25 @@ const memberAnalyticsSchema = z.object({
   primary_tool: z.string().nullable().default(null),
 });
 
-const retryPatternSchema = z.object({
-  handle: z.string(),
-  file: z.string(),
+const retryPatternSchema = baseRetryPatternSchema.extend({
   attempts: z.number().default(0),
   final_outcome: z.string().nullable().default(null),
   resolved: z.boolean().default(false),
 });
 
-const conflictCorrelationSchema = z.object({
-  bucket: z.string(),
+const conflictCorrelationSchema = baseConflictCorrelationSchema.extend({
   sessions: z.number().default(0),
   completed: z.number().default(0),
   completion_rate: z.number().default(0),
 });
 
-const editVelocityTrendSchema = z.object({
-  day: z.string(),
+const editVelocityTrendSchema = baseEditVelocityTrendSchema.extend({
   edits_per_hour: z.number().default(0),
   lines_per_hour: z.number().default(0),
   total_session_hours: z.number().default(0),
 });
 
-const memoryUsageStatsSchema = z.object({
+const memoryUsageStatsSchema = baseMemoryUsageStatsSchema.extend({
   total_memories: z.number().default(0),
   searches: z.number().default(0),
   searches_with_results: z.number().default(0),
@@ -218,8 +233,7 @@ const memoryUsageStatsSchema = z.object({
   avg_memory_age_days: z.number().default(0),
 });
 
-const workTypeOutcomeSchema = z.object({
-  work_type: z.string(),
+const workTypeOutcomeSchema = baseWorkTypeOutcomeSchema.extend({
   sessions: z.number().default(0),
   completed: z.number().default(0),
   abandoned: z.number().default(0),
@@ -227,30 +241,27 @@ const workTypeOutcomeSchema = z.object({
   completion_rate: z.number().default(0),
 });
 
-const conversationEditCorrelationSchema = z.object({
-  bucket: z.string(),
+const conversationEditCorrelationSchema = baseConversationEditCorrelationSchema.extend({
   sessions: z.number().default(0),
   avg_edits: z.number().default(0),
   avg_lines: z.number().default(0),
   completion_rate: z.number().default(0),
 });
 
-const fileReworkEntrySchema = z.object({
-  file: z.string(),
+const fileReworkEntrySchema = baseFileReworkEntrySchema.extend({
   total_edits: z.number().default(0),
   failed_edits: z.number().default(0),
   rework_ratio: z.number().default(0),
 });
 
-const directoryHeatmapEntrySchema = z.object({
-  directory: z.string(),
+const directoryHeatmapEntrySchema = baseDirectoryHeatmapEntrySchema.extend({
   touch_count: z.number().default(0),
   file_count: z.number().default(0),
   total_lines: z.number().default(0),
   completion_rate: z.number().default(0),
 });
 
-const stucknessStatsSchema = z.object({
+const stucknessStatsSchema = baseStucknessStatsSchema.extend({
   total_sessions: z.number().default(0),
   stuck_sessions: z.number().default(0),
   stuckness_rate: z.number().default(0),
@@ -258,20 +269,18 @@ const stucknessStatsSchema = z.object({
   normal_completion_rate: z.number().default(0),
 });
 
-const fileOverlapStatsSchema = z.object({
+const fileOverlapStatsSchema = baseFileOverlapStatsSchema.extend({
   total_files: z.number().default(0),
   overlapping_files: z.number().default(0),
   overlap_rate: z.number().default(0),
 });
 
-const auditStalenessEntrySchema = z.object({
-  directory: z.string(),
-  last_edit: z.string(),
+const auditStalenessEntrySchema = baseAuditStalenessEntrySchema.extend({
   days_since: z.number().default(0),
   prior_edit_count: z.number().default(0),
 });
 
-const firstEditStatsSchema = z.object({
+const firstEditStatsSchema = baseFirstEditStatsSchema.extend({
   avg_minutes_to_first_edit: z.number().default(0),
   median_minutes_to_first_edit: z.number().default(0),
   by_tool: z
@@ -285,62 +294,50 @@ const firstEditStatsSchema = z.object({
     .default([]),
 });
 
-const memoryOutcomeCorrelationSchema = z.object({
-  bucket: z.string(),
+const memoryOutcomeCorrelationSchema = baseMemoryOutcomeCorrelationSchema.extend({
   sessions: z.number().default(0),
   completed: z.number().default(0),
   completion_rate: z.number().default(0),
 });
 
-const memoryAccessEntrySchema = z.object({
-  id: z.string(),
-  text_preview: z.string(),
+const memoryAccessEntrySchema = baseMemoryAccessEntrySchema.extend({
   access_count: z.number().default(0),
   last_accessed_at: z.string().nullable().default(null),
-  created_at: z.string(),
 });
 
-const scopeComplexityBucketSchema = z.object({
-  bucket: z.string(),
+const scopeComplexityBucketSchema = baseScopeComplexityBucketSchema.extend({
   sessions: z.number().default(0),
   avg_edits: z.number().default(0),
   avg_duration_min: z.number().default(0),
   completion_rate: z.number().default(0),
 });
 
-const promptEfficiencyTrendSchema = z.object({
-  day: z.string(),
+const promptEfficiencyTrendSchema = basePromptEfficiencyTrendSchema.extend({
   avg_turns_per_edit: z.number().default(0),
   sessions: z.number().default(0),
 });
 
-const hourlyEffectivenessSchema = z.object({
-  hour: z.number(),
+const hourlyEffectivenessSchema = baseHourlyEffectivenessSchema.extend({
   sessions: z.number().default(0),
   completion_rate: z.number().default(0),
   avg_edits: z.number().default(0),
 });
 
-const outcomeTagCountSchema = z.object({
-  tag: z.string(),
+const outcomeTagCountSchema = baseOutcomeTagCountSchema.extend({
   count: z.number().default(0),
-  outcome: z.string(),
 });
 
-const toolHandoffSchema = z.object({
-  from_tool: z.string(),
-  to_tool: z.string(),
+const toolHandoffSchema = baseToolHandoffSchema.extend({
   file_count: z.number().default(0),
   handoff_completion_rate: z.number().default(0),
 });
 
-const outcomePredictorSchema = z.object({
-  outcome: z.string(),
+const outcomePredictorSchema = baseOutcomePredictorSchema.extend({
   avg_first_edit_min: z.number().default(0),
   sessions: z.number().default(0),
 });
 
-const periodMetricsSchema = z.object({
+const periodMetricsSchema = basePeriodMetricsSchema.extend({
   completion_rate: z.number().default(0),
   avg_duration_min: z.number().default(0),
   stuckness_rate: z.number().default(0),
@@ -354,16 +351,13 @@ const periodComparisonSchema = z.object({
   previous: periodMetricsSchema.nullable().default(null),
 });
 
-const tokenModelBreakdownSchema = z.object({
-  agent_model: z.string(),
+const tokenModelBreakdownSchema = baseTokenModelBreakdownSchema.extend({
   input_tokens: z.number().default(0),
   output_tokens: z.number().default(0),
   sessions: z.number().default(0),
-  estimated_cost_usd: z.number().optional(),
 });
 
-const tokenToolBreakdownSchema = z.object({
-  host_tool: z.string(),
+const tokenToolBreakdownSchema = baseTokenToolBreakdownSchema.extend({
   input_tokens: z.number().default(0),
   output_tokens: z.number().default(0),
   sessions: z.number().default(0),
@@ -381,9 +375,40 @@ const tokenUsageStatsSchema = z.object({
   by_tool: z.array(tokenToolBreakdownSchema).default([]),
 });
 
+// ── Tool call analytics ──────────────────────────
+
+const toolCallFrequencySchema = baseToolCallFrequencySchema.extend({
+  calls: z.number().default(0),
+  errors: z.number().default(0),
+  error_rate: z.number().default(0),
+  avg_duration_ms: z.number().default(0),
+  sessions: z.number().default(0),
+});
+
+const toolCallErrorPatternSchema = baseToolCallErrorPatternSchema.extend({
+  count: z.number().default(0),
+});
+
+const toolCallTimelineSchema = baseToolCallTimelineSchema.extend({
+  calls: z.number().default(0),
+  errors: z.number().default(0),
+});
+
+const toolCallStatsSchema = z.object({
+  total_calls: z.number().default(0),
+  total_errors: z.number().default(0),
+  error_rate: z.number().default(0),
+  avg_duration_ms: z.number().default(0),
+  calls_per_session: z.number().default(0),
+  research_to_edit_ratio: z.number().default(0),
+  frequency: z.array(toolCallFrequencySchema).default([]),
+  error_patterns: z.array(toolCallErrorPatternSchema).default([]),
+  hourly_activity: z.array(toolCallTimelineSchema).default([]),
+});
+
 // ── Data coverage (capability-based) ──────────────
 
-const dataCoverageSchema = z.object({
+const dataCoverageSchema = baseDataCoverageSchema.extend({
   tools_reporting: z.array(z.string()).default([]),
   tools_without_data: z.array(z.string()).default([]),
   coverage_rate: z.number().default(1),
@@ -478,6 +503,17 @@ export const userAnalyticsSchema = teamAnalyticsSchema.extend({
     by_model: [],
     by_tool: [],
   }),
+  tool_call_stats: toolCallStatsSchema.default({
+    total_calls: 0,
+    total_errors: 0,
+    error_rate: 0,
+    avg_duration_ms: 0,
+    calls_per_session: 0,
+    research_to_edit_ratio: 0,
+    frequency: [],
+    error_patterns: [],
+    hourly_activity: [],
+  }),
   teams_included: z.number().default(0),
   degraded: z.boolean().default(false),
   data_coverage: dataCoverageSchema.optional(),
@@ -523,6 +559,10 @@ export type TokenModelBreakdown = z.infer<typeof tokenModelBreakdownSchema>;
 export type TokenToolBreakdown = z.infer<typeof tokenToolBreakdownSchema>;
 export type TokenUsageStats = z.infer<typeof tokenUsageStatsSchema>;
 export type DataCoverage = z.infer<typeof dataCoverageSchema>;
+export type ToolCallFrequency = z.infer<typeof toolCallFrequencySchema>;
+export type ToolCallErrorPattern = z.infer<typeof toolCallErrorPatternSchema>;
+export type ToolCallTimeline = z.infer<typeof toolCallTimelineSchema>;
+export type ToolCallStats = z.infer<typeof toolCallStatsSchema>;
 
 export function createEmptyUserAnalytics(): UserAnalytics {
   return {
@@ -613,6 +653,17 @@ export function createEmptyUserAnalytics(): UserAnalytics {
       total_estimated_cost_usd: 0,
       by_model: [],
       by_tool: [],
+    },
+    tool_call_stats: {
+      total_calls: 0,
+      total_errors: 0,
+      error_rate: 0,
+      avg_duration_ms: 0,
+      calls_per_session: 0,
+      research_to_edit_ratio: 0,
+      frequency: [],
+      error_patterns: [],
+      hourly_activity: [],
     },
     teams_included: 0,
     degraded: false,

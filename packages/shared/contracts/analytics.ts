@@ -365,6 +365,45 @@ export const outcomePredictorSchema = z.object({
 });
 export type OutcomePredictor = z.infer<typeof outcomePredictorSchema>;
 
+// ── Tool call analytics ────────────────────────
+
+export const toolCallFrequencySchema = z.object({
+  tool: z.string(),
+  calls: z.number(),
+  errors: z.number(),
+  error_rate: z.number(),
+  avg_duration_ms: z.number(),
+  sessions: z.number(),
+});
+export type ToolCallFrequency = z.infer<typeof toolCallFrequencySchema>;
+
+export const toolCallErrorPatternSchema = z.object({
+  tool: z.string(),
+  error_preview: z.string(),
+  count: z.number(),
+});
+export type ToolCallErrorPattern = z.infer<typeof toolCallErrorPatternSchema>;
+
+export const toolCallTimelineSchema = z.object({
+  hour: z.number(),
+  calls: z.number(),
+  errors: z.number(),
+});
+export type ToolCallTimeline = z.infer<typeof toolCallTimelineSchema>;
+
+export const toolCallStatsSchema = z.object({
+  total_calls: z.number(),
+  total_errors: z.number(),
+  error_rate: z.number(),
+  avg_duration_ms: z.number(),
+  calls_per_session: z.number(),
+  research_to_edit_ratio: z.number(),
+  frequency: z.array(toolCallFrequencySchema),
+  error_patterns: z.array(toolCallErrorPatternSchema),
+  hourly_activity: z.array(toolCallTimelineSchema),
+});
+export type ToolCallStats = z.infer<typeof toolCallStatsSchema>;
+
 // ── Period-over-period comparison ────────────────
 
 export const periodMetricsSchema = z.object({
@@ -471,6 +510,7 @@ export const userAnalyticsSchema = teamAnalyticsSchema.extend({
   outcome_predictors: z.array(outcomePredictorSchema),
   period_comparison: periodComparisonSchema,
   token_usage: tokenUsageStatsSchema,
+  tool_call_stats: toolCallStatsSchema,
   teams_included: z.number(),
   degraded: z.boolean(),
   data_coverage: dataCoverageSchema.optional(),

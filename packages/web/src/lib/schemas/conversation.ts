@@ -1,19 +1,26 @@
 // Conversation intelligence schemas.
+// Base shapes imported from @chinwag/shared/contracts/conversation.js;
+// client-specific .default() values applied for resilient UI rendering.
 
 import { z } from 'zod';
 
-const sentimentDistributionSchema = z.object({
-  sentiment: z.string(),
+import {
+  sentimentDistributionSchema as baseSentimentDistributionSchema,
+  topicDistributionSchema as baseTopicDistributionSchema,
+  sentimentOutcomeCorrelationSchema as baseSentimentOutcomeCorrelationSchema,
+  conversationToolCoverageSchema as baseConversationToolCoverageSchema,
+  conversationAnalyticsSchema as baseConversationAnalyticsSchema,
+} from '@chinwag/shared/contracts/conversation.js';
+
+const sentimentDistributionSchema = baseSentimentDistributionSchema.extend({
   count: z.number().default(0),
 });
 
-const topicDistributionSchema = z.object({
-  topic: z.string(),
+const topicDistributionSchema = baseTopicDistributionSchema.extend({
   count: z.number().default(0),
 });
 
-const sentimentOutcomeCorrelationSchema = z.object({
-  dominant_sentiment: z.string(),
+const sentimentOutcomeCorrelationSchema = baseSentimentOutcomeCorrelationSchema.extend({
   sessions: z.number().default(0),
   completed: z.number().default(0),
   abandoned: z.number().default(0),
@@ -21,14 +28,12 @@ const sentimentOutcomeCorrelationSchema = z.object({
   completion_rate: z.number().default(0),
 });
 
-const conversationToolCoverageSchema = z.object({
+const conversationToolCoverageSchema = baseConversationToolCoverageSchema.extend({
   supported_tools: z.array(z.string()).default([]),
   unsupported_tools: z.array(z.string()).default([]),
 });
 
-export const conversationAnalyticsSchema = z.object({
-  ok: z.literal(true),
-  period_days: z.number(),
+export const conversationAnalyticsSchema = baseConversationAnalyticsSchema.extend({
   total_messages: z.number().default(0),
   user_messages: z.number().default(0),
   assistant_messages: z.number().default(0),
