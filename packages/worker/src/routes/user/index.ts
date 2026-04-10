@@ -1,9 +1,11 @@
 // User route dispatcher — re-exports all user route handlers.
 //
 // Split into focused modules:
-//   auth.ts    -- authenticate(), token refresh, WS ticket creation
-//   profile.ts -- handle, color, status, agent profile, presence heartbeat
-//   teams.ts   -- team CRUD, dashboard summary, chat upgrade
+//   auth.ts      -- authenticate(), token refresh, WS ticket creation
+//   profile.ts   -- handle, color, status, agent profile, presence heartbeat
+//   teams.ts     -- team CRUD, chat upgrade
+//   analytics.ts -- cross-team analytics aggregation, session listing
+//   dashboard.ts -- multi-team dashboard summary orchestration
 
 export { authenticate, handleRefreshToken, handleGetWsTicket } from './auth.js';
 export {
@@ -15,11 +17,6 @@ export {
   handleHeartbeat,
   handleUpdateAgentProfile,
 } from './profile.js';
-export {
-  handleGetUserTeams,
-  handleDashboardSummary,
-  handleUserAnalytics,
-  handleUserSessions,
-  handleChatUpgrade,
-  handleCreateTeam,
-} from './teams.js';
+export { handleGetUserTeams, handleChatUpgrade, handleCreateTeam } from './teams.js';
+export { handleUserAnalytics, handleUserSessions } from './analytics.js';
+export { handleDashboardSummary } from './dashboard.js';
