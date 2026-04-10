@@ -2,84 +2,97 @@
  * WebSocket event types for real-time dashboard updates.
  */
 
-import type { AgentStatus } from './team.js';
-import type { TeamContext } from './dashboard.js';
+import { z } from 'zod';
 
-export interface HeartbeatEvent {
-  type: 'heartbeat';
-  agent_id: string;
-}
+import { agentStatusSchema } from './team.js';
+import { teamContextSchema } from './dashboard.js';
 
-export interface ActivityEvent {
-  type: 'activity';
-  agent_id: string;
-  files?: string[];
-  summary?: string | null;
-}
+export const heartbeatEventSchema = z.object({
+  type: z.literal('heartbeat'),
+  agent_id: z.string(),
+});
+export type HeartbeatEvent = z.infer<typeof heartbeatEventSchema>;
 
-export interface FileEvent {
-  type: 'file';
-  agent_id: string;
-  file: string;
-}
+export const activityEventSchema = z.object({
+  type: z.literal('activity'),
+  agent_id: z.string(),
+  files: z.array(z.string()).optional(),
+  summary: z.string().nullable().optional(),
+});
+export type ActivityEvent = z.infer<typeof activityEventSchema>;
 
-export interface MemberJoinedEvent {
-  type: 'member_joined';
-  agent_id: string;
-  handle?: string;
-  host_tool?: string;
-}
+export const fileEventSchema = z.object({
+  type: z.literal('file'),
+  agent_id: z.string(),
+  file: z.string(),
+});
+export type FileEvent = z.infer<typeof fileEventSchema>;
 
-export interface MemberLeftEvent {
-  type: 'member_left';
-  agent_id: string;
-}
+export const memberJoinedEventSchema = z.object({
+  type: z.literal('member_joined'),
+  agent_id: z.string(),
+  handle: z.string().optional(),
+  host_tool: z.string().optional(),
+});
+export type MemberJoinedEvent = z.infer<typeof memberJoinedEventSchema>;
 
-export interface StatusChangeEvent {
-  type: 'status_change';
-  agent_id: string;
-  status: AgentStatus;
-}
+export const memberLeftEventSchema = z.object({
+  type: z.literal('member_left'),
+  agent_id: z.string(),
+});
+export type MemberLeftEvent = z.infer<typeof memberLeftEventSchema>;
 
-export interface LockChangeEvent {
-  type: 'lock_change';
-  action: 'claim' | 'release' | 'release_all';
-  agent_id: string;
-  files?: string[];
-}
+export const statusChangeEventSchema = z.object({
+  type: z.literal('status_change'),
+  agent_id: z.string(),
+  status: agentStatusSchema,
+});
+export type StatusChangeEvent = z.infer<typeof statusChangeEventSchema>;
 
-export interface MessageEvent {
-  type: 'message';
-  handle: string;
-  text: string;
-  created_at?: string;
-}
+export const lockChangeEventSchema = z.object({
+  type: z.literal('lock_change'),
+  action: z.enum(['claim', 'release', 'release_all']),
+  agent_id: z.string(),
+  files: z.array(z.string()).optional(),
+});
+export type LockChangeEvent = z.infer<typeof lockChangeEventSchema>;
 
-export interface MemoryDeltaEvent {
-  type: 'memory';
-  id?: string;
-  text: string;
-  tags?: string[];
-  categories?: string[];
-  handle?: string;
-  host_tool?: string;
-  created_at?: string;
-}
+export const messageEventSchema = z.object({
+  type: z.literal('message'),
+  handle: z.string(),
+  text: z.string(),
+  created_at: z.string().optional(),
+});
+export type MessageEvent = z.infer<typeof messageEventSchema>;
 
-export interface CommandStatusEvent {
-  type: 'command_status';
-  id: string;
-  status: string;
-  command_type?: string;
-  sender_handle?: string;
-  claimed_by?: string;
-  result?: Record<string, unknown>;
-}
+export const memoryDeltaEventSchema = z.object({
+  type: z.literal('memory'),
+  id: z.string().optional(),
+  text: z.string(),
+  tags: z.array(z.string()).optional(),
+  categories: z.array(z.string()).optional(),
+  handle: z.string().optional(),
+  host_tool: z.string().optional(),
+  created_at: z.string().optional(),
+});
+export type MemoryDeltaEvent = z.infer<typeof memoryDeltaEventSchema>;
 
-export interface ContextEvent {
-  type: 'context';
-  data: TeamContext;
-}
+export const commandStatusEventSchema = z.object({
+  type: z.literal('command_status'),
+  id: z.string(),
+  status: z.string(),
+  command_type: z.string().optional(),
+  sender_handle: z.string().optional(),
+  claimed_by: z.string().optional(),
+  result: z.record(z.string(), z.unknown()).optional(),
+});
+export type CommandStatusEvent = z.infer<typeof commandStatusEventSchema>;
+
+export const contextEventSchema = z.object({
+  type: z.literal('context'),
+  data: teamContextSchema,
+});
+export type ContextEvent = z.infer<typeof contextEventSchema>;
 
 export type DashboardDeltaEvent =
   | HeartbeatEvent

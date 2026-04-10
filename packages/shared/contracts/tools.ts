@@ -2,33 +2,39 @@
  * Tool catalog and directory evaluation types.
  */
 
-export interface ToolCatalogEntry {
-  id: string;
-  name: string;
-  category: string;
-  description: string;
-  featured?: boolean;
-  installCmd?: string | null;
-  mcp_support?: boolean;
-}
+import { z } from 'zod';
 
-export interface ToolCatalogResponse {
-  tools: ToolCatalogEntry[];
-  categories: Record<string, string>;
-}
+export const toolCatalogEntrySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  category: z.string(),
+  description: z.string(),
+  featured: z.boolean().optional(),
+  installCmd: z.string().nullable().optional(),
+  mcp_support: z.boolean().optional(),
+});
+export type ToolCatalogEntry = z.infer<typeof toolCatalogEntrySchema>;
 
-export interface ToolDirectoryEvaluation {
-  id: string;
-  name: string;
-  category: string;
-  verdict: string;
-  tagline?: string;
-  integration_tier?: string;
-  mcp_support?: boolean | string;
-  metadata?: Record<string, unknown>;
-}
+export const toolCatalogResponseSchema = z.object({
+  tools: z.array(toolCatalogEntrySchema),
+  categories: z.record(z.string(), z.string()),
+});
+export type ToolCatalogResponse = z.infer<typeof toolCatalogResponseSchema>;
 
-export interface ToolDirectoryResponse {
-  evaluations: ToolDirectoryEvaluation[];
-  categories: Record<string, string>;
-}
+export const toolDirectoryEvaluationSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  category: z.string(),
+  verdict: z.string(),
+  tagline: z.string().optional(),
+  integration_tier: z.string().optional(),
+  mcp_support: z.union([z.boolean(), z.string()]).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+export type ToolDirectoryEvaluation = z.infer<typeof toolDirectoryEvaluationSchema>;
+
+export const toolDirectoryResponseSchema = z.object({
+  evaluations: z.array(toolDirectoryEvaluationSchema),
+  categories: z.record(z.string(), z.string()),
+});
+export type ToolDirectoryResponse = z.infer<typeof toolDirectoryResponseSchema>;

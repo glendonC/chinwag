@@ -2,71 +2,80 @@
  * Conversation intelligence types — message analysis, sentiment, and topic tracking.
  */
 
-export interface ConversationEvent {
-  id: string;
-  session_id: string;
-  agent_id: string;
-  handle: string;
-  host_tool: string;
-  role: 'user' | 'assistant';
-  content: string;
-  char_count: number;
-  sentiment: string | null;
-  topic: string | null;
-  sequence: number;
-  created_at: string;
-}
+import { z } from 'zod';
 
-export interface SentimentDistribution {
-  sentiment: string;
-  count: number;
-}
+export const conversationEventSchema = z.object({
+  id: z.string(),
+  session_id: z.string(),
+  agent_id: z.string(),
+  handle: z.string(),
+  host_tool: z.string(),
+  role: z.enum(['user', 'assistant']),
+  content: z.string(),
+  char_count: z.number(),
+  sentiment: z.string().nullable(),
+  topic: z.string().nullable(),
+  sequence: z.number(),
+  created_at: z.string(),
+});
+export type ConversationEvent = z.infer<typeof conversationEventSchema>;
 
-export interface TopicDistribution {
-  topic: string;
-  count: number;
-}
+export const sentimentDistributionSchema = z.object({
+  sentiment: z.string(),
+  count: z.number(),
+});
+export type SentimentDistribution = z.infer<typeof sentimentDistributionSchema>;
 
-export interface SentimentOutcomeCorrelation {
-  dominant_sentiment: string;
-  sessions: number;
-  completed: number;
-  abandoned: number;
-  failed: number;
-  completion_rate: number;
-}
+export const topicDistributionSchema = z.object({
+  topic: z.string(),
+  count: z.number(),
+});
+export type TopicDistribution = z.infer<typeof topicDistributionSchema>;
 
-export interface SessionConversationStats {
-  session_id: string;
-  message_count: number;
-  user_message_count: number;
-  assistant_message_count: number;
-  avg_user_msg_length: number;
-  avg_assistant_msg_length: number;
-  dominant_sentiment: string | null;
-  sentiment_shift: 'stable' | 'improving' | 'degrading' | null;
-  topics: string[];
-}
+export const sentimentOutcomeCorrelationSchema = z.object({
+  dominant_sentiment: z.string(),
+  sessions: z.number(),
+  completed: z.number(),
+  abandoned: z.number(),
+  failed: z.number(),
+  completion_rate: z.number(),
+});
+export type SentimentOutcomeCorrelation = z.infer<typeof sentimentOutcomeCorrelationSchema>;
 
-export interface ConversationToolCoverage {
+export const sessionConversationStatsSchema = z.object({
+  session_id: z.string(),
+  message_count: z.number(),
+  user_message_count: z.number(),
+  assistant_message_count: z.number(),
+  avg_user_msg_length: z.number(),
+  avg_assistant_msg_length: z.number(),
+  dominant_sentiment: z.string().nullable(),
+  sentiment_shift: z.enum(['stable', 'improving', 'degrading']).nullable(),
+  topics: z.array(z.string()),
+});
+export type SessionConversationStats = z.infer<typeof sessionConversationStatsSchema>;
+
+export const conversationToolCoverageSchema = z.object({
   /** Tools that support conversation analytics. */
-  supported_tools: string[];
+  supported_tools: z.array(z.string()),
   /** Tools active in this team that DON'T support conversation analytics. */
-  unsupported_tools: string[];
-}
+  unsupported_tools: z.array(z.string()),
+});
+export type ConversationToolCoverage = z.infer<typeof conversationToolCoverageSchema>;
 
-export interface ConversationAnalytics {
-  ok: true;
-  period_days: number;
-  total_messages: number;
-  user_messages: number;
-  assistant_messages: number;
-  avg_user_char_count: number;
-  avg_assistant_char_count: number;
-  sentiment_distribution: SentimentDistribution[];
-  topic_distribution: TopicDistribution[];
-  sentiment_outcome_correlation: SentimentOutcomeCorrelation[];
-  sessions_with_conversations: number;
+export const conversationAnalyticsSchema = z.object({
+  ok: z.literal(true),
+  period_days: z.number(),
+  total_messages: z.number(),
+  user_messages: z.number(),
+  assistant_messages: z.number(),
+  avg_user_char_count: z.number(),
+  avg_assistant_char_count: z.number(),
+  sentiment_distribution: z.array(sentimentDistributionSchema),
+  topic_distribution: z.array(topicDistributionSchema),
+  sentiment_outcome_correlation: z.array(sentimentOutcomeCorrelationSchema),
+  sessions_with_conversations: z.number(),
   /** Which tools in this team have/lack conversation support. */
-  tool_coverage: ConversationToolCoverage;
-}
+  tool_coverage: conversationToolCoverageSchema,
+});
+export type ConversationAnalytics = z.infer<typeof conversationAnalyticsSchema>;
