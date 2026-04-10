@@ -27,6 +27,8 @@ import {
   searchEvaluations as searchEvalsFn,
   deleteEvaluation as deleteEvalFn,
   getDirectoryStats as getDirectoryStatsFn,
+  type EvaluationInput,
+  type ListFilters,
 } from './evaluations.js';
 
 const ADJECTIVES = [
@@ -512,7 +514,8 @@ export class DatabaseDO extends DurableObject<Env> {
 
   async saveEvaluation(evaluation: Record<string, unknown>): Promise<{ ok: true }> {
     this.#ensureSchema();
-    return saveEvalFn(this.sql, evaluation as any);
+    // Handlers validate; DO trusts the shape matches EvaluationInput
+    return saveEvalFn(this.sql, evaluation as unknown as EvaluationInput);
   }
 
   async getEvaluation(toolId: string): Promise<ReturnType<typeof getEvalFn>> {
@@ -520,11 +523,9 @@ export class DatabaseDO extends DurableObject<Env> {
     return getEvalFn(this.sql, toolId);
   }
 
-  async listEvaluations(
-    filters: Record<string, unknown> = {},
-  ): Promise<ReturnType<typeof listEvalsFn>> {
+  async listEvaluations(filters: ListFilters = {}): Promise<ReturnType<typeof listEvalsFn>> {
     this.#ensureSchema();
-    return listEvalsFn(this.sql, filters as any);
+    return listEvalsFn(this.sql, filters);
   }
 
   async searchEvaluations(query: string, limit = 20): Promise<ReturnType<typeof searchEvalsFn>> {

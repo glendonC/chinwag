@@ -3,6 +3,7 @@
 import { json } from '../../lib/http.js';
 import { teamJsonRoute, teamRoute, doResult } from '../../lib/middleware.js';
 import { requireString, withTeamRateLimit } from '../../lib/validation.js';
+import { generateEmbedding } from '../../lib/ai.js';
 import {
   MAX_CATEGORY_NAME_LENGTH,
   MAX_CATEGORY_DESCRIPTION_LENGTH,
@@ -29,19 +30,8 @@ export const handleTeamCreateCategory = teamJsonRoute(
     const color = typeof body.color === 'string' ? body.color.trim() : null;
 
     // Generate embedding for the category description via Workers AI
-    let embedding: ArrayBuffer | null = null;
     const textToEmbed = `${name}: ${description}`;
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await (env.AI as any).run('@cf/baai/bge-small-en-v1.5', {
-        text: [textToEmbed],
-      });
-      if (result?.data?.[0]) {
-        embedding = new Float32Array(result.data[0]).buffer as ArrayBuffer;
-      }
-    } catch {
-      // Non-critical — proceed without embedding
-    }
+    const embedding = await generateEmbedding(textToEmbed, env.AI);
 
     return withTeamRateLimit({
       request,
@@ -111,17 +101,7 @@ export const handleTeamUpdateCategory = teamJsonRoute(
     let embedding: ArrayBuffer | null | undefined;
     if (name !== undefined || description !== undefined) {
       const textToEmbed = `${name || ''}: ${description || ''}`;
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const result = await (env.AI as any).run('@cf/baai/bge-small-en-v1.5', {
-          text: [textToEmbed],
-        });
-        if (result?.data?.[0]) {
-          embedding = new Float32Array(result.data[0]).buffer as ArrayBuffer;
-        }
-      } catch {
-        // Non-critical
-      }
+      embedding = await generateEmbedding(textToEmbed, env.AI);
     }
 
     return withTeamRateLimit({

@@ -4,6 +4,7 @@
 
 import type { Env } from '../types.js';
 import { createLogger } from './logger.js';
+import { chatCompletion } from './ai.js';
 
 const log = createLogger('conversation-classify');
 
@@ -40,8 +41,7 @@ export async function classifyConversationMessages(
   messages: Array<{ content: string; index: number }>,
   env: Env,
 ): Promise<ClassifiedMessage[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (!(env as any).AI) {
+  if (!env.AI) {
     log.warn('conversation classification degraded: env.AI binding unavailable');
     return [];
   }
@@ -80,26 +80,17 @@ Reply ONLY with one line per message in this exact format:
 Messages:
 ${numberedMessages}`;
 
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response = await (env as any).AI.run('@cf/meta/llama-4-scout-17b-16e-instruct', {
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: messages.length * 20,
-    });
+  const output = await chatCompletion(env.AI, {
+    messages: [{ role: 'user', content: prompt }],
+    max_tokens: messages.length * 20,
+  });
 
-    const raw = response?.response;
-    const output = typeof raw === 'string' ? raw.trim() : '';
-
-    if (!output) {
-      log.warn('conversation classification: empty response from model');
-      return messages.map((m) => ({ index: m.index, sentiment: null, topic: null }));
-    }
-
-    return parseClassificationResponse(output, messages);
-  } catch (err) {
-    log.warn(`conversation classification failed: ${err}`);
+  if (!output) {
+    log.warn('conversation classification: empty or failed response from model');
     return messages.map((m) => ({ index: m.index, sentiment: null, topic: null }));
   }
+
+  return parseClassificationResponse(output, messages);
 }
 
 function parseClassificationResponse(

@@ -4,7 +4,7 @@
 
 import { sqlChanges } from '../../lib/validation.js';
 
-interface EvaluationInput {
+export interface EvaluationInput {
   id: string;
   name: string;
   tagline?: string | null;
@@ -126,7 +126,7 @@ export function getEvaluation(
   return { ok: true, evaluation: parseEvaluation(rows[0] as Record<string, unknown>) };
 }
 
-interface ListFilters {
+export interface ListFilters {
   verdict?: string | null;
   category?: string | null;
   mcp_support?: number | null;

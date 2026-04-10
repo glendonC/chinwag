@@ -5,6 +5,7 @@ import { json } from '../../lib/http.js';
 import { teamJsonRoute, teamRoute, doResult } from '../../lib/middleware.js';
 import { createLogger } from '../../lib/logger.js';
 import { requireString, validateTagsArray, withTeamRateLimit } from '../../lib/validation.js';
+import { generateEmbedding } from '../../lib/ai.js';
 import {
   MAX_MEMORY_TEXT_LENGTH,
   MAX_TAGS_PER_MEMORY,
@@ -65,18 +66,7 @@ export const handleTeamSaveMemory = teamJsonRoute(async ({ body, user, env, team
   }
 
   // Generate embedding for near-dedup (bge-small-en-v1.5, 384 dims)
-  let embedding: ArrayBuffer | null = null;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await (env.AI as any).run('@cf/baai/bge-small-en-v1.5', {
-      text: [text],
-    });
-    if (result?.data?.[0]) {
-      embedding = new Float32Array(result.data[0]).buffer as ArrayBuffer;
-    }
-  } catch {
-    // Non-critical — proceed without embedding dedup
-  }
+  const embedding = await generateEmbedding(text, env.AI);
 
   return withTeamRateLimit({
     request,

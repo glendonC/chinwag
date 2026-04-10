@@ -411,6 +411,7 @@ export interface Env {
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
   ADMIN_KEY?: string;
+  GITHUB_TOKEN?: string;
 }
 
 // ── Parsed request body (from parseBody) ──

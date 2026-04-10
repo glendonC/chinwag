@@ -4,6 +4,7 @@
 
 import type { Env } from '../types.js';
 import { createLogger } from './logger.js';
+import { chatCompletion } from './ai.js';
 
 const log = createLogger('icons');
 const KV_PREFIX = 'icon:';
@@ -160,36 +161,29 @@ export async function extractBrandColorFromCache(toolId: string, env: Env): Prom
 // This is the primary color extraction method — handles PNG, JPEG, ICO, SVG, anything.
 
 export async function extractColorWithAI(dataUri: string, env: Env): Promise<string | null> {
-  try {
-    const model = '@cf/meta/llama-4-scout-17b-16e-instruct' as any;
+  const text = await chatCompletion(env.AI, {
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: 'What is the single most prominent brand color in this logo/icon? Reply with ONLY the hex color code in #rrggbb format. Nothing else. Example: #3b82f6',
+          },
+          {
+            type: 'image_url',
+            image_url: { url: dataUri },
+          },
+        ],
+      },
+    ],
+    max_tokens: 20,
+  });
 
-    const response = (await env.AI.run(model, {
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: 'What is the single most prominent brand color in this logo/icon? Reply with ONLY the hex color code in #rrggbb format. Nothing else. Example: #3b82f6',
-            },
-            {
-              type: 'image_url',
-              image_url: { url: dataUri },
-            },
-          ],
-        },
-      ],
-      max_tokens: 20,
-    })) as { response?: string };
-
-    const text = response?.response?.trim() || '';
-    // Extract hex color from response — model might add extra text
-    const match = text.match(/#[0-9a-fA-F]{6}/);
-    return match ? match[0].toLowerCase() : null;
-  } catch (err) {
-    log.warn(`AI color extraction failed: ${(err as Error).message}`);
-    return null;
-  }
+  if (!text) return null;
+  // Extract hex color from response — model might add extra text
+  const match = text.match(/#[0-9a-fA-F]{6}/);
+  return match ? match[0].toLowerCase() : null;
 }
 
 // ── PNG Color Extraction ──

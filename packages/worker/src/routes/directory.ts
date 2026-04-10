@@ -91,7 +91,7 @@ export const handleListDirectory = publicRoute(async ({ request, env }) => {
       );
 
   const evaluations = result.evaluations || [];
-  const total = 'total' in result ? (result as any).total : evaluations.length;
+  const total = (result as { total?: number }).total ?? evaluations.length;
 
   const allCategories = await getCategoryNames(env);
 
@@ -392,7 +392,10 @@ export const handleSuggestTool = authedJsonRoute(async ({ env, user, body }) => 
       if ('error' in result && result.error) {
         return json({ error: result.error }, 409);
       }
-      return json({ ok: true, suggestion_id: (result as any).suggestion_id }, 201);
+      return json(
+        { ok: true, suggestion_id: (result as { suggestion_id?: string }).suggestion_id },
+        201,
+      );
     },
   );
 });
@@ -434,7 +437,11 @@ export const handleReviewSuggestion = publicRoute(async ({ request, env, params 
   const result = rpc(await db.reviewSuggestion(id, action, rejectReason));
   if ('error' in result && result.error) {
     const status =
-      (result as any).code === 'NOT_FOUND' ? 404 : (result as any).code === 'CONFLICT' ? 409 : 400;
+      (result as { code?: string }).code === 'NOT_FOUND'
+        ? 404
+        : (result as { code?: string }).code === 'CONFLICT'
+          ? 409
+          : 400;
     return json({ error: result.error }, status);
   }
   return json({ ok: true });

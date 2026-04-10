@@ -9,6 +9,22 @@ import { createLogger } from './logger.js';
 
 const log = createLogger('pulse');
 
+/** Shape of evaluation records from listEvaluations, narrowed for pulse use. */
+interface PulseEvaluation {
+  id: string;
+  name: string;
+  verdict: string;
+  evaluated_at: string;
+  metadata: Record<string, unknown>;
+  data_passes: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+interface GitHubRepoResponse {
+  stargazers_count?: number;
+  archived?: boolean;
+}
+
 function parseGitHubRepo(url: string): { owner: string; repo: string } | null {
   try {
     const parsed = new URL(url);
@@ -24,14 +40,14 @@ function parseGitHubRepo(url: string): { owner: string; repo: string } | null {
 export async function runPulseCheck(env: Env): Promise<void> {
   const db = getDB(env);
   const result = rpc(await db.listEvaluations({ limit: 500, offset: 0 }));
-  const evaluations = result.evaluations || [];
+  const evaluations: PulseEvaluation[] = result.evaluations || [];
 
-  const githubTools = evaluations.filter((ev: any) => {
+  const githubTools = evaluations.filter((ev) => {
     const gh = ev.metadata?.github;
     return typeof gh === 'string' && gh.includes('github.com');
   });
 
-  const websiteOnlyTools = evaluations.filter((ev: any) => {
+  const websiteOnlyTools = evaluations.filter((ev) => {
     const gh = ev.metadata?.github;
     const website = ev.metadata?.website;
     const hasGithub = typeof gh === 'string' && gh.includes('github.com');
@@ -47,7 +63,7 @@ export async function runPulseCheck(env: Env): Promise<void> {
     'User-Agent': 'chinwag-pulse',
   };
   // Use GitHub token if available for higher rate limit (5000/hr vs 60/hr)
-  const token = (env as any).GITHUB_TOKEN;
+  const token = env.GITHUB_TOKEN;
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const BATCH_SIZE = token ? 50 : 30; // Conservative without auth
@@ -55,8 +71,7 @@ export async function runPulseCheck(env: Env): Promise<void> {
 
   // --- GitHub repo checks ---
   for (const ev of toProcess) {
-    const evObj = ev as Record<string, any>;
-    const repo = parseGitHubRepo(evObj.metadata?.github);
+    const repo = parseGitHubRepo(ev.metadata?.github as string);
     if (!repo) continue;
 
     try {
@@ -65,10 +80,10 @@ export async function runPulseCheck(env: Env): Promise<void> {
       });
       if (!res.ok) continue;
 
-      const data: any = await res.json();
-      const md = { ...evObj.metadata };
-      const oldStars = md.github_stars || 0;
-      const newStars = data.stargazers_count;
+      const data = (await res.json()) as GitHubRepoResponse;
+      const md: Record<string, unknown> = { ...ev.metadata };
+      const oldStars = (md.github_stars as number) || 0;
+      const newStars = data.stargazers_count ?? 0;
 
       md.github_stars = newStars;
       md.last_pulse_at = new Date().toISOString();
@@ -85,10 +100,10 @@ export async function runPulseCheck(env: Env): Promise<void> {
       }
 
       await db.saveEvaluation({
-        ...evObj,
+        ...ev,
         metadata: md,
         data_passes: {
-          ...(evObj.data_passes || {}),
+          ...(typeof ev.data_passes === 'object' && ev.data_passes ? ev.data_passes : {}),
           pulse: { completed_at: new Date().toISOString(), success: true },
         },
       });
@@ -100,9 +115,10 @@ export async function runPulseCheck(env: Env): Promise<void> {
   // --- Website-only checks (HEAD request) ---
   const websiteBatch = websiteOnlyTools.slice(0, Math.max(0, BATCH_SIZE - toProcess.length));
   for (const ev of websiteBatch) {
-    const evObj = ev as Record<string, any>;
-    const website = evObj.metadata?.website;
-    if (!website) continue;
+    const website = ev.metadata?.website;
+    if (typeof website !== 'string') continue;
+
+    const dataPasses = typeof ev.data_passes === 'object' && ev.data_passes ? ev.data_passes : {};
 
     try {
       const res = await fetch(website, {
@@ -111,7 +127,7 @@ export async function runPulseCheck(env: Env): Promise<void> {
         signal: AbortSignal.timeout(5000),
       });
 
-      const md = { ...evObj.metadata };
+      const md: Record<string, unknown> = { ...ev.metadata };
       md.last_pulse_at = new Date().toISOString();
 
       if (res.status >= 400) {
@@ -135,25 +151,25 @@ export async function runPulseCheck(env: Env): Promise<void> {
       }
 
       await db.saveEvaluation({
-        ...evObj,
+        ...ev,
         metadata: md,
         data_passes: {
-          ...(evObj.data_passes || {}),
+          ...dataPasses,
           pulse: { completed_at: new Date().toISOString(), success: true },
         },
       });
     } catch {
       // Timeout or network error -- mark as down
-      const md = { ...evObj.metadata };
+      const md: Record<string, unknown> = { ...ev.metadata };
       md.last_pulse_at = new Date().toISOString();
       md.pulse_status = 'down';
 
       try {
         await db.saveEvaluation({
-          ...evObj,
+          ...ev,
           metadata: md,
           data_passes: {
-            ...(evObj.data_passes || {}),
+            ...dataPasses,
             pulse: { completed_at: new Date().toISOString(), success: false },
           },
         });
