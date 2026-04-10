@@ -157,7 +157,9 @@ export default function ProjectAnalyticsTab({
                     <div className={styles.metricBarTrack}>
                       <div className={styles.metricBarFill} style={{ width: `${pct}%` }} />
                     </div>
-                    <span className={styles.metricValue}>{formatDuration(t.avg_minutes)}</span>
+                    <span className={styles.metricValue}>
+                      {formatDuration(t.avg_minutes)} ({t.sessions})
+                    </span>
                   </div>
                 );
               })}
@@ -283,6 +285,9 @@ export default function ProjectAnalyticsTab({
                     <span className={styles.dataStatValue}>{d.avg_edits}</span> avg edits
                   </span>
                   <span className={styles.dataStat}>
+                    <span className={styles.dataStatValue}>{d.avg_lines}</span> avg lines
+                  </span>
+                  <span className={styles.dataStat}>
                     <span className={styles.dataStatValue}>{d.completion_rate}%</span> completed
                   </span>
                 </div>
@@ -309,6 +314,24 @@ export default function ProjectAnalyticsTab({
                     <div className={styles.metricBarFill} style={{ width: `${pct}%` }} />
                   </div>
                   <span className={styles.metricValue}>{d.touch_count}</span>
+                  <span
+                    className={
+                      d.completion_rate >= 70
+                        ? styles.dataStatSuccess
+                        : d.completion_rate < 50
+                          ? styles.dataStatDanger
+                          : styles.dataStatWarn
+                    }
+                    style={{
+                      fontFamily: 'var(--mono)',
+                      fontSize: 'var(--text-xs)',
+                      width: 40,
+                      textAlign: 'right',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {d.completion_rate.toFixed(0)}%
+                  </span>
                 </div>
               );
             })}
@@ -366,6 +389,12 @@ export default function ProjectAnalyticsTab({
                   <span className={styles.dataStat}>
                     <span className={styles.dataStatValue}>{f.total_edits}</span> edits
                   </span>
+                  {f.total_lines > 0 && (
+                    <span className={styles.dataStat}>
+                      <span className={styles.dataStatValue}>{f.total_lines.toLocaleString()}</span>{' '}
+                      lines
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
@@ -389,6 +418,7 @@ export default function ProjectAnalyticsTab({
                   <span className={styles.dataStat}>
                     <span className={styles.dataStatWarn}>{s.days_since}d</span> since last edit
                   </span>
+                  <span className={styles.dataStat}>{s.last_edit.slice(0, 10)}</span>
                   <span className={styles.dataStat}>
                     <span className={styles.dataStatValue}>{s.prior_edit_count}</span> prior edits
                   </span>
@@ -430,6 +460,12 @@ export default function ProjectAnalyticsTab({
                     <span className={styles.dataStat}>
                       <span className={styles.dataStatValue}>{m.total_edits.toLocaleString()}</span>{' '}
                       edits
+                    </span>
+                    <span className={styles.dataStat}>
+                      <span className={styles.dataStatValue}>
+                        {(m.total_lines_added + m.total_lines_removed).toLocaleString()}
+                      </span>{' '}
+                      lines
                     </span>
                   </div>
                 </div>
@@ -550,6 +586,18 @@ export default function ProjectAnalyticsTab({
               <span className={styles.statBlockLabel}>hit rate</span>
             </div>
             <div className={styles.statBlock}>
+              <span className={styles.statBlockValue}>
+                {a.memory_usage.memories_created_period}
+              </span>
+              <span className={styles.statBlockLabel}>created this period</span>
+            </div>
+            <div className={styles.statBlock}>
+              <span className={styles.statBlockValue}>
+                {a.memory_usage.memories_updated_period}
+              </span>
+              <span className={styles.statBlockLabel}>updated this period</span>
+            </div>
+            <div className={styles.statBlock}>
               <span className={styles.statBlockValue}>{a.memory_usage.stale_memories}</span>
               <span className={styles.statBlockLabel}>stale (30d+)</span>
             </div>
@@ -626,6 +674,12 @@ export default function ProjectAnalyticsTab({
                   <span className={styles.dataStat}>
                     <span className={styles.dataStatValue}>{d.avg_edits}</span> avg edits
                   </span>
+                  <span className={styles.dataStat}>
+                    <span className={styles.dataStatValue}>
+                      {formatDuration(d.avg_duration_min)}
+                    </span>{' '}
+                    avg time
+                  </span>
                 </div>
               </div>
             ))}
@@ -682,7 +736,9 @@ export default function ProjectAnalyticsTab({
                         style={{ width: `${d.completion_rate}%` }}
                       />
                     </div>
-                    <span className={styles.metricValue}>{d.completion_rate}%</span>
+                    <span className={styles.metricValue}>
+                      {d.completion_rate}% / {d.avg_edits}e
+                    </span>
                   </div>
                 ))}
               </div>
