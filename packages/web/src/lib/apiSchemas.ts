@@ -686,6 +686,7 @@ const tokenModelBreakdownSchema = z.object({
   input_tokens: z.number().default(0),
   output_tokens: z.number().default(0),
   sessions: z.number().default(0),
+  estimated_cost_usd: z.number().optional(),
 });
 
 const tokenToolBreakdownSchema = z.object({
@@ -702,6 +703,7 @@ const tokenUsageStatsSchema = z.object({
   avg_output_per_session: z.number().default(0),
   sessions_with_token_data: z.number().default(0),
   sessions_without_token_data: z.number().default(0),
+  total_estimated_cost_usd: z.number().default(0),
   by_model: z.array(tokenModelBreakdownSchema).default([]),
   by_tool: z.array(tokenToolBreakdownSchema).default([]),
 });
@@ -799,6 +801,7 @@ export const userAnalyticsSchema = teamAnalyticsSchema.extend({
     avg_output_per_session: 0,
     sessions_with_token_data: 0,
     sessions_without_token_data: 0,
+    total_estimated_cost_usd: 0,
     by_model: [],
     by_tool: [],
   }),
@@ -1001,6 +1004,7 @@ export function createEmptyUserAnalytics(): UserAnalytics {
       avg_output_per_session: 0,
       sessions_with_token_data: 0,
       sessions_without_token_data: 0,
+      total_estimated_cost_usd: 0,
       by_model: [],
       by_tool: [],
     },

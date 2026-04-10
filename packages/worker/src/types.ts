@@ -304,7 +304,6 @@ export interface TeamContext {
   memory_categories: MemoryCategory[];
   /** Includes extra `tool` field */
   recentSessions: SessionInfo[];
-  tools_configured: Array<{ host_tool: string; joins: number }>;
   hosts_configured: Array<{ host_tool: string; joins: number }>;
   surfaces_seen: Array<{ agent_surface: string; joins: number }>;
   models_seen: Array<{ agent_model: string; count: number }>;

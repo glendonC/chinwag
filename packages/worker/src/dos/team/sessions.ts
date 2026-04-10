@@ -89,7 +89,7 @@ export function endSession(
   // Read session state for outcome inference before closing
   const rows = sql
     .exec(
-      `SELECT edit_count, conflicts_hit, started_at, outcome FROM sessions WHERE id = ? AND agent_id = ? AND ended_at IS NULL`,
+      `SELECT edit_count, conflicts_hit, memories_searched, started_at, outcome FROM sessions WHERE id = ? AND agent_id = ? AND ended_at IS NULL`,
       sessionId,
       resolvedAgentId,
     )
@@ -105,6 +105,7 @@ export function endSession(
   if (!outcome) {
     const editCount = (session.edit_count as number) || 0;
     const conflictsHit = (session.conflicts_hit as number) || 0;
+    const memoriesSearched = (session.memories_searched as number) || 0;
     const startedAt = session.started_at as string;
     // SQLite datetime: "2026-01-15 10:30:45" (space, no T) — normalize for JS Date
     const durationMin =
@@ -112,6 +113,9 @@ export function endSession(
       60000;
 
     if (editCount > 0) {
+      outcome = 'completed';
+    } else if (memoriesSearched > 0 && durationMin > 2) {
+      // Research/exploration session: agent searched memories but made no edits
       outcome = 'completed';
     } else if (conflictsHit > 0 || durationMin > 5) {
       outcome = 'abandoned';

@@ -5,6 +5,7 @@ import { getDB, getLobby, getTeam, rpc } from '../../lib/env.js';
 import { getErrorMessage } from '../../lib/errors.js';
 import { json } from '../../lib/http.js';
 import { createLogger } from '../../lib/logger.js';
+import { estimateSessionCost } from '../../lib/model-pricing.js';
 import { getAgentRuntime } from '../../lib/request-utils.js';
 import { withRateLimit } from '../../lib/validation.js';
 import { authedRoute } from '../../lib/middleware.js';
@@ -215,6 +216,7 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
         avg_output_per_session: 0,
         sessions_with_token_data: 0,
         sessions_without_token_data: 0,
+        total_estimated_cost_usd: 0,
         by_model: [],
         by_tool: [],
       },
@@ -1432,34 +1434,42 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
             : null,
       };
     })(),
-    token_usage: {
-      total_input_tokens: tokenTotalAcc.input,
-      total_output_tokens: tokenTotalAcc.output,
-      avg_input_per_session:
-        tokenTotalAcc.with_data > 0 ? Math.round(tokenTotalAcc.input / tokenTotalAcc.with_data) : 0,
-      avg_output_per_session:
-        tokenTotalAcc.with_data > 0
-          ? Math.round(tokenTotalAcc.output / tokenTotalAcc.with_data)
-          : 0,
-      sessions_with_token_data: tokenTotalAcc.with_data,
-      sessions_without_token_data: tokenTotalAcc.without_data,
-      by_model: [...tokenByModel.entries()]
+    token_usage: (() => {
+      const byModel = [...tokenByModel.entries()]
         .sort(([, a], [, b]) => b.input - a.input)
         .map(([agent_model, v]) => ({
           agent_model,
           input_tokens: v.input,
           output_tokens: v.output,
           sessions: v.sessions,
-        })),
-      by_tool: [...tokenByTool.entries()]
-        .sort(([, a], [, b]) => b.input - a.input)
-        .map(([host_tool, v]) => ({
-          host_tool,
-          input_tokens: v.input,
-          output_tokens: v.output,
-          sessions: v.sessions,
-        })),
-    },
+          estimated_cost_usd: estimateSessionCost(agent_model, v.input, v.output) ?? undefined,
+        }));
+      const totalCost = byModel.reduce((sum, m) => sum + (m.estimated_cost_usd ?? 0), 0);
+      return {
+        total_input_tokens: tokenTotalAcc.input,
+        total_output_tokens: tokenTotalAcc.output,
+        avg_input_per_session:
+          tokenTotalAcc.with_data > 0
+            ? Math.round(tokenTotalAcc.input / tokenTotalAcc.with_data)
+            : 0,
+        avg_output_per_session:
+          tokenTotalAcc.with_data > 0
+            ? Math.round(tokenTotalAcc.output / tokenTotalAcc.with_data)
+            : 0,
+        sessions_with_token_data: tokenTotalAcc.with_data,
+        sessions_without_token_data: tokenTotalAcc.without_data,
+        total_estimated_cost_usd: Math.round(totalCost * 100) / 100,
+        by_model: byModel,
+        by_tool: [...tokenByTool.entries()]
+          .sort(([, a], [, b]) => b.input - a.input)
+          .map(([host_tool, v]) => ({
+            host_tool,
+            input_tokens: v.input,
+            output_tokens: v.output,
+            sessions: v.sessions,
+          })),
+      };
+    })(),
     scope_complexity: [...scopeComplexityAcc.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([bucket, v]) => ({

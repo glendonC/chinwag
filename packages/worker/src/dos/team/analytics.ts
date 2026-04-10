@@ -2,6 +2,7 @@
 // All queries run on the sessions and daily_metrics tables within TeamDO.
 
 import { createLogger } from '../../lib/logger.js';
+import { estimateSessionCost } from '../../lib/model-pricing.js';
 import type {
   FileHeatmapEntry,
   DailyTrend,
@@ -981,10 +982,15 @@ function queryMemoryUsage(sql: SqlStorage, days: number): MemoryUsageStats {
       )
       .one() as Record<string, unknown>;
 
-    // Search telemetry from telemetry table
+    // Search telemetry from daily_metrics (period-scoped, not lifetime)
     const searchRow = sql
       .exec(
-        "SELECT COALESCE(SUM(CASE WHEN metric = 'memories_searched' THEN count ELSE 0 END), 0) AS searches, COALESCE(SUM(CASE WHEN metric = 'memories_search_hits' THEN count ELSE 0 END), 0) AS hits FROM telemetry WHERE metric IN ('memories_searched', 'memories_search_hits')",
+        `SELECT COALESCE(SUM(CASE WHEN metric = 'memories_searched' THEN count ELSE 0 END), 0) AS searches,
+                COALESCE(SUM(CASE WHEN metric = 'memories_search_hits' THEN count ELSE 0 END), 0) AS hits
+         FROM daily_metrics
+         WHERE date > date('now', '-' || ? || ' days')
+           AND metric IN ('memories_searched', 'memories_search_hits')`,
+        days,
       )
       .one() as Record<string, unknown>;
 
@@ -1511,15 +1517,17 @@ function queryMemoryOutcomeCorrelation(sql: SqlStorage, days: number): MemoryOut
   }
 }
 
-function queryTopMemories(sql: SqlStorage): MemoryAccessEntry[] {
+function queryTopMemories(sql: SqlStorage, days: number): MemoryAccessEntry[] {
   try {
     const rows = sql
       .exec(
         `SELECT id, text, access_count, last_accessed_at, created_at
          FROM memories
          WHERE access_count > 0
+           AND (last_accessed_at IS NOT NULL AND last_accessed_at > datetime('now', '-' || ? || ' days'))
          ORDER BY access_count DESC
          LIMIT 20`,
+        days,
       )
       .toArray();
 
@@ -1816,14 +1824,20 @@ function queryPeriodComparison(sql: SqlStorage, days: number): PeriodComparison 
       const totalEdits = (r.total_edits as number) || 0;
       const stuck = (r.stuck_sessions as number) || 0;
 
-      // Memory hit rate from telemetry (best-effort)
+      // Memory hit rate from daily_metrics (period-scoped)
       let memoryHitRate = 0;
       try {
         const telRows = sql
           .exec(
             `SELECT
-               COALESCE((SELECT count FROM telemetry WHERE metric = 'memories_searched'), 0) AS searches,
-               COALESCE((SELECT count FROM telemetry WHERE metric = 'memories_search_hits'), 0) AS hits`,
+               COALESCE(SUM(CASE WHEN metric = 'memories_searched' THEN count ELSE 0 END), 0) AS searches,
+               COALESCE(SUM(CASE WHEN metric = 'memories_search_hits' THEN count ELSE 0 END), 0) AS hits
+             FROM daily_metrics
+             WHERE date > date('now', '-' || ? || ' days')
+               AND date <= date('now', '-' || ? || ' days')
+               AND metric IN ('memories_searched', 'memories_search_hits')`,
+            offsetStart,
+            offsetEnd,
           )
           .toArray();
         const t = (telRows[0] || {}) as Record<string, unknown>;
@@ -1874,6 +1888,7 @@ function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats {
     avg_output_per_session: 0,
     sessions_with_token_data: 0,
     sessions_without_token_data: 0,
+    total_estimated_cost_usd: 0,
     by_model: [],
     by_tool: [],
   };
@@ -1937,6 +1952,22 @@ function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats {
       )
       .toArray();
 
+    const byModel = modelRows.map((r) => {
+      const row = r as Record<string, unknown>;
+      const model = row.agent_model as string;
+      const inp = (row.input_tokens as number) || 0;
+      const out = (row.output_tokens as number) || 0;
+      return {
+        agent_model: model,
+        input_tokens: inp,
+        output_tokens: out,
+        sessions: (row.sessions as number) || 0,
+        estimated_cost_usd: estimateSessionCost(model, inp, out) ?? undefined,
+      };
+    });
+
+    const totalCost = byModel.reduce((sum, m) => sum + (m.estimated_cost_usd ?? 0), 0);
+
     return {
       total_input_tokens: totalInput,
       total_output_tokens: totalOutput,
@@ -1944,15 +1975,8 @@ function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats {
       avg_output_per_session: withData > 0 ? Math.round(totalOutput / withData) : 0,
       sessions_with_token_data: withData,
       sessions_without_token_data: withoutData,
-      by_model: modelRows.map((r) => {
-        const row = r as Record<string, unknown>;
-        return {
-          agent_model: row.agent_model as string,
-          input_tokens: (row.input_tokens as number) || 0,
-          output_tokens: (row.output_tokens as number) || 0,
-          sessions: (row.sessions as number) || 0,
-        };
-      }),
+      total_estimated_cost_usd: Math.round(totalCost * 100) / 100,
+      by_model: byModel,
       by_tool: toolRows.map((r) => {
         const row = r as Record<string, unknown>;
         return {
@@ -2004,7 +2028,7 @@ export function getExtendedAnalytics(
     audit_staleness: queryAuditStaleness(sql, days),
     first_edit_stats: queryFirstEditStats(sql, days),
     memory_outcome_correlation: queryMemoryOutcomeCorrelation(sql, days),
-    top_memories: queryTopMemories(sql),
+    top_memories: queryTopMemories(sql, days),
     scope_complexity: queryScopeComplexity(sql, days),
     prompt_efficiency: queryPromptEfficiency(sql, days),
     hourly_effectiveness: queryHourlyEffectiveness(sql, days),

@@ -144,7 +144,6 @@ export const METRIC_KEYS = {
   SURFACE_PREFIX: 'surface:',
   TRANSPORT_PREFIX: 'transport:',
   MODEL_PREFIX: 'model:',
-  TOOL_PREFIX: 'tool:',
   MESSAGES_SENT: 'messages_sent',
   MEMORIES_SAVED: 'memories_saved',
   MEMORIES_SEARCHED: 'memories_searched',

@@ -25,7 +25,6 @@ import { inferHostToolFromAgentId } from './runtime.js';
 const log = createLogger('TeamDO.context');
 
 interface TelemetryBreakdown {
-  tools_configured: Array<{ host_tool: string; joins: number }>;
   hosts_configured: Array<{ host_tool: string; joins: number }>;
   surfaces_seen: Array<{ agent_surface: string; joins: number }>;
   models_seen: Array<{ agent_model: string; count: number }>;
@@ -38,7 +37,6 @@ export function getTelemetryBreakdown(sql: SqlStorage): TelemetryBreakdown {
     .exec('SELECT metric, count FROM telemetry ORDER BY count DESC LIMIT 10000')
     .toArray();
 
-  const tools_configured: Array<{ host_tool: string; joins: number }> = [];
   const hosts_configured: Array<{ host_tool: string; joins: number }> = [];
   const surfaces_seen: Array<{ agent_surface: string; joins: number }> = [];
   const models_seen: Array<{ agent_model: string; count: number }> = [];
@@ -47,43 +45,33 @@ export function getTelemetryBreakdown(sql: SqlStorage): TelemetryBreakdown {
   for (const row of rows) {
     const r = row as { metric: string; count: number };
     const m = r.metric;
-    if (m.startsWith(METRIC_KEYS.TOOL_PREFIX)) {
-      if (tools_configured.length < 10) {
-        tools_configured.push({
-          host_tool: m.slice(METRIC_KEYS.TOOL_PREFIX.length),
+    usage[m] = r.count;
+
+    if (m.startsWith(METRIC_KEYS.HOST_PREFIX)) {
+      if (hosts_configured.length < 10) {
+        hosts_configured.push({
+          host_tool: m.slice(METRIC_KEYS.HOST_PREFIX.length),
           joins: r.count,
         });
       }
-    } else {
-      // All non-tool metrics go into the usage map
-      usage[m] = r.count;
-
-      if (m.startsWith(METRIC_KEYS.HOST_PREFIX)) {
-        if (hosts_configured.length < 10) {
-          hosts_configured.push({
-            host_tool: m.slice(METRIC_KEYS.HOST_PREFIX.length),
-            joins: r.count,
-          });
-        }
-      } else if (m.startsWith(METRIC_KEYS.SURFACE_PREFIX)) {
-        if (surfaces_seen.length < 10) {
-          surfaces_seen.push({
-            agent_surface: m.slice(METRIC_KEYS.SURFACE_PREFIX.length),
-            joins: r.count,
-          });
-        }
-      } else if (m.startsWith(METRIC_KEYS.MODEL_PREFIX)) {
-        if (models_seen.length < 10) {
-          models_seen.push({
-            agent_model: m.slice(METRIC_KEYS.MODEL_PREFIX.length),
-            count: r.count,
-          });
-        }
+    } else if (m.startsWith(METRIC_KEYS.SURFACE_PREFIX)) {
+      if (surfaces_seen.length < 10) {
+        surfaces_seen.push({
+          agent_surface: m.slice(METRIC_KEYS.SURFACE_PREFIX.length),
+          joins: r.count,
+        });
+      }
+    } else if (m.startsWith(METRIC_KEYS.MODEL_PREFIX)) {
+      if (models_seen.length < 10) {
+        models_seen.push({
+          agent_model: m.slice(METRIC_KEYS.MODEL_PREFIX.length),
+          count: r.count,
+        });
       }
     }
   }
 
-  return { tools_configured, hosts_configured, surfaces_seen, models_seen, usage };
+  return { hosts_configured, surfaces_seen, models_seen, usage };
 }
 
 /**

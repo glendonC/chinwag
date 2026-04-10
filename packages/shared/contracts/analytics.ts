@@ -345,6 +345,7 @@ export interface TokenModelBreakdown {
   input_tokens: number;
   output_tokens: number;
   sessions: number;
+  estimated_cost_usd?: number;
 }
 
 export interface TokenToolBreakdown {
@@ -361,6 +362,7 @@ export interface TokenUsageStats {
   avg_output_per_session: number;
   sessions_with_token_data: number;
   sessions_without_token_data: number;
+  total_estimated_cost_usd: number;
   by_model: TokenModelBreakdown[];
   by_tool: TokenToolBreakdown[];
 }

@@ -27,11 +27,6 @@ export interface TopicDistribution {
   count: number;
 }
 
-export interface CharCountTrend {
-  sequence: number;
-  avg_char_count: number;
-}
-
 export interface SentimentOutcomeCorrelation {
   dominant_sentiment: string;
   sessions: number;
