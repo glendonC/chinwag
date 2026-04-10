@@ -8,7 +8,10 @@ import { configExists, loadConfig } from '../config.js';
 import { api } from '../api.js';
 import { evalToTool } from '../utils/tool-catalog.js';
 import type { CatalogToolLike } from '../utils/tool-catalog.js';
-import type { ToolDirectoryResponse, ToolCatalogResponse } from '@chinwag/shared/contracts.js';
+import type {
+  ToolDirectoryResponse,
+  ToolCatalogResponse,
+} from '@chinwag/shared/contracts/tools.js';
 import { formatError, createLogger } from '@chinwag/shared';
 
 const log = createLogger('add');

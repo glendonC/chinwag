@@ -1,5 +1,5 @@
 import type { IntegrationScanResult } from '@chinwag/shared/integration-doctor.js';
-import type { ToolCatalogEntry } from '@chinwag/shared/contracts.js';
+import type { ToolCatalogEntry } from '@chinwag/shared/contracts/tools.js';
 
 const MAX_RECOMMENDATIONS = 9;
 

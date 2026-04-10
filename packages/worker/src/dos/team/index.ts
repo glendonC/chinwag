@@ -76,7 +76,10 @@ import {
   getSessionConversationStats as getSessionConversationStatsFn,
   type ConversationEventInput,
 } from './conversations.js';
-import type { ConversationAnalytics, SessionConversationStats } from '@chinwag/shared/contracts.js';
+import type {
+  ConversationAnalytics,
+  SessionConversationStats,
+} from '@chinwag/shared/contracts/conversation.js';
 import {
   submitCommand as submitCommandFn,
   claimCommand as claimCommandFn,

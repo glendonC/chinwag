@@ -4,7 +4,7 @@ import type {
   TeamMemory as SharedTeamMemory,
   TeamMember as SharedTeamMember,
   TeamSession as SharedTeamSession,
-} from '@chinwag/shared/contracts.js';
+} from '@chinwag/shared/contracts/team.js';
 
 export const MAX_MEMORIES = 8;
 

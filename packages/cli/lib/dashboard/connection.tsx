@@ -12,7 +12,7 @@ import { hasError } from '../utils/type-guards.js';
 import type { ChinwagConfig } from '../config.js';
 import type { TeamContext } from './view.js';
 import type { HostIntegration } from '@chinwag/shared/integration-model.js';
-import type { WebSocketTicketResponse } from '@chinwag/shared/contracts.js';
+import type { WebSocketTicketResponse } from '@chinwag/shared/contracts/dashboard.js';
 import { formatError, createLogger } from '@chinwag/shared';
 import {
   POLL_FAST_MS,

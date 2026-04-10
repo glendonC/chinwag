@@ -11,7 +11,7 @@ import type {
   SessionConversationStats,
   ConversationAnalytics,
   ConversationToolCoverage,
-} from '@chinwag/shared/contracts.js';
+} from '@chinwag/shared/contracts/conversation.js';
 import { getToolsWithCapability } from '@chinwag/shared/tool-registry.js';
 
 const log = createLogger('TeamDO.conversations');

@@ -22,7 +22,7 @@ import type {
   ToolCatalogEntry,
   ToolDirectoryResponse,
   ToolCatalogResponse,
-} from '@chinwag/shared/contracts.js';
+} from '@chinwag/shared/contracts/tools.js';
 import type { HandleUpdateResponse } from '../types/api.js';
 import { formatError, createLogger } from '@chinwag/shared';
 import { FLASH_MIN_DURATION_MS, FLASH_MS_PER_CHAR } from '../constants/timings.js';

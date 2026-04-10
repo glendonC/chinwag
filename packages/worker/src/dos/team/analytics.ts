@@ -46,7 +46,7 @@ import type {
   PeriodComparison,
   PeriodMetrics,
   TokenUsageStats,
-} from '@chinwag/shared/contracts.js';
+} from '@chinwag/shared/contracts/analytics.js';
 
 const log = createLogger('TeamDO.analytics');
 

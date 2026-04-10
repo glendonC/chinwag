@@ -13,7 +13,7 @@ import type { ChinwagConfig } from '../config.js';
 import { api, initAccount } from '../api.js';
 import { detectTools, configureTool } from '../mcp-config.js';
 import { classifyError } from '../utils/errors.js';
-import type { AuthenticatedUser } from '@chinwag/shared/contracts.js';
+import type { AuthenticatedUser } from '@chinwag/shared/contracts/dashboard.js';
 import type { InitAccountResponse, CreateTeamResponse } from '../types/api.js';
 
 // Map chinwag color names to type-safe chalk functions

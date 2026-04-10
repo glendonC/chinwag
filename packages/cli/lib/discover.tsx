@@ -13,7 +13,7 @@ import type {
   ToolCatalogEntry,
   ToolDirectoryResponse,
   ToolCatalogResponse,
-} from '@chinwag/shared/contracts.js';
+} from '@chinwag/shared/contracts/tools.js';
 import { formatError, createLogger } from '@chinwag/shared';
 import { LOADING_TIMEOUT_MS } from './constants/timings.js';
 

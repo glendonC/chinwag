@@ -8,6 +8,6 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": ["./*.ts"],
+  "include": ["./*.ts", "./contracts/*.ts"],
   "exclude": ["./__tests__/**", "./dist", "./node_modules"]
 }

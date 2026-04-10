@@ -29,6 +29,30 @@
       "types": "./dist/contracts.d.ts",
       "import": "./dist/contracts.js"
     },
+    "./contracts/team.js": {
+      "types": "./dist/contracts/team.d.ts",
+      "import": "./dist/contracts/team.js"
+    },
+    "./contracts/analytics.js": {
+      "types": "./dist/contracts/analytics.d.ts",
+      "import": "./dist/contracts/analytics.js"
+    },
+    "./contracts/conversation.js": {
+      "types": "./dist/contracts/conversation.d.ts",
+      "import": "./dist/contracts/conversation.js"
+    },
+    "./contracts/events.js": {
+      "types": "./dist/contracts/events.d.ts",
+      "import": "./dist/contracts/events.js"
+    },
+    "./contracts/dashboard.js": {
+      "types": "./dist/contracts/dashboard.d.ts",
+      "import": "./dist/contracts/dashboard.js"
+    },
+    "./contracts/tools.js": {
+      "types": "./dist/contracts/tools.d.ts",
+      "import": "./dist/contracts/tools.js"
+    },
     "./dashboard-ws.js": {
       "types": "./dist/dashboard-ws.d.ts",
       "import": "./dist/dashboard-ws.js"
