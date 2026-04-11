@@ -77,13 +77,40 @@ function migrateLegacy(): DashboardLayout | null {
   }
 }
 
+function isLayoutValid(layout: DashboardLayout): boolean {
+  if (!layout.widgets.length) return false;
+  // Check that at least some widgets use multi-column positions (not all x=0)
+  const hasMultiCol = layout.widgets.some((w) => w.x > 0 || w.w > 4);
+  return hasMultiCol;
+}
+
 function loadDashboard(): DashboardLayout {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed?.version === STORAGE_VERSION && Array.isArray(parsed.widgets)) {
-        return parsed;
+        if (isLayoutValid(parsed)) return parsed;
+        // Stored layout is broken (all single-column) — rebuild from defaults
+        // but keep the user's widget selection
+        const selectedIds = new Set(parsed.widgets.map((w: WidgetPosition) => w.id));
+        const rebuilt = buildDefaultLayout();
+        rebuilt.widgets = rebuilt.widgets.filter((w) => selectedIds.has(w.id));
+        // Add any user widgets not in the default layout
+        for (const wp of parsed.widgets) {
+          if (!rebuilt.widgets.some((w) => w.id === wp.id)) {
+            const def = getWidget(wp.id);
+            rebuilt.widgets.push({
+              id: wp.id,
+              x: 0,
+              y: Infinity,
+              w: def?.w ?? 6,
+              h: def?.h ?? 3,
+            });
+          }
+        }
+        saveDashboard(rebuilt);
+        return rebuilt;
       }
     }
   } catch {
@@ -92,12 +119,22 @@ function loadDashboard(): DashboardLayout {
 
   // Try migrating from legacy stores
   const migrated = migrateLegacy();
-  if (migrated) {
+  if (migrated && isLayoutValid(migrated)) {
     saveDashboard(migrated);
     return migrated;
   }
 
-  return buildDefaultLayout();
+  // Clean up any broken legacy data
+  try {
+    localStorage.removeItem(LEGACY_IDS_KEY);
+    localStorage.removeItem(LEGACY_POS_KEY);
+  } catch {
+    /* */
+  }
+
+  const def = buildDefaultLayout();
+  saveDashboard(def);
+  return def;
 }
 
 function saveDashboard(layout: DashboardLayout) {
@@ -216,8 +253,14 @@ export function useOverviewLayout() {
     [setDashboard],
   );
 
-  // Reset to default
+  // Reset to default — clear everything and rebuild
   const resetToDefault = useCallback(() => {
+    try {
+      localStorage.removeItem(LEGACY_IDS_KEY);
+      localStorage.removeItem(LEGACY_POS_KEY);
+    } catch {
+      /* */
+    }
     const def = buildDefaultLayout();
     saveDashboard(def);
     setDashboardInner(def);

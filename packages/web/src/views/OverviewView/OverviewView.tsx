@@ -97,7 +97,7 @@ function GridContainer({
           {...({
             className: 'overview-grid',
             width,
-            layouts: { lg: gridLayout },
+            layouts: { lg: gridLayout, md: gridLayout },
             breakpoints: GRID_BREAKPOINTS,
             cols: GRID_COLS,
             margin: GRID_MARGIN,
