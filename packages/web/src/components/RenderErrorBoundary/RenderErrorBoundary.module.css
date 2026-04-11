@@ -11,7 +11,7 @@
 
 .title {
   font-family: var(--display);
-  font-size: clamp(1.35rem, 2vw, 1.8rem);
+  font-size: 1.8rem;
   font-weight: 300;
   letter-spacing: var(--display-spacing);
   line-height: var(--display-line);

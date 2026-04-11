@@ -31,7 +31,7 @@
 
 .onlineCount {
   font-family: var(--display);
-  font-size: clamp(2rem, 3.5vw, 2.8rem);
+  font-size: 2.5rem;
   font-weight: 300;
   line-height: 1;
   letter-spacing: -0.04em;
@@ -248,7 +248,7 @@
 
 .personalValue {
   font-family: var(--display);
-  font-size: clamp(1.5rem, 2.5vw, 1.875rem);
+  font-size: 1.75rem;
   font-weight: 300;
   line-height: 1;
   letter-spacing: -0.04em;

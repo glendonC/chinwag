@@ -15,7 +15,7 @@
 }
 
 .statValue {
-  font-size: clamp(2.4rem, 5vw, 4.6rem);
+  font-size: 3.5rem;
   font-weight: 200;
   letter-spacing: -0.07em;
   line-height: 0.92;

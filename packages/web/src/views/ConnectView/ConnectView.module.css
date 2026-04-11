@@ -30,7 +30,7 @@
 
 .brandHeadline {
   font-family: var(--display);
-  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-size: 2rem;
   font-weight: 300;
   line-height: var(--display-line);
   letter-spacing: var(--display-spacing);
@@ -154,7 +154,7 @@
 
 .authTitle {
   font-family: var(--display);
-  font-size: clamp(1.4rem, 2.5vw, 1.8rem);
+  font-size: 1.8rem;
   font-weight: 300;
   color: var(--ink);
   line-height: var(--display-line);

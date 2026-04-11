@@ -22,10 +22,10 @@
   --text-xl: 1.25rem;
   --text-2xl: 1.5rem;
 
-  --display-hero: clamp(2.5rem, 5.8vw, 4.8rem);
-  --display-page: clamp(1.9rem, 4.4vw, 3.6rem);
-  --display-section: clamp(1.75rem, 3vw, 2.5rem);
-  --display-inline: clamp(2rem, 4.2vw, 3.2rem);
+  --display-hero: 3.6rem;
+  --display-page: 2.8rem;
+  --display-section: 2.2rem;
+  --display-inline: 2.4rem;
   --display-line: 0.96;
   --display-spacing: -0.075em;
 
