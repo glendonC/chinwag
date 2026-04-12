@@ -17,6 +17,7 @@ export default function Sidebar({ activeView, collapsed = false, onToggle }: Pro
   const activeTeamId = useTeamStore((s) => s.activeTeamId);
   const overviewActive = activeView === 'overview';
   const toolsActive = activeView === 'tools';
+  const directoryActive = activeView === 'directory';
   const globalActive = activeView === 'global';
   const settingsActive = activeView === 'settings';
 
@@ -209,6 +210,30 @@ export default function Sidebar({ activeView, collapsed = false, onToggle }: Pro
                 />
               </svg>
               <span className={styles.navLabel}>Tools</span>
+            </button>
+            <button
+              type="button"
+              className={clsx(styles.navItem, directoryActive && styles.navItemActive)}
+              onClick={go('directory')}
+              aria-current={directoryActive ? 'page' : undefined}
+              aria-label="Directory"
+              title="Directory"
+            >
+              <svg
+                className={styles.navIcon}
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+              >
+                <path
+                  d="M2 4.5a1.5 1.5 0 0 1 1.5-1.5h2.6L7.4 4.5h5.1A1.5 1.5 0 0 1 14 6v6a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12V4.5z"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span className={styles.navLabel}>Directory</span>
             </button>
             <button
               type="button"

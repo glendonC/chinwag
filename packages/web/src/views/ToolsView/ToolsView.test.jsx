@@ -27,42 +27,37 @@ function renderComponent(Component, props) {
   };
 }
 
-let mockToolsViewData;
+let mockScoredStackData;
+const navigateSpy = vi.fn();
+const setQueryParamSpy = vi.fn();
 
-async function loadToolsView(overrides = {}) {
+async function loadToolsView(scoredOverrides = {}) {
   vi.resetModules();
+  navigateSpy.mockClear();
+  setQueryParamSpy.mockClear();
 
-  mockToolsViewData = {
-    loading: false,
-    evaluations: [],
-    categories: {},
-    toolShare: [],
-    hostShare: [],
-    surfaceShare: [],
-    categoryShare: [],
-    categoryList: [],
-    connectedProjects: 0,
-    arcs: [],
-    uniqueTools: 0,
-    filteredEvaluations: [],
-    activeCategory: 'all',
-    setActiveCategory: vi.fn(),
-    activeVerdict: 'all',
-    setActiveVerdict: vi.fn(),
-    searchQuery: '',
-    setSearchQuery: vi.fn(),
-    expandedId: null,
-    setExpandedId: vi.fn(),
-    showAll: false,
-    setShowAll: vi.fn(),
-    hideConfigured: true,
-    setHideConfigured: vi.fn(),
-    isConfigured: () => false,
-    ...overrides,
+  window.history.replaceState(null, '', '/dashboard/tools');
+
+  mockScoredStackData = {
+    analytics: {},
+    isLoading: false,
+    error: null,
+    rows: [],
+    getDrillIn: () => null,
+    ...scoredOverrides,
   };
 
+  vi.doMock('./useScoredStackData.js', () => ({
+    useScoredStackData: () => mockScoredStackData,
+  }));
+
   vi.doMock('./useToolsViewData.js', () => ({
-    useToolsViewData: () => mockToolsViewData,
+    useToolsViewData: () => ({
+      arcs: [],
+      uniqueTools: 0,
+      toolShare: [],
+      evaluations: [],
+    }),
     arcPath: () => 'M0 0',
     CX: 130,
     CY: 130,
@@ -70,39 +65,62 @@ async function loadToolsView(overrides = {}) {
     SW: 13,
   }));
 
-  vi.doMock('../../components/ViewHeader/ViewHeader.js', () => ({
+  vi.doMock('../../components/InlineHint/InlineHint.jsx', () => ({
+    default: function MockInlineHint({ children, actionLabel, onAction, onDismiss }) {
+      return (
+        <div data-testid="inline-hint">
+          {children}
+          <button onClick={onAction}>{actionLabel}</button>
+          <button onClick={onDismiss} aria-label="Dismiss">
+            ×
+          </button>
+        </div>
+      );
+    },
+  }));
+
+  vi.doMock('../../hooks/useDismissible.js', () => ({
+    useDismissible: () => ({
+      isDismissed: () => false,
+      dismiss: vi.fn(),
+      reset: vi.fn(),
+      dismissedIds: new Set(),
+    }),
+  }));
+
+  vi.doMock('./StackToolDetail.js', () => ({
+    default: function MockStackToolDetail() {
+      return <div data-testid="stack-tool-detail" />;
+    },
+  }));
+
+  vi.doMock('./Sparkline.js', () => ({
+    default: function MockSparkline() {
+      return <span data-testid="sparkline" />;
+    },
+  }));
+
+  vi.doMock('../../lib/router.js', () => ({
+    navigate: navigateSpy,
+    setQueryParam: setQueryParamSpy,
+    useQueryParam: () => null,
+  }));
+
+  vi.doMock('../../components/ViewHeader/ViewHeader.jsx', () => ({
     default: function MockViewHeader({ title }) {
       return <div data-testid="view-header">{title}</div>;
     },
   }));
 
-  vi.doMock('../../components/Skeleton/Skeleton.js', () => ({
-    ShimmerText: function MockShimmerText({ children, as: Tag = 'span' }) {
-      return <Tag data-testid="shimmer-text">{children}</Tag>;
-    },
-    SkeletonStatGrid: function MockSkeletonStatGrid() {
-      return <div data-testid="skeleton-stat-grid" />;
-    },
+  vi.doMock('../../components/Skeleton/Skeleton.jsx', () => ({
     SkeletonRows: function MockSkeletonRows() {
       return <div data-testid="skeleton-rows" />;
     },
   }));
 
-  vi.doMock('../../components/ToolIcon/ToolIcon.js', () => ({
+  vi.doMock('../../components/ToolIcon/ToolIcon.jsx', () => ({
     default: function MockToolIcon() {
       return <span data-testid="tool-icon" />;
-    },
-  }));
-
-  vi.doMock('./DirectoryRow.js', () => ({
-    default: function MockDirectoryRow({ evaluation, isExpanded, onToggle }) {
-      return (
-        <div data-testid="directory-row" data-id={evaluation.id} data-expanded={String(isExpanded)}>
-          <button data-testid={`toggle-${evaluation.id}`} onClick={onToggle}>
-            {evaluation.name}
-          </button>
-        </div>
-      );
     },
   }));
 
@@ -116,34 +134,17 @@ afterEach(() => {
 });
 
 describe('ToolsView', () => {
-  it('shows loading state when loading with no data', async () => {
-    const ToolsView = await loadToolsView({ loading: true, evaluations: [], toolShare: [] });
+  it('shows loading skeleton when fetching with no rows', async () => {
+    const ToolsView = await loadToolsView({ isLoading: true, rows: [] });
     const { container, unmount } = renderComponent(ToolsView, {});
 
-    expect(container.textContent).toContain('Loading your tools');
+    expect(container.querySelector('[data-testid="skeleton-rows"]')).not.toBeNull();
 
     unmount();
   });
 
-  it('renders header when data is loaded', async () => {
-    const ToolsView = await loadToolsView({
-      toolShare: [{ tool: 'claude', value: 5, share: 1, projects: ['proj1'] }],
-      arcs: [
-        {
-          tool: 'claude',
-          joins: 5,
-          share: 1,
-          startDeg: 0,
-          sweepDeg: 346,
-          labelX: 152,
-          labelY: 60,
-          anchorX: 145,
-          anchorY: 65,
-          side: 'right',
-        },
-      ],
-      uniqueTools: 1,
-    });
+  it('renders the Tools header', async () => {
+    const ToolsView = await loadToolsView();
     const { container, unmount } = renderComponent(ToolsView, {});
 
     expect(container.querySelector('[data-testid="view-header"]')?.textContent).toBe('Tools');
@@ -151,150 +152,188 @@ describe('ToolsView', () => {
     unmount();
   });
 
-  it('renders configured tools in stack zone', async () => {
+  it('shows empty state when there are no scored rows', async () => {
+    const ToolsView = await loadToolsView({ rows: [] });
+    const { container, unmount } = renderComponent(ToolsView, {});
+
+    expect(container.textContent).toContain('No tools have reported sessions yet');
+    expect(container.textContent).toContain('npx chinwag init');
+
+    unmount();
+  });
+
+  it('renders a scored row with concrete metrics', async () => {
     const ToolsView = await loadToolsView({
-      toolShare: [
-        { tool: 'cursor', value: 8, share: 0.6, projects: ['proj1', 'proj2'] },
-        { tool: 'claude', value: 5, share: 0.4, projects: ['proj1'] },
+      rows: [
+        {
+          toolId: 'cursor',
+          sessions: 12,
+          completed: 9,
+          abandoned: 2,
+          failed: 1,
+          completionRate: 75,
+          avgFirstEditMin: 1.5,
+          inputTokens: 1200,
+          outputTokens: 800,
+          reporting: 'reporting',
+          sparkline: [1, 2, 3, 2, 4],
+        },
       ],
-      arcs: [],
-      uniqueTools: 2,
     });
     const { container, unmount } = renderComponent(ToolsView, {});
 
     expect(container.textContent).toContain('Cursor');
-    expect(container.textContent).toContain('Claude Code');
-    expect(container.textContent).toContain('60%');
+    expect(container.textContent).toContain('12');
+    expect(container.textContent).toContain('75%');
 
     unmount();
   });
 
-  it('renders directory rows for evaluations', async () => {
+  it('clicking a row opens the stack drill-in via setQueryParam', async () => {
     const ToolsView = await loadToolsView({
-      evaluations: [{ id: 'cursor' }, { id: 'claude' }],
-      filteredEvaluations: [
-        { id: 'cursor', name: 'Cursor' },
-        { id: 'claude', name: 'Claude Code' },
+      rows: [
+        {
+          toolId: 'cursor',
+          sessions: 5,
+          completed: 5,
+          abandoned: 0,
+          failed: 0,
+          completionRate: 100,
+          avgFirstEditMin: null,
+          inputTokens: 0,
+          outputTokens: 0,
+          reporting: 'reporting',
+          sparkline: [1, 2, 3],
+        },
       ],
     });
     const { container, unmount } = renderComponent(ToolsView, {});
 
-    const rows = container.querySelectorAll('[data-testid="directory-row"]');
-    expect(rows.length).toBe(2);
-    expect(container.textContent).toContain('2 of 2 tools');
-
-    unmount();
-  });
-
-  it('shows "No tools match" when filteredEvaluations is empty', async () => {
-    const ToolsView = await loadToolsView({
-      evaluations: [{ id: 'x' }],
-      filteredEvaluations: [],
-    });
-    const { container, unmount } = renderComponent(ToolsView, {});
-
-    expect(container.textContent).toContain('No tools match the current filters');
-
-    unmount();
-  });
-
-  it('shows "Show more" button when more than 15 evaluations exist', async () => {
-    const evals = Array.from({ length: 20 }, (_, i) => ({
-      id: `tool_${i}`,
-      name: `Tool ${i}`,
-    }));
-    const ToolsView = await loadToolsView({
-      evaluations: evals,
-      filteredEvaluations: evals,
-      showAll: false,
-    });
-    const { container, unmount } = renderComponent(ToolsView, {});
-
-    // Should only show 15 rows
-    const rows = container.querySelectorAll('[data-testid="directory-row"]');
-    expect(rows.length).toBe(15);
-
-    const showMoreBtn = [...container.querySelectorAll('button')].find((b) =>
-      b.textContent.includes('more tools'),
+    const rowBtn = [...container.querySelectorAll('button')].find((b) =>
+      b.textContent.includes('Cursor'),
     );
-    expect(showMoreBtn).not.toBeUndefined();
-    expect(showMoreBtn.textContent).toContain('5 more tools');
+    expect(rowBtn).toBeDefined();
+
+    act(() => {
+      rowBtn.click();
+    });
+
+    expect(setQueryParamSpy).toHaveBeenCalledWith('stack', 'cursor');
 
     unmount();
   });
 
-  it('shows "Show less" button when showAll is true with many evaluations', async () => {
-    const evals = Array.from({ length: 20 }, (_, i) => ({
-      id: `tool_${i}`,
-      name: `Tool ${i}`,
-    }));
+  it('shows footer link to browse all supported tools', async () => {
     const ToolsView = await loadToolsView({
-      evaluations: evals,
-      filteredEvaluations: evals,
-      showAll: true,
+      rows: [
+        {
+          toolId: 'cursor',
+          sessions: 1,
+          completed: 1,
+          abandoned: 0,
+          failed: 0,
+          completionRate: 100,
+          avgFirstEditMin: null,
+          inputTokens: 0,
+          outputTokens: 0,
+          reporting: 'reporting',
+          sparkline: [1],
+        },
+      ],
     });
     const { container, unmount } = renderComponent(ToolsView, {});
 
-    const rows = container.querySelectorAll('[data-testid="directory-row"]');
-    expect(rows.length).toBe(20);
+    expect(container.textContent).toContain('Browse directory');
 
-    const showLessBtn = [...container.querySelectorAll('button')].find((b) =>
-      b.textContent.includes('Show less'),
+    unmount();
+  });
+
+  it('clicking the footer link navigates to the directory route', async () => {
+    const ToolsView = await loadToolsView({
+      rows: [
+        {
+          toolId: 'cursor',
+          sessions: 1,
+          completed: 1,
+          abandoned: 0,
+          failed: 0,
+          completionRate: 100,
+          avgFirstEditMin: null,
+          inputTokens: 0,
+          outputTokens: 0,
+          reporting: 'reporting',
+          sparkline: [1],
+        },
+      ],
+    });
+    const { container, unmount } = renderComponent(ToolsView, {});
+
+    const footerBtn = [...container.querySelectorAll('button')].find((b) =>
+      b.textContent.includes('Browse directory'),
     );
-    expect(showLessBtn).not.toBeUndefined();
+    expect(footerBtn).toBeDefined();
 
-    unmount();
-  });
-
-  it('renders verdict filter buttons', async () => {
-    const ToolsView = await loadToolsView();
-    const { container, unmount } = renderComponent(ToolsView, {});
-
-    expect(container.textContent).toContain('All');
-    expect(container.textContent).toContain('Integrated');
-    expect(container.textContent).toContain('Installable');
-    expect(container.textContent).toContain('Listed');
-
-    unmount();
-  });
-
-  it('renders Not configured toggle', async () => {
-    const ToolsView = await loadToolsView();
-    const { container, unmount } = renderComponent(ToolsView, {});
-
-    expect(container.textContent).toContain('Not configured');
-
-    unmount();
-  });
-
-  it('renders search input', async () => {
-    const ToolsView = await loadToolsView();
-    const { container, unmount } = renderComponent(ToolsView, {});
-
-    const searchInput = container.querySelector('input[placeholder="Search tools..."]');
-    expect(searchInput).not.toBeNull();
-
-    unmount();
-  });
-
-  it('calls setSearchQuery on search input change', async () => {
-    const setSearchQuery = vi.fn();
-    const ToolsView = await loadToolsView({ setSearchQuery });
-    const { container, unmount } = renderComponent(ToolsView, {});
-
-    const searchInput = container.querySelector('input[placeholder="Search tools..."]');
-
-    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-      window.HTMLInputElement.prototype,
-      'value',
-    ).set;
-    await act(async () => {
-      nativeInputValueSetter.call(searchInput, 'cursor');
-      searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-      searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+    act(() => {
+      footerBtn.click();
     });
 
-    expect(setSearchQuery).toHaveBeenCalledWith('cursor');
+    expect(navigateSpy).toHaveBeenCalledWith('directory');
+
+    unmount();
+  });
+
+  it('renders sortable column headers', async () => {
+    const ToolsView = await loadToolsView();
+    const { container, unmount } = renderComponent(ToolsView, {});
+
+    expect(container.textContent).toContain('Tool');
+    expect(container.textContent).toContain('Sessions');
+    expect(container.textContent).toContain('Completion');
+    expect(container.textContent).toContain('First edit');
+    expect(container.textContent).toContain('Tokens');
+    expect(container.textContent).toContain('Trend');
+
+    unmount();
+  });
+
+  it('sorts rows by sessions descending by default', async () => {
+    const ToolsView = await loadToolsView({
+      rows: [
+        {
+          toolId: 'claude',
+          sessions: 3,
+          completed: 1,
+          abandoned: 1,
+          failed: 1,
+          completionRate: 33,
+          avgFirstEditMin: null,
+          inputTokens: 0,
+          outputTokens: 0,
+          reporting: 'reporting',
+          sparkline: [1],
+        },
+        {
+          toolId: 'cursor',
+          sessions: 10,
+          completed: 8,
+          abandoned: 2,
+          failed: 0,
+          completionRate: 80,
+          avgFirstEditMin: null,
+          inputTokens: 0,
+          outputTokens: 0,
+          reporting: 'reporting',
+          sparkline: [1],
+        },
+      ],
+    });
+    const { container, unmount } = renderComponent(ToolsView, {});
+
+    const rows = [...container.querySelectorAll('button')].filter((b) =>
+      /Cursor|Claude/.test(b.textContent),
+    );
+    expect(rows[0].textContent).toContain('Cursor');
+    expect(rows[1].textContent).toContain('Claude');
 
     unmount();
   });

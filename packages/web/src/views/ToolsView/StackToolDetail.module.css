@@ -1,0 +1,295 @@
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  animation: fadeIn 0.25s var(--motion) both;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: color 0.15s ease;
+}
+
+.back:hover {
+  color: var(--ink);
+}
+
+.header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: center;
+}
+
+.title {
+  font-family: var(--display);
+  font-size: 2.4rem;
+  font-weight: 300;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  color: var(--ink);
+  margin: 0;
+}
+
+.subtitle {
+  display: block;
+  margin-top: 4px;
+  font-size: var(--text-xs);
+  color: var(--soft);
+}
+
+.statusReporting,
+.statusSilent,
+.statusUnknown {
+  font-family: var(--mono);
+  font-size: var(--text-11);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+}
+
+.statusReporting {
+  color: var(--success);
+}
+
+.statusSilent {
+  color: var(--warn);
+}
+
+.statusUnknown {
+  color: var(--soft);
+}
+
+/* ── Headline stat grid ── */
+
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+  padding: 20px 0;
+  border-top: 1px solid var(--ghost);
+  border-bottom: 1px solid var(--ghost);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.statLabel {
+  font-family: var(--mono);
+  font-size: var(--text-10);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+  color: var(--soft);
+}
+
+.statValue {
+  font-family: var(--display);
+  font-size: 1.8rem;
+  font-weight: 300;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.statHint {
+  font-size: var(--text-11);
+  color: var(--muted);
+}
+
+/* ── Section ── */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sectionLabel {
+  font-family: var(--mono);
+  font-size: var(--text-10);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+  color: var(--soft);
+}
+
+.sparkRow {
+  padding: 8px 0;
+}
+
+/* ── Work bar ── */
+
+.workBar {
+  display: flex;
+  width: 100%;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--ghost);
+}
+
+.workSegment {
+  height: 100%;
+  transition: opacity 0.15s ease;
+}
+
+.workSegment:hover {
+  opacity: 0.8;
+}
+
+.workLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.workLegendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.workDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.workLegendLabel {
+  font-size: var(--text-xs);
+  color: var(--ink);
+  text-transform: capitalize;
+}
+
+.workLegendValue {
+  font-family: var(--mono);
+  font-size: var(--text-11);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Errors ── */
+
+.errorList,
+.handoffList,
+.memberList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.errorRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--ghost);
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 45ms);
+}
+
+@keyframes rowReveal {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.errorPreview {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--ink);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.errorCount {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/* ── Handoffs ── */
+
+.handoffGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 24px;
+}
+
+.handoffSubLabel {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.handoffRow,
+.memberRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--ghost);
+}
+
+.handoffName,
+.memberName {
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.handoffMeta,
+.memberMeta {
+  font-family: var(--mono);
+  font-size: var(--text-11);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  .statGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

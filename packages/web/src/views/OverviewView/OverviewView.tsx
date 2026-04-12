@@ -78,6 +78,7 @@ import { useUserAnalytics } from '../../hooks/useUserAnalytics.js';
 import { useConversationAnalytics } from '../../hooks/useConversationAnalytics.js';
 import { useDismissible } from '../../hooks/useDismissible.js';
 import EmptyState from '../../components/EmptyState/EmptyState.jsx';
+import InlineHint from '../../components/InlineHint/InlineHint.jsx';
 import StatusState from '../../components/StatusState/StatusState.jsx';
 import {
   ShimmerText,
@@ -365,37 +366,6 @@ function ProjectFilter({
 // ── Single-project hint (floating pill, bottom-center of content column) ──
 
 const SINGLE_PROJECT_HINT_KEY = 'chinwag:single-project-hint-dismissed';
-
-function SingleProjectHint({ onOpen, onDismiss }: { onOpen: () => void; onDismiss: () => void }) {
-  return (
-    <div className={styles.singleProjectHint} role="status" aria-live="polite">
-      <div className={styles.singleProjectHintBody}>
-        <span className={styles.singleProjectHintEyebrow}>Tip</span>
-        <span className={styles.singleProjectHintText}>
-          For a single project, the project dashboard has deeper detail.
-        </span>
-      </div>
-      <button type="button" className={styles.singleProjectHintAction} onClick={onOpen}>
-        Open dashboard
-      </button>
-      <button
-        type="button"
-        className={styles.singleProjectHintDismiss}
-        onClick={onDismiss}
-        aria-label="Dismiss"
-      >
-        <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-          <path
-            d="M3 3l8 8M11 3l-8 8"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-        </svg>
-      </button>
-    </div>
-  );
-}
 
 // ── Main Component ────────────────────────────────
 
@@ -706,13 +676,16 @@ export default function OverviewView() {
         !catalogOpen &&
         !editing &&
         !singleProjectHint.isDismissed(teams[0].team_id) && (
-          <SingleProjectHint
-            onOpen={() => {
+          <InlineHint
+            actionLabel="Open dashboard"
+            onAction={() => {
               selectTeam(teams[0].team_id);
               navigate('project', teams[0].team_id);
             }}
             onDismiss={() => singleProjectHint.dismiss(teams[0].team_id)}
-          />
+          >
+            For a single project, the project dashboard has deeper detail.
+          </InlineHint>
         )}
 
       {/* ── Widget catalog ── */}

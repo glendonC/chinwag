@@ -1,7 +1,7 @@
 import { getToolMeta } from '../../lib/toolMeta.js';
 import { formatStars } from '../../lib/signalScore.js';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
-import styles from './ToolsView.module.css';
+import styles from './DirectoryView.module.css';
 
 interface VerdictBadgeProps {
   verdict: string | undefined;
