@@ -27,6 +27,7 @@ export type WidgetViz =
   | 'stat'
   | 'stat-row'
   | 'sparkline'
+  | 'multi-sparkline'
   | 'heatmap'
   | 'bar-chart'
   | 'proportional-bar'
@@ -581,6 +582,54 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 3,
     dataKeys: ['token_usage'],
   },
+  {
+    id: 'tool-daily',
+    name: 'Tool adoption',
+    description: 'Daily session volume per tool — adoption and migration over time',
+    category: 'tools',
+    viz: 'multi-sparkline',
+    w: 8,
+    h: 4,
+    minW: 6,
+    minH: 3,
+    dataKeys: ['tool_daily'],
+  },
+  {
+    id: 'tool-work-type',
+    name: 'Tool work mix',
+    description: 'What kind of work each tool handles',
+    category: 'tools',
+    viz: 'proportional-bar',
+    w: 6,
+    h: 4,
+    minW: 4,
+    minH: 3,
+    dataKeys: ['tool_work_type'],
+  },
+  {
+    id: 'tool-call-hourly',
+    name: 'Tool call pacing',
+    description: 'Tool calls per hour of day — session intensity pattern',
+    category: 'tools',
+    viz: 'sparkline',
+    w: 8,
+    h: 3,
+    minW: 4,
+    minH: 2,
+    dataKeys: ['tool_call_stats'],
+  },
+  {
+    id: 'data-coverage',
+    name: 'Data coverage',
+    description: 'Which insight categories have data and which are waiting',
+    category: 'tools',
+    viz: 'data-list',
+    w: 6,
+    h: 4,
+    minW: 4,
+    minH: 3,
+    dataKeys: ['data_coverage'],
+  },
 
   // ── Conversations (extended) ────────
   {
@@ -606,6 +655,18 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 2,
     dataKeys: ['conversation_edit_correlation'],
+  },
+  {
+    id: 'message-length',
+    name: 'Message length',
+    description: 'Average characters per user prompt vs assistant response',
+    category: 'conversations',
+    viz: 'stat-row',
+    w: 4,
+    h: 2,
+    minW: 3,
+    minH: 2,
+    dataKeys: ['conversation'],
   },
 
   // ── Memory (extended) ───────────────
@@ -659,6 +720,18 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['retry_patterns'],
   },
+  {
+    id: 'file-overlap',
+    name: 'File overlap',
+    description: 'Share of files touched by more than one agent',
+    category: 'team',
+    viz: 'stat-row',
+    w: 4,
+    h: 2,
+    minW: 3,
+    minH: 2,
+    dataKeys: ['file_overlap'],
+  },
 ];
 
 // ── Size constraints by viz type ─────────────────
@@ -668,9 +741,10 @@ const VIZ_MAX_CONSTRAINTS: Record<WidgetViz, { maxW: number; maxH: number }> = {
   stat: { maxW: 4, maxH: 2 },
   'stat-row': { maxW: 12, maxH: 2 },
   sparkline: { maxW: 12, maxH: 4 },
+  'multi-sparkline': { maxW: 12, maxH: 8 },
   heatmap: { maxW: 12, maxH: 6 },
   'bar-chart': { maxW: 12, maxH: 6 },
-  'proportional-bar': { maxW: 8, maxH: 3 },
+  'proportional-bar': { maxW: 12, maxH: 8 },
   'data-list': { maxW: 12, maxH: 8 },
   'outcome-bar': { maxW: 6, maxH: 4 },
   'factual-grid': { maxW: 12, maxH: 4 },

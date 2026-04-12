@@ -23,6 +23,7 @@ const VIZ_LABELS: Record<WidgetViz, string> = {
   stat: 'Single stat',
   'stat-row': 'Stat row',
   sparkline: 'Trend line',
+  'multi-sparkline': 'Multi-line trend',
   heatmap: 'Grid heatmap',
   'bar-chart': 'Bar chart',
   'proportional-bar': 'Proportional bar',
@@ -80,6 +81,10 @@ const DATA_KEY_LABELS: Record<string, string> = {
   conflict_correlation: 'Conflict impact',
   retry_patterns: 'Retry patterns',
   conversation_edit_correlation: 'Conversation depth',
+  tool_daily: 'Tool daily',
+  tool_work_type: 'Tool work mix',
+  data_coverage: 'Data coverage',
+  file_overlap: 'File overlap',
 };
 
 // ── Mini SVG illustrations ────────────────────────

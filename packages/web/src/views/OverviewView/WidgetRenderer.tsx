@@ -31,6 +31,125 @@ interface WidgetProps {
   selectTeam: (teamId: string) => void;
 }
 
+interface CoverageCategory {
+  id: string;
+  label: string;
+  total: number;
+  active: number;
+  hint: string;
+}
+
+function computeDataCoverage(a: UserAnalytics, conv: ConversationAnalytics): CoverageCategory[] {
+  const models = aggregateModels(a.model_outcomes);
+  return [
+    {
+      id: 'sessions',
+      label: 'Session basics',
+      total: 6,
+      active: [
+        a.stuckness.total_sessions > 0,
+        a.hourly_distribution.length > 0 || a.duration_distribution.some((d) => d.count > 0),
+        a.work_type_distribution.length > 0 &&
+          a.work_type_distribution.reduce((s, w) => s + w.sessions, 0) > 0,
+        a.work_type_outcomes.length > 0,
+        a.scope_complexity.length > 0,
+        a.first_edit_stats.avg_minutes_to_first_edit > 0 || a.first_edit_stats.by_tool.length > 0,
+      ].filter(Boolean).length,
+      hint: 'Run a few coding sessions',
+    },
+    {
+      id: 'outcomes',
+      label: 'Outcome analysis',
+      total: 6,
+      active: [
+        a.period_comparison.current.total_sessions > 0 && a.period_comparison.previous !== null,
+        a.hourly_effectiveness.length > 0,
+        a.outcome_predictors.length > 0,
+        a.tool_outcomes.length > 0,
+        a.conflict_correlation.length > 0,
+        a.member_analytics.length > 0,
+      ].filter(Boolean).length,
+      hint: 'Complete or close some sessions',
+    },
+    {
+      id: 'edits',
+      label: 'Edit intelligence',
+      total: 8,
+      active: [
+        a.edit_velocity.length >= 2,
+        a.daily_trends.length >= 2,
+        a.prompt_efficiency.length >= 2,
+        a.file_heatmap.length > 0,
+        a.directory_heatmap.length > 0,
+        a.file_churn.length > 0,
+        a.file_rework.length > 0,
+        a.audit_staleness.length > 0,
+      ].filter(Boolean).length,
+      hint: 'Let agents make file edits',
+    },
+    {
+      id: 'toolcalls',
+      label: 'Tool call analytics',
+      total: 3,
+      active: [
+        a.tool_call_stats.total_calls > 0,
+        a.tool_call_stats.frequency.length > 0,
+        a.tool_call_stats.error_patterns.length > 0,
+      ].filter(Boolean).length,
+      hint: 'Runs automatically with Claude Code',
+    },
+    {
+      id: 'conversations',
+      label: 'Conversation insights',
+      total: 2,
+      active: [
+        a.conversation_edit_correlation.length > 0,
+        conv.total_messages > 0 || conv.sessions_with_conversations > 0,
+      ].filter(Boolean).length,
+      hint: 'Use a tool with conversation capture',
+    },
+    {
+      id: 'memory',
+      label: 'Memory intelligence',
+      total: 3,
+      active: [
+        a.memory_usage.total_memories > 0 || a.memory_usage.searches > 0,
+        a.memory_outcome_correlation.length > 0,
+        a.top_memories.length > 0,
+      ].filter(Boolean).length,
+      hint: 'Save or search shared memories',
+    },
+    {
+      id: 'multitool',
+      label: 'Multi-tool analysis',
+      total: 3,
+      active: [
+        models.length >= 2,
+        a.tool_handoffs.length > 0,
+        a.concurrent_edits.length > 0,
+      ].filter(Boolean).length,
+      hint: 'Connect a second tool',
+    },
+    {
+      id: 'tokens',
+      label: 'Token usage',
+      total: 2,
+      active: [
+        a.token_usage.sessions_with_token_data > 0,
+        a.data_coverage !== undefined && a.data_coverage.tools_reporting.length > 0,
+      ].filter(Boolean).length,
+      hint: 'Use a tool that reports tokens',
+    },
+    {
+      id: 'tools',
+      label: 'Tool comparison',
+      total: 2,
+      active: [a.tool_comparison.length > 0, a.tool_work_type.length > 0].filter(Boolean).length,
+      hint: 'Connect at least one tool',
+    },
+  ];
+}
+
 function WidgetRendererInner({
   widgetId,
   analytics,
@@ -1032,6 +1151,239 @@ function WidgetBody({
               </div>
             </div>
           ))}
+        </div>
+      );
+    }
+
+    // ── Tool adoption (multi-line) ──────
+    case 'tool-daily': {
+      const td = analytics.tool_daily;
+      if (td.length === 0) return <GhostBars count={3} />;
+      const byTool = new Map<string, { sessions: number; series: Map<string, number> }>();
+      for (const d of td) {
+        const e = byTool.get(d.host_tool) ?? { sessions: 0, series: new Map<string, number>() };
+        e.sessions += d.sessions;
+        e.series.set(d.day, (e.series.get(d.day) ?? 0) + d.sessions);
+        byTool.set(d.host_tool, e);
+      }
+      const tools = [...byTool.entries()]
+        .map(([tool, v]) => ({
+          tool,
+          sessions: v.sessions,
+          data: [...v.series.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, n]) => n),
+        }))
+        .filter((t) => t.sessions > 0)
+        .sort((a, b) => b.sessions - a.sessions)
+        .slice(0, 5);
+      if (tools.length === 0) return <GhostBars count={3} />;
+      return (
+        <div className={styles.metricBars}>
+          {tools.map((t) => {
+            const meta = getToolMeta(t.tool);
+            return (
+              <div key={t.tool} className={styles.metricRow}>
+                <span className={styles.metricLabel} title={meta.label}>
+                  {meta.label}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {t.data.length >= 2 ? (
+                    <Sparkline data={t.data} height={32} color={meta.color} />
+                  ) : (
+                    <span style={{ opacity: 0.4, fontSize: 'var(--text-2xs)' }}>—</span>
+                  )}
+                </div>
+                <span className={styles.metricValue}>{t.sessions}</span>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // ── Tool work mix (per-tool stacked bar) ──
+    case 'tool-work-type': {
+      const twt = analytics.tool_work_type;
+      if (twt.length === 0) return <GhostBars count={3} />;
+      const byTool = new Map<string, { sessions: number; types: Map<string, number> }>();
+      for (const t of twt) {
+        const e = byTool.get(t.host_tool) ?? { sessions: 0, types: new Map<string, number>() };
+        e.sessions += t.sessions;
+        e.types.set(t.work_type, (e.types.get(t.work_type) ?? 0) + t.sessions);
+        byTool.set(t.host_tool, e);
+      }
+      const tools = [...byTool.entries()]
+        .map(([tool, v]) => ({
+          tool,
+          sessions: v.sessions,
+          types: [...v.types.entries()].map(([work_type, sessions]) => ({ work_type, sessions })),
+        }))
+        .filter((t) => t.sessions > 0)
+        .sort((a, b) => b.sessions - a.sessions)
+        .slice(0, 5);
+      if (tools.length === 0) return <GhostBars count={3} />;
+      const allTypes = new Map<string, number>();
+      for (const t of tools) {
+        for (const w of t.types) {
+          allTypes.set(w.work_type, (allTypes.get(w.work_type) ?? 0) + w.sessions);
+        }
+      }
+      const orderedTypes = [...allTypes.entries()].sort((a, b) => b[1] - a[1]).map(([w]) => w);
+      return (
+        <div>
+          <div className={styles.metricBars} style={{ marginBottom: 12 }}>
+            {tools.map((t) => {
+              const meta = getToolMeta(t.tool);
+              return (
+                <div key={t.tool} className={styles.metricRow}>
+                  <span className={styles.metricLabel} title={meta.label}>
+                    {meta.label}
+                  </span>
+                  <div className={styles.workBar} style={{ flex: 1, marginBottom: 0 }}>
+                    {orderedTypes.map((wt) => {
+                      const w = t.types.find((x) => x.work_type === wt);
+                      const pct = w ? (w.sessions / t.sessions) * 100 : 0;
+                      if (pct < 0.5) return null;
+                      return (
+                        <div
+                          key={wt}
+                          className={styles.workSegment}
+                          style={{
+                            width: `${pct}%`,
+                            background: WORK_TYPE_COLORS[wt] ?? WORK_TYPE_COLORS.other,
+                          }}
+                          title={`${wt}: ${Math.round(pct)}%`}
+                        />
+                      );
+                    })}
+                  </div>
+                  <span className={styles.metricValue}>{t.sessions}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className={styles.workLegend}>
+            {orderedTypes.slice(0, 6).map((wt) => (
+              <div key={wt} className={styles.workLegendItem}>
+                <span
+                  className={styles.workDot}
+                  style={{ background: WORK_TYPE_COLORS[wt] ?? WORK_TYPE_COLORS.other }}
+                />
+                <span className={styles.workLegendLabel}>{wt}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Tool call hourly pacing ─────────
+    case 'tool-call-hourly': {
+      const ha = analytics.tool_call_stats.hourly_activity;
+      if (ha.length === 0) return <GhostSparkline />;
+      const buckets = new Array(24).fill(0) as number[];
+      for (const h of ha) {
+        if (h.hour >= 0 && h.hour < 24) buckets[h.hour] += h.calls;
+      }
+      if (buckets.every((v) => v === 0)) return <GhostSparkline />;
+      return <Sparkline data={buckets} height={80} />;
+    }
+
+    // ── Data coverage ───────────────────
+    case 'data-coverage': {
+      const cats = computeDataCoverage(analytics, conversationData);
+      const totalActive = cats.reduce((s, c) => s + c.active, 0);
+      const totalPossible = cats.reduce((s, c) => s + c.total, 0);
+      const waiting = cats.filter((c) => c.active < c.total);
+      return (
+        <>
+          <div className={styles.statRow} style={{ marginBottom: 12 }}>
+            <div className={styles.statBlock}>
+              <span className={styles.statBlockValue}>{totalActive}</span>
+              <span className={styles.statBlockLabel}>active</span>
+            </div>
+            <div className={styles.statBlock}>
+              <span className={styles.statBlockValue}>{totalPossible - totalActive}</span>
+              <span className={styles.statBlockLabel}>waiting</span>
+            </div>
+            <div className={styles.statBlock}>
+              <span className={styles.statBlockValue}>
+                {Math.round((totalActive / Math.max(totalPossible, 1)) * 100)}%
+              </span>
+              <span className={styles.statBlockLabel}>coverage</span>
+            </div>
+          </div>
+          {waiting.length === 0 ? (
+            <span className={styles.sectionEmpty}>All insights have data</span>
+          ) : (
+            <div className={styles.dataList}>
+              {waiting.slice(0, 8).map((cat, i) => (
+                <div
+                  key={cat.id}
+                  className={styles.dataRow}
+                  style={{ '--row-index': i } as CSSProperties}
+                >
+                  <span className={styles.dataName}>{cat.label}</span>
+                  <div className={styles.dataMeta}>
+                    <span className={styles.dataStat}>
+                      <span className={styles.dataStatValue}>
+                        {cat.active}/{cat.total}
+                      </span>
+                    </span>
+                    <span className={styles.dataStat} style={{ color: 'var(--muted)' }}>
+                      {cat.hint}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      );
+    }
+
+    // ── Message length ──────────────────
+    case 'message-length': {
+      const u = conversationData.avg_user_char_count;
+      const a = conversationData.avg_assistant_char_count;
+      if (u === 0 && a === 0) return <GhostStatRow labels={['your prompts', 'responses']} />;
+      return (
+        <div className={styles.statRow}>
+          <div className={styles.statBlock}>
+            <span className={styles.statBlockValue}>{Math.round(u).toLocaleString()}</span>
+            <span className={styles.statBlockLabel}>your chars</span>
+          </div>
+          <div className={styles.statBlock}>
+            <span className={styles.statBlockValue}>{Math.round(a).toLocaleString()}</span>
+            <span className={styles.statBlockLabel}>response chars</span>
+          </div>
+          {u > 0 && (
+            <div className={styles.statBlock}>
+              <span className={styles.statBlockValue}>{Math.round(a / u)}×</span>
+              <span className={styles.statBlockLabel}>response ratio</span>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ── File overlap ────────────────────
+    case 'file-overlap': {
+      const fo = analytics.file_overlap;
+      if (fo.total_files === 0) return <GhostStatRow labels={['overlap rate', 'shared files']} />;
+      return (
+        <div className={styles.statRow}>
+          <div className={styles.statBlock}>
+            <span className={styles.statBlockValue}>{fo.overlap_rate}%</span>
+            <span className={styles.statBlockLabel}>overlap rate</span>
+          </div>
+          <div className={styles.statBlock}>
+            <span className={styles.statBlockValue}>{fo.overlapping_files}</span>
+            <span className={styles.statBlockLabel}>shared files</span>
+          </div>
+          <div className={styles.statBlock}>
+            <span className={styles.statBlockValue}>{fo.total_files}</span>
+            <span className={styles.statBlockLabel}>total files</span>
+          </div>
         </div>
       );
     }
