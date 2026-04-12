@@ -1,0 +1,34 @@
+.rangeSelector {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--ghost);
+}
+
+.rangeButton {
+  padding: var(--space-xs) var(--space-md);
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.rangeButton:hover {
+  background: var(--hover-bg);
+  color: var(--ink);
+}
+
+.rangeActive {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}

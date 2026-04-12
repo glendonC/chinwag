@@ -1,8 +1,9 @@
+import type { ReactNode } from 'react';
 import styles from './ViewHeader.module.css';
 
 interface Props {
   eyebrow?: string;
-  title: string;
+  title: ReactNode;
 }
 
 export default function ViewHeader({ eyebrow, title }: Props) {

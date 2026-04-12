@@ -2,6 +2,24 @@
   animation: viewFadeIn 0.3s var(--motion) both;
 }
 
+/*
+ * Grid bleed wrapper.
+ *
+ * Widgets have 20px internal padding (.widget) so chart content has
+ * breathing room from the widget edges. With no visible widget chrome,
+ * the page-text edge needs to line up with widget *content*, not widget
+ * containers. Pull the grid 20px outward on each side so the internal
+ * padding visually absorbs into the page gutter — title and widget
+ * content share a single vertical guide.
+ *
+ * Pair with `containerPadding={[0, 0]}` on the Responsive grid so RGL
+ * doesn't add its own outer padding on top of this.
+ */
+.gridBleed {
+  margin-left: -20px;
+  margin-right: -20px;
+}
+
 /* ── Section rhythm ── */
 
 .section {
@@ -239,16 +257,6 @@
   text-transform: uppercase;
 }
 
-.title {
-  font-family: var(--display);
-  font-size: var(--display-hero);
-  font-weight: 300;
-  line-height: var(--display-line);
-  letter-spacing: var(--display-spacing);
-  color: var(--ink);
-  text-wrap: balance;
-}
-
 .loadingTitle {
   font-family: var(--display);
   font-size: var(--display-page);
@@ -261,40 +269,6 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-
-.rangeSelector {
-  display: flex;
-  gap: 2px;
-  padding: 2px;
-  border-radius: var(--radius-sm);
-  background: var(--ghost);
-}
-
-.rangeButton {
-  padding: var(--space-xs) var(--space-md);
-  border: none;
-  border-radius: var(--radius-xs);
-  background: transparent;
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  font-weight: 500;
-  color: var(--soft);
-  letter-spacing: var(--tracking-stat);
-  cursor: pointer;
-  transition:
-    background var(--motion-fast) ease,
-    color var(--motion-fast) ease;
-}
-
-.rangeButton:hover {
-  background: var(--hover-bg);
-  color: var(--ink);
-}
-.rangeActive {
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .summaryNotice {
@@ -1431,45 +1405,6 @@
   :global(.react-draggable-dragging) .widget {
     box-shadow: none;
   }
-}
-
-/* ── Customize button ── */
-
-.customizeBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 10px;
-  border: 1px solid var(--muted);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: var(--tracking-stat);
-  transition:
-    border-color 0.15s ease,
-    color 0.15s ease,
-    background 0.15s ease;
-}
-
-.customizeBtn:hover {
-  border-color: var(--ink);
-  color: var(--ink);
-}
-
-.customizeBtnActive {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.customizeIcon {
-  width: 14px;
-  height: 14px;
-  opacity: 0.5;
-  flex-shrink: 0;
 }
 
 /* ── Project filter dropdown ── */

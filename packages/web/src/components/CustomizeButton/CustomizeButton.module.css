@@ -1,0 +1,36 @@
+.customizeBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--muted);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: var(--tracking-stat);
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.customizeBtn:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.customizeBtnActive {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.customizeIcon {
+  width: 14px;
+  height: 14px;
+  opacity: 0.5;
+  flex-shrink: 0;
+}

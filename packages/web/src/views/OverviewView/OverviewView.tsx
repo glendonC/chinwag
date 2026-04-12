@@ -80,6 +80,9 @@ import { useDismissible } from '../../hooks/useDismissible.js';
 import EmptyState from '../../components/EmptyState/EmptyState.jsx';
 import InlineHint from '../../components/InlineHint/InlineHint.jsx';
 import StatusState from '../../components/StatusState/StatusState.jsx';
+import ViewHeader from '../../components/ViewHeader/ViewHeader.jsx';
+import CustomizeButton from '../../components/CustomizeButton/CustomizeButton.jsx';
+import RangePills from '../../components/RangePills/RangePills.jsx';
 import {
   ShimmerText,
   SkeletonStatGrid,
@@ -189,6 +192,10 @@ function GridContainer({
             breakpoints: GRID_BREAKPOINTS,
             cols: GRID_COLS,
             margin: GRID_MARGIN,
+            // Zero edge padding so widget content aligns with page text.
+            // Inter-widget spacing is still controlled by `margin` above.
+            // Pair with the `.gridBleed` wrapper around <GridContainer/>.
+            containerPadding: [0, 0],
             rowHeight: GRID_ROW_HEIGHT,
             isDraggable: editing,
             isResizable: editing,
@@ -208,6 +215,7 @@ function GridContainer({
               cancel: 'button, a, input, select, textarea, [role="button"]',
               threshold: 5,
             },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any)}
         >
           {activeWidgets.map((id) => (
@@ -566,19 +574,21 @@ export default function OverviewView() {
     <div className={styles.overview}>
       {/* ── Header ── */}
       <section className={styles.header}>
-        <div>
-          <span className={styles.eyebrow}>Overview</span>
-          <h1 className={styles.title}>
-            Welcome back
-            {user?.handle ? (
-              <>
-                {', '}
-                <span style={{ color: userColor }}>{user.handle}</span>
-              </>
-            ) : null}
-            .
-          </h1>
-        </div>
+        <ViewHeader
+          eyebrow="Overview"
+          title={
+            <>
+              Welcome back
+              {user?.handle ? (
+                <>
+                  {', '}
+                  <span style={{ color: userColor }}>{user.handle}</span>
+                </>
+              ) : null}
+              .
+            </>
+          }
+        />
 
         {failedTeams.length > 0 && (
           <div className={styles.summaryNotice}>
@@ -593,47 +603,10 @@ export default function OverviewView() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <ProjectFilter teams={teams} projectFilter={projectFilter} selectTeam={selectTeam} />
             {!isMobile && (
-              <button
-                type="button"
-                className={clsx(styles.customizeBtn, catalogOpen && styles.customizeBtnActive)}
-                onClick={() => setCatalogOpen(!catalogOpen)}
-              >
-                Customize
-                <svg
-                  className={styles.customizeIcon}
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path
-                    d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"
-                    stroke="none"
-                  />
-                  <path d="M20 3v4" fill="none" />
-                  <path d="M22 5h-4" fill="none" />
-                  <path d="M4 17v2" fill="none" />
-                  <path d="M5 18H3" fill="none" />
-                </svg>
-              </button>
+              <CustomizeButton active={catalogOpen} onClick={() => setCatalogOpen(!catalogOpen)} />
             )}
           </div>
-          <div className={styles.rangeSelector} role="group" aria-label="Time range">
-            {RANGES.map((r) => (
-              <button
-                key={r}
-                type="button"
-                className={clsx(styles.rangeButton, rangeDays === r && styles.rangeActive)}
-                onClick={() => setRangeDays(r)}
-              >
-                {r}d
-              </button>
-            ))}
-          </div>
+          <RangePills value={rangeDays} onChange={setRangeDays} options={RANGES} />
         </div>
       </section>
 
@@ -651,20 +624,22 @@ export default function OverviewView() {
       {liveAgents.length > 0 && <LiveAgentsBar liveAgents={liveAgents} selectTeam={selectTeam} />}
 
       {/* ── Widget Grid ── */}
-      <GridContainer
-        editing={editing && !isMobile}
-        gridLayout={gridLayout}
-        onLayoutChange={handleLayoutChange}
-        onInteractionStart={beginInteraction}
-        onInteractionStop={commitLayout}
-        activeWidgets={activeWidgets}
-        analytics={analytics}
-        conversationData={conversationData}
-        summaries={sortedSummaries as Array<Record<string, unknown>>}
-        liveAgents={liveAgents}
-        selectTeam={selectTeam}
-        removeWidget={removeWidget}
-      />
+      <div className={styles.gridBleed}>
+        <GridContainer
+          editing={editing && !isMobile}
+          gridLayout={gridLayout}
+          onLayoutChange={handleLayoutChange}
+          onInteractionStart={beginInteraction}
+          onInteractionStop={commitLayout}
+          activeWidgets={activeWidgets}
+          analytics={analytics}
+          conversationData={conversationData}
+          summaries={sortedSummaries as Array<Record<string, unknown>>}
+          liveAgents={liveAgents}
+          selectTeam={selectTeam}
+          removeWidget={removeWidget}
+        />
+      </div>
 
       {/* Visually-hidden live region for layout-change announcements. */}
       <div role="status" aria-live="polite" aria-atomic="true" className={styles.srOnly}>

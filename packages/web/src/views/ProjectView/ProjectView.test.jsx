@@ -56,10 +56,13 @@ async function loadProjectView({ pollingState, teamState } = {}) {
     },
   }));
 
-  vi.doMock('../../components/ActivityTimeline/ActivityTimeline.js', () => ({
-    default: function MockActivityTimeline() {
-      return <div data-testid="activity-timeline" />;
-    },
+  vi.doMock('../../hooks/useTeamAnalytics.js', () => ({
+    useTeamAnalytics: () => ({ analytics: {}, isLoading: false, error: null }),
+    useTeamExtendedAnalytics: () => ({ analytics: {}, isLoading: false, error: null }),
+  }));
+
+  vi.doMock('../../hooks/useConversationAnalytics.js', () => ({
+    useConversationAnalytics: () => ({ data: {}, isLoading: false }),
   }));
 
   vi.doMock('../../components/StatusState/StatusState.js', () => ({
@@ -74,16 +77,7 @@ async function loadProjectView({ pollingState, teamState } = {}) {
     },
   }));
 
-  vi.doMock('./ProjectLiveTab.js', () => ({
-    default: () => <div />,
-  }));
   vi.doMock('./ProjectMemoryTab.js', () => ({
-    default: () => <div />,
-  }));
-  vi.doMock('./ProjectSessionsTab.js', () => ({
-    default: () => <div />,
-  }));
-  vi.doMock('./ProjectToolsTab.js', () => ({
     default: () => <div />,
   }));
 
