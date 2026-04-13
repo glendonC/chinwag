@@ -119,6 +119,7 @@ function GridContainer({
   liveAgents,
   selectTeam,
   removeWidget,
+  recentlyAddedId,
 }: {
   editing: boolean;
   gridLayout: RGLLayout[];
@@ -133,6 +134,7 @@ function GridContainer({
   liveAgents: LiveAgent[];
   selectTeam: (id: string) => void;
   removeWidget: (id: string) => void;
+  recentlyAddedId: string | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1200);
@@ -181,6 +183,47 @@ function GridContainer({
     onInteractionStop();
   }, [onInteractionStop]);
 
+  // On add: find the new widget in the DOM, then decide scroll + highlight.
+  // RGL may need multiple commits before the new grid-item lands in the DOM,
+  // so we poll with requestAnimationFrame up to ~10 frames (~167ms) before
+  // giving up. Without the retry, querySelector fails silently on the first
+  // frame and the highlight never fires.
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!recentlyAddedId) return;
+    let rafId: number | null = null;
+    let scrollTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempts = 0;
+    const tryFind = () => {
+      const el = containerRef.current?.querySelector(`[data-widget-id="${recentlyAddedId}"]`);
+      if (!(el instanceof HTMLElement)) {
+        if (attempts++ < 10) {
+          rafId = requestAnimationFrame(tryFind);
+        }
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      const inView = rect.top >= 0 && rect.bottom <= window.innerHeight;
+      if (inView) {
+        setHighlightedId(recentlyAddedId);
+      } else {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        scrollTimer = setTimeout(() => setHighlightedId(recentlyAddedId), 450);
+      }
+    };
+    rafId = requestAnimationFrame(tryFind);
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      if (scrollTimer) clearTimeout(scrollTimer);
+    };
+  }, [recentlyAddedId]);
+
+  useEffect(() => {
+    if (!highlightedId) return;
+    const t = setTimeout(() => setHighlightedId(null), 1800);
+    return () => clearTimeout(t);
+  }, [highlightedId]);
+
   return (
     <div ref={containerRef} className={clsx(editing && styles.widgetEditing)}>
       {width > 0 && (
@@ -219,7 +262,7 @@ function GridContainer({
           } as any)}
         >
           {activeWidgets.map((id) => (
-            <div key={id}>
+            <div key={id} data-widget-id={id}>
               <div className={clsx(styles.widget, GRAB_AREA_CLASS)}>
                 {editing && (
                   <button
@@ -240,6 +283,18 @@ function GridContainer({
                   selectTeam={selectTeam}
                 />
               </div>
+              {highlightedId === id && (
+                <div
+                  className={styles.widgetBorderSweep}
+                  aria-hidden="true"
+                  key={`border-${id}-${highlightedId}`}
+                >
+                  <span className={styles.widgetBorderSide1} />
+                  <span className={styles.widgetBorderSide2} />
+                  <span className={styles.widgetBorderSide3} />
+                  <span className={styles.widgetBorderSide4} />
+                </div>
+              )}
             </div>
           ))}
         </Responsive>
@@ -444,6 +499,16 @@ export default function OverviewView() {
     requestAnimationFrame(() => setAnnouncement(text));
   }, []);
 
+  // Trigger for scroll + highlight. Cleared as soon as GridContainer picks
+  // it up (via a no-op render cycle), so adding the same widget twice in
+  // rapid succession still retriggers the effect.
+  const [recentlyAddedId, setRecentlyAddedId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!recentlyAddedId) return;
+    const t = setTimeout(() => setRecentlyAddedId(null), 2500);
+    return () => clearTimeout(t);
+  }, [recentlyAddedId]);
+
   const toggleWidget = useCallback(
     (id: string) => {
       const def = getWidget(id);
@@ -452,6 +517,7 @@ export default function OverviewView() {
       if (def) {
         announce(wasActive ? `Removed ${def.name}` : `Added ${def.name}`);
       }
+      if (!wasActive) setRecentlyAddedId(id);
     },
     [toggleWidgetRaw, widgetIds, announce],
   );
@@ -638,6 +704,7 @@ export default function OverviewView() {
           liveAgents={liveAgents}
           selectTeam={selectTeam}
           removeWidget={removeWidget}
+          recentlyAddedId={recentlyAddedId}
         />
       </div>
 

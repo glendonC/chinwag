@@ -1237,6 +1237,115 @@
     box-shadow 0.18s ease;
 }
 
+/* scroll-margin lives on the RGL wrapper (the scrollIntoView target),
+ * not the visual .widget inner box. 80px gives breathing room below any
+ * sticky header so newly-added widgets don't land flush against the top. */
+[data-widget-id] {
+  position: relative;
+  scroll-margin-top: 80px;
+}
+
+/* ── "Just added" border sweep ──
+ * Four line segments, one per side, drawn sequentially so the perimeter
+ * appears to trace itself clockwise from the top-left. Then the whole
+ * overlay fades out. Uses plain divs (not SVG) for maximum reliability. */
+
+.widgetBorderSweep {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  border-radius: 8px;
+  overflow: hidden;
+  animation: widgetBorderFade 1.4s ease-out forwards;
+}
+
+.widgetBorderSweep > span {
+  position: absolute;
+  background: var(--accent);
+  display: block;
+}
+
+.widgetBorderSide1 {
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 0;
+  animation: widgetBorderSide1 0.22s ease-out 0s forwards;
+}
+.widgetBorderSide2 {
+  top: 0;
+  right: 0;
+  width: 2px;
+  height: 0;
+  animation: widgetBorderSide2 0.22s ease-out 0.2s forwards;
+}
+.widgetBorderSide3 {
+  bottom: 0;
+  right: 0;
+  height: 2px;
+  width: 0;
+  animation: widgetBorderSide3 0.22s ease-out 0.4s forwards;
+}
+.widgetBorderSide4 {
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  height: 0;
+  animation: widgetBorderSide4 0.22s ease-out 0.6s forwards;
+}
+
+@keyframes widgetBorderSide1 {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+@keyframes widgetBorderSide2 {
+  from {
+    height: 0;
+  }
+  to {
+    height: 100%;
+  }
+}
+@keyframes widgetBorderSide3 {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+@keyframes widgetBorderSide4 {
+  from {
+    height: 0;
+  }
+  to {
+    height: 100%;
+  }
+}
+
+@keyframes widgetBorderFade {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .widgetBorderSweep,
+  .widgetBorderSweep > span {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 /*
  * Edit mode: the whole widget is the grab target (not a tiny handle).
  * Dashed outline + grab cursor are the affordances. `cancel` rules in

@@ -335,6 +335,7 @@ export function WidgetCatalog({
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const [listFade, setListFade] = useState<'none' | 'top' | 'bottom' | 'both'>('none');
 
   // Reset state on open
   const [lastOpen, setLastOpen] = useState(false);
@@ -357,6 +358,14 @@ export function WidgetCatalog({
   useEffect(() => {
     if (listRef.current) listRef.current.scrollTop = 0;
   }, [activeCategory, searchQuery, showFilter]);
+
+  const updateListFade = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const canUp = el.scrollTop > 0;
+    const canDown = el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+    setListFade(canUp && canDown ? 'both' : canUp ? 'top' : canDown ? 'bottom' : 'none');
+  }, []);
 
   // Filter widgets
   const filteredWidgets = useMemo(() => {
@@ -423,6 +432,19 @@ export function WidgetCatalog({
   useEffect(() => {
     if (panelRef.current) setPanelRect(panelRef.current.getBoundingClientRect());
   }, [open, filteredWidgets.length]);
+
+  // Subscribe to list/content size changes via ResizeObserver. RO fires
+  // immediately on observe() and again whenever the list or its children
+  // resize, so fade state stays in sync without calling setState directly
+  // from the effect body. Re-attaches when the filter/content set changes.
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(() => updateListFade());
+    obs.observe(el);
+    for (const child of Array.from(el.children)) obs.observe(child);
+    return () => obs.disconnect();
+  }, [open, updateListFade, filteredWidgets.length, showDescs]);
 
   const tooltipStyle = useMemo(() => {
     if (!displayPos || !panelRect) return { display: 'none' } as CSSProperties;
@@ -602,7 +624,16 @@ export function WidgetCatalog({
         </div>
 
         {/* Widget list */}
-        <div className={styles.panelList} ref={listRef}>
+        <div
+          className={clsx(
+            styles.panelList,
+            listFade === 'top' && styles.panelListFadeTop,
+            listFade === 'bottom' && styles.panelListFadeBottom,
+            listFade === 'both' && styles.panelListFadeBoth,
+          )}
+          ref={listRef}
+          onScroll={updateListFade}
+        >
           {filteredWidgets.length === 0 ? (
             <div className={styles.emptyState}>
               <span className={styles.emptyText}>No widgets match.</span>

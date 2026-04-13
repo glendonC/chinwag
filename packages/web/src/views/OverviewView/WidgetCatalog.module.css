@@ -1,4 +1,4 @@
-/* ── Command strip (fixed bottom, dark background) ── */
+/* ── Command strip (fixed bottom) ── */
 
 .strip {
   position: fixed;
@@ -6,10 +6,9 @@
   right: 24px;
   height: 40px;
   background: var(--page-bg);
-  border: 1px solid var(--ghost);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-lg), var(--shadow-xs);
-  z-index: 200;
+  z-index: 202;
   display: inline-flex;
   align-items: center;
   padding: 0 8px;
@@ -37,7 +36,7 @@
   padding: 5px 8px;
   font-family: var(--mono);
   font-size: 10px;
-  color: var(--muted);
+  color: var(--ink);
   letter-spacing: var(--tracking-stat);
   cursor: pointer;
   border-radius: var(--radius-xs);
@@ -284,6 +283,33 @@
 .panelList::-webkit-scrollbar-thumb {
   background: var(--ghost);
   border-radius: 2px;
+}
+
+.panelListFadeTop {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
+}
+
+.panelListFadeBottom {
+  -webkit-mask-image: linear-gradient(to top, transparent 0, #000 16px);
+  mask-image: linear-gradient(to top, transparent 0, #000 16px);
+}
+
+.panelListFadeBoth {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 16px,
+    #000 calc(100% - 16px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 16px,
+    #000 calc(100% - 16px),
+    transparent 100%
+  );
 }
 
 /* ── Widget row ── */
