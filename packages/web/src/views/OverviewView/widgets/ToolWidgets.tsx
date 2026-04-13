@@ -5,7 +5,7 @@ import { getToolMeta } from '../../../lib/toolMeta.js';
 import type { UserAnalytics } from '../../../lib/apiSchemas.js';
 import styles from '../OverviewView.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
-import { GhostBars, GhostRows, GhostSparkline, GhostStatRow } from './shared.js';
+import { GhostBars, GhostRows, GhostStatRow } from './shared.js';
 
 function ToolsWidget({ analytics }: WidgetBodyProps) {
   const tools = analytics.tool_comparison;
@@ -436,17 +436,6 @@ function ToolWorkTypeWidget({ analytics }: WidgetBodyProps) {
   );
 }
 
-function ToolCallHourlyWidget({ analytics }: WidgetBodyProps) {
-  const ha = analytics.tool_call_stats.hourly_activity;
-  if (ha.length === 0) return <GhostSparkline />;
-  const buckets = new Array(24).fill(0) as number[];
-  for (const h of ha) {
-    if (h.hour >= 0 && h.hour < 24) buckets[h.hour] += h.calls;
-  }
-  if (buckets.every((v) => v === 0)) return <GhostSparkline />;
-  return <Sparkline data={buckets} height={80} />;
-}
-
 export const toolWidgets: WidgetRegistry = {
   tools: ToolsWidget,
   models: ModelsWidget,
@@ -457,5 +446,4 @@ export const toolWidgets: WidgetRegistry = {
   'token-detail': TokenDetailWidget,
   'tool-daily': ToolDailyWidget,
   'tool-work-type': ToolWorkTypeWidget,
-  'tool-call-hourly': ToolCallHourlyWidget,
 };

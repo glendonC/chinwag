@@ -96,33 +96,6 @@ function StucknessWidget({ analytics }: WidgetBodyProps) {
   );
 }
 
-function OutcomePredictorsWidget({ analytics }: WidgetBodyProps) {
-  const op = analytics.outcome_predictors;
-  if (op.length === 0) return <GhostBars count={3} />;
-  return (
-    <div className={styles.dataList}>
-      {op.map((p, i) => (
-        <div
-          key={p.outcome}
-          className={styles.dataRow}
-          style={{ '--row-index': i } as CSSProperties}
-        >
-          <span className={styles.dataName}>{p.outcome}</span>
-          <div className={styles.dataMeta}>
-            <span className={styles.dataStat}>
-              <span className={styles.dataStatValue}>{p.avg_first_edit_min.toFixed(1)}m</span> avg
-              first edit
-            </span>
-            <span className={styles.dataStat}>
-              <span className={styles.dataStatValue}>{p.sessions}</span> sessions
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function PeriodDeltaWidget({ analytics }: WidgetBodyProps) {
   const pc = analytics.period_comparison;
   if (!pc || !pc.previous)
@@ -295,7 +268,6 @@ function RetryPatternsWidget({ analytics }: WidgetBodyProps) {
 export const outcomeWidgets: WidgetRegistry = {
   outcomes: OutcomesWidget,
   stuckness: StucknessWidget,
-  'outcome-predictors': OutcomePredictorsWidget,
   'period-delta': PeriodDeltaWidget,
   'work-type-outcomes': WorkTypeOutcomesWidget,
   'tool-outcomes': ToolOutcomesWidget,

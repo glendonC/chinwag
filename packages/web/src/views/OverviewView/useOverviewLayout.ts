@@ -299,6 +299,14 @@ export function useOverviewLayout() {
     setDashboardInner(def);
   }, [pushUndoSnapshot]);
 
+  // Clear every widget. Undo restores the prior layout.
+  const clearAll = useCallback(() => {
+    pushUndoSnapshot();
+    const empty: DashboardLayout = { version: STORAGE_VERSION, widgets: [] };
+    saveDashboard(empty);
+    setDashboardInner(empty);
+  }, [pushUndoSnapshot]);
+
   // Pop the latest snapshot and restore. Returns true if undo happened.
   const undo = useCallback((): boolean => {
     const snap = undoStackRef.current.pop();
@@ -317,6 +325,7 @@ export function useOverviewLayout() {
     beginInteraction,
     commitLayout,
     resetToDefault,
+    clearAll,
     undo,
   };
 }

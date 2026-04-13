@@ -65,7 +65,6 @@ const DATA_KEY_LABELS: Record<string, string> = {
   first_edit_stats: 'First edit timing',
   duration_distribution: 'Session durations',
   scope_complexity: 'Scope complexity',
-  outcome_predictors: 'Outcome predictors',
   period_comparison: 'Period comparison',
   prompt_efficiency: 'Prompt efficiency',
   hourly_effectiveness: 'Hourly effectiveness',
@@ -339,6 +338,7 @@ export function WidgetCatalog({
   editing,
   setEditing,
   resetToDefault,
+  clearAll,
 }: {
   open: boolean;
   onClose: () => void;
@@ -347,6 +347,7 @@ export function WidgetCatalog({
   editing: boolean;
   setEditing: (v: boolean) => void;
   resetToDefault: () => void;
+  clearAll: () => void;
 }) {
   const [activeCategory, setActiveCategory] = useState<'all' | WidgetCategory>('all');
   const [showFilter, setShowFilter] = useState<ShowFilter>('all');
@@ -517,6 +518,11 @@ export function WidgetCatalog({
           resetToDefault();
           e.preventDefault();
           break;
+        case 'c':
+        case 'C':
+          clearAll();
+          e.preventDefault();
+          break;
         case 'd':
         case 'D':
           setShowDescs((p) => !p);
@@ -549,6 +555,7 @@ export function WidgetCatalog({
     editing,
     setEditing,
     resetToDefault,
+    clearAll,
     searchOpen,
     cycleShowFilter,
     cycleCategory,
@@ -775,6 +782,10 @@ export function WidgetCatalog({
           }}
         >
           Search <kbd className={styles.kbd}>/</kbd>
+        </button>
+        <span className={styles.stripDivider} />
+        <button type="button" className={styles.stripAction} onClick={clearAll}>
+          Clear <kbd className={styles.kbd}>C</kbd>
         </button>
         <span className={styles.stripDivider} />
         <button type="button" className={styles.stripAction} onClick={resetToDefault}>

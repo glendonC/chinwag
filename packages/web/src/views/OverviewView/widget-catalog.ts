@@ -297,18 +297,6 @@ export const WIDGET_CATALOG: WidgetDef[] = [
 
   // ── Conversations ─────────────────────
   {
-    id: 'conversation-stats',
-    name: 'Conversation stats',
-    description: 'Total messages and tracked sessions',
-    category: 'conversations',
-    viz: 'stat-row',
-    w: 4,
-    h: 2,
-    minW: 3,
-    minH: 2,
-    dataKeys: ['conversation'],
-  },
-  {
     id: 'sentiment',
     name: 'Sentiment',
     description: 'Your message sentiment: positive, neutral, frustrated',
@@ -411,18 +399,6 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 2,
     dataKeys: ['scope_complexity'],
-  },
-  {
-    id: 'outcome-predictors',
-    name: 'Outcome predictors',
-    description: 'What predicts session success or failure',
-    category: 'outcomes',
-    viz: 'data-list',
-    w: 6,
-    h: 3,
-    minW: 4,
-    minH: 2,
-    dataKeys: ['outcome_predictors'],
   },
   {
     id: 'period-delta',
@@ -621,18 +597,6 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 3,
     dataKeys: ['tool_work_type'],
-  },
-  {
-    id: 'tool-call-hourly',
-    name: 'Tool call pacing',
-    description: 'Tool calls per hour of day — session intensity pattern',
-    category: 'tools',
-    viz: 'sparkline',
-    w: 8,
-    h: 3,
-    minW: 4,
-    minH: 2,
-    dataKeys: ['tool_call_stats'],
   },
   {
     id: 'data-coverage',

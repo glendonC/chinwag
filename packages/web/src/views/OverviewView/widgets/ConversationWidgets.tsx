@@ -2,27 +2,6 @@ import styles from '../OverviewView.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
 import { GhostBars, GhostStatRow, SENTIMENT_COLORS } from './shared.js';
 
-function ConversationStatsWidget({ conversationData }: WidgetBodyProps) {
-  if (conversationData.total_messages === 0)
-    return <GhostStatRow labels={['messages', 'sessions']} />;
-  return (
-    <div className={styles.statRow}>
-      <div className={styles.statBlock}>
-        <span className={styles.statBlockValue}>
-          {conversationData.total_messages.toLocaleString()}
-        </span>
-        <span className={styles.statBlockLabel}>messages</span>
-      </div>
-      <div className={styles.statBlock}>
-        <span className={styles.statBlockValue}>
-          {conversationData.sessions_with_conversations}
-        </span>
-        <span className={styles.statBlockLabel}>sessions</span>
-      </div>
-    </div>
-  );
-}
-
 function SentimentWidget({ conversationData }: WidgetBodyProps) {
   const data = conversationData.sentiment_distribution;
   if (data.length === 0) {
@@ -167,7 +146,6 @@ function MessageLengthWidget({ conversationData }: WidgetBodyProps) {
 }
 
 export const conversationWidgets: WidgetRegistry = {
-  'conversation-stats': ConversationStatsWidget,
   sentiment: SentimentWidget,
   topics: TopicsWidget,
   'sentiment-outcomes': SentimentOutcomesWidget,

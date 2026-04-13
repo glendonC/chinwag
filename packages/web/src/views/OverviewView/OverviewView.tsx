@@ -482,6 +482,7 @@ export default function OverviewView() {
     beginInteraction,
     commitLayout,
     resetToDefault,
+    clearAll: clearAllRaw,
     undo,
   } = useOverviewLayout();
 
@@ -529,6 +530,11 @@ export default function OverviewView() {
     },
     [removeWidgetRaw, announce],
   );
+
+  const clearAll = useCallback(() => {
+    clearAllRaw();
+    announce('Cleared all widgets');
+  }, [clearAllRaw, announce]);
 
   const handleLayoutChange = useCallback(
     (currentLayout: RGLLayout[], _allLayouts: RGLLayouts) => {
@@ -735,6 +741,7 @@ export default function OverviewView() {
         editing={editing}
         setEditing={setEditing}
         resetToDefault={resetToDefault}
+        clearAll={clearAll}
       />
     </div>
   );

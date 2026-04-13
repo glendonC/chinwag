@@ -180,6 +180,13 @@ export function useProjectTabLayout(tabId: string, defaults: RGLLayout[]) {
     setDashboardInner(def);
   }, [pushUndoSnapshot, defaults, tabId]);
 
+  const clearAll = useCallback(() => {
+    pushUndoSnapshot();
+    const empty: DashboardLayout = { version: STORAGE_VERSION, widgets: [] };
+    saveDashboard(tabId, empty);
+    setDashboardInner(empty);
+  }, [pushUndoSnapshot, tabId]);
+
   const undo = useCallback((): boolean => {
     const snap = undoStackRef.current.pop();
     if (!snap) return false;
@@ -197,6 +204,7 @@ export function useProjectTabLayout(tabId: string, defaults: RGLLayout[]) {
     beginInteraction,
     commitLayout,
     resetToDefault,
+    clearAll,
     undo,
   };
 }
