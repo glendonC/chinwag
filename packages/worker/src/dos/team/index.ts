@@ -91,6 +91,7 @@ import {
   getPendingCommands as getPendingCommandsFn,
 } from './commands.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
+import { enrichAnalyticsWithPricing } from './pricing-enrich.js';
 import {
   CONTEXT_CACHE_TTL_MS,
   CLEANUP_INTERVAL_MS,
@@ -806,9 +807,13 @@ export class TeamDO extends DurableObject<Env> {
   ): Promise<
     ReturnType<typeof getAnalyticsFn> | ReturnType<typeof getExtendedAnalyticsFn> | DOError
   > {
-    return this.#withMember(agentId, ownerId, () =>
+    const raw = this.#withMember(agentId, ownerId, () =>
       extended ? getExtendedAnalyticsFn(this.sql, days) : getAnalyticsFn(this.sql, days),
     );
+    if (isDOError(raw)) return raw;
+    // Enrich token_usage with cost from the isolate pricing cache. This hits
+    // DatabaseDO at most once per TTL window (5 min) rather than per request.
+    return enrichAnalyticsWithPricing(raw, this.env);
   }
 
   async enrichModel(
@@ -1233,7 +1238,8 @@ export class TeamDO extends DurableObject<Env> {
       .exec('SELECT 1 FROM members WHERE owner_id = ? LIMIT 1', ownerId)
       .toArray();
     if (ownerRow.length === 0) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
-    return getExtendedAnalyticsFn(this.sql, days);
+    const raw = getExtendedAnalyticsFn(this.sql, days);
+    return enrichAnalyticsWithPricing(raw, this.env);
   }
 
   // -- Summary (lightweight, for cross-project dashboard) --

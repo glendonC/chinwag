@@ -4,7 +4,7 @@ import { getDB, getTeam, rpc } from '../../lib/env.js';
 import { getErrorMessage } from '../../lib/errors.js';
 import { json } from '../../lib/http.js';
 import { createLogger } from '../../lib/logger.js';
-import { estimateSessionCost } from '../../lib/model-pricing.js';
+import { enrichTokenUsageWithPricing } from '../../dos/team/pricing-enrich.js';
 import { authedRoute } from '../../lib/middleware.js';
 import { MAX_DASHBOARD_TEAMS } from '../../lib/constants.js';
 import { getToolsWithCapability } from '@chinwag/shared/tool-registry.js';
@@ -94,11 +94,16 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
       token_usage: {
         total_input_tokens: 0,
         total_output_tokens: 0,
+        total_cache_read_tokens: 0,
+        total_cache_creation_tokens: 0,
         avg_input_per_session: 0,
         avg_output_per_session: 0,
         sessions_with_token_data: 0,
         sessions_without_token_data: 0,
         total_estimated_cost_usd: 0,
+        pricing_refreshed_at: null,
+        pricing_is_stale: false,
+        models_without_pricing: [],
         by_model: [],
         by_tool: [],
       },
@@ -337,9 +342,34 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
   };
 
   // Token usage accumulators
-  const tokenTotalAcc = { input: 0, output: 0, with_data: 0, without_data: 0 };
-  const tokenByModel = new Map<string, { input: number; output: number; sessions: number }>();
-  const tokenByTool = new Map<string, { input: number; output: number; sessions: number }>();
+  const tokenTotalAcc = {
+    input: 0,
+    output: 0,
+    cache_read: 0,
+    cache_creation: 0,
+    with_data: 0,
+    without_data: 0,
+  };
+  const tokenByModel = new Map<
+    string,
+    {
+      input: number;
+      output: number;
+      cache_read: number;
+      cache_creation: number;
+      sessions: number;
+    }
+  >();
+  const tokenByTool = new Map<
+    string,
+    {
+      input: number;
+      output: number;
+      cache_read: number;
+      cache_creation: number;
+      sessions: number;
+    }
+  >();
 
   // Extended analytics accumulators (6 remaining types)
   const scopeComplexityAcc = new Map<
@@ -873,21 +903,39 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
     if (tu) {
       tokenTotalAcc.input += (tu.total_input_tokens as number) || 0;
       tokenTotalAcc.output += (tu.total_output_tokens as number) || 0;
+      tokenTotalAcc.cache_read += (tu.total_cache_read_tokens as number) || 0;
+      tokenTotalAcc.cache_creation += (tu.total_cache_creation_tokens as number) || 0;
       tokenTotalAcc.with_data += (tu.sessions_with_token_data as number) || 0;
       tokenTotalAcc.without_data += (tu.sessions_without_token_data as number) || 0;
       for (const m of (tu.by_model as Array<Record<string, unknown>>) || []) {
         const key = m.agent_model as string;
-        const existing = tokenByModel.get(key) || { input: 0, output: 0, sessions: 0 };
+        const existing = tokenByModel.get(key) || {
+          input: 0,
+          output: 0,
+          cache_read: 0,
+          cache_creation: 0,
+          sessions: 0,
+        };
         existing.input += (m.input_tokens as number) || 0;
         existing.output += (m.output_tokens as number) || 0;
+        existing.cache_read += (m.cache_read_tokens as number) || 0;
+        existing.cache_creation += (m.cache_creation_tokens as number) || 0;
         existing.sessions += (m.sessions as number) || 0;
         tokenByModel.set(key, existing);
       }
       for (const t of (tu.by_tool as Array<Record<string, unknown>>) || []) {
         const key = t.host_tool as string;
-        const existing = tokenByTool.get(key) || { input: 0, output: 0, sessions: 0 };
+        const existing = tokenByTool.get(key) || {
+          input: 0,
+          output: 0,
+          cache_read: 0,
+          cache_creation: 0,
+          sessions: 0,
+        };
         existing.input += (t.input_tokens as number) || 0;
         existing.output += (t.output_tokens as number) || 0;
+        existing.cache_read += (t.cache_read_tokens as number) || 0;
+        existing.cache_creation += (t.cache_creation_tokens as number) || 0;
         existing.sessions += (t.sessions as number) || 0;
         tokenByTool.set(key, existing);
       }
@@ -1016,6 +1064,49 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
       if (tool && tool !== 'unknown') activeToolsSet.add(tool);
     }
   }
+
+  // Build token_usage once, then enrich with pricing in a single pass so the
+  // cross-team dashboard makes exactly one DatabaseDO pricing lookup per
+  // request (the isolate cache then fronts subsequent requests). The legacy
+  // path computed cost per team inside queryTokenUsage; phase 3 moves it here.
+  const tokenUsagePayload = {
+    total_input_tokens: tokenTotalAcc.input,
+    total_output_tokens: tokenTotalAcc.output,
+    total_cache_read_tokens: tokenTotalAcc.cache_read,
+    total_cache_creation_tokens: tokenTotalAcc.cache_creation,
+    avg_input_per_session:
+      tokenTotalAcc.with_data > 0 ? Math.round(tokenTotalAcc.input / tokenTotalAcc.with_data) : 0,
+    avg_output_per_session:
+      tokenTotalAcc.with_data > 0 ? Math.round(tokenTotalAcc.output / tokenTotalAcc.with_data) : 0,
+    sessions_with_token_data: tokenTotalAcc.with_data,
+    sessions_without_token_data: tokenTotalAcc.without_data,
+    total_estimated_cost_usd: 0,
+    pricing_refreshed_at: null as string | null,
+    pricing_is_stale: false,
+    models_without_pricing: [] as string[],
+    by_model: [...tokenByModel.entries()]
+      .sort(([, a], [, b]) => b.input - a.input)
+      .map(([agent_model, v]) => ({
+        agent_model,
+        input_tokens: v.input,
+        output_tokens: v.output,
+        cache_read_tokens: v.cache_read,
+        cache_creation_tokens: v.cache_creation,
+        sessions: v.sessions,
+        estimated_cost_usd: null as number | null,
+      })),
+    by_tool: [...tokenByTool.entries()]
+      .sort(([, a], [, b]) => b.input - a.input)
+      .map(([host_tool, v]) => ({
+        host_tool,
+        input_tokens: v.input,
+        output_tokens: v.output,
+        cache_read_tokens: v.cache_read,
+        cache_creation_tokens: v.cache_creation,
+        sessions: v.sessions,
+      })),
+  };
+  await enrichTokenUsageWithPricing(tokenUsagePayload, env);
 
   return json({
     ok: true,
@@ -1393,42 +1484,7 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
             : null,
       };
     })(),
-    token_usage: (() => {
-      const byModel = [...tokenByModel.entries()]
-        .sort(([, a], [, b]) => b.input - a.input)
-        .map(([agent_model, v]) => ({
-          agent_model,
-          input_tokens: v.input,
-          output_tokens: v.output,
-          sessions: v.sessions,
-          estimated_cost_usd: estimateSessionCost(agent_model, v.input, v.output) ?? undefined,
-        }));
-      const totalCost = byModel.reduce((sum, m) => sum + (m.estimated_cost_usd ?? 0), 0);
-      return {
-        total_input_tokens: tokenTotalAcc.input,
-        total_output_tokens: tokenTotalAcc.output,
-        avg_input_per_session:
-          tokenTotalAcc.with_data > 0
-            ? Math.round(tokenTotalAcc.input / tokenTotalAcc.with_data)
-            : 0,
-        avg_output_per_session:
-          tokenTotalAcc.with_data > 0
-            ? Math.round(tokenTotalAcc.output / tokenTotalAcc.with_data)
-            : 0,
-        sessions_with_token_data: tokenTotalAcc.with_data,
-        sessions_without_token_data: tokenTotalAcc.without_data,
-        total_estimated_cost_usd: Math.round(totalCost * 100) / 100,
-        by_model: byModel,
-        by_tool: [...tokenByTool.entries()]
-          .sort(([, a], [, b]) => b.input - a.input)
-          .map(([host_tool, v]) => ({
-            host_tool,
-            input_tokens: v.input,
-            output_tokens: v.output,
-            sessions: v.sessions,
-          })),
-      };
-    })(),
+    token_usage: tokenUsagePayload,
     scope_complexity: [...scopeComplexityAcc.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([bucket, v]) => ({

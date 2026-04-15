@@ -357,6 +357,9 @@ const tokenModelBreakdownSchema = baseTokenModelBreakdownSchema.extend({
   cache_read_tokens: z.number().default(0),
   cache_creation_tokens: z.number().default(0),
   sessions: z.number().default(0),
+  // null when the model lacks pricing or the snapshot is stale. UI renders
+  // "—" in that case instead of "$0".
+  estimated_cost_usd: z.number().nullable().default(null),
 });
 
 const tokenToolBreakdownSchema = baseTokenToolBreakdownSchema.extend({
@@ -377,6 +380,9 @@ const tokenUsageStatsSchema = z.object({
   sessions_with_token_data: z.number().default(0),
   sessions_without_token_data: z.number().default(0),
   total_estimated_cost_usd: z.number().default(0),
+  pricing_refreshed_at: z.string().nullable().default(null),
+  pricing_is_stale: z.boolean().default(false),
+  models_without_pricing: z.array(z.string()).default([]),
   by_model: z.array(tokenModelBreakdownSchema).default([]),
   by_tool: z.array(tokenToolBreakdownSchema).default([]),
 });
@@ -659,6 +665,9 @@ export function createEmptyUserAnalytics(): UserAnalytics {
       sessions_with_token_data: 0,
       sessions_without_token_data: 0,
       total_estimated_cost_usd: 0,
+      pricing_refreshed_at: null,
+      pricing_is_stale: false,
+      models_without_pricing: [],
       by_model: [],
       by_tool: [],
     },

@@ -3,7 +3,8 @@ import SectionEmpty from '../../../components/SectionEmpty/SectionEmpty.js';
 import { Sparkline } from '../overview-charts.js';
 import { WORK_TYPE_COLORS, aggregateModels, formatDuration } from '../overview-utils.js';
 import { getToolMeta } from '../../../lib/toolMeta.js';
-import type { UserAnalytics } from '../../../lib/apiSchemas.js';
+import { formatRelativeTime } from '../../../lib/relativeTime.js';
+import type { TokenUsageStats, UserAnalytics } from '../../../lib/apiSchemas.js';
 import styles from '../OverviewView.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
 import { GhostBars, GhostRows, GhostStatRow } from './shared.js';
@@ -231,6 +232,23 @@ function ToolCallErrorsWidget({ analytics }: WidgetBodyProps) {
   );
 }
 
+function PricingAttribution({ usage }: { usage: TokenUsageStats }) {
+  const refreshed = formatRelativeTime(usage.pricing_refreshed_at);
+  if (!refreshed) {
+    return <div className={styles.coverageNote}>Pricing data unavailable.</div>;
+  }
+  return (
+    <div className={styles.coverageNote}>
+      Pricing from{' '}
+      <a href="https://github.com/BerriAI/litellm" target="_blank" rel="noopener noreferrer">
+        LiteLLM
+      </a>
+      , refreshed {refreshed}
+      {usage.pricing_is_stale && ' — cost estimates disabled until next refresh'}.
+    </div>
+  );
+}
+
 function TokenDetailWidget({ analytics }: WidgetBodyProps) {
   const tu = analytics.token_usage;
   if (tu.sessions_with_token_data === 0) return <GhostRows count={3} />;
@@ -314,6 +332,7 @@ function TokenDetailWidget({ analytics }: WidgetBodyProps) {
           ))}
         </>
       )}
+      <PricingAttribution usage={tu} />
     </div>
   );
 }

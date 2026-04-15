@@ -477,7 +477,9 @@ export const tokenModelBreakdownSchema = z.object({
   cache_read_tokens: z.number().default(0),
   cache_creation_tokens: z.number().default(0),
   sessions: z.number(),
-  estimated_cost_usd: z.number().optional(),
+  // Null when the model isn't in our LiteLLM snapshot, or when the snapshot
+  // is >7 days stale. UI should render "—" rather than "$0" in that case.
+  estimated_cost_usd: z.number().nullable().default(null),
 });
 export type TokenModelBreakdown = z.infer<typeof tokenModelBreakdownSchema>;
 
@@ -501,6 +503,16 @@ export const tokenUsageStatsSchema = z.object({
   sessions_with_token_data: z.number(),
   sessions_without_token_data: z.number(),
   total_estimated_cost_usd: z.number(),
+  // ISO timestamp of the most recent successful LiteLLM pricing refresh, or
+  // null if no refresh has ever succeeded. UI reads this + pricing_is_stale
+  // to decide whether to show a staleness banner.
+  pricing_refreshed_at: z.string().nullable().default(null),
+  // True when the snapshot is >7 days old. The enrichment layer zeroes
+  // costs in that state rather than serving stale numbers.
+  pricing_is_stale: z.boolean().default(false),
+  // Canonical names we couldn't price, capped at 20. Drives a "coverage gap"
+  // surface so we know when the resolver needs updating.
+  models_without_pricing: z.array(z.string()).default([]),
   by_model: z.array(tokenModelBreakdownSchema),
   by_tool: z.array(tokenToolBreakdownSchema),
 });

@@ -2,7 +2,6 @@
 // All queries run on the sessions and daily_metrics tables within TeamDO.
 
 import { createLogger } from '../../lib/logger.js';
-import { estimateSessionCost } from '../../lib/model-pricing.js';
 import type {
   FileHeatmapEntry,
   DailyTrend,
@@ -1893,25 +1892,39 @@ function queryPeriodComparison(sql: SqlStorage, days: number): PeriodComparison 
 // ── Token usage analytics ───────────────────────────
 
 function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats {
+  // Cost enrichment happens outside this function (dos/team/pricing-enrich.ts)
+  // so queryTokenUsage stays pure SQL: raw token sums per model / per tool,
+  // no resolver, no cost math, no DO RPC. estimated_cost_usd is left at its
+  // default (null) and filled in by enrichAnalyticsWithPricing before the
+  // response leaves the DO.
   const empty: TokenUsageStats = {
     total_input_tokens: 0,
     total_output_tokens: 0,
+    total_cache_read_tokens: 0,
+    total_cache_creation_tokens: 0,
     avg_input_per_session: 0,
     avg_output_per_session: 0,
     sessions_with_token_data: 0,
     sessions_without_token_data: 0,
     total_estimated_cost_usd: 0,
+    pricing_refreshed_at: null,
+    pricing_is_stale: false,
+    models_without_pricing: [],
     by_model: [],
     by_tool: [],
   };
 
   try {
-    // Totals — only count sessions that have token data (non-NULL)
+    // Totals — only count sessions that have token data (non-NULL input_tokens
+    // is the presence signal; cache fields may still be NULL on sessions
+    // uploaded before phase 2 even if input/output were captured).
     const totals = sql
       .exec(
         `SELECT
            COALESCE(SUM(input_tokens), 0) AS total_input,
            COALESCE(SUM(output_tokens), 0) AS total_output,
+           COALESCE(SUM(cache_read_tokens), 0) AS total_cache_read,
+           COALESCE(SUM(cache_creation_tokens), 0) AS total_cache_creation,
            COUNT(CASE WHEN input_tokens IS NOT NULL THEN 1 END) AS with_data,
            COUNT(CASE WHEN input_tokens IS NULL THEN 1 END) AS without_data
          FROM sessions
@@ -1923,6 +1936,8 @@ function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats {
     const t = (totals[0] || {}) as Record<string, unknown>;
     const totalInput = (t.total_input as number) || 0;
     const totalOutput = (t.total_output as number) || 0;
+    const totalCacheRead = (t.total_cache_read as number) || 0;
+    const totalCacheCreation = (t.total_cache_creation as number) || 0;
     const withData = (t.with_data as number) || 0;
     const withoutData = (t.without_data as number) || 0;
 
@@ -1936,6 +1951,8 @@ function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats {
         `SELECT agent_model,
                 COALESCE(SUM(input_tokens), 0) AS input_tokens,
                 COALESCE(SUM(output_tokens), 0) AS output_tokens,
+                COALESCE(SUM(cache_read_tokens), 0) AS cache_read_tokens,
+                COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation_tokens,
                 COUNT(*) AS sessions
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
@@ -1953,6 +1970,8 @@ function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats {
         `SELECT host_tool,
                 COALESCE(SUM(input_tokens), 0) AS input_tokens,
                 COALESCE(SUM(output_tokens), 0) AS output_tokens,
+                COALESCE(SUM(cache_read_tokens), 0) AS cache_read_tokens,
+                COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation_tokens,
                 COUNT(*) AS sessions
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
@@ -1966,28 +1985,31 @@ function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats {
 
     const byModel = modelRows.map((r) => {
       const row = r as Record<string, unknown>;
-      const model = row.agent_model as string;
-      const inp = (row.input_tokens as number) || 0;
-      const out = (row.output_tokens as number) || 0;
       return {
-        agent_model: model,
-        input_tokens: inp,
-        output_tokens: out,
+        agent_model: row.agent_model as string,
+        input_tokens: (row.input_tokens as number) || 0,
+        output_tokens: (row.output_tokens as number) || 0,
+        cache_read_tokens: (row.cache_read_tokens as number) || 0,
+        cache_creation_tokens: (row.cache_creation_tokens as number) || 0,
         sessions: (row.sessions as number) || 0,
-        estimated_cost_usd: estimateSessionCost(model, inp, out) ?? undefined,
+        // Populated by enrichAnalyticsWithPricing, not here.
+        estimated_cost_usd: null,
       };
     });
-
-    const totalCost = byModel.reduce((sum, m) => sum + (m.estimated_cost_usd ?? 0), 0);
 
     return {
       total_input_tokens: totalInput,
       total_output_tokens: totalOutput,
+      total_cache_read_tokens: totalCacheRead,
+      total_cache_creation_tokens: totalCacheCreation,
       avg_input_per_session: withData > 0 ? Math.round(totalInput / withData) : 0,
       avg_output_per_session: withData > 0 ? Math.round(totalOutput / withData) : 0,
       sessions_with_token_data: withData,
       sessions_without_token_data: withoutData,
-      total_estimated_cost_usd: Math.round(totalCost * 100) / 100,
+      total_estimated_cost_usd: 0,
+      pricing_refreshed_at: null,
+      pricing_is_stale: false,
+      models_without_pricing: [],
       by_model: byModel,
       by_tool: toolRows.map((r) => {
         const row = r as Record<string, unknown>;
@@ -1995,6 +2017,8 @@ function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats {
           host_tool: row.host_tool as string,
           input_tokens: (row.input_tokens as number) || 0,
           output_tokens: (row.output_tokens as number) || 0,
+          cache_read_tokens: (row.cache_read_tokens as number) || 0,
+          cache_creation_tokens: (row.cache_creation_tokens as number) || 0,
           sessions: (row.sessions as number) || 0,
         };
       }),
