@@ -6,6 +6,7 @@ import { getToolMeta } from '../../lib/toolMeta.js';
 import { formatDuration } from '../../lib/utils.js';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
 import BackLink from '../../components/BackLink/BackLink.js';
+import SectionTitle from '../../components/SectionTitle/SectionTitle.js';
 import Sparkline from './Sparkline.js';
 import {
   InternalUsageSection,
@@ -119,7 +120,7 @@ export default function StackToolDetail({ drill, rangeDays, onBack }: Props) {
 
       {/* ── Trend ── */}
       <section className={styles.section}>
-        <span className={styles.sectionLabel}>Sessions trend</span>
+        <SectionTitle>Sessions trend</SectionTitle>
         <div className={styles.sparkRow}>
           <Sparkline
             data={sparkData}
@@ -134,7 +135,7 @@ export default function StackToolDetail({ drill, rangeDays, onBack }: Props) {
       {/* ── Work types ── */}
       {sortedWork.length > 0 && (
         <section className={styles.section}>
-          <span className={styles.sectionLabel}>What this tool does</span>
+          <SectionTitle>What this tool does</SectionTitle>
           <div className={styles.workBar}>
             {sortedWork.map((w) => {
               const pct = totalWorkSessions > 0 ? (w.sessions / totalWorkSessions) * 100 : 0;
@@ -187,7 +188,7 @@ export default function StackToolDetail({ drill, rangeDays, onBack }: Props) {
       {/* ── Errors ── */}
       {drill.errors.length > 0 && (
         <section className={styles.section}>
-          <span className={styles.sectionLabel}>Top error patterns</span>
+          <SectionTitle>Top error patterns</SectionTitle>
           <ul className={styles.errorList}>
             {drill.errors.slice(0, 5).map((e, i) => (
               <li
@@ -206,7 +207,7 @@ export default function StackToolDetail({ drill, rangeDays, onBack }: Props) {
       {/* ── Cross-tool file overlap ── */}
       {(drill.handoffsOut.length > 0 || drill.handoffsIn.length > 0) && (
         <section className={styles.section}>
-          <span className={styles.sectionLabel}>Files also touched by another tool</span>
+          <SectionTitle>Files also touched by another tool</SectionTitle>
           <div className={styles.handoffGrid}>
             {drill.handoffsOut.length > 0 && (
               <div>
@@ -255,7 +256,7 @@ export default function StackToolDetail({ drill, rangeDays, onBack }: Props) {
       {/* ── Members ── */}
       {drill.members.length > 0 && (
         <section className={styles.section}>
-          <span className={styles.sectionLabel}>Who uses it</span>
+          <SectionTitle>Who uses it</SectionTitle>
           <ul className={styles.memberList}>
             {drill.members.map((m) => (
               <li key={m.handle} className={styles.memberRow}>

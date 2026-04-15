@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import SectionEmpty from '../../../components/SectionEmpty/SectionEmpty.js';
 import { getToolMeta } from '../../../lib/toolMeta.js';
 import styles from '../OverviewView.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
@@ -59,7 +60,7 @@ function TeamMembersWidget({ analytics }: WidgetBodyProps) {
 }
 
 function ProjectsWidget({ summaries, liveAgents, selectTeam }: WidgetBodyProps) {
-  if (summaries.length === 0) return <span className={styles.sectionEmpty}>No projects</span>;
+  if (summaries.length === 0) return <SectionEmpty>No projects</SectionEmpty>;
 
   return (
     <div className={styles.projectList}>

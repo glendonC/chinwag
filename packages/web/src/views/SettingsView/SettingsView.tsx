@@ -7,6 +7,7 @@ import { COLOR_PALETTE, getColorHex } from '../../lib/utils.js';
 import { useTheme } from '../../lib/useTheme.js';
 import { getErrorMessage } from '../../lib/errorHelpers.js';
 import ViewHeader from '../../components/ViewHeader/ViewHeader.jsx';
+import SectionTitle from '../../components/SectionTitle/SectionTitle.js';
 import styles from './SettingsView.module.css';
 
 const HANDLE_PATTERN = /^[A-Za-z0-9_]{3,20}$/;
@@ -162,7 +163,7 @@ export default function SettingsView(_props: Props) {
       <ViewHeader eyebrow="Configure" title="Settings" />
 
       <section className={styles.settingGroup} style={{ '--group-index': 0 } as CSSProperties}>
-        <span className={styles.sectionLabel}>Identity</span>
+        <SectionTitle>Identity</SectionTitle>
 
         {handleForm.editing ? (
           <div className={styles.handleEditor}>
@@ -219,7 +220,7 @@ export default function SettingsView(_props: Props) {
       </section>
 
       <section className={styles.settingGroup} style={{ '--group-index': 1 } as CSSProperties}>
-        <span className={styles.sectionLabel}>Color</span>
+        <SectionTitle>Color</SectionTitle>
         <div className={styles.colorPicker}>
           {COLOR_PALETTE.map((color) => {
             const isCurrent = user?.color === color.name;
@@ -250,7 +251,7 @@ export default function SettingsView(_props: Props) {
       </section>
 
       <section className={styles.settingGroup} style={{ '--group-index': 2 } as CSSProperties}>
-        <span className={styles.sectionLabel}>Appearance</span>
+        <SectionTitle>Appearance</SectionTitle>
         <div className={styles.themeToggle}>
           {THEME_OPTIONS.map((option) => (
             <button
@@ -266,7 +267,7 @@ export default function SettingsView(_props: Props) {
       </section>
 
       <section className={styles.settingGroup} style={{ '--group-index': 3 } as CSSProperties}>
-        <span className={styles.sectionLabel}>GitHub</span>
+        <SectionTitle>GitHub</SectionTitle>
         {user?.github_login ? (
           <div className={styles.heroRow}>
             <div className={styles.heroValue}>
@@ -292,7 +293,7 @@ export default function SettingsView(_props: Props) {
       </section>
 
       <section className={styles.settingGroup} style={{ '--group-index': 4 } as CSSProperties}>
-        <span className={styles.sectionLabel}>Session</span>
+        <SectionTitle>Session</SectionTitle>
         <button className={styles.sessionButton} onClick={handleLogout}>
           <svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path

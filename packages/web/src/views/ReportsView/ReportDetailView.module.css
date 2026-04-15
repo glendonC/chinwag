@@ -1,0 +1,476 @@
+/* ═══════════════════════════════════════════
+   ReportDetailView — report home page
+   Header → hero (description + launch) → latest →
+   metadata → past runs.
+   ═══════════════════════════════════════════ */
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  padding-bottom: 64px;
+  animation: detailFadeIn 0.35s var(--motion) both;
+}
+
+@keyframes detailFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Header ── */
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.headerMain {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+}
+
+.headerCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 720px;
+}
+
+.headerEyebrow {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+}
+
+.headerTitle {
+  font-family: var(--display);
+  font-size: var(--display-page);
+  font-weight: 300;
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+  color: var(--ink);
+  margin: 0;
+}
+
+.headerTagline {
+  font-size: var(--text-md);
+  color: var(--soft);
+  line-height: 1.4;
+  margin: 0;
+  font-weight: 300;
+}
+
+/* ── Hero block (description + launch CTA + trust line) ── */
+
+.heroBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 28px 28px 24px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--report-color) 5%, transparent);
+  position: relative;
+  overflow: hidden;
+}
+
+.heroBlock::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--report-gradient);
+  opacity: 0.06;
+  pointer-events: none;
+}
+
+.heroBlockInner {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 32px;
+  justify-content: space-between;
+}
+
+.heroCopy {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 640px;
+}
+
+.heroLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+}
+
+.heroDescription {
+  font-size: var(--text-md);
+  color: var(--ink);
+  line-height: 1.55;
+  margin: 0;
+  font-weight: 300;
+}
+
+.launchBtn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 22px;
+  border-radius: var(--radius-pill);
+  background: var(--report-color);
+  color: #fff;
+  border: none;
+  font-family: var(--sans);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    transform var(--motion-fast) ease,
+    box-shadow 0.2s var(--motion);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
+}
+
+.launchBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px -8px var(--report-color);
+}
+
+.launchBtn:active {
+  transform: translateY(0);
+}
+
+.trustLine {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  letter-spacing: var(--tracking-stat);
+  padding-top: 4px;
+}
+
+.trustDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--report-color);
+  flex-shrink: 0;
+}
+
+/* ── Latest run row (highlighted) ── */
+
+.latestBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.latestRow {
+  display: grid;
+  grid-template-columns: minmax(120px, auto) 1fr auto;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 18px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--mono);
+  transition:
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.latestRow:hover {
+  background: var(--ghost);
+}
+
+.latestRowDate {
+  font-size: var(--text-sm);
+  color: var(--ink);
+  letter-spacing: var(--tracking-stat);
+}
+
+.latestRowMeta {
+  font-size: var(--text-xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+}
+
+.latestRowAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-2xs);
+  color: var(--report-color);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+}
+
+.latestRow:hover .latestRowAction {
+  transform: translateX(2px);
+  transition: transform var(--motion-fast) ease;
+}
+
+/* ── Metadata grid (Reads / Produces) ── */
+
+.metaGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+
+.metaBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chipList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--ink);
+  padding: 5px 11px;
+  background: var(--ghost);
+  border-radius: var(--radius-pill);
+  letter-spacing: var(--tracking-stat);
+}
+
+/* ── Example finding ── */
+
+.exampleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 820px;
+}
+
+.example {
+  font-size: var(--text-md);
+  color: var(--ink);
+  line-height: 1.6;
+  font-style: italic;
+  margin: 0;
+  padding-left: 16px;
+  border-left: 2px solid var(--report-color);
+  opacity: 0.92;
+  font-weight: 300;
+}
+
+/* ── Past runs list ── */
+
+.runsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.runsHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.runs {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.runsEmpty {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--muted);
+  letter-spacing: var(--tracking-stat);
+  margin: 0;
+  padding: 10px 0;
+}
+
+.runRow {
+  display: grid;
+  grid-template-columns: 10px 110px 1fr auto auto;
+  align-items: center;
+  column-gap: 18px;
+  padding: 12px 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  text-align: left;
+  border-radius: var(--radius-xs);
+  transition:
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.runRow:hover {
+  background: var(--ghost);
+  color: var(--ink);
+}
+
+.runDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  justify-self: center;
+}
+
+.runDotComplete {
+  background: var(--success);
+}
+
+.runDotFailed {
+  background: var(--danger);
+}
+
+.runDotRunning {
+  background: var(--report-color);
+  animation: livePulse 2s ease-in-out infinite;
+}
+
+.runDotQueued {
+  background: var(--muted);
+}
+
+@keyframes livePulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.runDate {
+  color: var(--ink);
+  letter-spacing: var(--tracking-stat);
+}
+
+.runMeta {
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+}
+
+.runPath {
+  color: var(--muted);
+  letter-spacing: var(--tracking-stat);
+  text-transform: lowercase;
+}
+
+.runChevron {
+  color: var(--muted);
+}
+
+.runRow:hover .runChevron {
+  color: var(--report-color);
+  transform: translateX(2px);
+  transition:
+    transform var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+/* ── Not found ── */
+
+.notFound {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.notFoundTitle {
+  font-family: var(--display);
+  font-size: var(--display-section);
+  font-weight: 300;
+  color: var(--ink);
+  margin: 0;
+  letter-spacing: -0.025em;
+}
+
+.notFoundBody {
+  font-size: var(--text-sm);
+  color: var(--soft);
+  margin: 0;
+  max-width: 640px;
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 768px) {
+  .detail {
+    gap: 28px;
+  }
+
+  .headerMain {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .heroBlock {
+    padding: 22px 20px 20px;
+  }
+
+  .heroBlockInner {
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .launchBtn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .metaGrid {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+
+  .runRow {
+    grid-template-columns: 10px 1fr auto auto;
+    column-gap: 12px;
+  }
+
+  .runDate {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .latestRow,
+  .runRow,
+  .runChevron,
+  .launchBtn {
+    transition: none;
+  }
+}

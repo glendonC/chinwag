@@ -1,4 +1,5 @@
 import { useMemo, type CSSProperties } from 'react';
+import SectionEmpty from '../../../components/SectionEmpty/SectionEmpty.js';
 import { Sparkline } from '../overview-charts.js';
 import { WORK_TYPE_COLORS, aggregateModels, formatDuration } from '../overview-utils.js';
 import { getToolMeta } from '../../../lib/toolMeta.js';
@@ -123,7 +124,7 @@ function ModelsList({ modelOutcomes }: { modelOutcomes: UserAnalytics['model_out
 
 function ToolHandoffsWidget({ analytics }: WidgetBodyProps) {
   const th = analytics.tool_handoffs;
-  if (th.length === 0) return <span className={styles.sectionEmpty}>No cross-tool handoffs</span>;
+  if (th.length === 0) return <SectionEmpty>No cross-tool handoffs</SectionEmpty>;
   return (
     <div className={styles.dataList}>
       {th.slice(0, 10).map((h, i) => (
@@ -206,7 +207,7 @@ function ToolCallFreqWidget({ analytics }: WidgetBodyProps) {
 
 function ToolCallErrorsWidget({ analytics }: WidgetBodyProps) {
   const errs = analytics.tool_call_stats.error_patterns;
-  if (errs.length === 0) return <span className={styles.sectionEmpty}>No tool errors</span>;
+  if (errs.length === 0) return <SectionEmpty>No tool errors</SectionEmpty>;
   return (
     <div className={styles.dataList}>
       {errs.slice(0, 10).map((e, i) => (

@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import SectionEmpty from '../../../components/SectionEmpty/SectionEmpty.js';
 import { getToolMeta } from '../../../lib/toolMeta.js';
 import { WORK_TYPE_COLORS } from '../overview-utils.js';
 import type { UserAnalytics } from '../../../lib/apiSchemas.js';
@@ -236,7 +237,7 @@ function ConflictImpactWidget({ analytics }: WidgetBodyProps) {
 
 function RetryPatternsWidget({ analytics }: WidgetBodyProps) {
   const rp = analytics.retry_patterns;
-  if (rp.length === 0) return <span className={styles.sectionEmpty}>No retry patterns</span>;
+  if (rp.length === 0) return <SectionEmpty>No retry patterns</SectionEmpty>;
   return (
     <div className={styles.dataList}>
       {rp.slice(0, 10).map((r, i) => (

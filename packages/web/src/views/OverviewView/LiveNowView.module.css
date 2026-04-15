@@ -1,0 +1,306 @@
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  animation: detailFadeIn 0.25s var(--motion) both;
+}
+
+@keyframes detailFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+.title {
+  font-family: var(--display);
+  font-size: var(--display-page);
+  font-weight: 300;
+  line-height: var(--display-line);
+  letter-spacing: var(--display-spacing);
+  color: var(--ink);
+  margin: 0;
+}
+
+.subtitle {
+  display: block;
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  letter-spacing: 0.01em;
+}
+
+/* ── Headline stat grid ── */
+
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.statLabel {
+  font-family: var(--mono);
+  font-size: var(--text-10);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+  color: var(--soft);
+}
+
+.statValue {
+  font-family: var(--display);
+  font-size: 1.8rem;
+  font-weight: 300;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.statValueDanger {
+  color: var(--danger);
+}
+
+.statHint {
+  font-size: var(--text-11);
+  color: var(--muted);
+}
+
+/* ── Sections ── */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Agents table ── */
+
+.agentsTable {
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+ * Column template mirrors ToolsView.scoredRow exactly: the first column
+ * (Member) is the flexible one with minmax(140px, 1.4fr), and every
+ * other column is fixed. That puts any excess width INSIDE the Member
+ * column to the right of the handle, not as a dead gap between columns.
+ * Trailing 64px column is the View pill affordance (see .agentViewButton).
+ */
+.agentsHeader,
+.agentsRow {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.4fr) 140px 200px 72px 96px 64px;
+  gap: var(--space-md);
+  align-items: center;
+}
+
+.agentsHeader {
+  padding: 0 14px 10px;
+  font-family: var(--mono);
+  font-size: var(--text-10);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-table);
+  color: var(--soft);
+}
+
+.numHeader {
+  text-align: right;
+}
+
+.agentsRow {
+  padding: 12px 14px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-md);
+  text-align: left;
+  font-family: var(--sans);
+  cursor: pointer;
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 45ms);
+  transition:
+    opacity 0.2s ease,
+    background 0.12s ease;
+}
+
+.agentsRow:hover {
+  background: var(--hover-bg);
+}
+
+/*
+ * Focus the row the user clicked in the widget with a brief fade-out
+ * pulse so they can see where they landed. Non-persistent — after the
+ * animation runs, the row returns to normal and no longer looks like
+ * a stuck selection.
+ */
+.agentsRowFocused {
+  animation:
+    rowReveal 0.3s var(--motion) both,
+    focusPulse 1.6s var(--motion) 0.2s both;
+  animation-delay: calc(var(--row-index, 0) * 45ms), 0.2s;
+}
+
+@keyframes rowReveal {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes focusPulse {
+  0% {
+    background: var(--accent-bg);
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+.agentName {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agentCell {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agentCellNum {
+  font-family: var(--mono);
+  font-size: var(--text-11);
+  color: var(--ink);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.agentCellMuted {
+  color: var(--soft);
+}
+
+/* View pill — affordance signalling the agent row is a link into the
+ * project dashboard. Matches LiveWidgets.liveViewButton and
+ * ToolsView.viewButton exactly so the three rows read as one pattern. */
+.agentViewButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: end;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-family: var(--sans);
+  font-size: var(--text-11);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: var(--ink);
+  color: var(--page-bg);
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    transform 0.12s ease;
+}
+
+.agentsRow:hover .agentViewButton {
+  background: var(--accent);
+  color: white;
+  transform: scale(1.04);
+}
+
+/* ── File list (conflicts, files-in-play, projects) ── */
+
+.fileList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fileRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 14px;
+  border-radius: var(--radius-xs);
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
+}
+
+.fileName {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileMeta {
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  white-space: nowrap;
+}
+
+.fileCountValue {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.fileCountDanger {
+  color: var(--danger);
+  font-weight: 500;
+}
+
+@media (max-width: 720px) {
+  .statGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .agentsHeader,
+  .agentsRow {
+    grid-template-columns: minmax(100px, 1.2fr) minmax(80px, 1fr) 56px 80px 64px;
+    gap: 16px;
+  }
+
+  /* Hide Project column on narrow viewports (3rd cell in DOM order:
+   * Member, Tool, Project, Files, Session, View). display: none removes
+   * it from the grid, leaving 5 children for the 5-column template. */
+  .agentsHeader > :nth-child(3),
+  .agentsRow > :nth-child(3) {
+    display: none;
+  }
+}

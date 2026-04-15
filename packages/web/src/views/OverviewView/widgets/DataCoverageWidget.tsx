@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import SectionEmpty from '../../../components/SectionEmpty/SectionEmpty.js';
 import { aggregateModels } from '../overview-utils.js';
 import type { UserAnalytics, ConversationAnalytics } from '../../../lib/apiSchemas.js';
 import styles from '../OverviewView.module.css';
@@ -147,7 +148,7 @@ function DataCoverageWidget({ analytics, conversationData }: WidgetBodyProps) {
         </div>
       </div>
       {waiting.length === 0 ? (
-        <span className={styles.sectionEmpty}>All insights have data</span>
+        <SectionEmpty>All insights have data</SectionEmpty>
       ) : (
         <div className={styles.dataList}>
           {waiting.slice(0, 8).map((cat, i) => (

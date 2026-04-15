@@ -1,8 +1,9 @@
 import { memo } from 'react';
+import SectionTitle from '../../components/SectionTitle/SectionTitle.js';
+import SectionEmpty from '../../components/SectionEmpty/SectionEmpty.js';
 import { getWidget } from './widget-catalog.js';
 import { widgetBodies } from './widgets/registry.js';
 import type { WidgetBodyProps } from './widgets/types.js';
-import styles from './OverviewView.module.css';
 
 interface WidgetRendererProps extends WidgetBodyProps {
   widgetId: string;
@@ -14,8 +15,8 @@ function WidgetRendererInner({ widgetId, ...bodyProps }: WidgetRendererProps) {
   const Body = widgetBodies[widgetId];
   return (
     <>
-      <span className={styles.sectionLabel}>{def.name}</span>
-      {Body ? <Body {...bodyProps} /> : <span className={styles.sectionEmpty}>Unknown widget</span>}
+      {!def.hideLabel && <SectionTitle>{def.name}</SectionTitle>}
+      {Body ? <Body {...bodyProps} /> : <SectionEmpty>Unknown widget</SectionEmpty>}
     </>
   );
 }

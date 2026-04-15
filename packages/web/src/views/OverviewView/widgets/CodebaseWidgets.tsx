@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import SectionEmpty from '../../../components/SectionEmpty/SectionEmpty.js';
 import styles from '../OverviewView.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
 import { GhostRows, GhostStatRow } from './shared.js';
@@ -139,7 +140,7 @@ function FileReworkWidget({ analytics }: WidgetBodyProps) {
 
 function AuditStalenessWidget({ analytics }: WidgetBodyProps) {
   const as_ = analytics.audit_staleness;
-  if (as_.length === 0) return <span className={styles.sectionEmpty}>No stale directories</span>;
+  if (as_.length === 0) return <SectionEmpty>No stale directories</SectionEmpty>;
   return (
     <div className={styles.dataList}>
       {as_.slice(0, 10).map((d, i) => (
@@ -165,8 +166,7 @@ function AuditStalenessWidget({ analytics }: WidgetBodyProps) {
 
 function ConcurrentEditsWidget({ analytics }: WidgetBodyProps) {
   const ce = analytics.concurrent_edits;
-  if (ce.length === 0)
-    return <span className={styles.sectionEmpty}>No concurrent edits detected</span>;
+  if (ce.length === 0) return <SectionEmpty>No concurrent edits detected</SectionEmpty>;
   return (
     <div className={styles.dataList}>
       {ce.slice(0, 10).map((f, i) => (

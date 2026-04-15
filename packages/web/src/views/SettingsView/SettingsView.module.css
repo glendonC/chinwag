@@ -15,15 +15,6 @@
   margin-top: 32px;
 }
 
-.sectionLabel {
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  font-weight: 500;
-  letter-spacing: var(--tracking-eyebrow);
-  text-transform: uppercase;
-  color: var(--soft);
-}
-
 .handleValue {
   font-family: var(--display);
   font-size: var(--display-inline);

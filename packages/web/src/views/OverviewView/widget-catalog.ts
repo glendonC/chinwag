@@ -72,6 +72,12 @@ export interface WidgetDef {
   maxH?: number;
   /** Data keys on UserAnalytics or ConversationAnalytics */
   dataKeys: string[];
+  /**
+   * Hide the shared section-label eyebrow above the body. For widgets whose
+   * body is self-explanatory (e.g. live-agents: a directory-style table with
+   * its own column headers), the eyebrow becomes visual redundancy.
+   */
+  hideLabel?: boolean;
 }
 
 // ── The catalog ──────────────────────────────────
@@ -85,7 +91,31 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     category: 'live',
     viz: 'live-list',
     w: 12,
-    h: 2,
+    h: 3,
+    minW: 4,
+    minH: 2,
+    dataKeys: ['dashboard'],
+  },
+  {
+    id: 'live-conflicts',
+    name: 'Live conflicts',
+    description: 'Files being edited by more than one agent right now',
+    category: 'live',
+    viz: 'data-list',
+    w: 4,
+    h: 3,
+    minW: 3,
+    minH: 2,
+    dataKeys: ['dashboard'],
+  },
+  {
+    id: 'files-in-play',
+    name: 'Files in play',
+    description: 'Files currently being edited across your projects',
+    category: 'live',
+    viz: 'data-list',
+    w: 6,
+    h: 3,
     minW: 4,
     minH: 2,
     dataKeys: ['dashboard'],
@@ -774,36 +804,36 @@ export const CATEGORIES: Array<{ id: WidgetCategory; label: string }> = [
 // x/y positions on the 12-column grid
 
 export const DEFAULT_LAYOUT: RGLLayout[] = [
-  // Row 0: Live presence strip (full width)
-  { i: 'live-agents', x: 0, y: 0, w: 12, h: 2 },
+  // Row 0: Live presence table (full width, h=3 to fit header + ~3 rows)
+  { i: 'live-agents', x: 0, y: 0, w: 12, h: 3 },
 
-  // Row 2: KPI stats across the top (4 × 3-col)
-  { i: 'sessions', x: 0, y: 2, w: 3, h: 2 },
-  { i: 'edits', x: 3, y: 2, w: 3, h: 2 },
-  { i: 'lines-added', x: 6, y: 2, w: 3, h: 2 },
-  { i: 'files-touched', x: 9, y: 2, w: 3, h: 2 },
+  // Row 3: KPI stats across the top (4 × 3-col)
+  { i: 'sessions', x: 0, y: 3, w: 3, h: 2 },
+  { i: 'edits', x: 3, y: 3, w: 3, h: 2 },
+  { i: 'lines-added', x: 6, y: 3, w: 3, h: 2 },
+  { i: 'files-touched', x: 9, y: 3, w: 3, h: 2 },
 
-  // Row 4: Trend chart (wide) + Outcomes (narrow)
-  { i: 'session-trend', x: 0, y: 4, w: 8, h: 3 },
-  { i: 'outcomes', x: 8, y: 4, w: 4, h: 3 },
+  // Row 5: Trend chart (wide) + Outcomes (narrow)
+  { i: 'session-trend', x: 0, y: 5, w: 8, h: 3 },
+  { i: 'outcomes', x: 8, y: 5, w: 4, h: 3 },
 
-  // Row 7: Heatmap (wide) + Work types (narrow)
-  { i: 'heatmap', x: 0, y: 7, w: 8, h: 4 },
-  { i: 'work-types', x: 8, y: 7, w: 4, h: 3 },
+  // Row 8: Heatmap (wide) + Work types (narrow)
+  { i: 'heatmap', x: 0, y: 8, w: 8, h: 4 },
+  { i: 'work-types', x: 8, y: 8, w: 4, h: 3 },
 
-  // Row 11: Codebase — dirs + files side by side
-  { i: 'directories', x: 0, y: 11, w: 6, h: 4 },
-  { i: 'files', x: 6, y: 11, w: 6, h: 4 },
+  // Row 12: Codebase — dirs + files side by side
+  { i: 'directories', x: 0, y: 12, w: 6, h: 4 },
+  { i: 'files', x: 6, y: 12, w: 6, h: 4 },
 
-  // Row 15: Tools + Models side by side
-  { i: 'tools', x: 0, y: 15, w: 6, h: 3 },
-  { i: 'models', x: 6, y: 15, w: 6, h: 3 },
+  // Row 16: Tools + Models side by side
+  { i: 'tools', x: 0, y: 16, w: 6, h: 3 },
+  { i: 'models', x: 6, y: 16, w: 6, h: 3 },
 
-  // Row 18: Memory
-  { i: 'memory-stats', x: 0, y: 18, w: 12, h: 2 },
+  // Row 19: Memory
+  { i: 'memory-stats', x: 0, y: 19, w: 12, h: 2 },
 
-  // Row 20: Projects (full width)
-  { i: 'projects', x: 0, y: 20, w: 12, h: 3 },
+  // Row 21: Projects (full width)
+  { i: 'projects', x: 0, y: 21, w: 12, h: 3 },
 ];
 
 export const DEFAULT_WIDGET_IDS = DEFAULT_LAYOUT.map((l) => l.i);

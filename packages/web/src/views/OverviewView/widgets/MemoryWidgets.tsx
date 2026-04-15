@@ -1,4 +1,5 @@
 import { useState, type CSSProperties } from 'react';
+import SectionEmpty from '../../../components/SectionEmpty/SectionEmpty.js';
 import styles from '../OverviewView.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
 import { GhostBars, GhostStatRow } from './shared.js';
@@ -76,7 +77,7 @@ function TopMemoriesWidget({ analytics }: WidgetBodyProps) {
   // until next remount.
   const [nowMs] = useState(() => Date.now());
   const tm = analytics.top_memories;
-  if (tm.length === 0) return <span className={styles.sectionEmpty}>No memories accessed</span>;
+  if (tm.length === 0) return <SectionEmpty>No memories accessed</SectionEmpty>;
   return (
     <div className={styles.dataList}>
       {tm.slice(0, 8).map((m, i) => {
