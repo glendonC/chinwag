@@ -140,7 +140,8 @@ export function endSession(
   const closedRows = sql
     .exec(
       `SELECT host_tool, agent_model, edit_count, lines_added, lines_removed,
-        input_tokens, output_tokens, got_stuck, memories_saved, memories_searched,
+        input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens,
+        got_stuck, memories_saved, memories_searched,
         first_edit_at, started_at, ended_at,
         ROUND((julianday(ended_at) - julianday(started_at)) * 24 * 60, 2) AS duration_min
       FROM sessions WHERE id = ?`,
@@ -298,6 +299,8 @@ export interface SessionRecord {
   memories_searched: number;
   input_tokens: number | null;
   output_tokens: number | null;
+  cache_read_tokens: number | null;
+  cache_creation_tokens: number | null;
   commit_count: number;
   first_commit_at: string | null;
 }
@@ -308,12 +311,20 @@ export function recordTokenUsage(
   sessionId: string,
   inputTokens: number,
   outputTokens: number,
+  cacheReadTokens: number,
+  cacheCreationTokens: number,
 ): { ok: true } | { error: string; code: string } {
   sql.exec(
-    `UPDATE sessions SET input_tokens = COALESCE(input_tokens, 0) + ?, output_tokens = COALESCE(output_tokens, 0) + ?
+    `UPDATE sessions SET
+       input_tokens = COALESCE(input_tokens, 0) + ?,
+       output_tokens = COALESCE(output_tokens, 0) + ?,
+       cache_read_tokens = COALESCE(cache_read_tokens, 0) + ?,
+       cache_creation_tokens = COALESCE(cache_creation_tokens, 0) + ?
      WHERE id = ? AND agent_id = ?`,
     inputTokens,
     outputTokens,
+    cacheReadTokens,
+    cacheCreationTokens,
     sessionId,
     resolvedAgentId,
   );
@@ -374,7 +385,8 @@ export function getSessionsInRange(
               started_at, ended_at, edit_count, files_touched, conflicts_hit,
               memories_saved, outcome, outcome_summary, outcome_tags,
               lines_added, lines_removed, first_edit_at, got_stuck, memories_searched,
-              input_tokens, output_tokens, commit_count, first_commit_at,
+              input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens,
+              commit_count, first_commit_at,
               ROUND((julianday(COALESCE(ended_at, datetime('now'))) - julianday(started_at)) * 24 * 60) as duration_minutes
        FROM sessions
        WHERE started_at >= ? AND started_at < datetime(?, '+1 day')
@@ -421,6 +433,8 @@ export function getSessionsInRange(
       memories_searched: (r.memories_searched as number) || 0,
       input_tokens: (r.input_tokens as number) ?? null,
       output_tokens: (r.output_tokens as number) ?? null,
+      cache_read_tokens: (r.cache_read_tokens as number) ?? null,
+      cache_creation_tokens: (r.cache_creation_tokens as number) ?? null,
       commit_count: (r.commit_count as number) || 0,
       first_commit_at: (r.first_commit_at as string) || null,
     };

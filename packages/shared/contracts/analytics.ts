@@ -474,6 +474,8 @@ export const tokenModelBreakdownSchema = z.object({
   agent_model: z.string(),
   input_tokens: z.number(),
   output_tokens: z.number(),
+  cache_read_tokens: z.number().default(0),
+  cache_creation_tokens: z.number().default(0),
   sessions: z.number(),
   estimated_cost_usd: z.number().optional(),
 });
@@ -483,6 +485,8 @@ export const tokenToolBreakdownSchema = z.object({
   host_tool: z.string(),
   input_tokens: z.number(),
   output_tokens: z.number(),
+  cache_read_tokens: z.number().default(0),
+  cache_creation_tokens: z.number().default(0),
   sessions: z.number(),
 });
 export type TokenToolBreakdown = z.infer<typeof tokenToolBreakdownSchema>;
@@ -490,6 +494,8 @@ export type TokenToolBreakdown = z.infer<typeof tokenToolBreakdownSchema>;
 export const tokenUsageStatsSchema = z.object({
   total_input_tokens: z.number(),
   total_output_tokens: z.number(),
+  total_cache_read_tokens: z.number().default(0),
+  total_cache_creation_tokens: z.number().default(0),
   avg_input_per_session: z.number(),
   avg_output_per_session: z.number(),
   sessions_with_token_data: z.number(),

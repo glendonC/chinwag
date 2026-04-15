@@ -354,18 +354,24 @@ const periodComparisonSchema = z.object({
 const tokenModelBreakdownSchema = baseTokenModelBreakdownSchema.extend({
   input_tokens: z.number().default(0),
   output_tokens: z.number().default(0),
+  cache_read_tokens: z.number().default(0),
+  cache_creation_tokens: z.number().default(0),
   sessions: z.number().default(0),
 });
 
 const tokenToolBreakdownSchema = baseTokenToolBreakdownSchema.extend({
   input_tokens: z.number().default(0),
   output_tokens: z.number().default(0),
+  cache_read_tokens: z.number().default(0),
+  cache_creation_tokens: z.number().default(0),
   sessions: z.number().default(0),
 });
 
 const tokenUsageStatsSchema = z.object({
   total_input_tokens: z.number().default(0),
   total_output_tokens: z.number().default(0),
+  total_cache_read_tokens: z.number().default(0),
+  total_cache_creation_tokens: z.number().default(0),
   avg_input_per_session: z.number().default(0),
   avg_output_per_session: z.number().default(0),
   sessions_with_token_data: z.number().default(0),
@@ -646,6 +652,8 @@ export function createEmptyUserAnalytics(): UserAnalytics {
     token_usage: {
       total_input_tokens: 0,
       total_output_tokens: 0,
+      total_cache_read_tokens: 0,
+      total_cache_creation_tokens: 0,
       avg_input_per_session: 0,
       avg_output_per_session: 0,
       sessions_with_token_data: 0,

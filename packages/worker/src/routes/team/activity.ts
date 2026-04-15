@@ -263,17 +263,40 @@ export const handleTeamEnrichModel = teamJsonRoute(async ({ body, agentId, team,
 
 const MAX_TOKEN_VALUE = 100_000_000;
 
+/**
+ * Validate an optional token field. Missing (undefined) defaults to 0 so old
+ * CLI versions that don't send cache fields continue to work. Null or
+ * non-numeric is a client bug and gets rejected.
+ */
+function validateTokenField(
+  value: unknown,
+  name: string,
+): { ok: true; value: number } | { ok: false; error: string } {
+  if (value === undefined) return { ok: true, value: 0 };
+  if (typeof value !== 'number' || value < 0 || value > MAX_TOKEN_VALUE) {
+    return { ok: false, error: `${name} must be a non-negative number` };
+  }
+  return { ok: true, value };
+}
+
 export const handleTeamRecordTokens = teamJsonRoute(async ({ body, user, db, agentId, team }) => {
-  const { session_id, input_tokens, output_tokens } = body;
+  const { session_id, input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens } =
+    body;
   if (typeof session_id !== 'string' || !session_id.trim()) {
     return json({ error: 'session_id is required' }, 400);
   }
+  // input/output are required for every record_tokens call. Cache fields are
+  // optional to keep old CLI builds working during the Phase 2 rollout.
   if (typeof input_tokens !== 'number' || input_tokens < 0 || input_tokens > MAX_TOKEN_VALUE) {
     return json({ error: 'input_tokens must be a non-negative number' }, 400);
   }
   if (typeof output_tokens !== 'number' || output_tokens < 0 || output_tokens > MAX_TOKEN_VALUE) {
     return json({ error: 'output_tokens must be a non-negative number' }, 400);
   }
+  const cacheRead = validateTokenField(cache_read_tokens, 'cache_read_tokens');
+  if (!cacheRead.ok) return json({ error: cacheRead.error }, 400);
+  const cacheCreation = validateTokenField(cache_creation_tokens, 'cache_creation_tokens');
+  if (!cacheCreation.ok) return json({ error: cacheCreation.error }, 400);
 
   return withRateLimit(
     db,
@@ -282,7 +305,15 @@ export const handleTeamRecordTokens = teamJsonRoute(async ({ body, user, db, age
     'Session operation limit reached. Try again tomorrow.',
     async () => {
       return doResult(
-        team.recordTokenUsage(agentId, session_id as string, input_tokens, output_tokens, user.id),
+        team.recordTokenUsage(
+          agentId,
+          session_id as string,
+          input_tokens,
+          output_tokens,
+          cacheRead.value,
+          cacheCreation.value,
+          user.id,
+        ),
         'recordTokenUsage',
       );
     },

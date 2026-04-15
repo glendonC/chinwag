@@ -590,6 +590,20 @@ const migrations: Migration[] = [
       addColumnIfMissing(sql, 'sessions', 'first_commit_at TEXT DEFAULT NULL');
     },
   },
+  {
+    name: '017_cache_token_tracking',
+    up(sql) {
+      // Anthropic prompt-cached sessions report usage with four token fields:
+      // input_tokens (non-cached), output_tokens, cache_creation_input_tokens,
+      // cache_read_input_tokens. Without the latter two, heavy-cache workloads
+      // (the Claude Code default) show ~7% of the real token volume and a
+      // materially wrong cost number. NULL = CLI didn't send the field,
+      // distinct from 0 = CLI sent a measured zero (no cache activity this
+      // session). Aggregations should COALESCE(col, 0).
+      addColumnIfMissing(sql, 'sessions', 'cache_read_tokens INTEGER DEFAULT NULL');
+      addColumnIfMissing(sql, 'sessions', 'cache_creation_tokens INTEGER DEFAULT NULL');
+    },
+  },
 ];
 
 export function ensureSchema(

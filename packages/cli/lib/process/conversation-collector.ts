@@ -33,6 +33,18 @@ interface ConversationEvent {
 export interface TokenUsage {
   input_tokens: number;
   output_tokens: number;
+  /**
+   * Tokens billed at the cache-read rate (Anthropic prompt caching). For most
+   * Claude Code sessions this is the dominant input-side volume; omitting it
+   * undercounts total tokens by roughly 5-10x.
+   */
+  cache_read_tokens: number;
+  /**
+   * Tokens billed at the cache-write rate (Anthropic prompt caching). Set
+   * once per cache-block creation; typically smaller than cache_read_tokens
+   * in steady-state workloads.
+   */
+  cache_creation_tokens: number;
 }
 
 export interface ToolCallEvent {
@@ -142,17 +154,27 @@ export async function collectTokenUsage(
 
   try {
     const usage = await parser(proc.cwd, proc.startedAt);
-    if (!usage || (usage.input_tokens === 0 && usage.output_tokens === 0)) return;
+    if (
+      !usage ||
+      (usage.input_tokens === 0 &&
+        usage.output_tokens === 0 &&
+        usage.cache_read_tokens === 0 &&
+        usage.cache_creation_tokens === 0)
+    ) {
+      return;
+    }
 
     const client = api(config, { agentId: proc.agentId });
     await client.post(`/teams/${teamId}/sessiontokens`, {
       session_id: sessionId,
       input_tokens: usage.input_tokens,
       output_tokens: usage.output_tokens,
+      cache_read_tokens: usage.cache_read_tokens,
+      cache_creation_tokens: usage.cache_creation_tokens,
     });
 
     log.info(
-      `uploaded token usage for session ${sessionId}: ${usage.input_tokens} in, ${usage.output_tokens} out`,
+      `uploaded token usage for session ${sessionId}: ${usage.input_tokens} in, ${usage.output_tokens} out, ${usage.cache_read_tokens} cache_read, ${usage.cache_creation_tokens} cache_write`,
     );
   } catch (err) {
     log.warn(`token usage collection failed: ${err}`);
@@ -435,6 +457,11 @@ function parseAiderMarkdown(content: string): ConversationEvent[] {
 
 /**
  * Extract token usage from Claude Code JSONL conversation files.
+ *
+ * Sums all four Anthropic token fields — input (non-cached), output, cache
+ * creation (prompt-cache writes), and cache read (prompt-cache hits). Without
+ * the cache fields, heavy-cache workloads (Claude Code's default) report ~7%
+ * of real token volume and a materially wrong cost number downstream.
  */
 async function extractClaudeCodeTokenUsage(
   cwd: string,
@@ -447,6 +474,8 @@ async function extractClaudeCodeTokenUsage(
     const content = await readFile(file, 'utf-8');
     let totalInput = 0;
     let totalOutput = 0;
+    let totalCacheRead = 0;
+    let totalCacheCreation = 0;
 
     for (const line of content.split('\n').filter(Boolean)) {
       try {
@@ -455,16 +484,27 @@ async function extractClaudeCodeTokenUsage(
           entry.usage ||
           (entry.message && typeof entry.message === 'object' ? entry.message.usage : null);
         if (usage && typeof usage === 'object') {
-          totalInput += (usage.input_tokens as number) || 0;
-          totalOutput += (usage.output_tokens as number) || 0;
+          // Nullish coalescing, not falsy — a measured zero is valid data and
+          // must not be treated as "missing field."
+          totalInput += (usage.input_tokens as number) ?? 0;
+          totalOutput += (usage.output_tokens as number) ?? 0;
+          totalCacheRead += (usage.cache_read_input_tokens as number) ?? 0;
+          totalCacheCreation += (usage.cache_creation_input_tokens as number) ?? 0;
         }
       } catch {
         // Skip malformed lines
       }
     }
 
-    if (totalInput === 0 && totalOutput === 0) return null;
-    return { input_tokens: totalInput, output_tokens: totalOutput };
+    if (totalInput === 0 && totalOutput === 0 && totalCacheRead === 0 && totalCacheCreation === 0) {
+      return null;
+    }
+    return {
+      input_tokens: totalInput,
+      output_tokens: totalOutput,
+      cache_read_tokens: totalCacheRead,
+      cache_creation_tokens: totalCacheCreation,
+    };
   } catch (err) {
     log.warn(`failed to extract Claude Code token usage: ${err}`);
     return null;

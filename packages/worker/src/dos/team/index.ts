@@ -826,10 +826,20 @@ export class TeamDO extends DurableObject<Env> {
     sessionId: string,
     inputTokens: number,
     outputTokens: number,
+    cacheReadTokens: number,
+    cacheCreationTokens: number,
     ownerId: string | null = null,
   ): Promise<{ ok: true } | DOError> {
     return this.#withMember(agentId, ownerId, (resolved) =>
-      recordTokenUsageFn(this.sql, resolved, sessionId, inputTokens, outputTokens),
+      recordTokenUsageFn(
+        this.sql,
+        resolved,
+        sessionId,
+        inputTokens,
+        outputTokens,
+        cacheReadTokens,
+        cacheCreationTokens,
+      ),
     );
   }
 
