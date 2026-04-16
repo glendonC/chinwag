@@ -7,12 +7,10 @@ import { type CSSProperties, useState, useEffect, useCallback, useMemo, useRef }
 import clsx from 'clsx';
 import { getToolMeta, normalizeToolId } from '../../lib/toolMeta.js';
 import { formatDuration } from '../../lib/utils.js';
-import { navigate, setQueryParam, useQueryParam } from '../../lib/router.js';
+import { setQueryParam, useQueryParam } from '../../lib/router.js';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
 import ViewHeader from '../../components/ViewHeader/ViewHeader.jsx';
-import InlineHint from '../../components/InlineHint/InlineHint.jsx';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton.jsx';
-import { useDismissible } from '../../hooks/useDismissible.js';
 import StackToolDetail from './StackToolDetail.js';
 import Sparkline from './Sparkline.js';
 import StackAdoptionTimeline from './StackAdoptionTimeline.js';
@@ -50,14 +48,11 @@ function compareRows(a: ScoredToolRow, b: ScoredToolRow, key: StackSortKey): num
   }
 }
 
-const DIRECTORY_HINT_KEY = 'chinwag:tools-directory-hint-dismissed';
-
 export default function ToolsView() {
   const stackToolParam = useQueryParam('stack');
   const fileParam = useQueryParam('file');
   const { rows: scoredRows, getDrillIn, isLoading, analytics } = useScoredStackData(30);
-  const { arcs, uniqueTools, toolShare, evaluations } = useToolsViewData();
-  const directoryHint = useDismissible(DIRECTORY_HINT_KEY);
+  const { arcs, uniqueTools, toolShare } = useToolsViewData();
 
   const [sortKey, setSortKey] = useState<StackSortKey>('sessions');
   const sortedRows = useMemo(
@@ -396,18 +391,6 @@ export default function ToolsView() {
           ) : null}
         </div>
       </div>
-
-      {!stackDrill && !directoryHint.isDismissed() && (
-        <InlineHint
-          actionLabel="Browse directory"
-          onAction={() => navigate('directory')}
-          onDismiss={() => directoryHint.dismiss()}
-        >
-          {evaluations.length > 0
-            ? `Looking for more? ${evaluations.length} AI coding tools in the directory.`
-            : 'Looking for more? Browse the directory of supported tools.'}
-        </InlineHint>
-      )}
     </div>
   );
 }

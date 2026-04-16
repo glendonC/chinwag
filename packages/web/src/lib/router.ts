@@ -6,7 +6,6 @@
 //   /               → overview
 //   /project/:id    → project view
 //   /tools          → tools view
-//   /directory      → tool directory (catalog of supported tools)
 //   /global         → global stats + percentile view
 //   /reports        → report catalog
 //   /settings       → settings view
@@ -14,7 +13,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 
 export interface Route {
-  view: 'overview' | 'project' | 'tools' | 'directory' | 'global' | 'reports' | 'settings';
+  view: 'overview' | 'project' | 'tools' | 'global' | 'reports' | 'settings';
   teamId: string | null;
 }
 
@@ -42,7 +41,6 @@ export function parseLocation(): Route {
     return { view: 'overview', teamId: null };
   }
   if (segments[0] === 'tools') return { view: 'tools', teamId: null };
-  if (segments[0] === 'directory') return { view: 'directory', teamId: null };
   if (segments[0] === 'global') return { view: 'global', teamId: null };
   if (segments[0] === 'reports') return { view: 'reports', teamId: null };
   if (segments[0] === 'settings') return { view: 'settings', teamId: null };
@@ -68,7 +66,6 @@ export function navigate(view: Route['view'], teamId?: string | null) {
   let path: string;
   if (view === 'project' && teamId) path = `/dashboard/project/${teamId}`;
   else if (view === 'tools') path = '/dashboard/tools';
-  else if (view === 'directory') path = '/dashboard/directory';
   else if (view === 'global') path = '/dashboard/global';
   else if (view === 'reports') path = '/dashboard/reports';
   else if (view === 'settings') path = '/dashboard/settings';

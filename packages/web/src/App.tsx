@@ -19,7 +19,6 @@ import OverviewView from './views/OverviewView/OverviewView.js';
 import ProjectView from './views/ProjectView/ProjectView.js';
 import SettingsView from './views/SettingsView/SettingsView.js';
 import ToolsView from './views/ToolsView/ToolsView.js';
-import DirectoryView from './views/DirectoryView/DirectoryView.js';
 import GlobalView from './views/GlobalView/GlobalView.js';
 import ReportsView from './views/ReportsView/ReportsView.js';
 import Sidebar from './components/Sidebar/Sidebar.js';
@@ -260,11 +259,6 @@ export default function App(): ReactNode {
           {activeView === 'tools' && (
             <RenderErrorBoundary label="ToolsView" resetKey={activeView}>
               <ToolsView />
-            </RenderErrorBoundary>
-          )}
-          {activeView === 'directory' && (
-            <RenderErrorBoundary label="DirectoryView" resetKey={activeView}>
-              <DirectoryView />
             </RenderErrorBoundary>
           )}
           {activeView === 'project' && (

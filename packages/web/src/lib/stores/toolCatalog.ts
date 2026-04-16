@@ -31,7 +31,7 @@ interface ToolDirectoryResponse {
   total?: number;
 }
 
-/** Map a directory evaluation to the catalog display shape used by ToolsView. */
+/** Map an evaluation to the catalog display shape used by the integrations page. */
 function evaluationToCatalogItem(ev: ToolDirectoryEvaluation): CatalogItem {
   return {
     id: ev.id,

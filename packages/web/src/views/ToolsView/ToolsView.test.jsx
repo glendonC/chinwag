@@ -277,7 +277,7 @@ describe('ToolsView', () => {
       footerBtn.click();
     });
 
-    expect(navigateSpy).toHaveBeenCalledWith('directory');
+    expect(navigateSpy).toHaveBeenCalledWith('integrations');
 
     unmount();
   });

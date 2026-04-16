@@ -252,7 +252,7 @@ Global platform statistics.
 
 ### GET /tools/catalog
 
-Full AI dev tool catalog. Returns evaluated tools from the directory, falling back to the static catalog.
+Full AI dev tool catalog. Returns evaluated tools from the integrations catalog, falling back to the static catalog.
 
 **Rate limit:** 200/day per IP
 
@@ -284,7 +284,7 @@ Full AI dev tool catalog. Returns evaluated tools from the directory, falling ba
 
 ### GET /tools/directory
 
-Browse the AI tool directory with filtering and pagination.
+Browse the tool integrations catalog with filtering and pagination.
 
 **Query parameters:**
 

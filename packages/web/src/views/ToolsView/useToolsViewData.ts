@@ -112,7 +112,7 @@ export function useToolsViewData(): ToolsViewData {
   // URL-synced tool selection for spatial navigation
   const selectedToolId = useQueryParam('tool');
   const selectTool = useCallback((id: string | null) => setQueryParam('tool', id), []);
-  const [hideConfigured, setHideConfigured] = useState<boolean>(true);
+  const [hideConfigured, setHideConfigured] = useState<boolean>(false);
   const [fallbackDashboardSnapshot, setFallbackDashboardSnapshot] =
     useState<DashboardSummary | null>(null);
 
@@ -279,7 +279,7 @@ export function useToolsViewData(): ToolsViewData {
     [scoreCache],
   );
 
-  // Filtered + sorted directory evaluations
+  // Filtered + sorted integration evaluations
   const filteredEvaluations = useMemo(() => {
     let result = evaluations;
 

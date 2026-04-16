@@ -1,4 +1,4 @@
-// Internal ranking function for "Recommended" sort in the directory.
+// Internal ranking function for "Recommended" sort in the integrations page.
 // Not surfaced as a visible score — users see concrete facts, not a number.
 //
 // Weighs things any builder controls (docs, maintenance, MCP support)
@@ -119,7 +119,7 @@ export function computeSignalScore(input: ScoringInput): SignalBreakdown {
 
   // ── Ecosystem (0–25): integration depth ──
   let ecosystem = 0;
-  // MCP support — the biggest differentiator for our directory
+  // MCP support — the biggest differentiator for integrations
   if (isTruthy(input.mcp_support)) ecosystem += 10;
   // CLI availability — composable, automatable
   if (isTruthy(input.has_cli)) ecosystem += 5;
