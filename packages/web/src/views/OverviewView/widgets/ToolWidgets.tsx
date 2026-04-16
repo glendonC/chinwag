@@ -8,7 +8,7 @@ import type { TokenUsageStats, UserAnalytics } from '../../../lib/apiSchemas.js'
 import styles from '../OverviewView.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
 import { getDataCapabilities } from '@chinwag/shared/tool-registry.js';
-import { GhostBars, GhostRows, GhostStatRow, StatWidget } from './shared.js';
+import { GhostBars, GhostRows, GhostStatRow, StatWidget, CoverageNote } from './shared.js';
 
 /**
  * Tool data depth: 3 = full analytics (cost, conversations, tool calls),
@@ -492,7 +492,19 @@ function ToolWorkTypeWidget({ analytics }: WidgetBodyProps) {
 function CacheEfficiencyWidget({ analytics }: WidgetBodyProps) {
   const chr = analytics.token_usage.cache_hit_rate;
   if (chr == null) return <StatWidget value="--" />;
-  return <StatWidget value={`${Math.round(chr * 100)}%`} />;
+  const tools = analytics.data_coverage?.tools_reporting ?? [];
+  return (
+    <>
+      <StatWidget value={`${Math.round(chr * 100)}%`} />
+      <CoverageNote
+        text={
+          tools.length > 0 && tools.length < (analytics.tool_comparison?.length ?? 0)
+            ? `Cache data from ${tools.join(', ')}`
+            : null
+        }
+      />
+    </>
+  );
 }
 
 export const toolWidgets: WidgetRegistry = {

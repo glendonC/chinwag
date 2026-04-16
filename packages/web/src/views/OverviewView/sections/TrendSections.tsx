@@ -1,11 +1,9 @@
 import clsx from 'clsx';
 import { Sparkline } from '../overview-charts.js';
-import { formatDelta } from '../overview-utils.js';
 import { formatDuration } from '../../../lib/utils.js';
 import type {
   DailyTrend,
   EditVelocityTrend,
-  PeriodComparison,
   PromptEfficiencyTrend,
   HourlyEffectiveness,
 } from '../../../lib/apiSchemas.js';
@@ -57,92 +55,6 @@ export function EditVelocitySection({ velocity }: { velocity: EditVelocityTrend[
         </div>
       </div>
       <Sparkline data={editsData} height={48} />
-    </div>
-  );
-}
-
-export function PeriodDeltasSection({ comparison }: { comparison: PeriodComparison }) {
-  const { current, previous } = comparison;
-  if (current.total_sessions === 0) return null;
-  if (!previous) return null;
-
-  const metrics: Array<{
-    label: string;
-    current: number;
-    previous: number;
-    unit: string;
-    invertDelta?: boolean;
-  }> = [
-    {
-      label: 'Avg duration',
-      current: current.avg_duration_min,
-      previous: previous.avg_duration_min,
-      unit: 'min',
-      invertDelta: true,
-    },
-    {
-      label: 'Edit velocity',
-      current: current.edit_velocity,
-      previous: previous.edit_velocity,
-      unit: '/hr',
-    },
-    {
-      label: 'Stuckness',
-      current: current.stuckness_rate,
-      previous: previous.stuckness_rate,
-      unit: '%',
-      invertDelta: true,
-    },
-    {
-      label: 'Memory hit rate',
-      current: current.memory_hit_rate,
-      previous: previous.memory_hit_rate,
-      unit: '%',
-    },
-  ];
-
-  const hasChange = metrics.some((m) => m.previous > 0);
-  if (!hasChange) return null;
-
-  return (
-    <div className={styles.section}>
-      <span className={styles.sectionLabel}>Period over period</span>
-      <div className={styles.statRow}>
-        {metrics.map((m) => {
-          const d = formatDelta(m.current, m.previous);
-          // For metrics where lower is better (duration, stuckness), invert the color
-          const effectiveDir =
-            d && m.invertDelta
-              ? d.direction === 'up'
-                ? 'down'
-                : d.direction === 'down'
-                  ? 'up'
-                  : 'neutral'
-              : d?.direction;
-          return (
-            <div key={m.label} className={styles.statBlock}>
-              <span className={styles.statBlockValue}>
-                {m.current}
-                {m.unit}
-              </span>
-              {d && (
-                <span
-                  className={clsx(
-                    styles.headlineDelta,
-                    effectiveDir === 'up' && styles.deltaUp,
-                    effectiveDir === 'down' && styles.deltaDown,
-                    effectiveDir === 'neutral' && styles.deltaNeutral,
-                  )}
-                >
-                  {d.value}
-                  {m.unit}
-                </span>
-              )}
-              <span className={styles.statBlockLabel}>{m.label}</span>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }

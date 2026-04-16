@@ -5,7 +5,7 @@ import { WORK_TYPE_COLORS } from '../overview-utils.js';
 import type { UserAnalytics } from '../../../lib/apiSchemas.js';
 import styles from '../OverviewView.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
-import { GhostBars, GhostStatRow, StatWidget } from './shared.js';
+import { GhostBars, GhostStatRow, StatWidget, CoverageNote } from './shared.js';
 
 function OutcomesWidget({ analytics }: WidgetBodyProps) {
   return <OutcomeBar cs={analytics.completion_summary} />;
@@ -77,10 +77,28 @@ function OutcomeBar({ cs }: { cs: UserAnalytics['completion_summary'] }) {
 function StucknessWidget({ analytics }: WidgetBodyProps) {
   const s = analytics.stuckness;
   if (s.total_sessions === 0) return <GhostStatRow labels={['stuck rate', 'stuck sessions']} />;
+  const pc = analytics.period_comparison;
+  const prevStuck = pc.previous?.stuckness_rate;
+  const stuckDelta =
+    prevStuck != null && prevStuck > 0
+      ? (() => {
+          const d = s.stuckness_rate - prevStuck;
+          const arrow = d > 0 ? '↑' : d < 0 ? '↓' : '→';
+          const color = d === 0 ? 'var(--muted)' : d < 0 ? 'var(--success)' : 'var(--danger)';
+          return (
+            <span style={{ color, marginLeft: 6, fontSize: 'var(--text-2xs)' }}>
+              {arrow}
+              {Math.abs(Math.round(d * 10) / 10)}
+            </span>
+          );
+        })()
+      : null;
   return (
     <div className={styles.statRow}>
       <div className={styles.statBlock}>
-        <span className={styles.statBlockValue}>{s.stuckness_rate}%</span>
+        <span className={styles.statBlockValue}>
+          {s.stuckness_rate}%{stuckDelta}
+        </span>
         <span className={styles.statBlockLabel}>stuck rate</span>
       </div>
       <div className={styles.statBlock}>
@@ -234,7 +252,12 @@ function RetryPatternsWidget({ analytics }: WidgetBodyProps) {
 function OneShotRateWidget({ analytics }: WidgetBodyProps) {
   const s = analytics.tool_call_stats;
   if (s.one_shot_sessions === 0) return <StatWidget value="--" />;
-  return <StatWidget value={`${s.one_shot_rate}%`} />;
+  return (
+    <>
+      <StatWidget value={`${s.one_shot_rate}%`} />
+      <CoverageNote text={`Computed from ${s.one_shot_sessions} sessions with tool call data`} />
+    </>
+  );
 }
 
 export const outcomeWidgets: WidgetRegistry = {

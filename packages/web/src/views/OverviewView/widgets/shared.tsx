@@ -104,35 +104,3 @@ export function CoverageNote({ text }: { text: string | null }) {
   if (!text) return null;
   return <div className={styles.coverageNote}>{text}</div>;
 }
-
-export function DeltaStat({
-  label,
-  current,
-  prev,
-  suffix,
-  invert,
-}: {
-  label: string;
-  current: number;
-  prev: number;
-  suffix: string;
-  invert?: boolean;
-}) {
-  const d = current - prev;
-  const isGood = invert ? d < 0 : d > 0;
-  const arrow = d > 0 ? '↑' : d < 0 ? '↓' : '→';
-  const color = d === 0 ? 'var(--muted)' : isGood ? 'var(--success)' : 'var(--danger)';
-  return (
-    <div className={styles.statBlock}>
-      <span className={styles.statBlockValue}>
-        {typeof current === 'number' && current % 1 !== 0 ? current.toFixed(1) : current}
-        {suffix}
-        <span style={{ color, marginLeft: 6, fontSize: 'var(--text-2xs)' }}>
-          {arrow}
-          {Math.abs(d) % 1 !== 0 ? Math.abs(d).toFixed(1) : Math.abs(d)}
-        </span>
-      </span>
-      <span className={styles.statBlockLabel}>{label}</span>
-    </div>
-  );
-}

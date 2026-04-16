@@ -1,5 +1,13 @@
+import { getToolsWithCapability } from '@chinwag/shared/tool-registry.js';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
-import { StatWidget } from './shared.js';
+import { StatWidget, CoverageNote } from './shared.js';
+
+function tokenCoverageNote(toolsReporting: string[]): string | null {
+  const capable = getToolsWithCapability('tokenUsage');
+  const reporting = toolsReporting.filter((t) => capable.includes(t));
+  if (reporting.length === 0 || reporting.length === toolsReporting.length) return null;
+  return `Estimated from ${reporting.join(', ')}`;
+}
 
 function SessionsWidget({ analytics }: WidgetBodyProps) {
   const v = analytics.daily_trends.reduce((s, d) => s + d.sessions, 0);
@@ -36,13 +44,25 @@ function FilesTouchedWidget({ analytics }: WidgetBodyProps) {
 function CostWidget({ analytics }: WidgetBodyProps) {
   const t = analytics.token_usage;
   if (t.sessions_with_token_data === 0) return <StatWidget value="--" />;
-  return <StatWidget value={`$${t.total_estimated_cost_usd.toFixed(2)}`} />;
+  const tools = analytics.data_coverage?.tools_reporting ?? [];
+  return (
+    <>
+      <StatWidget value={`$${t.total_estimated_cost_usd.toFixed(2)}`} />
+      <CoverageNote text={tokenCoverageNote(tools)} />
+    </>
+  );
 }
 
 function CostPerEditWidget({ analytics }: WidgetBodyProps) {
   const cpe = analytics.token_usage.cost_per_edit;
   if (cpe == null) return <StatWidget value="--" />;
-  return <StatWidget value={`$${cpe.toFixed(3)}`} />;
+  const tools = analytics.data_coverage?.tools_reporting ?? [];
+  return (
+    <>
+      <StatWidget value={`$${cpe.toFixed(3)}`} />
+      <CoverageNote text={tokenCoverageNote(tools)} />
+    </>
+  );
 }
 
 export const usageWidgets: WidgetRegistry = {

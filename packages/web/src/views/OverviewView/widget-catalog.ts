@@ -841,10 +841,10 @@ export const DEFAULT_LAYOUT: RGLLayout[] = [
   // Row 0: Live presence table (full width, h=3 to fit header + ~3 rows)
   { i: 'live-agents', x: 0, y: 0, w: 12, h: 3 },
 
-  // Row 3: KPI stats across the top (4 × 3-col)
+  // Row 3: KPI stats across the top
   { i: 'sessions', x: 0, y: 3, w: 3, h: 2 },
   { i: 'edits', x: 3, y: 3, w: 3, h: 2 },
-  { i: 'lines-added', x: 6, y: 3, w: 3, h: 2 },
+  { i: 'cost', x: 6, y: 3, w: 3, h: 2 },
   { i: 'files-touched', x: 9, y: 3, w: 3, h: 2 },
 
   // Row 5: Trend chart (wide) + Outcomes (narrow)
@@ -863,8 +863,9 @@ export const DEFAULT_LAYOUT: RGLLayout[] = [
   { i: 'tools', x: 0, y: 16, w: 6, h: 3 },
   { i: 'models', x: 6, y: 16, w: 6, h: 3 },
 
-  // Row 19: Memory
-  { i: 'memory-stats', x: 0, y: 19, w: 12, h: 2 },
+  // Row 19: Health signals
+  { i: 'memory-stats', x: 0, y: 19, w: 6, h: 2 },
+  { i: 'stuckness', x: 6, y: 19, w: 6, h: 2 },
 
   // Row 21: Projects (full width)
   { i: 'projects', x: 0, y: 21, w: 12, h: 3 },
