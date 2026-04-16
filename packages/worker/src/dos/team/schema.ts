@@ -604,6 +604,16 @@ const migrations: Migration[] = [
       addColumnIfMissing(sql, 'sessions', 'cache_creation_tokens INTEGER DEFAULT NULL');
     },
   },
+  {
+    name: '018_edit_work_type',
+    up(sql) {
+      // Normalize work type on write: classify once in recordEdit() instead of
+      // re-classifying on every analytics query. "other" is the safe default
+      // for existing rows -- analytics queries that GROUP BY work_type will
+      // bucket them correctly until they age out of the retention window.
+      addColumnIfMissing(sql, 'edits', "work_type TEXT DEFAULT 'other'");
+    },
+  },
 ];
 
 export function ensureSchema(

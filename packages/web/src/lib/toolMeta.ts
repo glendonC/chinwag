@@ -1,6 +1,12 @@
 // Tool metadata for display: icons, brand colors, label normalization.
 // Icons use SVGs from /assets/ rendered as CSS masks with brand colors.
 // Tools without SVGs get a colored letter fallback.
+//
+// For tools in MCP_TOOLS (the shared registry), label is derived from the
+// registry's `name` field so changes propagate from one source. Brand
+// colors and icon paths stay here since they're display-specific.
+
+import { MCP_TOOLS } from '@chinwag/shared/tool-registry.js';
 
 export interface ToolMetaEntry {
   label: string;
@@ -74,6 +80,29 @@ const TOOL_META: Record<string, ToolMetaEntry> = {
   sourcery: { label: 'Sourcery', icon: null, color: '#f59e0b' },
   phind: { label: 'Phind', icon: null, color: '#6366f1' },
 };
+
+// ── MCP_TOOLS overlay ────────────────────────────────
+// For registry tools, ensure the label stays in sync with tool-registry.ts.
+// Maps MCP_TOOLS id → TOOL_META key (normalized form used in lookups).
+const MCP_TO_META: Record<string, string> = {
+  'claude-code': 'claude',
+  cursor: 'cursor',
+  windsurf: 'windsurf',
+  vscode: 'vscode',
+  codex: 'codex',
+  aider: 'aider',
+  jetbrains: 'jetbrains',
+  'amazon-q': 'amazonq',
+  cline: 'cline',
+};
+
+for (const tool of MCP_TOOLS) {
+  const metaKey = MCP_TO_META[tool.id];
+  if (metaKey && TOOL_META[metaKey]) {
+    // Sync label from the single source of truth (tool-registry.ts)
+    TOOL_META[metaKey].label = tool.name;
+  }
+}
 
 // Normalize tool IDs for matching (strip spaces, dashes, underscores, lowercase)
 export function normalizeToolId(toolId: string | null | undefined): string {

@@ -6,6 +6,7 @@ import { normalizePath } from '../../lib/text-utils.js';
 import { createLogger } from '../../lib/logger.js';
 import { safeParse } from '../../lib/safe-parse.js';
 import { normalizeRuntimeMetadata, normalizeModelName } from './runtime.js';
+import { classifyWorkType } from './analytics.js';
 import { HEARTBEAT_STALE_WINDOW_S, ACTIVITY_MAX_FILES, METRIC_KEYS } from '../../lib/constants.js';
 import { sqlChanges, withTransaction } from '../../lib/validation.js';
 
@@ -223,10 +224,11 @@ export function recordEdit(
     sessionId,
   );
 
-  // Append to per-edit audit log
+  // Append to per-edit audit log with pre-computed work type
+  const workType = classifyWorkType(normalized);
   sql.exec(
-    `INSERT INTO edits (id, session_id, agent_id, handle, host_tool, file_path, lines_added, lines_removed)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO edits (id, session_id, agent_id, handle, host_tool, file_path, lines_added, lines_removed, work_type)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     crypto.randomUUID(),
     sessionId,
     resolvedAgentId,
@@ -235,6 +237,7 @@ export function recordEdit(
     normalized,
     linesAdded,
     linesRemoved,
+    workType,
   );
 
   return { ok: true };
