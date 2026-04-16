@@ -374,11 +374,29 @@ export function recordToolCalls(
   return { ok: true, recorded };
 }
 
+export interface SessionsInRangeResult {
+  sessions: SessionRecord[];
+  truncated: boolean;
+  total_sessions: number;
+}
+
+const SESSION_RANGE_LIMIT = 2000;
+
 export function getSessionsInRange(
   sql: SqlStorage,
   fromDate: string,
   toDate: string,
-): SessionRecord[] {
+): SessionsInRangeResult {
+  const countRow = sql
+    .exec(
+      `SELECT COUNT(*) AS cnt FROM sessions
+       WHERE started_at >= ? AND started_at < datetime(?, '+1 day')`,
+      fromDate,
+      toDate,
+    )
+    .toArray();
+  const totalSessions = ((countRow[0] as Record<string, unknown>)?.cnt as number) ?? 0;
+
   const rows = sql
     .exec(
       `SELECT id, agent_id, handle, host_tool, agent_surface, agent_model,
@@ -391,13 +409,14 @@ export function getSessionsInRange(
        FROM sessions
        WHERE started_at >= ? AND started_at < datetime(?, '+1 day')
        ORDER BY started_at ASC
-       LIMIT 500`,
+       LIMIT ?`,
       fromDate,
       toDate,
+      SESSION_RANGE_LIMIT,
     )
     .toArray();
 
-  return rows.map((row) => {
+  const sessions = rows.map((row) => {
     const r = row as Record<string, unknown>;
     return {
       id: r.id as string,
@@ -439,6 +458,12 @@ export function getSessionsInRange(
       first_commit_at: (r.first_commit_at as string) || null,
     };
   });
+
+  return {
+    sessions,
+    truncated: totalSessions > SESSION_RANGE_LIMIT,
+    total_sessions: totalSessions,
+  };
 }
 
 export interface EditEntry {

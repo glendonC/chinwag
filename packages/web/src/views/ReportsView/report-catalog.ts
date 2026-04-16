@@ -18,7 +18,7 @@
 
 import { getColorHex } from '../../lib/utils.js';
 
-export type ReportCategory = 'analysis' | 'optimization' | 'management';
+export type ReportCategory = 'analysis' | 'management';
 
 /** Number of agents in the pipeline that powers a report — 1 (solo), 2 (plan+challenge), or 3+ (swarm) */
 export type AgentCount = 1 | 2 | 3;
@@ -69,43 +69,64 @@ export function reportHex(report: ReportDef): string {
 
 export const REPORT_CATALOG: ReportDef[] = [
   {
-    id: 'failure-hotspots',
+    id: 'failure-analysis',
     kind: 'base',
-    name: 'Failure Hotspots',
-    tagline: 'Where your agents keep failing',
+    name: 'Failure Analysis',
+    tagline: 'Where agents fail, why, and what works',
     description:
-      'Files and directories where sessions fail, plus the tool and model that actually finish work there.',
+      'Files and directories where sessions fail, the root causes behind them, and the tool/model combinations that actually finish work there.',
     category: 'analysis',
-    reads: ['Session outcomes', 'File rework patterns', 'Stuckness data', 'Tool/model performance'],
+    reads: [
+      'Session outcomes',
+      'File rework patterns',
+      'Tool call errors',
+      'Conversation sentiment',
+      'Retry history',
+      'Git commits',
+    ],
     produces: [
       'Failure-ranked file map',
+      'Root cause clusters',
       'Tool/model recommendations per area',
-      'Memory updates for hard zones',
+      'Memory update suggestions for hard zones',
     ],
     exampleInsight:
-      'Sessions touching packages/worker/dos/team/ fail 40% of the time on Sonnet but complete 78% on Opus. router.ts has been reworked in 9 sessions this month — concentrate review there.',
+      'router.ts fails 40% on Sonnet, completes 78% on Opus. tests/ retried in 9 sessions this month, all from Read errors on locked files. Extending claim coverage would have prevented 11 abandonments.',
     frequency: 'Monthly or after major refactors',
     cadenceDays: 30,
     colorName: 'red',
-    stages: ['collect', 'analyze-code', 'analyze-sessions', 'synthesize', 'challenge', 'report'],
+    stages: [
+      'collect',
+      'analyze-code',
+      'analyze-sessions',
+      'root-cause',
+      'synthesize',
+      'challenge',
+      'report',
+    ],
   },
   {
-    id: 'prompt-coach',
+    id: 'prompt-patterns',
     kind: 'base',
-    name: 'Prompt Effectiveness',
-    tagline: 'What completes sessions, what derails them',
+    name: 'Prompt Patterns',
+    tagline: 'What communication patterns correlate with success',
     description:
-      'How your communication style maps to session outcomes, across every tool you use.',
-    category: 'optimization',
-    reads: ['Conversation logs', 'Session outcomes', 'Sentiment data', 'Prompt efficiency metrics'],
+      'How your communication patterns map to session outcomes across tools. Correlation, not prescription.',
+    category: 'analysis',
+    reads: [
+      'Conversation logs',
+      'Session outcomes',
+      'Sentiment data',
+      'Prompt efficiency',
+      'Tool call patterns',
+    ],
     produces: [
-      'Effectiveness report',
-      'Personalized playbook by work type',
+      'Pattern observations',
       'Anti-pattern warnings',
-      'Memory: effective patterns',
+      'Per-work-type communication patterns',
     ],
     exampleInsight:
-      'Sessions where you specify file paths in the first message complete at 78% vs 45% without. When frustration appears before turn 5, abandonment jumps 3x — concentrated in debugging tasks under tests/.',
+      'Sessions with file paths in the first message complete at 78% vs 45% without. Frustration before turn 5 correlates with 3x abandonment, concentrated in debugging tasks.',
     frequency: 'Bi-weekly',
     cadenceDays: 14,
     colorName: 'blue',
@@ -119,73 +140,12 @@ export const REPORT_CATALOG: ReportDef[] = [
     ],
   },
   {
-    id: 'roi-optimizer',
-    kind: 'base',
-    name: 'Cost Allocation',
-    tagline: 'Cheapest tool that finishes the job',
-    description:
-      'Real outcomes per tool and model, scoped to your codebase, with concrete spend recommendations.',
-    category: 'optimization',
-    reads: [
-      'Session outcomes by tool/model',
-      'Token usage & cost',
-      'Work type distribution',
-      'Scope complexity',
-    ],
-    produces: [
-      'Tool/model allocation matrix',
-      'Cost savings projections',
-      'Per-work-type recommendations',
-    ],
-    exampleInsight:
-      'Cursor + Sonnet handles frontend edits under 3 files at $0.20/session with the same completion rate as Claude Code + Opus at $1.00. Above 4 files, Opus completes 30% more often — the extra cost pays for itself.',
-    frequency: 'Monthly or when adding new tools',
-    cadenceDays: 30,
-    colorName: 'green',
-    stages: [
-      'collect',
-      'analyze-tools',
-      'analyze-costs',
-      'model-comparison',
-      'synthesize',
-      'report',
-    ],
-  },
-  {
-    id: 'knowledge-health',
-    kind: 'base',
-    name: 'Memory Effectiveness',
-    tagline: 'Which memories actually help',
-    description:
-      'Ranks shared memory by what correlates with completed sessions, and flags what just clutters context.',
-    category: 'management',
-    reads: ['All memories', 'Memory access patterns', 'Search hit rates', 'Session outcomes'],
-    produces: [
-      'High-impact memory ranking',
-      'Coverage gap identification',
-      'Underperforming memory candidates',
-    ],
-    exampleInsight:
-      'Memories tagged auth appear in 80% of completed auth sessions but only 12% of failed ones — write more like these. 14 memories have not been read in 60 days and are crowding out useful context every session.',
-    frequency: 'Monthly',
-    cadenceDays: 30,
-    colorName: 'magenta',
-    stages: [
-      'collect',
-      'analyze-quality',
-      'analyze-usage',
-      'cross-ref-codebase',
-      'synthesize',
-      'challenge',
-      'report',
-    ],
-  },
-  {
-    id: 'coordination-auditor',
+    id: 'coordination-audit',
     kind: 'base',
     name: 'Coordination Audit',
     tagline: 'Where your agents collide',
-    description: 'File contention, claim coverage, and tool handoff friction across your team.',
+    description:
+      'File contention, claim coverage, tool handoff friction, and what coordination costs across your team.',
     category: 'management',
     reads: [
       'Conflict data',
@@ -193,54 +153,20 @@ export const REPORT_CATALOG: ReportDef[] = [
       'Tool handoffs',
       'Concurrent edits',
       'Member analytics',
+      'Git rework',
     ],
     produces: [
       'Coordination scorecard',
       'Handoff friction analysis',
       'File contention hotspots',
-      'Team workflow recommendations',
+      'Claim coverage recommendations',
     ],
     exampleInsight:
-      'Cursor→Claude Code handoffs on the same file complete at 62% vs 78% for single-tool sessions. router.ts was edited by 3 agents in 3 days — assign ownership or refactor.',
+      'Cursor to Claude Code handoffs on the same file complete at 62% vs 78% for single-tool sessions. router.ts was edited by 3 agents in 3 days.',
     frequency: 'Weekly for active teams',
     cadenceDays: 7,
     colorName: 'lavender',
     stages: ['collect', 'analyze-conflicts', 'analyze-handoffs', 'synthesize', 'report'],
-  },
-  {
-    id: 'failure-patterns',
-    kind: 'base',
-    name: 'Root Cause Analysis',
-    tagline: 'Why your sessions keep breaking',
-    description:
-      'Recurring root causes across your failed sessions — by file zone, tool, model, and conversation pattern.',
-    category: 'analysis',
-    reads: [
-      'Failed/abandoned sessions',
-      'Conversation logs',
-      'Tool call errors',
-      'Edit patterns',
-      'Retry history',
-    ],
-    produces: [
-      'Recurring failure clusters',
-      'Root cause classification',
-      'Prevention recommendations',
-      'Memory: failure patterns',
-    ],
-    exampleInsight:
-      '30% of your failed sessions happen in test files on Sonnet, all involving Read errors on locked files. The same conflict pattern caused 11 abandonments this month — claim coverage in tests/ is the fix.',
-    frequency: 'Weekly',
-    cadenceDays: 7,
-    colorName: 'yellow',
-    stages: [
-      'collect',
-      'analyze-failures',
-      'analyze-conversations',
-      'root-cause',
-      'synthesize',
-      'report',
-    ],
   },
   {
     id: 'onboarding-brief',
@@ -248,18 +174,23 @@ export const REPORT_CATALOG: ReportDef[] = [
     name: 'Onboarding Brief',
     tagline: 'Skip the first-week ramp',
     description:
-      "A starter pack from your team's real agent activity — what works where, the memories that matter, the hard zones.",
+      "What works where, the memories that matter, the hard zones, all from your team's real agent activity.",
     category: 'management',
-    reads: ['All memories', 'Team analytics', 'Tool/model performance', 'Session patterns'],
+    reads: [
+      'All memories',
+      'Team analytics',
+      'Tool/model performance',
+      'Session patterns',
+      'Codebase heatmaps',
+    ],
     produces: [
-      'Onboarding brief',
+      'Onboarding brief document',
       'Tool/model recommendations',
-      'Key memories summary',
+      'Key memories to read',
       'Difficulty zone map',
-      'Memory: onboarding snapshot',
     ],
     exampleInsight:
-      'Backend team runs Claude Code + Opus for API work (82% completion). Frontend leans on Cursor + Sonnet at half the cost with the same success rate. Read the auth-pattern memories before touching middleware/.',
+      'Backend: Claude Code + Opus (82% completion). Frontend: Cursor + Sonnet at half the cost. Read the auth-pattern and DO-RPC memories before touching middleware/.',
     frequency: 'One-time per project join',
     cadenceDays: null,
     colorName: 'sky',

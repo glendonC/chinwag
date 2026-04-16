@@ -37,7 +37,6 @@ export type WidgetViz =
   | 'sentiment-bars'
   | 'topic-bars'
   | 'project-list'
-  | 'delta-row'
   | 'bucket-chart'
   | 'live-list';
 
@@ -430,18 +429,6 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['scope_complexity'],
   },
-  {
-    id: 'period-delta',
-    name: 'Period comparison',
-    description: 'How metrics changed vs previous period',
-    category: 'outcomes',
-    viz: 'delta-row',
-    w: 12,
-    h: 2,
-    minW: 6,
-    minH: 2,
-    dataKeys: ['period_comparison'],
-  },
 
   // ── Activity (extended) ─────────────
   {
@@ -761,7 +748,6 @@ const VIZ_MAX_CONSTRAINTS: Record<WidgetViz, { maxW: number; maxH: number }> = {
   'sentiment-bars': { maxW: 8, maxH: 5 },
   'topic-bars': { maxW: 8, maxH: 5 },
   'project-list': { maxW: 12, maxH: 6 },
-  'delta-row': { maxW: 12, maxH: 2 },
   'bucket-chart': { maxW: 12, maxH: 5 },
   'live-list': { maxW: 12, maxH: 3 },
 };

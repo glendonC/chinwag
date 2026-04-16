@@ -42,7 +42,6 @@ import {
   hourlyEffectivenessSchema as baseHourlyEffectivenessSchema,
   outcomeTagCountSchema as baseOutcomeTagCountSchema,
   toolHandoffSchema as baseToolHandoffSchema,
-  outcomePredictorSchema as baseOutcomePredictorSchema,
   periodMetricsSchema as basePeriodMetricsSchema,
   tokenModelBreakdownSchema as baseTokenModelBreakdownSchema,
   tokenToolBreakdownSchema as baseTokenToolBreakdownSchema,
@@ -332,11 +331,6 @@ const toolHandoffSchema = baseToolHandoffSchema.extend({
   handoff_completion_rate: z.number().default(0),
 });
 
-const outcomePredictorSchema = baseOutcomePredictorSchema.extend({
-  avg_first_edit_min: z.number().default(0),
-  sessions: z.number().default(0),
-});
-
 const periodMetricsSchema = basePeriodMetricsSchema.extend({
   completion_rate: z.number().default(0),
   avg_duration_min: z.number().default(0),
@@ -493,7 +487,6 @@ export const userAnalyticsSchema = teamAnalyticsSchema.extend({
   hourly_effectiveness: z.array(hourlyEffectivenessSchema).default([]),
   outcome_tags: z.array(outcomeTagCountSchema).default([]),
   tool_handoffs: z.array(toolHandoffSchema).default([]),
-  outcome_predictors: z.array(outcomePredictorSchema).default([]),
   period_comparison: periodComparisonSchema.default({
     current: {
       completion_rate: 0,
@@ -565,7 +558,6 @@ export type PromptEfficiencyTrend = z.infer<typeof promptEfficiencyTrendSchema>;
 export type HourlyEffectiveness = z.infer<typeof hourlyEffectivenessSchema>;
 export type OutcomeTagCount = z.infer<typeof outcomeTagCountSchema>;
 export type ToolHandoff = z.infer<typeof toolHandoffSchema>;
-export type OutcomePredictor = z.infer<typeof outcomePredictorSchema>;
 export type PeriodMetrics = z.infer<typeof periodMetricsSchema>;
 export type PeriodComparison = z.infer<typeof periodComparisonSchema>;
 export type TokenModelBreakdown = z.infer<typeof tokenModelBreakdownSchema>;
@@ -644,7 +636,6 @@ export function createEmptyUserAnalytics(): UserAnalytics {
     hourly_effectiveness: [],
     outcome_tags: [],
     tool_handoffs: [],
-    outcome_predictors: [],
     period_comparison: {
       current: {
         completion_rate: 0,

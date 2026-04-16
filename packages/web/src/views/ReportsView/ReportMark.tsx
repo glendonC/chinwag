@@ -3,24 +3,12 @@
 // icon's silhouette carries the same hue-family as the row's mesh.
 
 import type { ReactNode } from 'react';
-import {
-  Compass,
-  Database,
-  Flame,
-  GitBranch,
-  GitMerge,
-  Radio,
-  TrendingDown,
-  type LucideIcon,
-} from 'lucide-react';
+import { Compass, Flame, GitMerge, Radio, type LucideIcon } from 'lucide-react';
 
 const MARKS: Record<string, LucideIcon> = {
-  'failure-hotspots': Flame,
-  'prompt-coach': Radio,
-  'roi-optimizer': TrendingDown,
-  'knowledge-health': Database,
-  'coordination-auditor': GitMerge,
-  'failure-patterns': GitBranch,
+  'failure-analysis': Flame,
+  'prompt-patterns': Radio,
+  'coordination-audit': GitMerge,
   'onboarding-brief': Compass,
 };
 

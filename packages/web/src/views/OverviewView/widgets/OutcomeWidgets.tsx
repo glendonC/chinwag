@@ -5,7 +5,7 @@ import { WORK_TYPE_COLORS } from '../overview-utils.js';
 import type { UserAnalytics } from '../../../lib/apiSchemas.js';
 import styles from '../OverviewView.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
-import { DeltaStat, GhostBars, GhostStatRow } from './shared.js';
+import { GhostBars, GhostStatRow } from './shared.js';
 
 function OutcomesWidget({ analytics }: WidgetBodyProps) {
   return <OutcomeBar cs={analytics.completion_summary} />;
@@ -93,41 +93,6 @@ function StucknessWidget({ analytics }: WidgetBodyProps) {
           <span className={styles.statBlockLabel}>stuck completed</span>
         </div>
       )}
-    </div>
-  );
-}
-
-function PeriodDeltaWidget({ analytics }: WidgetBodyProps) {
-  const pc = analytics.period_comparison;
-  if (!pc || !pc.previous)
-    return <GhostStatRow labels={['completion', 'velocity', 'stuck rate']} />;
-  return (
-    <div className={styles.statRow}>
-      <DeltaStat
-        label="completion"
-        current={pc.current.completion_rate}
-        prev={pc.previous.completion_rate}
-        suffix="%"
-      />
-      <DeltaStat
-        label="velocity"
-        current={pc.current.edit_velocity}
-        prev={pc.previous.edit_velocity}
-        suffix="/hr"
-      />
-      <DeltaStat
-        label="stuck rate"
-        current={pc.current.stuckness_rate}
-        prev={pc.previous.stuckness_rate}
-        suffix="%"
-        invert
-      />
-      <DeltaStat
-        label="sessions"
-        current={pc.current.total_sessions}
-        prev={pc.previous.total_sessions}
-        suffix=""
-      />
     </div>
   );
 }
@@ -269,7 +234,6 @@ function RetryPatternsWidget({ analytics }: WidgetBodyProps) {
 export const outcomeWidgets: WidgetRegistry = {
   outcomes: OutcomesWidget,
   stuckness: StucknessWidget,
-  'period-delta': PeriodDeltaWidget,
   'work-type-outcomes': WorkTypeOutcomesWidget,
   'tool-outcomes': ToolOutcomesWidget,
   'conflict-impact': ConflictImpactWidget,

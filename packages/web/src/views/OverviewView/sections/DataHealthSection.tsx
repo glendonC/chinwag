@@ -33,11 +33,10 @@ function computeCategories(a: UserAnalytics, conv: ConversationAnalytics): Categ
     {
       id: 'outcomes',
       label: 'Outcome analysis',
-      total: 7,
+      total: 6,
       active: [
         a.period_comparison.current.total_sessions > 0 && a.period_comparison.previous !== null,
         a.hourly_effectiveness.length > 0,
-        a.outcome_predictors.length > 0,
         a.tool_outcomes.length > 0,
         a.conflict_correlation.length > 0,
         a.outcome_tags.length > 0,

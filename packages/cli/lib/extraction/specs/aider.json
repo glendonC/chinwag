@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "tool": "aider",
+  "format": "markdown",
+  "discovery": {
+    "strategy": "fixed-path",
+    "relativePath": ".aider.chat.history.md"
+  },
+  "extractions": {
+    "conversation": {
+      "userMarker": "#### ",
+      "assistantMarker": "> "
+    }
+  },
+  "generatedAt": "2026-04-16",
+  "source": "manual"
+}

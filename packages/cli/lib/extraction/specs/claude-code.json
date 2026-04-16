@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "tool": "claude-code",
+  "format": "jsonl",
+  "discovery": {
+    "strategy": "project-hash",
+    "baseDir": "~/.claude/projects/",
+    "ext": ".jsonl"
+  },
+  "extractions": {
+    "conversation": {
+      "roleDetection": {
+        "field": "type",
+        "userValues": ["human"],
+        "assistantValues": ["assistant"]
+      },
+      "contentPaths": ["message", "text", "content", "message.content"],
+      "timestampPath": "timestamp"
+    },
+    "tokens": {
+      "usagePath": "message.usage",
+      "usagePathFallbacks": ["usage"],
+      "fieldMapping": {
+        "input_tokens": "input_tokens",
+        "output_tokens": "output_tokens",
+        "cache_read_tokens": "cache_read_input_tokens",
+        "cache_creation_tokens": "cache_creation_input_tokens"
+      },
+      "normalization": "anthropic"
+    },
+    "toolCalls": {
+      "requestBlock": {
+        "contentPath": "content",
+        "contentPathFallbacks": ["message.content"],
+        "typeValue": "tool_use",
+        "namePath": "name",
+        "idPath": "id",
+        "inputPreviewPaths": ["input.file_path", "input.command", "input.pattern", "input.query"]
+      },
+      "resultBlock": {
+        "typeValue": "tool_result",
+        "idPath": "tool_use_id",
+        "errorPath": "is_error",
+        "errorContentPath": "content"
+      }
+    }
+  },
+  "generatedAt": "2026-04-16",
+  "source": "manual"
+}

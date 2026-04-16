@@ -387,7 +387,6 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
     string,
     { file_count: number; completed: number; total: number }
   >();
-  const outcomePredictorsAcc = new Map<string, { first_edit_sum: number; sessions: number }>();
 
   // Commit stats accumulators
   const commitAcc = {
@@ -1001,16 +1000,6 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
       toolHandoffsAcc.set(key, existing);
     }
 
-    // Merge outcome predictors
-    for (const op of (data.outcome_predictors as Array<Record<string, unknown>>) || []) {
-      const key = op.outcome as string;
-      const sess = (op.sessions as number) || 0;
-      const existing = outcomePredictorsAcc.get(key) || { first_edit_sum: 0, sessions: 0 };
-      existing.first_edit_sum += ((op.avg_first_edit_min as number) || 0) * sess;
-      existing.sessions += sess;
-      outcomePredictorsAcc.set(key, existing);
-    }
-
     // Merge commit stats
     const cs_ = data.commit_stats as Record<string, unknown> | undefined;
     if (cs_) {
@@ -1531,14 +1520,6 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
             v.total > 0 ? Math.round((v.completed / v.total) * 1000) / 10 : 0,
         };
       }),
-    outcome_predictors: [...outcomePredictorsAcc.entries()]
-      .sort(([, a], [, b]) => b.sessions - a.sessions)
-      .map(([outcome, v]) => ({
-        outcome,
-        avg_first_edit_min:
-          v.sessions > 0 ? Math.round((v.first_edit_sum / v.sessions) * 10) / 10 : 0,
-        sessions: v.sessions,
-      })),
     commit_stats: (() => {
       const totalSessions = completionAcc.total_sessions || 1;
       return {

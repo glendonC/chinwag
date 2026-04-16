@@ -42,7 +42,6 @@ import type {
   HourlyEffectiveness,
   OutcomeTagCount,
   ToolHandoff,
-  OutcomePredictor,
   PeriodComparison,
   PeriodMetrics,
   TokenUsageStats,
@@ -1756,39 +1755,6 @@ function queryToolHandoffs(sql: SqlStorage, days: number): ToolHandoff[] {
   }
 }
 
-function queryOutcomePredictors(sql: SqlStorage, days: number): OutcomePredictor[] {
-  try {
-    const rows = sql
-      .exec(
-        `SELECT
-           COALESCE(outcome, 'unknown') AS outcome,
-           ROUND(AVG(
-             (julianday(first_edit_at) - julianday(started_at)) * 24 * 60
-           ), 1) AS avg_first_edit_min,
-           COUNT(*) AS sessions
-         FROM sessions
-         WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND first_edit_at IS NOT NULL
-         GROUP BY outcome
-         ORDER BY sessions DESC`,
-        days,
-      )
-      .toArray();
-
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        outcome: row.outcome as string,
-        avg_first_edit_min: (row.avg_first_edit_min as number) || 0,
-        sessions: (row.sessions as number) || 0,
-      };
-    });
-  } catch (err) {
-    log.warn(`outcomePredictors query failed: ${err}`);
-    return [];
-  }
-}
-
 // ── Period-over-period comparison ────────────────────
 // Computes current and previous period snapshots for core metrics.
 // Previous period is capped to session retention (30 days) to avoid
@@ -2404,7 +2370,6 @@ export function getExtendedAnalytics(
     hourly_effectiveness: queryHourlyEffectiveness(sql, days),
     outcome_tags: queryOutcomeTags(sql, days),
     tool_handoffs: queryToolHandoffs(sql, days),
-    outcome_predictors: queryOutcomePredictors(sql, days),
     period_comparison: queryPeriodComparison(sql, days),
     token_usage: queryTokenUsage(sql, days),
     tool_call_stats: queryToolCallStats(sql, days),

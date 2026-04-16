@@ -26,8 +26,9 @@ function FilesTouchedWidget({ analytics }: WidgetBodyProps) {
 }
 
 function CostWidget({ analytics }: WidgetBodyProps) {
-  const c = analytics.token_usage.total_estimated_cost_usd;
-  return <StatWidget value={c > 0 ? `$${c.toFixed(2)}` : '$0'} />;
+  const t = analytics.token_usage;
+  if (t.sessions_with_token_data === 0) return <StatWidget value="--" />;
+  return <StatWidget value={`$${t.total_estimated_cost_usd.toFixed(2)}`} />;
 }
 
 export const usageWidgets: WidgetRegistry = {

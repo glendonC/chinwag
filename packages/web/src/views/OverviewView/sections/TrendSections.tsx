@@ -8,7 +8,6 @@ import type {
   PeriodComparison,
   PromptEfficiencyTrend,
   HourlyEffectiveness,
-  OutcomePredictor,
 } from '../../../lib/apiSchemas.js';
 import styles from '../OverviewView.module.css';
 
@@ -240,26 +239,6 @@ export function HourlyEffectivenessSection({ data }: { data: HourlyEffectiveness
               </div>
             );
           })}
-      </div>
-    </div>
-  );
-}
-
-export function OutcomePredictorsSection({ data }: { data: OutcomePredictor[] }) {
-  if (data.length === 0) return null;
-
-  return (
-    <div className={styles.section}>
-      <span className={styles.sectionLabel}>First edit timing by outcome</span>
-      <div className={styles.compareRow}>
-        {data.map((d) => (
-          <div key={d.outcome} className={styles.compareBlock}>
-            <span className={styles.compareValue}>{formatDuration(d.avg_first_edit_min)}</span>
-            <span className={styles.compareLabel}>
-              {d.outcome} ({d.sessions})
-            </span>
-          </div>
-        ))}
       </div>
     </div>
   );

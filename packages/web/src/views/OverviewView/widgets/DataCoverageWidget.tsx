@@ -34,11 +34,10 @@ function computeDataCoverage(a: UserAnalytics, conv: ConversationAnalytics): Cov
     {
       id: 'outcomes',
       label: 'Outcome analysis',
-      total: 6,
+      total: 5,
       active: [
         a.period_comparison.current.total_sessions > 0 && a.period_comparison.previous !== null,
         a.hourly_effectiveness.length > 0,
-        a.outcome_predictors.length > 0,
         a.tool_outcomes.length > 0,
         a.conflict_correlation.length > 0,
         a.member_analytics.length > 0,

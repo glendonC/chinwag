@@ -359,13 +359,6 @@ export const toolHandoffSchema = z.object({
 });
 export type ToolHandoff = z.infer<typeof toolHandoffSchema>;
 
-export const outcomePredictorSchema = z.object({
-  outcome: z.string(),
-  avg_first_edit_min: z.number(),
-  sessions: z.number(),
-});
-export type OutcomePredictor = z.infer<typeof outcomePredictorSchema>;
-
 // ── Tool call analytics ────────────────────────
 
 export const toolCallFrequencySchema = z.object({
@@ -577,7 +570,6 @@ export const userAnalyticsSchema = teamAnalyticsSchema.extend({
   hourly_effectiveness: z.array(hourlyEffectivenessSchema),
   outcome_tags: z.array(outcomeTagCountSchema),
   tool_handoffs: z.array(toolHandoffSchema),
-  outcome_predictors: z.array(outcomePredictorSchema),
   period_comparison: periodComparisonSchema,
   token_usage: tokenUsageStatsSchema,
   tool_call_stats: toolCallStatsSchema,

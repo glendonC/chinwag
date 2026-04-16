@@ -1218,13 +1218,16 @@ export class TeamDO extends DurableObject<Env> {
     ownerId: string,
     fromDate: string,
     toDate: string,
-  ): Promise<{ ok: true; sessions: SessionRecord[] } | DOError> {
+  ): Promise<
+    { ok: true; sessions: SessionRecord[]; truncated: boolean; total_sessions: number } | DOError
+  > {
     this.#ensureSchema();
     const ownerRow = this.sql
       .exec('SELECT 1 FROM members WHERE owner_id = ? LIMIT 1', ownerId)
       .toArray();
     if (ownerRow.length === 0) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
-    return { ok: true, sessions: getSessionsInRangeFn(this.sql, fromDate, toDate) };
+    const result = getSessionsInRangeFn(this.sql, fromDate, toDate);
+    return { ok: true, ...result };
   }
 
   // -- Extended analytics (cross-project dashboard) --
