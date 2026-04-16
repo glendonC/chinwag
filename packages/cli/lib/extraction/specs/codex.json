@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "tool": "codex",
+  "format": "jsonl",
+  "discovery": {
+    "strategy": "glob",
+    "pattern": "~/.codex/sessions/{YYYY}/{MM}/{DD}/rollout-*.jsonl"
+  },
+  "extractions": {
+    "conversation": {
+      "roleDetection": {
+        "field": "payload.role",
+        "fieldFallbacks": ["payload.type"],
+        "userValues": ["user", "user_message"],
+        "assistantValues": ["assistant", "agent_message"]
+      },
+      "contentPaths": ["payload.content", "payload.message"],
+      "timestampPath": "timestamp"
+    },
+    "tokens": {
+      "usagePath": "payload.info.last_token_usage",
+      "usagePathFallbacks": ["payload.info.total_token_usage"],
+      "fieldMapping": {
+        "input_tokens": "input_tokens",
+        "output_tokens": "output_tokens",
+        "cache_read_tokens": "cached_input_tokens"
+      },
+      "normalization": "openai"
+    }
+  },
+  "generatedAt": "2026-04-16",
+  "source": "manual"
+}

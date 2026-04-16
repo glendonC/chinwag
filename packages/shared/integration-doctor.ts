@@ -16,6 +16,8 @@ export {
   buildChinwagHookCommand,
   writeMcpConfig,
   writeHooksConfig,
+  writeCursorHooksConfig,
+  writeWindsurfHooksConfig,
   configureHostIntegration,
   type WriteResult,
   type ConfigureResult,

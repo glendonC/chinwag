@@ -178,7 +178,10 @@ function extractTokensFromEntry(
   entry: unknown,
   spec: TokenExtractionSpec,
 ): { input: number; output: number; cacheRead: number; cacheCreation: number } | null {
-  const usage = resolveWithFallbacks(entry, spec.usagePath, spec.usagePathFallbacks);
+  // Empty usagePath means token fields live directly on the entry
+  const usage = spec.usagePath
+    ? resolveWithFallbacks(entry, spec.usagePath, spec.usagePathFallbacks)
+    : entry;
   if (!usage || typeof usage !== 'object') return null;
 
   const u = usage as Record<string, unknown>;

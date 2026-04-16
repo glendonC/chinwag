@@ -276,6 +276,108 @@ export function writeHooksConfig(
   return { ok: true };
 }
 
+/**
+ * Write Cursor hook config to .cursor/hooks.json.
+ * Cursor hooks use the same event names as Claude Code with identical payload structure.
+ */
+export function writeCursorHooksConfig(cwd: string): WriteResult {
+  const filePath = join(cwd, '.cursor', 'hooks.json');
+  const config = readJson(filePath);
+  if (!config.hooks) config.hooks = {};
+
+  const chinwagHooks: Record<string, HookConfigEntry[]> = {
+    PreToolUse: [
+      {
+        matcher: 'Edit|Write',
+        hooks: [
+          {
+            type: 'command',
+            command: buildChinwagHookCommand('check-conflict', { hostId: 'cursor' }),
+          },
+        ],
+      },
+    ],
+    PostToolUse: [
+      {
+        matcher: 'Edit|Write',
+        hooks: [
+          {
+            type: 'command',
+            command: buildChinwagHookCommand('report-edit', { hostId: 'cursor' }),
+          },
+        ],
+      },
+      {
+        matcher: 'Bash',
+        hooks: [
+          {
+            type: 'command',
+            command: buildChinwagHookCommand('report-commit', { hostId: 'cursor' }),
+          },
+        ],
+      },
+    ],
+    SessionStart: [
+      {
+        hooks: [
+          {
+            type: 'command',
+            command: buildChinwagHookCommand('session-start', { hostId: 'cursor' }),
+          },
+        ],
+      },
+    ],
+  };
+
+  for (const [event, entries] of Object.entries(chinwagHooks)) {
+    const current = (config.hooks[event] || []) as HookConfigEntry[];
+    config.hooks[event] = current.filter(
+      (h) => !isChinwagHookCommand(h.hooks?.[0]?.command || h.command),
+    );
+    (config.hooks[event] as HookConfigEntry[]).push(...entries);
+  }
+
+  try {
+    writeJson(filePath, config);
+  } catch (error) {
+    return { error: `Failed to write .cursor/hooks.json: ${getErrorMessage(error)}` };
+  }
+  return { ok: true };
+}
+
+/**
+ * Write Windsurf hook config to .windsurf/hooks.json.
+ * Windsurf uses snake_case event names and simpler payload structure.
+ */
+export function writeWindsurfHooksConfig(cwd: string): WriteResult {
+  const filePath = join(cwd, '.windsurf', 'hooks.json');
+  const config = readJson(filePath);
+  if (!config.hooks) config.hooks = {};
+
+  const chinwagHooks: Record<string, HookConfigEntry[]> = {
+    pre_write_code: [
+      { command: buildChinwagHookCommand('check-conflict', { hostId: 'windsurf' }) },
+    ],
+    post_write_code: [{ command: buildChinwagHookCommand('report-edit', { hostId: 'windsurf' }) }],
+    post_run_command: [
+      { command: buildChinwagHookCommand('report-commit', { hostId: 'windsurf' }) },
+    ],
+  };
+
+  for (const [event, entries] of Object.entries(chinwagHooks)) {
+    const current = (config.hooks[event] || []) as HookConfigEntry[];
+    config.hooks[event] = current.filter((h) => !isChinwagHookCommand(h.command));
+    (config.hooks[event] as HookConfigEntry[]).push(...entries);
+  }
+
+  try {
+    writeJson(filePath, config);
+  } catch (error) {
+    return { error: `Failed to write .windsurf/hooks.json: ${getErrorMessage(error)}` };
+  }
+  return { ok: true };
+}
+
 export function configureHostIntegration(
   cwd: string,
   hostId: string,
@@ -292,10 +394,17 @@ export function configureHostIntegration(
   if (mcpResult.error) return mcpResult;
 
   if (host.hooks) {
-    const hookResult = writeHooksConfig(cwd, {
-      hostId: host.id,
-      surfaceId: options.surfaceId || null,
-    });
+    let hookResult: WriteResult;
+    if (hostId === 'cursor') {
+      hookResult = writeCursorHooksConfig(cwd);
+    } else if (hostId === 'windsurf') {
+      hookResult = writeWindsurfHooksConfig(cwd);
+    } else {
+      hookResult = writeHooksConfig(cwd, {
+        hostId: host.id,
+        surfaceId: options.surfaceId || null,
+      });
+    }
     if (hookResult.error) return hookResult;
   }
 

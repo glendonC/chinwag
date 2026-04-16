@@ -47,7 +47,7 @@ export interface ToolCatalog {
 /**
  * Declares what data a tool can provide beyond basic session/edit tracking.
  * Each flag indicates a specific data extraction capability.
- * Adding a new capability = one field here + one parser in the registry.
+ * Adding a new capability = one field here + one parser in the extraction engine.
  */
 export interface DataCapabilities {
   /** Tool writes conversation logs that chinwag can parse for message-level analytics. */
@@ -56,6 +56,14 @@ export interface DataCapabilities {
   tokenUsage?: boolean;
   /** Tool writes structured logs from which per-tool-call events (name, timing, errors) can be parsed. */
   toolCallLogs?: boolean;
+  /** How cost data is obtained: 'derived' from tokens via LiteLLM pricing, 'litellm' pre-calculated, 'credits' opaque. */
+  costSource?: 'derived' | 'litellm' | 'credits' | null;
+  /** Token field semantics for normalization: 'anthropic' (additive fields) or 'openai' (cached nested in input). */
+  tokenFormat?: 'anthropic' | 'openai' | null;
+  /** Whether the tool supports lifecycle hooks for real-time data capture. */
+  hooks?: boolean;
+  /** Whether commit tracking works for this tool (via hooks or MCP). */
+  commitTracking?: boolean;
 }
 
 export interface McpTool {
@@ -145,7 +153,15 @@ export const MCP_TOOLS: McpTool[] = [
         recoveryCommand: CLAUDE_AUTH_LOGIN,
       },
     ],
-    dataCapabilities: { conversationLogs: true, tokenUsage: true, toolCallLogs: true },
+    dataCapabilities: {
+      conversationLogs: true,
+      tokenUsage: true,
+      toolCallLogs: true,
+      costSource: 'derived',
+      tokenFormat: 'anthropic',
+      hooks: true,
+      commitTracking: true,
+    },
     catalog: {
       description: 'Terminal AI coding agent with hooks, channels, and agent teams',
       category: 'coding-agent',
@@ -167,6 +183,12 @@ export const MCP_TOOLS: McpTool[] = [
     },
     clientInfoNames: ['cursor'],
     mcpConfig: '.cursor/mcp.json',
+    hooks: true,
+    dataCapabilities: {
+      toolCallLogs: true,
+      hooks: true,
+      commitTracking: true,
+    },
     catalog: {
       description: 'AI-native code editor with inline completions and chat',
       category: 'coding-agent',
@@ -187,6 +209,12 @@ export const MCP_TOOLS: McpTool[] = [
     },
     clientInfoNames: ['windsurf', 'codeium'],
     mcpConfig: '.windsurf/mcp.json',
+    hooks: true,
+    dataCapabilities: {
+      toolCallLogs: true,
+      hooks: true,
+      commitTracking: true,
+    },
     catalog: {
       description: 'AI IDE with autonomous Cascade agent and memory',
       category: 'coding-agent',
@@ -240,6 +268,13 @@ export const MCP_TOOLS: McpTool[] = [
         recoveryCommand: CODEX_LOGIN,
       },
     ],
+    dataCapabilities: {
+      conversationLogs: true,
+      tokenUsage: true,
+      toolCallLogs: true,
+      costSource: 'derived',
+      tokenFormat: 'openai',
+    },
     catalog: {
       description: 'OpenAI terminal coding agent with cloud sandboxes',
       category: 'coding-agent',
@@ -262,7 +297,11 @@ export const MCP_TOOLS: McpTool[] = [
     clientInfoNames: ['aider', 'aider-chat'],
     mcpConfig: '.mcp.json',
     spawn: { cmd: 'aider', args: ['--message', '--analytics-log', '.aider-analytics.jsonl'] },
-    dataCapabilities: { conversationLogs: true, tokenUsage: true },
+    dataCapabilities: {
+      conversationLogs: true,
+      tokenUsage: true,
+      costSource: 'litellm',
+    },
     catalog: {
       description: 'Terminal pair programmer that edits code in your repo',
       category: 'coding-agent',
@@ -331,6 +370,34 @@ export const MCP_TOOLS: McpTool[] = [
       description: 'AWS AI assistant for coding, debugging, and deployment',
       category: 'coding-agent',
       website: 'https://aws.amazon.com/q/developer/',
+      mcpCompatible: true,
+      mcpConfigurable: true,
+    },
+  },
+  {
+    id: 'cline',
+    name: 'Cline',
+    color: 'yellow',
+    detect: {},
+    processDetection: {
+      executables: [],
+      aliases: [],
+      commandPatterns: ['claude-dev', 'saoudrizwan.claude-dev'],
+    },
+    clientInfoNames: ['cline', 'claude-dev'],
+    mcpConfig: '.vscode/mcp.json',
+    tier: 'connected',
+    dataCapabilities: {
+      conversationLogs: true,
+      tokenUsage: true,
+      toolCallLogs: true,
+      costSource: 'derived',
+      tokenFormat: 'anthropic',
+    },
+    catalog: {
+      description: 'Autonomous AI coding agent for VS Code and Cursor',
+      category: 'coding-agent',
+      website: 'https://cline.bot',
       mcpCompatible: true,
       mcpConfigurable: true,
     },

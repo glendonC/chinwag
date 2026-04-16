@@ -118,6 +118,8 @@ export {
   summarizeIntegrationScan,
   writeMcpConfig,
   writeHooksConfig,
+  writeCursorHooksConfig,
+  writeWindsurfHooksConfig,
   configureHostIntegration,
   scanHostIntegrations,
   type IntegrationScanResult,

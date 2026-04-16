@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "tool": "cline",
+  "format": "json",
+  "discovery": {
+    "strategy": "glob",
+    "pattern": "~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/tasks/*/ui_messages.json"
+  },
+  "extractions": {
+    "conversation": {
+      "roleDetection": {
+        "field": "role",
+        "userValues": ["user", "human"],
+        "assistantValues": ["assistant"]
+      },
+      "contentPaths": ["content", "text"],
+      "timestampPath": "createdAt"
+    },
+    "tokens": {
+      "usagePath": "",
+      "usagePathFallbacks": [],
+      "fieldMapping": {
+        "input_tokens": "tokensIn",
+        "output_tokens": "tokensOut",
+        "cache_read_tokens": "cacheReads",
+        "cache_creation_tokens": "cacheWrites"
+      },
+      "normalization": "anthropic"
+    }
+  },
+  "generatedAt": "2026-04-16",
+  "source": "manual"
+}
