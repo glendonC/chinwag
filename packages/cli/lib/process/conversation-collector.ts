@@ -15,6 +15,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 import { createLogger } from '@chinwag/shared';
 import { getDataCapabilities } from '@chinwag/shared/tool-registry.js';
+import { recordAttempt } from '../extraction/health.js';
 import type { ChinwagConfig } from '@chinwag/shared/config.js';
 import { api } from '../api.js';
 import { extract } from '../extraction/engine.js';
@@ -83,7 +84,7 @@ async function extractViaSpec(
       }
     }
 
-    return {
+    const mapped = {
       conversations: result.conversations,
       tokens,
       toolCalls: result.toolCalls.map((tc) => ({
@@ -95,7 +96,34 @@ async function extractViaSpec(
         duration_ms: tc.duration_ms,
       })),
     };
+
+    // Record health: spec-based extraction succeeded
+    const hasOutput =
+      mapped.conversations.length > 0 || mapped.tokens !== null || mapped.toolCalls.length > 0;
+    recordAttempt(toolId, {
+      timestamp: new Date().toISOString(),
+      success: hasOutput,
+      specUsed: true,
+      fallbackUsed: false,
+      conversationCount: mapped.conversations.length,
+      tokenExtracted: mapped.tokens !== null,
+      toolCallCount: mapped.toolCalls.length,
+    });
+
+    return mapped;
   } catch (err) {
+    // Record health: spec-based extraction failed
+    recordAttempt(toolId, {
+      timestamp: new Date().toISOString(),
+      success: false,
+      specUsed: true,
+      fallbackUsed: false,
+      conversationCount: 0,
+      tokenExtracted: false,
+      toolCallCount: 0,
+      error: String(err),
+    });
+
     log.warn(
       `spec-based extraction failed for ${toolId}, falling back to hand-written parser: ${err}`,
     );
