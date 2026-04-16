@@ -71,7 +71,7 @@ import { usePollingStore, forceRefresh } from '../../lib/stores/polling.js';
 import { useAuthStore } from '../../lib/stores/auth.js';
 import { useTeamStore } from '../../lib/stores/teams.js';
 import { getColorHex } from '../../lib/utils.js';
-import { navigate } from '../../lib/router.js';
+import { navigate, setQueryParam, useQueryParam } from '../../lib/router.js';
 import { projectGradient } from '../../lib/projectGradient.js';
 import type { UserAnalytics, ConversationAnalytics } from '../../lib/apiSchemas.js';
 import { useUserAnalytics } from '../../hooks/useUserAnalytics.js';
@@ -89,6 +89,7 @@ import {
   SkeletonRows,
 } from '../../components/Skeleton/Skeleton.jsx';
 import { useOverviewData, type LiveAgent } from './useOverviewData.js';
+import LiveNowView from './LiveNowView.js';
 import { RANGES, type RangeDays, summarizeNames } from './overview-utils.js';
 import { useOverviewLayout } from './useOverviewLayout.js';
 import { useProjectFilter } from './useProjectFilter.js';
@@ -465,6 +466,27 @@ export default function OverviewView() {
   const failedLabel = failedTeams.length > 0 ? summarizeNames(failedTeams) : '';
 
   const { liveAgents, sortedSummaries } = useOverviewData(summaries);
+
+  // Live Now full-page view. Query-param driven so the URL deep-links and
+  // the back/forward buttons work. The value, when present, doubles as a
+  // focus hint — clicking a specific agent row in the widget passes that
+  // agent_id so LiveNowView can auto-scroll to their row inside the full
+  // picture. An empty string opens the view without focus.
+  const liveParam = useQueryParam('live');
+  const liveShifted = liveParam !== null;
+  const focusAgentId = liveParam && liveParam.length > 0 ? liveParam : null;
+  const closeLive = useCallback(() => setQueryParam('live', null), []);
+
+  // Escape closes the detail view.
+  useEffect(() => {
+    if (!liveShifted) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeLive();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [liveShifted, closeLive]);
+
   const projectFilter = useProjectFilter(teams);
   const { analytics } = useUserAnalytics(rangeDays, true, projectFilter.selectedIds);
   const { data: conversationData } = useConversationAnalytics(
@@ -643,94 +665,121 @@ export default function OverviewView() {
 
   return (
     <div className={styles.overview}>
-      {/* ── Header ── */}
-      <section className={styles.header}>
-        <ViewHeader
-          eyebrow="Overview"
-          title={
-            <>
-              Welcome back
-              {user?.handle ? (
-                <>
-                  {', '}
-                  <span style={{ color: userColor }}>{user.handle}</span>
-                </>
-              ) : null}
-              .
-            </>
-          }
-        />
-
-        {failedTeams.length > 0 && (
-          <div className={styles.summaryNotice}>
-            <span className={styles.summaryNoticeLabel}>
-              {failedTeams.length} {failedTeams.length === 1 ? 'project' : 'projects'} unavailable
-            </span>
-            <span className={styles.summaryNoticeText}>{failedLabel}</span>
-          </div>
-        )}
-
-        <div className={styles.rangeRow}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <ProjectFilter teams={teams} projectFilter={projectFilter} selectTeam={selectTeam} />
-            {!isMobile && (
-              <CustomizeButton active={catalogOpen} onClick={() => setCatalogOpen(!catalogOpen)} />
-            )}
-            <RangePills value={rangeDays} onChange={setRangeDays} options={RANGES} />
-          </div>
-        </div>
-      </section>
-
-      {analytics.degraded && (
-        <div className={styles.summaryNotice}>
-          <span className={styles.summaryNoticeLabel}>Partial data</span>
-          <span className={styles.summaryNoticeText}>
-            Analytics from {analytics.teams_included} of your projects. Some projects could not be
-            reached.
-          </span>
-        </div>
-      )}
-
-      {/* ── Widget Grid ── */}
-      <div className={styles.gridBleed}>
-        <GridContainer
-          editing={editing && !isMobile}
-          gridLayout={gridLayout}
-          onLayoutChange={handleLayoutChange}
-          onInteractionStart={beginInteraction}
-          onInteractionStop={commitLayout}
-          activeWidgets={activeWidgets}
-          analytics={analytics}
-          conversationData={conversationData}
-          summaries={sortedSummaries as Array<Record<string, unknown>>}
+      {liveShifted ? (
+        <LiveNowView
           liveAgents={liveAgents}
-          selectTeam={selectTeam}
-          removeWidget={removeWidget}
-          recentlyAddedId={recentlyAddedId}
+          focusAgentId={focusAgentId}
+          onBack={closeLive}
+          onOpenProject={(teamId) => {
+            closeLive();
+            selectTeam(teamId);
+            navigate('project', teamId);
+          }}
+          onOpenTools={() => {
+            closeLive();
+            navigate('tools');
+          }}
         />
-      </div>
+      ) : (
+        <>
+          {/* ── Header ── */}
+          <section className={styles.header}>
+            <ViewHeader
+              eyebrow="Overview"
+              title={
+                <>
+                  Welcome back
+                  {user?.handle ? (
+                    <>
+                      {', '}
+                      <span style={{ color: userColor }}>{user.handle}</span>
+                    </>
+                  ) : null}
+                  .
+                </>
+              }
+            />
+
+            {failedTeams.length > 0 && (
+              <div className={styles.summaryNotice}>
+                <span className={styles.summaryNoticeLabel}>
+                  {failedTeams.length} {failedTeams.length === 1 ? 'project' : 'projects'}{' '}
+                  unavailable
+                </span>
+                <span className={styles.summaryNoticeText}>{failedLabel}</span>
+              </div>
+            )}
+
+            <div className={styles.rangeRow}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <ProjectFilter
+                  teams={teams}
+                  projectFilter={projectFilter}
+                  selectTeam={selectTeam}
+                />
+                {!isMobile && (
+                  <CustomizeButton
+                    active={catalogOpen}
+                    onClick={() => setCatalogOpen(!catalogOpen)}
+                  />
+                )}
+                <RangePills value={rangeDays} onChange={setRangeDays} options={RANGES} />
+              </div>
+            </div>
+          </section>
+
+          {analytics.degraded && (
+            <div className={styles.summaryNotice}>
+              <span className={styles.summaryNoticeLabel}>Partial data</span>
+              <span className={styles.summaryNoticeText}>
+                Analytics from {analytics.teams_included} of your projects. Some projects could not
+                be reached.
+              </span>
+            </div>
+          )}
+
+          {/* ── Widget Grid ── */}
+          <div className={styles.gridBleed}>
+            <GridContainer
+              editing={editing && !isMobile}
+              gridLayout={gridLayout}
+              onLayoutChange={handleLayoutChange}
+              onInteractionStart={beginInteraction}
+              onInteractionStop={commitLayout}
+              activeWidgets={activeWidgets}
+              analytics={analytics}
+              conversationData={conversationData}
+              summaries={sortedSummaries as Array<Record<string, unknown>>}
+              liveAgents={liveAgents}
+              selectTeam={selectTeam}
+              removeWidget={removeWidget}
+              recentlyAddedId={recentlyAddedId}
+            />
+          </div>
+
+          {/* ── Single-project hint (floating, bottom-center of content column) ── */}
+          {teams.length === 1 &&
+            !catalogOpen &&
+            !editing &&
+            !singleProjectHint.isDismissed(teams[0].team_id) && (
+              <InlineHint
+                actionLabel="Open dashboard"
+                onAction={() => {
+                  selectTeam(teams[0].team_id);
+                  navigate('project', teams[0].team_id);
+                }}
+                onDismiss={() => singleProjectHint.dismiss(teams[0].team_id)}
+              >
+                For a single project, the project dashboard has deeper detail.
+              </InlineHint>
+            )}
+        </>
+      )}
 
       {/* Visually-hidden live region for layout-change announcements. */}
       <div role="status" aria-live="polite" aria-atomic="true" className={styles.srOnly}>
         {announcement}
       </div>
-
-      {/* ── Single-project hint (floating, bottom-center of content column) ── */}
-      {teams.length === 1 &&
-        !catalogOpen &&
-        !editing &&
-        !singleProjectHint.isDismissed(teams[0].team_id) && (
-          <InlineHint
-            actionLabel="Open dashboard"
-            onAction={() => {
-              selectTeam(teams[0].team_id);
-              navigate('project', teams[0].team_id);
-            }}
-            onDismiss={() => singleProjectHint.dismiss(teams[0].team_id)}
-          >
-            For a single project, the project dashboard has deeper detail.
-          </InlineHint>
-        )}
 
       {/* ── Widget catalog ── */}
       <WidgetCatalog

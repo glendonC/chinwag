@@ -304,6 +304,8 @@ export function queryTeamSummary(sql: SqlStorage): TeamSummary & TelemetryBreakd
 
   // Active member details for the overview agents panel.
   // Exclude phantom members (CLI/web joins with no real tool identity).
+  // ORDER BY last_heartbeat DESC so the LIMIT 20 truncation is deterministic:
+  // the 20 shown are always the 20 most-recently-alive, not an arbitrary subset.
   const activeMembers = sql
     .exec(
       `SELECT m.agent_id, m.handle, m.host_tool, m.agent_surface,
@@ -315,6 +317,7 @@ export function queryTeamSummary(sql: SqlStorage): TeamSummary & TelemetryBreakd
        WHERE m.last_heartbeat > datetime('now', '-' || ? || ' seconds')
          AND m.host_tool IS NOT NULL
          AND m.host_tool != 'unknown'
+       ORDER BY m.last_heartbeat DESC
        LIMIT 20`,
       HEARTBEAT_ACTIVE_WINDOW_S,
     )

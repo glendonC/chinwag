@@ -1,0 +1,494 @@
+/* ═══════════════════════════════════════════
+   ReportsView — Catalog of reports
+   Stripped card: art + title + tagline + view.
+   All the extra detail lives in the hover tooltip.
+   ═══════════════════════════════════════════ */
+
+.reports {
+  animation: viewFadeIn 0.3s var(--motion) both;
+  /* Horizontal padding comes from App.module.css `.content`. Catalog uses
+     a negative margin to bleed into the gutter so card content aligns
+     with the title — same as OverviewView's gridBleed pattern. */
+
+  /* Shared grid tracks: referenced by both .catalogHeader and .row so
+     column widths stay aligned across the header and every data row.
+     Four columns: [art] [name+tagline] [freshness] [view]. Last column
+     is a fixed 80px — NOT `auto`, because auto sizes to content and the
+     header's empty span would collapse to 0 while the row's View pill
+     is ~62px, pushing every header label right of its data via the 1fr
+     column. */
+  --row-grid: 80px minmax(220px, 1fr) 160px 80px;
+  --row-gap: 28px;
+}
+
+@keyframes viewFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Toolbar (project picker, right-aligned) ── */
+
+/* Project badge lives on the LEFT directly below the ViewHeader, same
+   position as OverviewView's .rangeRow ProjectFilter. */
+.toolbar {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+/* Static project badge — matches OverviewView's .projectFilterStatic
+   visual so the "which project am I looking at" indicator reads
+   identically across views. Reports always run on the sidebar's
+   active project; switching projects happens there, not here. */
+
+.projectBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 12px 0 6px;
+  border: 1px solid var(--muted);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: var(--tracking-stat);
+  max-width: 240px;
+}
+
+.projectBadgeSwatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+
+.projectBadgeLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════
+   Catalog table (Directory-style grid, scaled up)
+
+   Grid columns: art · name+tagline · freshness · view
+   A shared --row-grid CSS variable keeps the header row and the data
+   rows aligned pixel-perfect — same track sizing and gap on both.
+   ═══════════════════════════════════════════ */
+
+.gradientDefs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.catalogHeader {
+  display: grid;
+  grid-template-columns: var(--row-grid);
+  gap: var(--row-gap);
+  align-items: baseline;
+  padding: 0 18px 14px;
+  margin-inline: -18px;
+}
+
+.headerLabel {
+  font-family: var(--mono);
+  font-size: var(--text-10);
+  font-weight: 500;
+  color: var(--soft);
+  letter-spacing: var(--tracking-table);
+  text-transform: uppercase;
+}
+
+.catalog {
+  display: flex;
+  flex-direction: column;
+  margin-inline: -18px;
+}
+
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--row-grid);
+  gap: var(--row-gap);
+  align-items: center;
+  width: 100%;
+  padding: 20px 18px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition:
+    background 0.12s ease,
+    opacity 0.2s ease;
+}
+
+.row:hover {
+  background: var(--hover-bg);
+}
+
+/* Dim non-hovered rows so the hovered row reads as the focal anchor.
+   :has(.row:hover) not :hover — only dim when a row is actually hovered,
+   not when the cursor is in the gap between rows. Prevents a flash of
+   "all rows dim" when sweeping between them. Opacity only (no filter
+   blur), so nothing extra composites. */
+.catalog:has(.row:hover) .row:not(:hover) {
+  opacity: 0.38;
+}
+
+/* ── Art slot: icon only, no background ──
+   The mesh gradient now lives inside the Lucide icon's stroke via a
+   per-report <linearGradient> (see ReportGradientDefs in
+   ReportsView.tsx). No squircle, no background layer — the icon is
+   the whole visual. */
+
+.rowArt {
+  display: flex;
+  align-items: center;
+  /* flex-start, not center: row padding + column centering was offsetting
+     the icon 12px right of the ViewHeader title. flex-start puts the icon
+     left edge flush with the content column's left edge. */
+  justify-content: flex-start;
+}
+
+@keyframes meshBreathe {
+  0%,
+  100% {
+    transform: translate(0%, 0%) scale(1);
+  }
+  33% {
+    transform: translate(2.2%, -1.6%) scale(1.04);
+  }
+  66% {
+    transform: translate(-1.8%, 1.2%) scale(1.02);
+  }
+}
+
+/* ── Row body (name + tagline) ── */
+
+.rowBody {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rowName {
+  font-family: var(--display);
+  font-size: var(--text-xl);
+  font-weight: 400;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.rowTagline {
+  font-size: var(--text-sm);
+  color: var(--soft);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* ── Freshness column ── */
+
+.freshness {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--muted);
+  letter-spacing: var(--tracking-stat);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── View pill ──
+   Filled-dark default like DirectoryView's .viewButton, slightly bigger
+   (6px 14px vs Directory's 4px 12px). On hover, the pill takes the row's
+   per-report palette color — Directory uses a single --accent for every
+   row, Reports gets red/blue/green/etc per report identity. */
+
+.rowView {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+  color: var(--page-bg);
+  background: var(--ink);
+  pointer-events: none;
+  flex-shrink: 0;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.row:hover .rowView {
+  color: #fff;
+  background: var(--report-color);
+  transform: scale(1.04);
+}
+
+/* ═══════════════════════════════════════════
+   Cursor-relative hover preview
+
+   Stays mounted across mouse-leave — visibility is toggled via the
+   .tooltipVisible class, not by unmounting, so repeat hovers never pay
+   layout/paint cost. On enter, fades in after a short delay (suppresses
+   flicker when sweeping across rows); on leave, fades out instantly.
+   ═══════════════════════════════════════════ */
+
+.tooltip {
+  position: fixed;
+  z-index: 100;
+  width: 380px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--page-bg);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg), var(--shadow-xs);
+  /* Clips the ::before mesh to the tooltip's rounded border. Safe for
+     the box-shadow — shadows render outside the element's border box,
+     they're not affected by overflow: hidden on the element. */
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(8px);
+  transition:
+    opacity 0.1s ease,
+    transform 0.1s ease;
+}
+
+/* Tooltip top band — a 64px accent at the top of the panel painted
+   with the hovered report's full mesh gradient, animated on the
+   shared meshBreathe loop. Border-radius handled by parent's
+   overflow: hidden, so no need to set it here. Masked to fade to
+   transparent at the bottom so the mesh blends into the panel body. */
+.tooltip::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: var(--report-mesh);
+  opacity: 0.28;
+  pointer-events: none;
+  mask-image: linear-gradient(to bottom, black 0%, black 35%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 35%, transparent 100%);
+  animation: meshBreathe 36s ease-in-out infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tooltip::before {
+    animation: none;
+  }
+}
+
+.tooltipVisible {
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    opacity 0.12s ease 0.15s,
+    transform 0.12s ease 0.15s;
+}
+
+.tooltipHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tooltipName {
+  font-family: var(--display);
+  font-size: var(--text-lg);
+  font-weight: 400;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  flex: 1;
+}
+
+.tooltipDescription {
+  font-size: var(--text-xs);
+  color: var(--soft);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.tooltipChipBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tooltipChipLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+}
+
+.tooltipChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.tooltipChip {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--ink);
+  padding: 3px 9px;
+  background: var(--ghost);
+  border-radius: var(--radius-pill);
+  letter-spacing: var(--tracking-stat);
+}
+
+.tooltipExample {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tooltipExampleLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+}
+
+.tooltipExampleText {
+  font-size: var(--text-xs);
+  color: var(--ink);
+  line-height: 1.55;
+  font-style: italic;
+  margin: 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--report-color);
+  opacity: 0.9;
+}
+
+.tooltipRunsBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tooltipRunsLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+}
+
+.tooltipRunsLatest {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--ink);
+  letter-spacing: var(--tracking-stat);
+}
+
+.tooltipTrust {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  letter-spacing: var(--tracking-stat);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Tooltip actions row ──
+   Mirrors DirectoryView's .tooltipActions: flex row pinned to the bottom
+   with a hairline separator, kbd chips + label per action. Two actions
+   for Reports: Enter → detail view, L → launch run. */
+
+.tooltipActions {
+  display: flex;
+  gap: 16px;
+  padding-top: 14px;
+  margin-top: 4px;
+  border-top: 1px solid var(--ghost);
+}
+
+.tooltipAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--sans);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+}
+
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  background: var(--ghost);
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1;
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 900px) {
+  .reports {
+    --row-grid: 56px minmax(0, 1fr) minmax(60px, max-content) 68px;
+    --row-gap: 12px;
+  }
+
+  .catalog {
+    margin-inline: -12px;
+  }
+
+  .catalogHeader {
+    display: none;
+  }
+
+  .row {
+    padding: 14px 12px;
+  }
+
+  .freshness {
+    font-size: var(--text-2xs);
+  }
+
+  .toolbar {
+    margin-bottom: 24px;
+  }
+
+  .tooltip {
+    display: none;
+  }
+}

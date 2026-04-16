@@ -21,6 +21,7 @@ import SettingsView from './views/SettingsView/SettingsView.js';
 import ToolsView from './views/ToolsView/ToolsView.js';
 import DirectoryView from './views/DirectoryView/DirectoryView.js';
 import GlobalView from './views/GlobalView/GlobalView.js';
+import ReportsView from './views/ReportsView/ReportsView.js';
 import Sidebar from './components/Sidebar/Sidebar.js';
 import Banner from './components/Banner/Banner.js';
 import RenderErrorBoundary from './components/RenderErrorBoundary/RenderErrorBoundary.js';
@@ -274,6 +275,11 @@ export default function App(): ReactNode {
           {activeView === 'global' && (
             <RenderErrorBoundary label="GlobalView" resetKey={activeView}>
               <GlobalView />
+            </RenderErrorBoundary>
+          )}
+          {activeView === 'reports' && (
+            <RenderErrorBoundary label="ReportsView" resetKey={activeView}>
+              <ReportsView />
             </RenderErrorBoundary>
           )}
           {activeView === 'settings' && (

@@ -1,0 +1,743 @@
+/* ═══════════════════════════════════════════
+   ReportRunView — live + completed run view
+   Typography-led hierarchy. Severity bar on findings.
+   ═══════════════════════════════════════════ */
+
+.run {
+  display: flex;
+  flex-direction: column;
+  gap: 44px;
+  padding-bottom: 64px;
+  animation: runFadeIn 0.35s var(--motion) both;
+}
+
+@keyframes runFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ═══════════════════════════════════════════
+   Header
+   ═══════════════════════════════════════════ */
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.headerMain {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 40px;
+}
+
+.headerCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 720px;
+  flex: 1;
+}
+
+.headerEyebrow {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+}
+
+.headerTitle {
+  font-family: var(--display);
+  font-size: var(--display-page);
+  font-weight: 300;
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+  color: var(--ink);
+  margin: 0;
+}
+
+.headerTagline {
+  font-size: var(--text-md);
+  color: var(--soft);
+  line-height: 1.4;
+  margin: 0;
+  font-weight: 300;
+}
+
+.headerStatus {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  padding-bottom: 4px;
+}
+
+.headerStatusLabel {
+  font-family: var(--mono);
+  font-size: var(--text-md);
+  color: var(--report-color);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.headerStatusDetail {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  letter-spacing: var(--tracking-stat);
+}
+
+.headerStatusPath {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  letter-spacing: var(--tracking-stat);
+  text-transform: lowercase;
+}
+
+/* ═══════════════════════════════════════════
+   Progress block (live)
+   ═══════════════════════════════════════════ */
+
+.progressBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 820px;
+}
+
+.progressTrack {
+  width: 100%;
+  height: 3px;
+  background: var(--ghost);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--report-color);
+  border-radius: 2px;
+  transition: width 0.45s var(--motion);
+}
+
+.phaseLabel {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  letter-spacing: var(--tracking-stat);
+  font-weight: 500;
+}
+
+/* ═══════════════════════════════════════════
+   Summary hero block (completed)
+   ═══════════════════════════════════════════ */
+
+.summaryBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 28px 32px 30px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--report-color) 5%, transparent);
+  position: relative;
+  overflow: hidden;
+  max-width: 920px;
+}
+
+.summaryBlock::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--report-gradient);
+  opacity: 0.05;
+  pointer-events: none;
+}
+
+.summaryLabel {
+  position: relative;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+}
+
+.summaryText {
+  position: relative;
+  font-family: var(--display);
+  font-size: var(--text-xl);
+  color: var(--ink);
+  line-height: 1.45;
+  margin: 0;
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  max-width: 780px;
+}
+
+/* ═══════════════════════════════════════════
+   Body / section heads
+   ═══════════════════════════════════════════ */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 4px;
+}
+
+.sectionTitle {
+  font-family: var(--display);
+  font-size: var(--text-xl);
+  font-weight: 300;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  margin: 0;
+  line-height: 1.1;
+}
+
+.sectionCount {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--muted);
+  letter-spacing: var(--tracking-stat);
+  padding: 2px 10px;
+  background: var(--ghost);
+  border-radius: var(--radius-pill);
+}
+
+.awaiting {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0;
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--muted);
+  letter-spacing: var(--tracking-stat);
+}
+
+.awaitingDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--report-color);
+  animation: livePulse 2s ease-in-out infinite;
+}
+
+@keyframes livePulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   Findings stream
+   ═══════════════════════════════════════════ */
+
+.findingsStream {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.findingsList {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+/* ═══════════════════════════════════════════
+   Finding card
+   ═══════════════════════════════════════════ */
+
+.finding {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-left: 24px;
+  max-width: 920px;
+  animation: findingLandIn 0.35s var(--motion) both;
+}
+
+.finding::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--severity-color);
+}
+
+.findingCritical {
+  --severity-color: var(--danger);
+}
+.findingWarning {
+  --severity-color: var(--warn);
+}
+.findingInfo {
+  --severity-color: var(--soft);
+}
+
+@keyframes findingLandIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.findingHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.severityChip {
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  padding: 4px 11px;
+  border-radius: var(--radius-pill);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  line-height: 1.4;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.severityCritical {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
+
+.severityWarning {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+}
+
+.severityInfo {
+  color: var(--muted);
+  background: var(--ghost);
+}
+
+.findingTitle {
+  font-family: var(--display);
+  font-size: var(--text-xl);
+  font-weight: 300;
+  line-height: 1.3;
+  color: var(--ink);
+  margin: 0;
+  flex: 1;
+  letter-spacing: -0.015em;
+}
+
+.findingBody {
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--soft);
+  margin: 0;
+  max-width: 760px;
+}
+
+/* ═══════════════════════════════════════════
+   Citations — clean grid layout
+   ═══════════════════════════════════════════ */
+
+.citationList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.citation {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: 18px;
+  padding: 6px 0;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+}
+
+.citationType {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.cite_session {
+  color: var(--info);
+}
+
+.cite_file {
+  color: var(--soft);
+}
+
+.cite_tool_call {
+  color: var(--accent);
+}
+
+.cite_memory {
+  color: var(--report-color);
+}
+
+.cite_conflict {
+  color: var(--warn);
+}
+
+.cite_metric {
+  color: var(--success);
+}
+
+.citationLabel {
+  color: var(--ink);
+  letter-spacing: var(--tracking-stat);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.citationDetail {
+  color: var(--muted);
+  letter-spacing: var(--tracking-stat);
+  text-align: right;
+}
+
+/* ═══════════════════════════════════════════
+   Finding actions — three categories, distinct
+   ═══════════════════════════════════════════ */
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  border: 1px solid var(--hairline);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+  font-weight: 500;
+  transition:
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
+}
+
+.action:hover {
+  transform: translateY(-1px);
+}
+
+/* State-change actions — primary, filled with report color tint */
+.actionState {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--report-color) 8%, transparent);
+  border-color: color-mix(in srgb, var(--report-color) 28%, transparent);
+}
+
+.actionState:hover {
+  color: #fff;
+  background: var(--report-color);
+  border-color: var(--report-color);
+}
+
+/* Export actions — outline, dashed border, take-with-you treatment */
+.actionExport {
+  color: var(--soft);
+  background: transparent;
+  border-color: var(--hairline);
+  border-style: dashed;
+}
+
+.actionExport:hover {
+  color: var(--ink);
+  border-color: var(--soft);
+  background: var(--ghost);
+}
+
+/* Spawn actions — accent blue, external-link iconography */
+.actionSpawn {
+  color: var(--accent);
+  background: transparent;
+  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.actionSpawn:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-color: var(--accent);
+}
+
+/* ═══════════════════════════════════════════
+   Coverage block (was "stats row")
+   ═══════════════════════════════════════════ */
+
+.coverageBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 920px;
+}
+
+.statsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 56px;
+  padding: 4px 0;
+}
+
+.statsItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.statsLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+}
+
+.statsValue {
+  font-family: var(--display);
+  font-size: var(--text-2xl);
+  font-weight: 300;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+/* ═══════════════════════════════════════════
+   Footer actions
+   ═══════════════════════════════════════════ */
+
+.footer {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding-top: 8px;
+}
+
+.footerBtn {
+  padding: 10px 18px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  border: 1px solid var(--hairline);
+  color: var(--soft);
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.footerBtn:hover {
+  color: var(--ink);
+  background: var(--ghost);
+}
+
+.footerBtnPrimary {
+  padding: 11px 22px;
+  border-radius: var(--radius-pill);
+  background: var(--report-color);
+  border: none;
+  color: #fff;
+  font-family: var(--sans);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    transform var(--motion-fast) ease,
+    box-shadow 0.2s var(--motion);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
+  margin-left: auto;
+}
+
+.footerBtnPrimary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px -8px var(--report-color);
+}
+
+.cancelBtn {
+  padding: 10px 18px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  border: 1px solid var(--hairline);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
+}
+
+.cancelBtn:hover {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+}
+
+/* ═══════════════════════════════════════════
+   Queued / failed / not-found
+   ═══════════════════════════════════════════ */
+
+.queuedBody,
+.failedBody {
+  max-width: 640px;
+  font-size: var(--text-sm);
+  color: var(--soft);
+  line-height: 1.55;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.notFound {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.notFoundTitle {
+  font-family: var(--display);
+  font-size: var(--display-section);
+  font-weight: 300;
+  color: var(--ink);
+  margin: 0;
+  letter-spacing: -0.025em;
+}
+
+.notFoundBody {
+  font-size: var(--text-sm);
+  color: var(--soft);
+  margin: 0;
+  max-width: 640px;
+}
+
+/* ═══════════════════════════════════════════
+   Responsive
+   ═══════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  .run {
+    gap: 32px;
+  }
+
+  .headerMain {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 18px;
+  }
+
+  .headerStatus {
+    align-items: flex-start;
+  }
+
+  .summaryBlock {
+    padding: 22px 22px 24px;
+  }
+
+  .summaryText {
+    font-size: var(--text-lg);
+  }
+
+  .findingsList {
+    gap: 32px;
+  }
+
+  .finding {
+    padding-left: 18px;
+  }
+
+  .findingTitle {
+    font-size: var(--text-lg);
+  }
+
+  .citation {
+    grid-template-columns: 64px minmax(0, 1fr);
+    row-gap: 2px;
+  }
+
+  .citationDetail {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .statsRow {
+    gap: 28px;
+  }
+
+  .footer {
+    flex-wrap: wrap;
+  }
+
+  .footerBtnPrimary {
+    margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .finding,
+  .progressFill,
+  .action,
+  .footerBtnPrimary {
+    transition: none;
+    animation: none;
+  }
+}

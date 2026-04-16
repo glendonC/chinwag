@@ -19,6 +19,7 @@ export default function Sidebar({ activeView, collapsed = false, onToggle }: Pro
   const toolsActive = activeView === 'tools';
   const directoryActive = activeView === 'directory';
   const globalActive = activeView === 'global';
+  const reportsActive = activeView === 'reports';
   const settingsActive = activeView === 'settings';
 
   const { resolved, setTheme } = useTheme();
@@ -255,6 +256,42 @@ export default function Sidebar({ activeView, collapsed = false, onToggle }: Pro
                 <path d="M1.5 8h13" stroke="currentColor" strokeWidth="1.2" />
               </svg>
               <span className={styles.navLabel}>Global</span>
+            </button>
+            <button
+              type="button"
+              className={clsx(styles.navItem, reportsActive && styles.navItemActive)}
+              onClick={go('reports')}
+              aria-current={reportsActive ? 'page' : undefined}
+              aria-label="Reports"
+              title="Reports"
+            >
+              <svg
+                className={styles.navIcon}
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+              >
+                <path
+                  d="M3 2h7l3 3v9H3V2z"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M10 2v3h3"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M5.5 12V10M8 12V8.5M10.5 12V9"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <span className={styles.navLabel}>Reports</span>
             </button>
             <button
               type="button"
