@@ -17,8 +17,9 @@ import StackToolDetail from './StackToolDetail.js';
 import Sparkline from './Sparkline.js';
 import StackAdoptionTimeline from './StackAdoptionTimeline.js';
 import StackWorkTypeMatrix from './StackWorkTypeMatrix.js';
-import ToolRhythm from './ToolRhythm.js';
-import HandoffFlow from './HandoffFlow.js';
+import StackConcurrency from './StackConcurrency.js';
+import SharedFileStream from './SharedFileStream.js';
+import SharedFileDetail from './SharedFileDetail.js';
 import CompareTools from './CompareTools.js';
 import { useScoredStackData, type ScoredToolRow } from './useScoredStackData.js';
 import { useToolsViewData, arcPath, CX, CY, R, SW } from './useToolsViewData.js';
@@ -53,6 +54,7 @@ const DIRECTORY_HINT_KEY = 'chinwag:tools-directory-hint-dismissed';
 
 export default function ToolsView() {
   const stackToolParam = useQueryParam('stack');
+  const fileParam = useQueryParam('file');
   const { rows: scoredRows, getDrillIn, isLoading, analytics } = useScoredStackData(30);
   const { arcs, uniqueTools, toolShare, evaluations } = useToolsViewData();
   const directoryHint = useDismissible(DIRECTORY_HINT_KEY);
@@ -68,13 +70,21 @@ export default function ToolsView() {
     return getDrillIn(stackToolParam);
   }, [stackToolParam, getDrillIn]);
 
+  // Stack and file detail panels are mutually exclusive — opening one
+  // clears the other so the URL always reflects a single active drill.
   const openStackTool = useCallback((toolId: string | null) => {
+    if (toolId) setQueryParam('file', null);
     setQueryParam('stack', toolId);
+  }, []);
+
+  const openFile = useCallback((filePath: string | null) => {
+    if (filePath) setQueryParam('stack', null);
+    setQueryParam('file', filePath);
   }, []);
 
   const pageRef = useRef<HTMLDivElement>(null);
   const [hoveredTool, setHoveredTool] = useState<string | null>(null);
-  const shifted = !!stackDrill;
+  const shifted = !!stackDrill || !!fileParam;
 
   // Scroll to top when entering/leaving detail
   useEffect(() => {
@@ -89,15 +99,17 @@ export default function ToolsView() {
     }
   }, [shifted]);
 
-  // Escape closes drill-in
+  // Escape closes whichever drill-in is open.
   useEffect(() => {
     if (!shifted) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') openStackTool(null);
+      if (e.key !== 'Escape') return;
+      if (stackDrill) openStackTool(null);
+      else if (fileParam) openFile(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [shifted, openStackTool]);
+  }, [shifted, stackDrill, fileParam, openStackTool, openFile]);
 
   if (isLoading && scoredRows.length === 0) {
     return (
@@ -370,16 +382,18 @@ export default function ToolsView() {
                 breakdown={analytics.tool_work_type}
                 onToolClick={openStackTool}
               />
-              <HandoffFlow handoffs={analytics.tool_handoffs} onToolClick={openStackTool} />
-              <ToolRhythm />
+              <SharedFileStream onFileClick={(path) => openFile(path)} />
+              <StackConcurrency />
             </div>
           )}
         </div>
 
         <div className={styles.detailPanel}>
-          {stackDrill && (
+          {stackDrill ? (
             <StackToolDetail drill={stackDrill} rangeDays={30} onBack={() => openStackTool(null)} />
-          )}
+          ) : fileParam ? (
+            <SharedFileDetail filePath={fileParam} onBack={() => openFile(null)} />
+          ) : null}
         </div>
       </div>
 

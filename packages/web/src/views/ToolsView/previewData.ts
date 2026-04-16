@@ -5,10 +5,11 @@
 // is replaced automatically — no flags, no toggles, no dead code path.
 //
 // Keep these numbers realistic: 3 tools with differentiated work-type
-// mixes, and 6 handoff rows in both directions between them.
+// mixes plus a small set of files co-edited across those tools to feed
+// the shared-file stream section.
 
 import type { ToolCallCategory } from '@chinwag/shared/tool-call-categories.js';
-import type { ToolWorkTypeBreakdown, ToolHandoff } from '../../lib/apiSchemas.js';
+import type { ToolWorkTypeBreakdown } from '../../lib/apiSchemas.js';
 
 export const PREVIEW_TOOL_WORK_TYPE: ToolWorkTypeBreakdown[] = [
   // Claude Code — feature-heavy, some refactor, some bugfix
@@ -39,42 +40,551 @@ export const PREVIEW_TOOL_WORK_TYPE: ToolWorkTypeBreakdown[] = [
   { host_tool: 'codex', work_type: 'other', sessions: 1, edits: 2 },
 ];
 
-export const PREVIEW_TOOL_HANDOFFS: ToolHandoff[] = [
+// ── Shared file stream ──
+// Per-file edit timelines where multiple tools have touched the same
+// file. This is the raw shape of cross-tool coordination at the file
+// grain — the list-view section computes handoff delta, tightest pair,
+// and everything else from these events, so every stat stays honest
+// against whatever shapes we mock in here.
+
+export type FileEditOutcome = 'completed' | 'abandoned' | 'failed';
+
+export interface FileEditEvent {
+  tool: string;
+  timestamp: string; // ISO — sequence order is what matters for the viz
+  sessionId: string;
+  sessionMinutes: number;
+  handle: string;
+  outcome: FileEditOutcome;
+  hadConflict: boolean;
+  lockContested: boolean;
+  linesAdded: number;
+  linesRemoved: number;
+  summary: string;
+}
+
+export interface SharedFile {
+  filePath: string;
+  projectLabel: string;
+  edits: FileEditEvent[];
+}
+
+export const PREVIEW_SHARED_FILES: SharedFile[] = [
   {
-    from_tool: 'claude-code',
-    to_tool: 'cursor',
-    file_count: 18,
-    handoff_completion_rate: 72,
+    filePath: 'packages/worker/src/auth/middleware.ts',
+    projectLabel: 'chinwag-api',
+    edits: [
+      {
+        tool: 'claude-code',
+        timestamp: '2026-04-07T09:14:00Z',
+        sessionId: 's-a01',
+        sessionMinutes: 42,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 28,
+        linesRemoved: 6,
+        summary: 'Add JWT validation layer',
+      },
+      {
+        tool: 'cursor',
+        timestamp: '2026-04-07T14:02:00Z',
+        sessionId: 's-a02',
+        sessionMinutes: 18,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 6,
+        linesRemoved: 2,
+        summary: 'Fix typo in error message',
+      },
+      {
+        tool: 'claude-code',
+        timestamp: '2026-04-08T10:30:00Z',
+        sessionId: 's-a03',
+        sessionMinutes: 64,
+        handle: 'mira',
+        outcome: 'abandoned',
+        hadConflict: true,
+        lockContested: true,
+        linesAdded: 0,
+        linesRemoved: 0,
+        summary: 'Refactor attempt — hit file lock from cursor',
+      },
+      {
+        tool: 'codex',
+        timestamp: '2026-04-08T11:15:00Z',
+        sessionId: 's-a04',
+        sessionMinutes: 31,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 14,
+        linesRemoved: 22,
+        summary: 'Extract helper function',
+      },
+      {
+        tool: 'claude-code',
+        timestamp: '2026-04-09T08:45:00Z',
+        sessionId: 's-a05',
+        sessionMinutes: 52,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 34,
+        linesRemoved: 4,
+        summary: 'Add session binding',
+      },
+      {
+        tool: 'cursor',
+        timestamp: '2026-04-10T16:20:00Z',
+        sessionId: 's-a06',
+        sessionMinutes: 12,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 3,
+        linesRemoved: 1,
+        summary: 'Update comment',
+      },
+      {
+        tool: 'claude-code',
+        timestamp: '2026-04-11T11:02:00Z',
+        sessionId: 's-a07',
+        sessionMinutes: 28,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 18,
+        linesRemoved: 3,
+        summary: 'Tighten audience check',
+      },
+    ],
   },
   {
-    from_tool: 'cursor',
-    to_tool: 'claude-code',
-    file_count: 14,
-    handoff_completion_rate: 61,
+    filePath: 'packages/web/src/App.tsx',
+    projectLabel: 'chinwag-web',
+    edits: [
+      {
+        tool: 'claude-code',
+        timestamp: '2026-04-06T10:00:00Z',
+        sessionId: 's-b01',
+        sessionMinutes: 35,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 42,
+        linesRemoved: 18,
+        summary: 'Route scaffold + query params',
+      },
+      {
+        tool: 'cursor',
+        timestamp: '2026-04-06T13:45:00Z',
+        sessionId: 's-b02',
+        sessionMinutes: 22,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 12,
+        linesRemoved: 3,
+        summary: 'Swap layout primitives',
+      },
+      {
+        tool: 'claude-code',
+        timestamp: '2026-04-07T09:30:00Z',
+        sessionId: 's-b03',
+        sessionMinutes: 48,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 26,
+        linesRemoved: 9,
+        summary: 'Wire sidebar + track transitions',
+      },
+      {
+        tool: 'cursor',
+        timestamp: '2026-04-08T15:10:00Z',
+        sessionId: 's-b04',
+        sessionMinutes: 15,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 4,
+        linesRemoved: 2,
+        summary: 'Hotkey tweak',
+      },
+      {
+        tool: 'claude-code',
+        timestamp: '2026-04-09T11:45:00Z',
+        sessionId: 's-b05',
+        sessionMinutes: 72,
+        handle: 'mira',
+        outcome: 'abandoned',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 0,
+        linesRemoved: 0,
+        summary: 'Routing rewrite — rolled back',
+      },
+      {
+        tool: 'cursor',
+        timestamp: '2026-04-10T10:05:00Z',
+        sessionId: 's-b06',
+        sessionMinutes: 19,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 8,
+        linesRemoved: 5,
+        summary: 'Split header into own component',
+      },
+      {
+        tool: 'claude-code',
+        timestamp: '2026-04-11T08:20:00Z',
+        sessionId: 's-b07',
+        sessionMinutes: 40,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 18,
+        linesRemoved: 6,
+        summary: 'Finish sidebar wiring',
+      },
+    ],
   },
   {
-    from_tool: 'claude-code',
-    to_tool: 'codex',
-    file_count: 9,
-    handoff_completion_rate: 83,
+    filePath: 'packages/worker/src/dos/team/analytics.ts',
+    projectLabel: 'chinwag-api',
+    edits: [
+      {
+        tool: 'claude-code',
+        timestamp: '2026-04-05T10:30:00Z',
+        sessionId: 's-c01',
+        sessionMinutes: 58,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 84,
+        linesRemoved: 12,
+        summary: 'Add tool_handoffs query',
+      },
+      {
+        tool: 'codex',
+        timestamp: '2026-04-06T11:00:00Z',
+        sessionId: 's-c02',
+        sessionMinutes: 36,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 28,
+        linesRemoved: 34,
+        summary: 'Extract helper for research-to-edit ratio',
+      },
+      {
+        tool: 'claude-code',
+        timestamp: '2026-04-07T14:15:00Z',
+        sessionId: 's-c03',
+        sessionMinutes: 65,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 52,
+        linesRemoved: 18,
+        summary: 'Wire zod schema to worker output',
+      },
+      {
+        tool: 'codex',
+        timestamp: '2026-04-08T09:40:00Z',
+        sessionId: 's-c04',
+        sessionMinutes: 24,
+        handle: 'mira',
+        outcome: 'failed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 0,
+        linesRemoved: 0,
+        summary: 'Type error in handoff query',
+      },
+      {
+        tool: 'claude-code',
+        timestamp: '2026-04-08T12:30:00Z',
+        sessionId: 's-c05',
+        sessionMinutes: 44,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 22,
+        linesRemoved: 8,
+        summary: 'Fix type error, land query',
+      },
+    ],
   },
   {
-    from_tool: 'codex',
-    to_tool: 'claude-code',
-    file_count: 6,
-    handoff_completion_rate: 67,
+    filePath: 'packages/mcp/lib/tools/memory.js',
+    projectLabel: 'chinwag-api',
+    edits: [
+      {
+        tool: 'claude-code',
+        timestamp: '2026-04-06T14:00:00Z',
+        sessionId: 's-d01',
+        sessionMinutes: 32,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 36,
+        linesRemoved: 4,
+        summary: 'Add delete_memories_batch tool',
+      },
+      {
+        tool: 'cursor',
+        timestamp: '2026-04-07T10:45:00Z',
+        sessionId: 's-d02',
+        sessionMinutes: 14,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 8,
+        linesRemoved: 2,
+        summary: 'Tighten arg validation',
+      },
+      {
+        tool: 'claude-code',
+        timestamp: '2026-04-09T09:15:00Z',
+        sessionId: 's-d03',
+        sessionMinutes: 42,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 26,
+        linesRemoved: 14,
+        summary: 'Freeform tags rewrite',
+      },
+    ],
   },
   {
-    from_tool: 'cursor',
-    to_tool: 'codex',
-    file_count: 4,
-    handoff_completion_rate: 50,
+    filePath: 'packages/web/src/views/OverviewView/OverviewView.tsx',
+    projectLabel: 'chinwag-web',
+    edits: [
+      {
+        tool: 'cursor',
+        timestamp: '2026-04-05T12:00:00Z',
+        sessionId: 's-e01',
+        sessionMinutes: 28,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 42,
+        linesRemoved: 18,
+        summary: 'Drag-and-drop grid',
+      },
+      {
+        tool: 'claude-code',
+        timestamp: '2026-04-06T10:15:00Z',
+        sessionId: 's-e02',
+        sessionMinutes: 56,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 68,
+        linesRemoved: 24,
+        summary: 'Widget catalog integration',
+      },
+      {
+        tool: 'cursor',
+        timestamp: '2026-04-07T16:40:00Z',
+        sessionId: 's-e03',
+        sessionMinutes: 21,
+        handle: 'mira',
+        outcome: 'abandoned',
+        hadConflict: true,
+        lockContested: true,
+        linesAdded: 0,
+        linesRemoved: 0,
+        summary: 'Rolled back — lock held by claude',
+      },
+      {
+        tool: 'claude-code',
+        timestamp: '2026-04-08T14:10:00Z',
+        sessionId: 's-e04',
+        sessionMinutes: 48,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 38,
+        linesRemoved: 16,
+        summary: 'Finish widget rubric hooks',
+      },
+      {
+        tool: 'cursor',
+        timestamp: '2026-04-10T11:30:00Z',
+        sessionId: 's-e05',
+        sessionMinutes: 24,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 14,
+        linesRemoved: 6,
+        summary: 'CSS polish pass',
+      },
+    ],
   },
   {
-    from_tool: 'codex',
-    to_tool: 'cursor',
-    file_count: 3,
-    handoff_completion_rate: 44,
+    filePath: 'packages/cli/lib/dashboard.jsx',
+    projectLabel: 'chinwag-api',
+    edits: [
+      {
+        tool: 'claude-code',
+        timestamp: '2026-04-05T15:30:00Z',
+        sessionId: 's-f01',
+        sessionMinutes: 38,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 52,
+        linesRemoved: 22,
+        summary: 'New agent row component',
+      },
+      {
+        tool: 'cursor',
+        timestamp: '2026-04-07T11:20:00Z',
+        sessionId: 's-f02',
+        sessionMinutes: 12,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 6,
+        linesRemoved: 3,
+        summary: 'Color palette tweak',
+      },
+      {
+        tool: 'claude-code',
+        timestamp: '2026-04-10T09:00:00Z',
+        sessionId: 's-f03',
+        sessionMinutes: 45,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 22,
+        linesRemoved: 8,
+        summary: 'Adaptive polling fallback',
+      },
+    ],
+  },
+  {
+    filePath: 'docs/ARCHITECTURE.md',
+    projectLabel: 'chinwag-api',
+    edits: [
+      {
+        tool: 'claude-code',
+        timestamp: '2026-04-04T16:00:00Z',
+        sessionId: 's-g01',
+        sessionMinutes: 72,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 124,
+        linesRemoved: 42,
+        summary: 'Code map rewrite',
+      },
+      {
+        tool: 'cursor',
+        timestamp: '2026-04-06T10:30:00Z',
+        sessionId: 's-g02',
+        sessionMinutes: 8,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 6,
+        linesRemoved: 2,
+        summary: 'Typo + link fix',
+      },
+    ],
+  },
+  {
+    filePath: 'scripts/migrate.sh',
+    projectLabel: 'chinwag-api',
+    edits: [
+      {
+        tool: 'codex',
+        timestamp: '2026-04-05T09:00:00Z',
+        sessionId: 's-h01',
+        sessionMinutes: 18,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 24,
+        linesRemoved: 8,
+        summary: 'Add db migration runner',
+      },
+      {
+        tool: 'claude-code',
+        timestamp: '2026-04-06T13:40:00Z',
+        sessionId: 's-h02',
+        sessionMinutes: 32,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 16,
+        linesRemoved: 12,
+        summary: 'Wire env var checks',
+      },
+      {
+        tool: 'codex',
+        timestamp: '2026-04-08T15:20:00Z',
+        sessionId: 's-h03',
+        sessionMinutes: 14,
+        handle: 'mira',
+        outcome: 'failed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 0,
+        linesRemoved: 0,
+        summary: 'Bash syntax error — exit nonzero',
+      },
+      {
+        tool: 'claude-code',
+        timestamp: '2026-04-08T16:00:00Z',
+        sessionId: 's-h04',
+        sessionMinutes: 22,
+        handle: 'mira',
+        outcome: 'completed',
+        hadConflict: false,
+        lockContested: false,
+        linesAdded: 8,
+        linesRemoved: 4,
+        summary: 'Fix bash quoting',
+      },
+    ],
   },
 ];
 
@@ -132,28 +642,35 @@ export const PREVIEW_TOOL_MODEL: ToolModelCell[] = [
   { toolId: 'codex', model: 'gpt-5.1', sessions: 25, completionRate: 72 },
 ];
 
-// ── Tool rhythm (when you use what) ──
-// 24-hour session distribution per tool, normalized share.
-// Rendered as small multiples — one mini chart per tool.
+// ── Stack concurrency (when your stack overlaps) ──
+// Per-tool 24-hour session distribution. The StackConcurrency component
+// computes, from this, which hours had 2+ tools active simultaneously —
+// the cross-tool coordination window that only a vendor-neutral observer
+// can see.
 export interface ToolHourlyEntry {
   toolId: string;
   hours: number[]; // length 24, hour 0 = midnight local
 }
 
-// Realistic shapes: Claude Code = workday focused, Cursor = late-night
-// bursts, Codex = scattered + early morning spikes.
-export const PREVIEW_TOOL_RHYTHM: ToolHourlyEntry[] = [
+// Shapes chosen to produce a clear narrative:
+//   - Early morning (6–8): Codex warm-up refactors, Claude joins at 7.
+//   - Core morning (9–11): Claude alone, focused feature work.
+//   - Afternoon (12–3): all three tools overlap — the peak window.
+//   - Evening (6–10): Cursor alone for quick fixes, Codex at 10 PM.
+// Peak = 3 tools concurrent from 1–4 PM, which is what the header stat
+// and the peak annotation both key off.
+export const PREVIEW_STACK_CONCURRENCY: ToolHourlyEntry[] = [
   {
     toolId: 'claude-code',
-    hours: [0, 0, 0, 0, 0, 1, 2, 4, 8, 14, 16, 12, 10, 11, 15, 18, 14, 8, 4, 3, 2, 1, 0, 0],
+    hours: [0, 0, 0, 0, 0, 0, 0, 2, 4, 8, 10, 12, 8, 10, 12, 9, 6, 3, 1, 0, 0, 0, 0, 0],
   },
   {
     toolId: 'cursor',
-    hours: [2, 3, 1, 0, 0, 0, 0, 2, 3, 5, 6, 5, 4, 5, 4, 6, 8, 10, 12, 14, 10, 8, 5, 3],
+    hours: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 4, 6, 5, 4, 3, 5, 7, 8, 5, 2, 0],
   },
   {
     toolId: 'codex',
-    hours: [1, 0, 0, 0, 0, 3, 5, 4, 2, 1, 1, 1, 2, 2, 3, 3, 2, 1, 2, 1, 1, 2, 3, 1],
+    hours: [0, 0, 0, 0, 0, 0, 2, 3, 2, 0, 0, 0, 0, 2, 3, 2, 0, 0, 0, 0, 0, 0, 1, 0],
   },
 ];
 
