@@ -459,13 +459,14 @@ const SENTIMENT_VALENCE: Record<string, number> = {
 };
 
 function getDominantSentiment(sentiments: string[]): string | null {
-  if (sentiments.length === 0) return null;
+  const first = sentiments[0];
+  if (!first) return null;
   const counts: Record<string, number> = {};
   for (const s of sentiments) {
     counts[s] = (counts[s] || 0) + 1;
   }
   let max = 0;
-  let dominant = sentiments[0];
+  let dominant = first;
   for (const [sentiment, count] of Object.entries(counts)) {
     if (count > max) {
       max = count;

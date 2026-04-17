@@ -102,7 +102,8 @@ export class RoomDO extends DurableObject<Env> {
     }
 
     const pair = new WebSocketPair();
-    const [client, server] = Object.values(pair);
+    const client = pair[0];
+    const server = pair[1];
 
     this.ctx.acceptWebSocket(server, [handle]);
     this.sessions.set(server, { handle, color });

@@ -42,7 +42,9 @@ export function mergeHourly(acc: HourlyAcc, team: TeamResult): void {
 
 export function projectHourly(acc: HourlyAcc): HourlyBucket[] {
   return [...acc.entries()].map(([key, v]) => {
-    const [hour, dow] = key.split('-').map(Number);
+    const [hourStr, dowStr] = key.split('-');
+    const hour = Number(hourStr);
+    const dow = Number(dowStr);
     return { hour, dow, sessions: v.sessions, edits: v.edits };
   });
 }

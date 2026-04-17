@@ -30,7 +30,8 @@ function timingSafeEqual(a: unknown, b: unknown): boolean {
   const bufB = encoder.encode(b);
   let result = 0;
   for (let i = 0; i < bufA.length; i++) {
-    result |= bufA[i] ^ bufB[i];
+    // Loop bound is bufA.length, and bufA.length === bufB.length was checked above.
+    result |= (bufA[i] ?? 0) ^ (bufB[i] ?? 0);
   }
   return result === 0;
 }
@@ -108,6 +109,7 @@ export const handleListDirectory = publicRoute(async ({ request, env }) => {
 
 export const handleGetDirectoryEntry = publicRoute(async ({ env, params }) => {
   const toolId = params[0];
+  if (!toolId) return json({ error: 'Tool not found' }, 404);
   const db = getDB(env);
   const result = rpc(await db.getEvaluation(toolId));
   if (!result.evaluation) return json({ error: 'Tool not found' }, 404);
@@ -200,13 +202,15 @@ export const handlePromoteCategory = publicRoute(async ({ request, env }) => {
 
 export const handleGetIcon = publicRoute(async ({ env, params }) => {
   const toolId = params[0];
+  if (!toolId) return json({ error: 'Icon not found' }, 404);
   const cached = await getCachedIcon(toolId, env);
   if (cached) {
     // Parse data URI to extract content type and body
     const match = cached.match(/^data:([^;]+);base64,(.+)$/);
-    if (match) {
-      const contentType = match[1];
-      const body = Uint8Array.from(atob(match[2]), (c) => c.charCodeAt(0));
+    const contentType = match?.[1];
+    const payload = match?.[2];
+    if (contentType && payload) {
+      const body = Uint8Array.from(atob(payload), (c) => c.charCodeAt(0));
       return new Response(body, {
         headers: {
           'Content-Type': contentType,
@@ -407,6 +411,7 @@ export const handleReviewSuggestion = publicRoute(async ({ request, env, params 
   }
 
   const id = params[0];
+  if (!id) return json({ error: 'Suggestion id required' }, 400);
   const action = b.action;
   if (action !== 'approve' && action !== 'reject') {
     return json({ error: "action must be 'approve' or 'reject'" }, 400);
@@ -436,6 +441,7 @@ export const handleReviewSuggestion = publicRoute(async ({ request, env, params 
 export const handleReportStale = publicRoute(async ({ request, env, params }) => {
   return withIpRateLimit(request, env, 'report-stale', 10, async () => {
     const toolId = params[0];
+    if (!toolId) return json({ error: 'Tool not found' }, 404);
     const db = getDB(env);
 
     const existing = rpc(await db.getEvaluation(toolId));

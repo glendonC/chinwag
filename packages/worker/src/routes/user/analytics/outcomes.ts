@@ -154,7 +154,7 @@ export function projectModelOutcomes(acc: ModelOutcomesAcc): ModelOutcome[] {
   return [...acc.entries()]
     .sort(([, a], [, b]) => b.count - a.count)
     .map(([key, v]) => {
-      const [agent_model, outcome] = key.split(':');
+      const [agent_model = '', outcome = ''] = key.split(':');
       return {
         agent_model,
         outcome,

@@ -76,8 +76,7 @@ export const handleDashboardSummary = authedRoute(async ({ user, env }) => {
   const loadedTeams: Record<string, unknown>[] = [];
   const failedTeams: Array<{ team_id: string; team_name: string | null }> = [];
 
-  for (let i = 0; i < results.length; i++) {
-    const r = results[i];
+  for (const [i, r] of results.entries()) {
     if (r.status === 'rejected') {
       // Promise.allSettled should not produce rejected results here because
       // the inner mapper already catches all errors, but handle defensively.
@@ -91,12 +90,15 @@ export const handleDashboardSummary = authedRoute(async ({ user, env }) => {
       });
       continue;
     }
-    if (r.value?.ok && 'team' in r.value) loadedTeams.push(r.value.team);
-    else if (r.value && 'team_id' in r.value)
+    const value = r.value;
+    if (value.ok) {
+      loadedTeams.push(value.team);
+    } else {
       failedTeams.push({
-        team_id: r.value.team_id,
-        team_name: r.value.team_name,
+        team_id: value.team_id,
+        team_name: value.team_name,
       });
+    }
   }
 
   const response = {

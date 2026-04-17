@@ -103,7 +103,7 @@ function parseClassificationResponse(
   const byNumber = new Map<number, { sentiment: string; topic: string }>();
   for (const line of lines) {
     const match = line.match(/\[(\d+)\]\s+(\S+)\s+(\S+)/);
-    if (match) {
+    if (match && match[1] && match[2] && match[3]) {
       byNumber.set(parseInt(match[1], 10), {
         sentiment: match[2].toLowerCase(),
         topic: match[3].toLowerCase(),

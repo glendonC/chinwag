@@ -36,9 +36,12 @@ function cosineSimilarity(a: Float32Array, b: Float32Array): number {
   let normA = 0;
   let normB = 0;
   for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
+    // Loop bound is a.length, so a[i] is always defined; b is asserted to match (caller contract).
+    const av = a[i] ?? 0;
+    const bv = b[i] ?? 0;
+    dot += av * bv;
+    normA += av * av;
+    normB += bv * bv;
   }
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }

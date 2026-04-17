@@ -141,8 +141,9 @@ const NOUNS = [
 ] as const;
 
 function generateHandle(): string {
-  const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
-  const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
+  // Math.floor(Math.random() * len) is guaranteed in-bounds for a non-empty const array.
+  const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)] ?? 'swift';
+  const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)] ?? 'fox';
   return adj + noun;
 }
 
@@ -167,7 +168,8 @@ function resolveUniqueHandle(sql: SqlStorage, preferred: string): string | null 
 export function createUser(sql: SqlStorage): DOResult<NewUser & { ok: true }> {
   const id = crypto.randomUUID();
   const token = crypto.randomUUID();
-  const color = VALID_COLORS[Math.floor(Math.random() * VALID_COLORS.length)];
+  // Math.floor(Math.random() * len) is guaranteed in-bounds for VALID_COLORS (non-empty const).
+  const color = VALID_COLORS[Math.floor(Math.random() * VALID_COLORS.length)] ?? 'white';
   const now = toSQLDateTime();
 
   const handle = resolveUniqueHandle(sql, generateHandle());
@@ -287,7 +289,8 @@ export function createUserFromGithub(
 ): DOResult<NewUser & { ok: true }> {
   const id = crypto.randomUUID();
   const token = crypto.randomUUID();
-  const color = VALID_COLORS[Math.floor(Math.random() * VALID_COLORS.length)];
+  // Math.floor(Math.random() * len) is guaranteed in-bounds for VALID_COLORS (non-empty const).
+  const color = VALID_COLORS[Math.floor(Math.random() * VALID_COLORS.length)] ?? 'white';
   const now = toSQLDateTime();
 
   let preferred = githubLogin.replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 20);

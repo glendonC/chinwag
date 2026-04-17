@@ -139,7 +139,9 @@ export function projectToolHourly(acc: ToolHourlyAcc): ToolHourlyBucket[] {
   return [...acc.entries()].map(([key, v]) => {
     const sep = key.lastIndexOf(':');
     const timePart = key.slice(sep + 1);
-    const [hour, dow] = timePart.split('-').map(Number);
+    const [hourStr, dowStr] = timePart.split('-');
+    const hour = Number(hourStr);
+    const dow = Number(dowStr);
     return { host_tool: key.slice(0, sep), hour, dow, sessions: v.sessions, edits: v.edits };
   });
 }

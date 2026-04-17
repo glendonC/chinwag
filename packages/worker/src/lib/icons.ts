@@ -92,7 +92,8 @@ export async function cacheIconAndExtractColor(
     const bytes = new Uint8Array(buf);
     let binary = '';
     for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i]);
+      // Loop bound is bytes.length, so bytes[i] is always defined.
+      binary += String.fromCharCode(bytes[i] ?? 0);
     }
     const base64 = btoa(binary);
     const dataUri = `data:${contentType};base64,${base64}`;
@@ -261,29 +262,30 @@ function dominantColorFromPixels(
 
   let offset = 0;
   for (let y = 0; y < height; y++) {
-    const filterType = raw[offset++];
+    // offset < expectedLen <= raw.length is guaranteed by the length check above.
+    const filterType = raw[offset++] ?? 0;
 
     // Read and un-filter the row
     for (let x = 0; x < rowBytes; x++) {
-      const rawByte = raw[offset++];
+      // All reads below are in-range because rowBytes slots follow the filter byte on each row.
+      const rawByte = raw[offset++] ?? 0;
+      const prevAt = prevRow[x] ?? 0;
+      const leftAt = x >= bpp ? (currRow[x - bpp] ?? 0) : 0;
       let val = rawByte;
 
       if (filterType === 1) {
         // Sub: add left neighbor
-        val = (rawByte + (x >= bpp ? currRow[x - bpp] : 0)) & 0xff;
+        val = (rawByte + leftAt) & 0xff;
       } else if (filterType === 2) {
         // Up: add above neighbor
-        val = (rawByte + prevRow[x]) & 0xff;
+        val = (rawByte + prevAt) & 0xff;
       } else if (filterType === 3) {
         // Average
-        const left = x >= bpp ? currRow[x - bpp] : 0;
-        val = (rawByte + ((left + prevRow[x]) >> 1)) & 0xff;
+        val = (rawByte + ((leftAt + prevAt) >> 1)) & 0xff;
       } else if (filterType === 4) {
         // Paeth
-        const a = x >= bpp ? currRow[x - bpp] : 0;
-        const b = prevRow[x];
-        const c = x >= bpp ? prevRow[x - bpp] : 0;
-        val = (rawByte + paethPredictor(a, b, c)) & 0xff;
+        const prevLeft = x >= bpp ? (prevRow[x - bpp] ?? 0) : 0;
+        val = (rawByte + paethPredictor(leftAt, prevAt, prevLeft)) & 0xff;
       }
 
       currRow[x] = val;
@@ -295,7 +297,7 @@ function dominantColorFromPixels(
 
       if (colorType === 3 && palette) {
         // Indexed color
-        const idx = currRow[px] * 3;
+        const idx = (currRow[px] ?? 0) * 3;
         r = palette[idx] ?? 0;
         g = palette[idx + 1] ?? 0;
         b = palette[idx + 2] ?? 0;
@@ -303,16 +305,16 @@ function dominantColorFromPixels(
       } else if (colorType === 6) {
         // RGBA
         const base = px * 4;
-        r = currRow[base];
-        g = currRow[base + 1];
-        b = currRow[base + 2];
-        a = currRow[base + 3];
+        r = currRow[base] ?? 0;
+        g = currRow[base + 1] ?? 0;
+        b = currRow[base + 2] ?? 0;
+        a = currRow[base + 3] ?? 0;
       } else {
         // RGB
         const base = px * 3;
-        r = currRow[base];
-        g = currRow[base + 1];
-        b = currRow[base + 2];
+        r = currRow[base] ?? 0;
+        g = currRow[base + 1] ?? 0;
+        b = currRow[base + 2] ?? 0;
         a = 255;
       }
 
@@ -326,7 +328,8 @@ function dominantColorFromPixels(
 
       // Bucket into 4-bit per channel (16 levels)
       const bucket = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
-      histogram[bucket]++;
+      // bucket is in [0, 4095]; histogram has length 4096.
+      histogram[bucket] = (histogram[bucket] ?? 0) + 1;
     }
 
     // Save current row as previous for next iteration
@@ -337,8 +340,9 @@ function dominantColorFromPixels(
   let maxCount = 0;
   let maxBucket = 0;
   for (let i = 0; i < 4096; i++) {
-    if (histogram[i] > maxCount) {
-      maxCount = histogram[i];
+    const count = histogram[i] ?? 0;
+    if (count > maxCount) {
+      maxCount = count;
       maxBucket = i;
     }
   }
@@ -386,17 +390,19 @@ export async function extractColorFromPNGAsync(data: Uint8Array): Promise<string
 
     while (offset < data.length - 4) {
       const chunkLen = view.getUint32(offset);
+      // The PNG structure guarantees 4 type bytes follow the length field;
+      // bounds were checked via `offset < data.length - 4`.
       const chunkType =
-        String.fromCharCode(data[offset + 4]) +
-        String.fromCharCode(data[offset + 5]) +
-        String.fromCharCode(data[offset + 6]) +
-        String.fromCharCode(data[offset + 7]);
+        String.fromCharCode(data[offset + 4] ?? 0) +
+        String.fromCharCode(data[offset + 5] ?? 0) +
+        String.fromCharCode(data[offset + 6] ?? 0) +
+        String.fromCharCode(data[offset + 7] ?? 0);
 
       if (chunkType === 'IHDR') {
         width = view.getUint32(offset + 8);
         height = view.getUint32(offset + 12);
-        bitDepth = data[offset + 16];
-        colorType = data[offset + 17];
+        bitDepth = data[offset + 16] ?? 0;
+        colorType = data[offset + 17] ?? 0;
       } else if (chunkType === 'PLTE') {
         palette = data.slice(offset + 8, offset + 8 + chunkLen);
       } else if (chunkType === 'IDAT') {

@@ -57,7 +57,10 @@ export function sanitizeTags(arr: unknown): string[] {
 export function parseTeamPath(path: string): TeamPathResult | null {
   const match = path.match(/^\/teams\/(t_[a-f0-9]{16})\/([a-z]+)$/);
   if (!match) return null;
-  return { teamId: match[1], action: match[2] };
+  const teamId = match[1];
+  const action = match[2];
+  if (!teamId || !action) return null;
+  return { teamId, action };
 }
 
 /**

@@ -110,6 +110,7 @@ export function teamRoute(
   return (request, env, user, ...params) => {
     const u = user as User;
     const teamId = params[0];
+    if (!teamId) return new Response('Missing team id', { status: 400 });
     const runtime = getAgentRuntime(request, u);
     return handler({
       request,
@@ -138,6 +139,7 @@ export function teamJsonRoute(
     if (parseErr) return parseErr;
     const u = user as User;
     const teamId = params[0];
+    if (!teamId) return new Response('Missing team id', { status: 400 });
     const runtime = getAgentRuntime(request, u);
     return handler({
       request,

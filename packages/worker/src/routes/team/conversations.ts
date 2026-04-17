@@ -98,14 +98,16 @@ export const handleTeamRecordConversation = teamJsonRoute(
 
     const userMessages = typedEvents
       .map((e, i) => ({ content: e.content, index: i }))
-      .filter((_, i) => typedEvents[i].role === 'user');
+      .filter((_, i) => typedEvents[i]?.role === 'user');
 
     if (userMessages.length > 0) {
       try {
         const classifications = await classifyConversationMessages(userMessages, env);
         for (const c of classifications) {
-          if (c.sentiment) typedEvents[c.index].sentiment = c.sentiment;
-          if (c.topic) typedEvents[c.index].topic = c.topic;
+          const target = typedEvents[c.index];
+          if (!target) continue;
+          if (c.sentiment) target.sentiment = c.sentiment;
+          if (c.topic) target.topic = c.topic;
         }
       } catch (err) {
         // Non-critical: store events without classification

@@ -53,7 +53,7 @@ function addColumnIfMissing(
   backfill: string | null = null,
 ): void {
   const columnName = definition.trim().split(/\s+/, 1)[0];
-  if (hasColumn(sql, table, columnName)) return;
+  if (!columnName || hasColumn(sql, table, columnName)) return;
   const statement = `ALTER TABLE ${table} ADD COLUMN ${definition}`;
   try {
     sql.exec(statement);

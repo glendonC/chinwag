@@ -50,7 +50,11 @@ export async function getCategories(env: Env): Promise<Record<string, CategoryEn
     const seedKeys = Object.keys(SEED_CATEGORIES);
     const missing = seedKeys.filter((k) => !existing[k]);
     if (missing.length > 0) {
-      for (const k of missing) existing[k] = SEED_CATEGORIES[k];
+      for (const k of missing) {
+        // k came from Object.keys(SEED_CATEGORIES) so the lookup is always defined.
+        const seed = SEED_CATEGORIES[k];
+        if (seed) existing[k] = seed;
+      }
       await env.AUTH_KV.put(KV_KEY_REGISTRY, JSON.stringify(existing));
     }
     return existing;

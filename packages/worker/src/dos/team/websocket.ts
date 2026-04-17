@@ -69,7 +69,8 @@ export async function handleFetch(wsCtx: WsCtx, request: Request): Promise<Respo
   const roleParam = url.searchParams.get('role');
   const role = roleParam === 'agent' ? 'agent' : roleParam === 'daemon' ? 'daemon' : 'watcher';
   const pair = new WebSocketPair();
-  const [client, server] = Object.values(pair);
+  const client = pair[0];
+  const server = pair[1];
 
   // Agents and daemons can report available spawn tools via query string — stored as
   // WebSocket tags so they survive DO hibernation and can be queried for context responses.

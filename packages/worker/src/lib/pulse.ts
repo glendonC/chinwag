@@ -30,8 +30,10 @@ function parseGitHubRepo(url: string): { owner: string; repo: string } | null {
     const parsed = new URL(url);
     if (parsed.hostname !== 'github.com') return null;
     const parts = parsed.pathname.split('/').filter(Boolean);
-    if (parts.length < 2) return null;
-    return { owner: parts[0], repo: parts[1] };
+    const owner = parts[0];
+    const repo = parts[1];
+    if (!owner || !repo) return null;
+    return { owner, repo };
   } catch {
     return null;
   }
