@@ -17,6 +17,7 @@ import {
   MAX_HEARTBEAT_FAILURES,
   TEAM_ID_MAX_LENGTH,
   API_TIMEOUT_MS,
+  nextHeartbeatRecoveryDelay,
 } from '../constants.js';
 import type { AddToolFn, ToolDeps } from './types.js';
 
@@ -64,27 +65,37 @@ export function registerTeamTool(
           state.heartbeatRecoveryTimeout = null;
         }
         let consecutiveFailures = 0;
+        let recoveryDelay = HEARTBEAT_RECOVERY_INTERVAL_MS;
+        let recoveryAttempts = 0;
 
         function startRecoveryTimer(): void {
           if (state.heartbeatRecoveryTimeout) clearTimeout(state.heartbeatRecoveryTimeout);
+          const delay = recoveryDelay;
           state.heartbeatRecoveryTimeout = setTimeout(async () => {
             state.heartbeatRecoveryTimeout = null;
+            recoveryAttempts++;
             if (!state.teamId || state.shuttingDown) return;
             try {
               await withTimeout(team.heartbeat(state.teamId), HEARTBEAT_TIMEOUT_MS);
-              // Recovery succeeded — restart normal heartbeat loop
               log.info('Heartbeat recovery succeeded, resuming normal interval');
               consecutiveFailures = 0;
+              recoveryDelay = HEARTBEAT_RECOVERY_INTERVAL_MS;
+              recoveryAttempts = 0;
               state.heartbeatDead = false;
               state.heartbeatInterval = setInterval(() => {
                 void runHeartbeat();
               }, HEARTBEAT_INTERVAL_MS);
             } catch {
-              // Recovery failed — schedule another attempt
-              log.warn('Heartbeat recovery attempt failed, will retry');
+              recoveryDelay = nextHeartbeatRecoveryDelay(recoveryDelay);
+              // Log first few attempts then throttle to every 10th.
+              if (recoveryAttempts <= 3 || recoveryAttempts % 10 === 0) {
+                log.warn(
+                  `Heartbeat recovery failed (attempt ${recoveryAttempts}), next in ${Math.round(recoveryDelay / 1000)}s`,
+                );
+              }
               startRecoveryTimer();
             }
-          }, HEARTBEAT_RECOVERY_INTERVAL_MS);
+          }, delay);
         }
 
         async function runHeartbeat(): Promise<void> {

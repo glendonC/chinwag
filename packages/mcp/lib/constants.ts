@@ -39,8 +39,19 @@ export const STUCKNESS_THRESHOLD_MINUTES = 15;
 export const HEARTBEAT_INTERVAL_MS = 30_000;
 /** Consecutive heartbeat failures before giving up */
 export const MAX_HEARTBEAT_FAILURES = 20;
-/** Interval between recovery heartbeat attempts after heartbeat death */
+/** Initial interval between recovery heartbeat attempts after heartbeat death */
 export const HEARTBEAT_RECOVERY_INTERVAL_MS = 300_000;
+/** Cap on exponential backoff between recovery attempts */
+export const HEARTBEAT_RECOVERY_CAP_MS = 30 * 60 * 1000;
+
+/**
+ * Next recovery delay under exponential backoff, capped at HEARTBEAT_RECOVERY_CAP_MS.
+ * Deterministic (no jitter): only one MCP instance per agent, so thundering herd risk
+ * is minimal and deterministic timing keeps tests simple.
+ */
+export function nextHeartbeatRecoveryDelay(currentDelay: number): number {
+  return Math.min(currentDelay * 2, HEARTBEAT_RECOVERY_CAP_MS);
+}
 
 // --- Reconnect backoff ---
 /**

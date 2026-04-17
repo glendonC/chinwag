@@ -198,21 +198,88 @@ describe('heartbeat recovery', () => {
 
     expect(state.heartbeatDead).toBe(true);
 
-    // First recovery attempt fails too
+    // First recovery attempt fails at 5 min; backoff doubles next delay to 10 min.
     await vi.advanceTimersByTimeAsync(300_000);
 
-    // Should still be dead, but recovery timeout should be rescheduled
     expect(state.heartbeatDead).toBe(true);
     expect(state.heartbeatRecoveryTimeout).not.toBeNull();
 
-    // Now make recovery succeed on the second attempt
+    // Now make recovery succeed on the second attempt, which fires at +10 min.
     team.heartbeat.mockResolvedValue({ ok: true });
-    await vi.advanceTimersByTimeAsync(300_000);
+    await vi.advanceTimersByTimeAsync(600_000);
 
     expect(state.heartbeatDead).toBe(false);
     expect(state.heartbeatInterval).not.toBeNull();
 
     clearInterval(state.heartbeatInterval);
+  });
+
+  it('applies exponential backoff and caps at 30 minutes', async () => {
+    await server.callTool('chinwag_join_team', { team_id: 't_hb_backoff' });
+
+    team.heartbeat.mockRejectedValue(new Error('Network error'));
+
+    for (let i = 0; i < 20; i++) {
+      await vi.advanceTimersByTimeAsync(30_000);
+    }
+    expect(state.heartbeatDead).toBe(true);
+
+    // 1st attempt at 5 min
+    await vi.advanceTimersByTimeAsync(300_000);
+    expect(state.heartbeatRecoveryTimeout).not.toBeNull();
+
+    // 2nd attempt at +10 min (not +5)
+    await vi.advanceTimersByTimeAsync(300_000);
+    // timer still pending, would only fire at +600k
+    expect(state.heartbeatRecoveryTimeout).not.toBeNull();
+    await vi.advanceTimersByTimeAsync(300_000);
+    // now fired; 3rd attempt scheduled at +20 min
+    expect(state.heartbeatRecoveryTimeout).not.toBeNull();
+
+    // 3rd attempt at +20 min
+    await vi.advanceTimersByTimeAsync(1_200_000);
+    // 4th attempt at +30 min (cap)
+    await vi.advanceTimersByTimeAsync(1_800_000);
+    // 5th also capped at 30 min
+    await vi.advanceTimersByTimeAsync(1_800_000);
+    expect(state.heartbeatRecoveryTimeout).not.toBeNull();
+
+    clearTimeout(state.heartbeatRecoveryTimeout);
+  });
+
+  it('resets backoff to base delay after recovery succeeds', async () => {
+    await server.callTool('chinwag_join_team', { team_id: 't_hb_reset' });
+
+    team.heartbeat.mockRejectedValue(new Error('Network error'));
+
+    for (let i = 0; i < 20; i++) {
+      await vi.advanceTimersByTimeAsync(30_000);
+    }
+
+    // Fail 1st recovery, fail 2nd, succeed 3rd.
+    await vi.advanceTimersByTimeAsync(300_000); // 1st fails
+    await vi.advanceTimersByTimeAsync(600_000); // 2nd fails
+    team.heartbeat.mockResolvedValue({ ok: true });
+    await vi.advanceTimersByTimeAsync(1_200_000); // 3rd succeeds at +20 min
+    expect(state.heartbeatDead).toBe(false);
+
+    // Force another death cycle: the reset means the first recovery
+    // after the new death fires at the base 5 min, not the previous capped delay.
+    team.heartbeat.mockRejectedValue(new Error('Network error'));
+    for (let i = 0; i < 20; i++) {
+      await vi.advanceTimersByTimeAsync(30_000);
+    }
+    expect(state.heartbeatDead).toBe(true);
+
+    // Advance just under 5 min — no recovery fires yet.
+    await vi.advanceTimersByTimeAsync(299_000);
+    expect(state.heartbeatRecoveryTimeout).not.toBeNull();
+
+    // Advance to 5 min — first recovery fires (and fails, rescheduling at 10 min).
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(state.heartbeatRecoveryTimeout).not.toBeNull();
+
+    clearTimeout(state.heartbeatRecoveryTimeout);
   });
 
   // --- tool response includes degraded warning when heartbeatDead ---
