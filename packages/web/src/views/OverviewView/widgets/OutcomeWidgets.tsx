@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import SectionEmpty from '../../../components/SectionEmpty/SectionEmpty.js';
 import { getToolMeta } from '../../../lib/toolMeta.js';
-import { WORK_TYPE_COLORS } from '../overview-utils.js';
+import { workTypeColor } from '../overview-utils.js';
 import type { UserAnalytics } from '../../../lib/apiSchemas.js';
 import styles from '../OverviewView.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
@@ -113,7 +113,7 @@ function WorkTypeOutcomesWidget({ analytics }: WidgetBodyProps) {
               className={styles.metricBarFill}
               style={{
                 width: `${w.completion_rate}%`,
-                background: WORK_TYPE_COLORS[w.work_type] || WORK_TYPE_COLORS.other,
+                background: workTypeColor(w.work_type),
                 opacity: 'var(--opacity-bar-fill)',
               }}
             />

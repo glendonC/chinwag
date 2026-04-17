@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import SectionEmpty from '../../../components/SectionEmpty/SectionEmpty.js';
-import { DAY_LABELS, WORK_TYPE_COLORS, buildHeatmapData } from '../overview-utils.js';
+import { DAY_LABELS, buildHeatmapData, workTypeColor } from '../overview-utils.js';
 import { getToolMeta } from '../../../lib/toolMeta.js';
 import type { UserAnalytics } from '../../../lib/apiSchemas.js';
 import styles from '../OverviewView.module.css';
@@ -88,7 +88,7 @@ function WorkTypesWidget({ analytics }: WidgetBodyProps) {
               className={styles.workSegment}
               style={{
                 width: `${pct}%`,
-                background: WORK_TYPE_COLORS[w.work_type] || WORK_TYPE_COLORS.other,
+                background: workTypeColor(w.work_type),
               }}
               title={`${w.work_type}: ${Math.round(pct)}%`}
             />
@@ -100,10 +100,7 @@ function WorkTypesWidget({ analytics }: WidgetBodyProps) {
           const pct = Math.round((w.sessions / total) * 100);
           return pct < 1 ? null : (
             <div key={w.work_type} className={styles.workLegendItem}>
-              <span
-                className={styles.workDot}
-                style={{ background: WORK_TYPE_COLORS[w.work_type] || WORK_TYPE_COLORS.other }}
-              />
+              <span className={styles.workDot} style={{ background: workTypeColor(w.work_type) }} />
               <span className={styles.workLegendLabel}>{w.work_type}</span>
               <span className={styles.workLegendValue}>
                 {pct}% · {w.sessions}

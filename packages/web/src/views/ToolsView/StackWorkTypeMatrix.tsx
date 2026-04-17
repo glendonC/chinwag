@@ -16,6 +16,7 @@ import { useMemo } from 'react';
 import { getToolMeta } from '../../lib/toolMeta.js';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
 import type { ToolWorkTypeBreakdown } from '../../lib/apiSchemas.js';
+import { WORK_TYPE_COLORS, WORK_TYPES, type WorkType } from '../OverviewView/overview-utils.js';
 import { PREVIEW_TOOL_WORK_TYPE } from './previewData.js';
 import styles from './StackWorkTypeMatrix.module.css';
 
@@ -23,19 +24,6 @@ interface Props {
   breakdown: ToolWorkTypeBreakdown[] | undefined;
   onToolClick?: (toolId: string) => void;
 }
-
-const WORK_TYPES = ['feature', 'bugfix', 'refactor', 'test', 'docs', 'config', 'other'] as const;
-type WorkType = (typeof WORK_TYPES)[number];
-
-const WORK_TYPE_COLORS: Record<WorkType, string> = {
-  feature: '#a896d4',
-  bugfix: '#d49aae',
-  refactor: '#8ec0a4',
-  test: '#f4c19a',
-  docs: '#9ac3e5',
-  config: '#c8a3d4',
-  other: '#aab1bd',
-};
 
 interface Row {
   toolId: string;
@@ -47,6 +35,16 @@ function classify(workType: string): WorkType {
   const key = workType.toLowerCase();
   if ((WORK_TYPES as readonly string[]).includes(key)) return key as WorkType;
   return 'other';
+}
+
+function emptyByType(): Record<WorkType, number> {
+  return WORK_TYPES.reduce(
+    (acc, t) => {
+      acc[t] = 0;
+      return acc;
+    },
+    {} as Record<WorkType, number>,
+  );
 }
 
 export default function StackWorkTypeMatrix({ breakdown, onToolClick }: Props) {
@@ -63,15 +61,7 @@ export default function StackWorkTypeMatrix({ breakdown, onToolClick }: Props) {
         ({
           toolId: entry.host_tool,
           totalSessions: 0,
-          byType: {
-            feature: 0,
-            bugfix: 0,
-            refactor: 0,
-            test: 0,
-            docs: 0,
-            config: 0,
-            other: 0,
-          },
+          byType: emptyByType(),
         } satisfies Row);
       const t = classify(entry.work_type);
       row.byType[t] += entry.sessions;
@@ -92,7 +82,7 @@ export default function StackWorkTypeMatrix({ breakdown, onToolClick }: Props) {
         </header>
         <div className={styles.empty}>
           No work-type data yet. Once your tools report sessions, this matrix will show how each one
-          spreads across feature, bugfix, refactor, test, docs, and config work.
+          spreads across frontend, backend, styling, test, docs, and config work.
         </div>
       </section>
     );

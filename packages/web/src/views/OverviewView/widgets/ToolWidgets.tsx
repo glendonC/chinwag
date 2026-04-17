@@ -3,9 +3,9 @@ import SectionEmpty from '../../../components/SectionEmpty/SectionEmpty.js';
 import { Sparkline } from '../overview-charts.js';
 import {
   TOOL_ERROR_RATE_WARN_THRESHOLD,
-  WORK_TYPE_COLORS,
   aggregateModels,
   formatDuration,
+  workTypeColor,
 } from '../overview-utils.js';
 import { getToolMeta } from '../../../lib/toolMeta.js';
 import { formatRelativeTime } from '../../../lib/relativeTime.js';
@@ -471,7 +471,7 @@ function ToolWorkTypeWidget({ analytics }: WidgetBodyProps) {
                       className={styles.workSegment}
                       style={{
                         width: `${pct}%`,
-                        background: WORK_TYPE_COLORS[wt] ?? WORK_TYPE_COLORS.other,
+                        background: workTypeColor(wt),
                       }}
                       title={`${wt}: ${Math.round(pct)}%`}
                     />
@@ -486,10 +486,7 @@ function ToolWorkTypeWidget({ analytics }: WidgetBodyProps) {
       <div className={styles.workLegend}>
         {orderedTypes.slice(0, 6).map((wt) => (
           <div key={wt} className={styles.workLegendItem}>
-            <span
-              className={styles.workDot}
-              style={{ background: WORK_TYPE_COLORS[wt] ?? WORK_TYPE_COLORS.other }}
-            />
+            <span className={styles.workDot} style={{ background: workTypeColor(wt) }} />
             <span className={styles.workLegendLabel}>{wt}</span>
           </div>
         ))}

@@ -6,10 +6,24 @@ import type { DailyTrend, HourlyBucket } from '../../lib/apiSchemas.js';
 export const RANGES = [7, 30, 90] as const;
 export type RangeDays = (typeof RANGES)[number];
 
+// Canonical work-type categories. Matches the SQL WORK_TYPE_CASE and
+// classifyWorkType() classifier in packages/worker/src/dos/team/analytics/outcomes.ts —
+// any change here requires a migration on the worker side.
+export const WORK_TYPES = [
+  'frontend',
+  'backend',
+  'styling',
+  'test',
+  'docs',
+  'config',
+  'other',
+] as const;
+export type WorkType = (typeof WORK_TYPES)[number];
+
 // Work-type palette. Values are CSS custom-property references declared
 // in styles/tokens.css — they alias the app's semantic tokens so dark
 // mode is handled at the token layer, not here.
-export const WORK_TYPE_COLORS: Record<string, string> = {
+export const WORK_TYPE_COLORS: Record<WorkType, string> = {
   frontend: 'var(--work-frontend)',
   backend: 'var(--work-backend)',
   test: 'var(--work-test)',
@@ -18,6 +32,14 @@ export const WORK_TYPE_COLORS: Record<string, string> = {
   config: 'var(--work-config)',
   other: 'var(--work-other)',
 };
+
+/** Lookup a work-type color with a safe fallback to --work-other. */
+export function workTypeColor(key: string | null | undefined): string {
+  if (key && (WORK_TYPES as readonly string[]).includes(key)) {
+    return WORK_TYPE_COLORS[key as WorkType];
+  }
+  return WORK_TYPE_COLORS.other;
+}
 
 export const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 

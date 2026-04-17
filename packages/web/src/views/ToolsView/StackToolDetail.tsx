@@ -15,6 +15,7 @@ import {
   ScopeComplexitySection,
 } from './DrillSections.js';
 import type { ToolDrillIn } from './useScoredStackData.js';
+import { workTypeColor } from '../OverviewView/overview-utils.js';
 import styles from './StackToolDetail.module.css';
 
 interface Props {
@@ -22,16 +23,6 @@ interface Props {
   rangeDays: number;
   onBack: () => void;
 }
-
-const WORK_TYPE_COLORS: Record<string, string> = {
-  feature: '#a896d4',
-  bugfix: '#d49aae',
-  refactor: '#8ec0a4',
-  test: '#f4c19a',
-  docs: '#9ac3e5',
-  config: '#c8a3d4',
-  other: '#aab1bd',
-};
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -146,7 +137,7 @@ export default function StackToolDetail({ drill, rangeDays, onBack }: Props) {
                   className={styles.workSegment}
                   style={{
                     width: `${pct}%`,
-                    background: WORK_TYPE_COLORS[w.work_type] || WORK_TYPE_COLORS.other,
+                    background: workTypeColor(w.work_type),
                   }}
                   title={`${w.work_type}: ${Math.round(pct)}%`}
                 />
@@ -162,7 +153,7 @@ export default function StackToolDetail({ drill, rangeDays, onBack }: Props) {
                 <div key={w.work_type} className={styles.workLegendItem}>
                   <span
                     className={styles.workDot}
-                    style={{ background: WORK_TYPE_COLORS[w.work_type] || WORK_TYPE_COLORS.other }}
+                    style={{ background: workTypeColor(w.work_type) }}
                   />
                   <span className={styles.workLegendLabel}>{w.work_type}</span>
                   <span className={styles.workLegendValue}>{pct}%</span>

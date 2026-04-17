@@ -12,29 +12,29 @@ import type { ToolCallCategory } from '@chinwag/shared/tool-call-categories.js';
 import type { ToolWorkTypeBreakdown } from '../../lib/apiSchemas.js';
 
 export const PREVIEW_TOOL_WORK_TYPE: ToolWorkTypeBreakdown[] = [
-  // Claude Code — feature-heavy, some refactor, some bugfix
-  { host_tool: 'claude-code', work_type: 'feature', sessions: 58, edits: 412 },
-  { host_tool: 'claude-code', work_type: 'refactor', sessions: 26, edits: 198 },
-  { host_tool: 'claude-code', work_type: 'bugfix', sessions: 19, edits: 141 },
+  // Claude Code — frontend-heavy, some backend, some styling
+  { host_tool: 'claude-code', work_type: 'frontend', sessions: 58, edits: 412 },
+  { host_tool: 'claude-code', work_type: 'backend', sessions: 26, edits: 198 },
+  { host_tool: 'claude-code', work_type: 'styling', sessions: 19, edits: 141 },
   { host_tool: 'claude-code', work_type: 'test', sessions: 13, edits: 87 },
   { host_tool: 'claude-code', work_type: 'docs', sessions: 7, edits: 34 },
   { host_tool: 'claude-code', work_type: 'config', sessions: 4, edits: 19 },
   { host_tool: 'claude-code', work_type: 'other', sessions: 2, edits: 8 },
 
-  // Cursor — bugfix specialist
-  { host_tool: 'cursor', work_type: 'bugfix', sessions: 26, edits: 134 },
-  { host_tool: 'cursor', work_type: 'feature', sessions: 16, edits: 97 },
-  { host_tool: 'cursor', work_type: 'refactor', sessions: 13, edits: 64 },
+  // Cursor — styling specialist
+  { host_tool: 'cursor', work_type: 'styling', sessions: 26, edits: 134 },
+  { host_tool: 'cursor', work_type: 'frontend', sessions: 16, edits: 97 },
+  { host_tool: 'cursor', work_type: 'backend', sessions: 13, edits: 64 },
   { host_tool: 'cursor', work_type: 'docs', sessions: 9, edits: 22 },
   { host_tool: 'cursor', work_type: 'test', sessions: 6, edits: 28 },
   { host_tool: 'cursor', work_type: 'config', sessions: 2, edits: 7 },
   { host_tool: 'cursor', work_type: 'other', sessions: 2, edits: 5 },
 
-  // Codex — refactor-dominant, heavy on config
-  { host_tool: 'codex', work_type: 'refactor', sessions: 12, edits: 83 },
+  // Codex — backend-dominant, heavy on config
+  { host_tool: 'codex', work_type: 'backend', sessions: 12, edits: 83 },
   { host_tool: 'codex', work_type: 'config', sessions: 6, edits: 28 },
-  { host_tool: 'codex', work_type: 'feature', sessions: 5, edits: 31 },
-  { host_tool: 'codex', work_type: 'bugfix', sessions: 3, edits: 14 },
+  { host_tool: 'codex', work_type: 'frontend', sessions: 5, edits: 31 },
+  { host_tool: 'codex', work_type: 'styling', sessions: 3, edits: 14 },
   { host_tool: 'codex', work_type: 'test', sessions: 2, edits: 8 },
   { host_tool: 'codex', work_type: 'docs', sessions: 2, edits: 4 },
   { host_tool: 'codex', work_type: 'other', sessions: 1, edits: 2 },
