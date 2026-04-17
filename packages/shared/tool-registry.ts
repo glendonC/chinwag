@@ -79,6 +79,20 @@ export interface McpTool {
   clientInfoNames?: string[];
   mcpConfig: string;
   hooks?: boolean;
+  /**
+   * Path (relative to the project root) where this tool's hook config lives.
+   * Required when `hooks === true`. Different tools keep hooks in different
+   * files: Claude Code uses `.claude/settings.json`, Cursor uses
+   * `.cursor/hooks.json`, Windsurf uses `.windsurf/hooks.json`.
+   */
+  hooksConfig?: string;
+  /**
+   * Format of the hooks config file. `'claude'` matches the Claude Code and
+   * Cursor shape (PreToolUse/PostToolUse/SessionStart with matcher + hooks[]
+   * entries). `'windsurf'` matches Windsurf's flat snake_case events
+   * (pre_write_code/post_write_code/post_run_command with direct commands).
+   */
+  hooksFormat?: 'claude' | 'windsurf';
   channel?: boolean;
   spawn?: ToolSpawnConfig;
   availabilityCheck?: ToolAvailabilityCheck;
@@ -140,6 +154,8 @@ export const MCP_TOOLS: McpTool[] = [
     clientInfoNames: ['claude-code', 'claude code', 'claude-ai'],
     mcpConfig: '.mcp.json',
     hooks: true,
+    hooksConfig: '.claude/settings.json',
+    hooksFormat: 'claude',
     channel: true,
     spawn: { cmd: 'claude', args: ['--print'], interactiveArgs: [] },
     availabilityCheck: {
@@ -184,6 +200,8 @@ export const MCP_TOOLS: McpTool[] = [
     clientInfoNames: ['cursor'],
     mcpConfig: '.cursor/mcp.json',
     hooks: true,
+    hooksConfig: '.cursor/hooks.json',
+    hooksFormat: 'claude',
     dataCapabilities: {
       toolCallLogs: true,
       hooks: true,
@@ -210,6 +228,8 @@ export const MCP_TOOLS: McpTool[] = [
     clientInfoNames: ['windsurf', 'codeium'],
     mcpConfig: '.windsurf/mcp.json',
     hooks: true,
+    hooksConfig: '.windsurf/hooks.json',
+    hooksFormat: 'windsurf',
     dataCapabilities: {
       toolCallLogs: true,
       hooks: true,

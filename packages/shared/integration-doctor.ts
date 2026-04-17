@@ -94,9 +94,11 @@ export function scanHostIntegrations(cwd: string): IntegrationScanResult[] {
       sharedRoot: host.mcpConfig === '.mcp.json' || host.mcpConfig === 'mcp.json',
     });
 
-    const hooksPath = join(cwd, '.claude', 'settings.json');
-    const hooksConfig = host.hooks ? readJson(hooksPath) : null;
-    const hooksConfigured = host.hooks ? hasMatchingHookConfig(hooksConfig) : true;
+    const hooksPath = host.hooks && host.hooksConfig ? join(cwd, host.hooksConfig) : null;
+    const hooksConfig = hooksPath ? readJson(hooksPath) : null;
+    const hooksConfigured = host.hooks
+      ? hasMatchingHookConfig(hooksConfig, host.id, host.hooksFormat || 'claude')
+      : true;
 
     const issues: string[] = [];
     if (detected && !mcpConfigured) issues.push(`Missing or outdated config at ${host.mcpConfig}`);

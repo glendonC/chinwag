@@ -116,14 +116,30 @@ export function hasMatchingMcpEntry(
   );
 }
 
-export function hasMatchingHookConfig(config: ConfigJson | null): boolean {
+export function hasMatchingHookConfig(
+  config: ConfigJson | null,
+  hostId: string = DEFAULT_HOOK_HOST,
+  format: 'claude' | 'windsurf' = 'claude',
+): boolean {
   const hooks = config?.hooks || {};
-  const expected: Record<string, string> = {
-    PreToolUse: buildChinwagHookCommand('check-conflict'),
-    PostToolUse: buildChinwagHookCommand('report-edit'),
-    SessionStart: buildChinwagHookCommand('session-start'),
-  };
 
+  if (format === 'windsurf') {
+    const expected: Record<string, string> = {
+      pre_write_code: buildChinwagHookCommand('check-conflict', { hostId }),
+      post_write_code: buildChinwagHookCommand('report-edit', { hostId }),
+      post_run_command: buildChinwagHookCommand('report-commit', { hostId }),
+    };
+    return Object.entries(expected).every(([event, command]) => {
+      const entries = hooks[event] || [];
+      return entries.some((hook) => (hook.hooks?.[0]?.command || hook.command) === command);
+    });
+  }
+
+  const expected: Record<string, string> = {
+    PreToolUse: buildChinwagHookCommand('check-conflict', { hostId }),
+    PostToolUse: buildChinwagHookCommand('report-edit', { hostId }),
+    SessionStart: buildChinwagHookCommand('session-start', { hostId }),
+  };
   return Object.entries(expected).every(([event, command]) => {
     const entries = hooks[event] || [];
     return entries.some((hook) => (hook.hooks?.[0]?.command || hook.command) === command);
