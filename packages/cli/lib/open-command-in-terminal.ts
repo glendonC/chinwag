@@ -2,7 +2,7 @@ import { detectTerminalEnvironment } from './terminal-spawner.js';
 import type { SpawnResult } from './terminal-spawner.js';
 import { execFileSync } from 'child_process';
 import { shellQuote, escapeAppleScriptString } from './utils/shell.js';
-import { mkdirSync, writeFileSync } from 'fs';
+import { writeFileAtomicSync } from './fs-atomic.js';
 import { join } from 'path';
 import { homedir } from 'os';
 import { formatError, createLogger } from '@chinwag/shared';
@@ -17,8 +17,7 @@ export function openCommandInTerminal(command: string, cwd: string = process.cwd
   if (env.type === 'ide-terminal') {
     try {
       const queuePath = join(homedir(), '.chinwag', 'launch-queue.json');
-      mkdirSync(join(homedir(), '.chinwag'), { recursive: true });
-      writeFileSync(
+      writeFileAtomicSync(
         queuePath,
         JSON.stringify({
           command,

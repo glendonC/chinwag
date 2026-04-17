@@ -1,5 +1,6 @@
 import { execFileSync } from 'child_process';
-import { existsSync, readFileSync, unlinkSync, mkdirSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, unlinkSync } from 'fs';
+import { writeFileAtomicSync } from './fs-atomic.js';
 import { join } from 'path';
 import { homedir } from 'os';
 import { safeAgentId, isProcessAlive } from '@chinwag/shared/session-registry.js';
@@ -142,8 +143,7 @@ function spawnInIdeTerminal(shellCommand: string, cwd?: string, toolName?: strin
   // The extension watches ~/.chinwag/launch-queue.json and creates an integrated terminal.
   const launchQueuePath = join(homedir(), '.chinwag', 'launch-queue.json');
   try {
-    mkdirSync(join(homedir(), '.chinwag'), { recursive: true });
-    writeFileSync(
+    writeFileAtomicSync(
       launchQueuePath,
       JSON.stringify({
         command: shellCommand,
