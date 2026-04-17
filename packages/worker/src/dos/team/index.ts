@@ -107,6 +107,7 @@ import {
 } from './presence.js';
 import { broadcastToWatchers, broadcastToExecutors } from './broadcast.js';
 import { recordMetric as recordMetricFn } from './telemetry.js';
+import { ContextCache } from './context-cache.js';
 
 export class TeamDO extends DurableObject<Env> {
   sql: SqlStorage;
@@ -114,8 +115,7 @@ export class TeamDO extends DurableObject<Env> {
   #lastCleanup = 0;
   #lastHeartbeatBroadcast = new Map<string, number>();
 
-  #contextCache: (TeamContext & { ok: true }) | null = null;
-  #contextCacheExpire = 0;
+  #contextCache = new ContextCache<TeamContext & { ok: true }>(CONTEXT_CACHE_TTL_MS);
 
   #transact: <T>(fn: () => T) => T;
 
@@ -443,14 +443,9 @@ export class TeamDO extends DurableObject<Env> {
     return getAllConnectedMemberIds(this.ctx);
   }
 
-  #invalidateContextCache(): void {
-    this.#contextCache = null;
-    this.#contextCacheExpire = 0;
-  }
-
   #broadcastToWatchers(event: Record<string, unknown>, { invalidateCache = true } = {}): void {
     broadcastToWatchers(this.ctx, event, {
-      invalidateCache: invalidateCache ? () => this.#invalidateContextCache() : undefined,
+      invalidateCache: invalidateCache ? () => this.#contextCache.invalidate() : undefined,
     });
   }
 
@@ -649,9 +644,9 @@ export class TeamDO extends DurableObject<Env> {
       };
 
       // Return cached team-wide context if fresh
-      const now = Date.now();
-      if (this.#contextCache && now < this.#contextCacheExpire) {
-        return { ...this.#contextCache, messages, daemon };
+      const cached = this.#contextCache.get();
+      if (cached) {
+        return { ...cached, messages, daemon };
       }
 
       this.#maybeCleanup();
@@ -659,8 +654,7 @@ export class TeamDO extends DurableObject<Env> {
       const connectedIds = this.#getConnectedAgentIds();
       const teamContext = queryTeamContext(this.sql, connectedIds);
 
-      this.#contextCache = teamContext;
-      this.#contextCacheExpire = Date.now() + CONTEXT_CACHE_TTL_MS;
+      this.#contextCache.set(teamContext);
 
       return { ...teamContext, messages, daemon };
     });
