@@ -2,8 +2,21 @@
 // Uses DO RPC for direct method calls from the Worker.
 // Users have UUID primary keys; handles are display names with a unique index.
 //
-// Submodules:
-//   evaluations.ts -- tool directory CRUD (largest separate domain)
+// Business logic is split into submodules:
+//   schema.ts        -- DDL, migrations, startup cleanup
+//   users.ts         -- user CRUD, handle uniqueness, GitHub OAuth, agent profiles
+//   web-sessions.ts  -- cookie-based web dashboard sessions
+//   rate-limits.ts   -- sliding 24h rate limit buckets (incl. atomic check+consume)
+//   user-metrics.ts  -- lifetime metric accumulation per handle
+//   user-teams.ts    -- cross-project team membership join table
+//   rank.ts          -- global developer percentile rank query
+//   stats.ts         -- community-intelligence aggregates
+//   suggestions.ts   -- tool suggestion queue
+//   evaluations.ts   -- tool directory CRUD
+//   pricing.ts       -- model pricing snapshot + atomic refresh
+//
+// This file owns the class shell, schema initialization, and the thin RPC
+// wrappers that tie it all together.
 
 import { DurableObject } from 'cloudflare:workers';
 import type {
@@ -17,9 +30,46 @@ import type {
   UserTeam,
   AgentProfile,
 } from '../../types.js';
-import { toSQLDateTime } from '../../lib/text-utils.js';
-import { VALID_COLORS, WEB_SESSION_DURATION_MS } from '../../lib/constants.js';
+
 import { ensureSchema as ensureSchemaFn, cleanup as schemaCleanup } from './schema.js';
+import {
+  createUser as createUserFn,
+  getUser as getUserFn,
+  getUserByHandle as getUserByHandleFn,
+  updateHandle as updateHandleFn,
+  updateColor as updateColorFn,
+  setStatus as setStatusFn,
+  getUserByGithubId as getUserByGithubIdFn,
+  createUserFromGithub as createUserFromGithubFn,
+  linkGithub as linkGithubFn,
+  unlinkGithub as unlinkGithubFn,
+  updateAgentProfile as updateAgentProfileFn,
+} from './users.js';
+import {
+  createWebSession as createWebSessionFn,
+  getWebSession as getWebSessionFn,
+  revokeWebSession as revokeWebSessionFn,
+  getUserWebSessions as getUserWebSessionsFn,
+} from './web-sessions.js';
+import {
+  checkRateLimit as checkRateLimitFn,
+  consumeRateLimit as consumeRateLimitFn,
+  checkAndConsume as checkAndConsumeFn,
+} from './rate-limits.js';
+import { updateUserMetrics as updateUserMetricsFn } from './user-metrics.js';
+import {
+  addUserTeam as addUserTeamFn,
+  getUserTeams as getUserTeamsFn,
+  removeUserTeam as removeUserTeamFn,
+} from './user-teams.js';
+import { getUserGlobalRank as getUserGlobalRankFn } from './rank.js';
+import { getStats as getStatsFn, type CommunityStats } from './stats.js';
+import {
+  saveSuggestion as saveSuggestionFn,
+  listSuggestions as listSuggestionsFn,
+  reviewSuggestion as reviewSuggestionFn,
+  type SuggestionInput,
+} from './suggestions.js';
 import {
   saveEvaluation as saveEvalFn,
   getEvaluation as getEvalFn,
@@ -49,140 +99,6 @@ import {
 // `resolveJsonModule: true` in tsconfig enables this import; no runtime
 // assertion needed with the "bundler" moduleResolution + "ES2022" module.
 import pricingSeed from '../../lib/pricing-seed.json';
-
-const ADJECTIVES = [
-  'swift',
-  'quiet',
-  'bold',
-  'keen',
-  'warm',
-  'cool',
-  'fair',
-  'deep',
-  'bright',
-  'calm',
-  'dark',
-  'fast',
-  'glad',
-  'kind',
-  'live',
-  'neat',
-  'pale',
-  'rare',
-  'safe',
-  'tall',
-  'vast',
-  'wise',
-  'zany',
-  'apt',
-  'dry',
-  'fit',
-  'raw',
-  'shy',
-  'wry',
-  'odd',
-  'sly',
-  'coy',
-  'deft',
-  'grim',
-  'hazy',
-  'icy',
-  'lazy',
-  'mild',
-  'nimble',
-  'plush',
-  'rosy',
-  'snug',
-  'tidy',
-  'ultra',
-  'vivid',
-  'witty',
-  'airy',
-  'bumpy',
-  'crisp',
-  'dizzy',
-  'eager',
-  'fuzzy',
-  'grumpy',
-  'hasty',
-  'itchy',
-  'jolly',
-  'lumpy',
-  'merry',
-  'nifty',
-  'perky',
-  'quirky',
-  'rusty',
-  'shiny',
-  'tricky',
-] as const;
-
-const NOUNS = [
-  'fox',
-  'owl',
-  'elk',
-  'yak',
-  'ant',
-  'bee',
-  'cod',
-  'doe',
-  'eel',
-  'gnu',
-  'hen',
-  'jay',
-  'kit',
-  'lynx',
-  'moth',
-  'newt',
-  'pug',
-  'ram',
-  'seal',
-  'toad',
-  'vole',
-  'wasp',
-  'wren',
-  'crab',
-  'crow',
-  'dart',
-  'echo',
-  'fern',
-  'glow',
-  'haze',
-  'iris',
-  'jade',
-  'kelp',
-  'lark',
-  'mist',
-  'node',
-  'opal',
-  'pine',
-  'reed',
-  'sage',
-  'tide',
-  'vine',
-  'wolf',
-  'pixel',
-  'spark',
-  'cloud',
-  'flint',
-  'brook',
-  'crane',
-  'drift',
-  'flame',
-  'ghost',
-  'haven',
-  'ivory',
-  'jewel',
-  'knoll',
-  'maple',
-  'nexus',
-  'orbit',
-  'prism',
-  'quartz',
-  'ridge',
-  'storm',
-  'thorn',
-] as const;
 
 export class DatabaseDO extends DurableObject<Env> {
   sql: SqlStorage;
@@ -217,59 +133,17 @@ export class DatabaseDO extends DurableObject<Env> {
 
   async createUser(): Promise<DOResult<NewUser & { ok: true }>> {
     this.#ensureSchema();
-
-    const id = crypto.randomUUID();
-    const token = crypto.randomUUID();
-    const color = VALID_COLORS[Math.floor(Math.random() * VALID_COLORS.length)];
-    const now = toSQLDateTime();
-
-    const handle = this.#resolveUniqueHandle(this.#generateHandle());
-    if (!handle) {
-      return { error: 'Could not generate unique handle, please try again', code: 'INTERNAL' };
-    }
-
-    this.sql.exec(
-      `INSERT INTO users (id, handle, color, token, status, created_at, last_active)
-       VALUES (?, ?, ?, ?, NULL, ?, ?)`,
-      id,
-      handle,
-      color,
-      token,
-      now,
-      now,
-    );
-
-    return { ok: true, id, handle, color, token };
+    return createUserFn(this.sql);
   }
 
   async getUser(id: string): Promise<DOResult<{ ok: true; user: User }>> {
     this.#ensureSchema();
-    const rows = this.sql
-      .exec(
-        'SELECT id, handle, color, status, github_id, github_login, avatar_url, created_at, last_active FROM users WHERE id = ?',
-        id,
-      )
-      .toArray();
-    const user = (rows[0] as unknown as User) || null;
-    if (user) {
-      const lastActive = new Date(user.last_active).getTime();
-      if (Date.now() - lastActive > 300_000) {
-        this.sql.exec("UPDATE users SET last_active = datetime('now') WHERE id = ?", id);
-      }
-    }
-    return user ? { ok: true, user } : { error: 'User not found', code: 'NOT_FOUND' };
+    return getUserFn(this.sql, id);
   }
 
   async getUserByHandle(handle: string): Promise<DOResult<{ ok: true; user: User }>> {
     this.#ensureSchema();
-    const rows = this.sql
-      .exec(
-        'SELECT id, handle, color, status, created_at, last_active FROM users WHERE handle = ?',
-        handle,
-      )
-      .toArray();
-    const user = (rows[0] as unknown as User) || null;
-    return user ? { ok: true, user } : { error: 'User not found', code: 'NOT_FOUND' };
+    return getUserByHandleFn(this.sql, handle);
   }
 
   async updateHandle(
@@ -277,54 +151,24 @@ export class DatabaseDO extends DurableObject<Env> {
     newHandle: string,
   ): Promise<DOResult<{ ok: true; handle: string }>> {
     this.#ensureSchema();
-
-    if (!/^[a-zA-Z0-9_]{3,20}$/.test(newHandle)) {
-      return {
-        error: 'Handle must be 3-20 characters, alphanumeric + underscores only',
-        code: 'VALIDATION',
-      };
-    }
-
-    const taken =
-      this.sql.exec('SELECT 1 FROM users WHERE handle = ? AND id != ?', newHandle, userId).toArray()
-        .length > 0;
-    if (taken) {
-      return { error: 'Handle already taken', code: 'CONFLICT' };
-    }
-
-    this.sql.exec('UPDATE users SET handle = ? WHERE id = ?', newHandle, userId);
-    return { ok: true, handle: newHandle };
+    return updateHandleFn(this.sql, userId, newHandle);
   }
 
   async updateColor(userId: string, color: string): Promise<DOResult<{ ok: true; color: string }>> {
     this.#ensureSchema();
-
-    if (!VALID_COLORS.includes(color as (typeof VALID_COLORS)[number])) {
-      return { error: `Color must be one of: ${VALID_COLORS.join(', ')}`, code: 'VALIDATION' };
-    }
-
-    this.sql.exec('UPDATE users SET color = ? WHERE id = ?', color, userId);
-    return { ok: true, color };
+    return updateColorFn(this.sql, userId, color);
   }
 
   async setStatus(userId: string, status: string | null): Promise<{ ok: true }> {
     this.#ensureSchema();
-    this.sql.exec('UPDATE users SET status = ? WHERE id = ?', status, userId);
-    return { ok: true };
+    return setStatusFn(this.sql, userId, status);
   }
 
   // -- GitHub OAuth --
 
   async getUserByGithubId(githubId: string | number): Promise<DOResult<{ ok: true; user: User }>> {
     this.#ensureSchema();
-    const rows = this.sql
-      .exec(
-        'SELECT id, handle, color, status, github_id, github_login, avatar_url, created_at, last_active FROM users WHERE github_id = ?',
-        String(githubId),
-      )
-      .toArray();
-    const user = (rows[0] as unknown as User) || null;
-    return user ? { ok: true, user } : { error: 'User not found' };
+    return getUserByGithubIdFn(this.sql, githubId);
   }
 
   async createUserFromGithub(
@@ -333,34 +177,7 @@ export class DatabaseDO extends DurableObject<Env> {
     avatarUrl: string | null,
   ): Promise<DOResult<NewUser & { ok: true }>> {
     this.#ensureSchema();
-
-    const id = crypto.randomUUID();
-    const token = crypto.randomUUID();
-    const color = VALID_COLORS[Math.floor(Math.random() * VALID_COLORS.length)];
-    const now = toSQLDateTime();
-
-    let preferred = githubLogin.replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 20);
-    if (preferred.length < 3) preferred = this.#generateHandle();
-    const handle = this.#resolveUniqueHandle(preferred);
-    if (!handle) {
-      return { error: 'Could not generate unique handle', code: 'INTERNAL' };
-    }
-
-    this.sql.exec(
-      `INSERT INTO users (id, handle, color, token, status, github_id, github_login, avatar_url, created_at, last_active)
-       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
-      id,
-      handle,
-      color,
-      token,
-      String(githubId),
-      githubLogin,
-      avatarUrl || null,
-      now,
-      now,
-    );
-
-    return { ok: true, id, handle, color, token };
+    return createUserFromGithubFn(this.sql, githubId, githubLogin, avatarUrl);
   }
 
   async linkGithub(
@@ -370,31 +187,12 @@ export class DatabaseDO extends DurableObject<Env> {
     avatarUrl: string | null,
   ): Promise<DOResult<{ ok: true }>> {
     this.#ensureSchema();
-
-    const existing = this.sql
-      .exec('SELECT id FROM users WHERE github_id = ? AND id != ?', String(githubId), userId)
-      .toArray();
-    if (existing.length > 0) {
-      return { error: 'This GitHub account is already linked to another user', code: 'CONFLICT' };
-    }
-
-    this.sql.exec(
-      'UPDATE users SET github_id = ?, github_login = ?, avatar_url = ? WHERE id = ?',
-      String(githubId),
-      githubLogin,
-      avatarUrl || null,
-      userId,
-    );
-    return { ok: true };
+    return linkGithubFn(this.sql, userId, githubId, githubLogin, avatarUrl);
   }
 
   async unlinkGithub(userId: string): Promise<{ ok: true }> {
     this.#ensureSchema();
-    this.sql.exec(
-      'UPDATE users SET github_id = NULL, github_login = NULL, avatar_url = NULL WHERE id = ?',
-      userId,
-    );
-    return { ok: true };
+    return unlinkGithubFn(this.sql, userId);
   }
 
   // -- Web sessions --
@@ -404,89 +202,34 @@ export class DatabaseDO extends DurableObject<Env> {
     userAgent: string | null,
   ): Promise<{ ok: true; token: string; expires_at: string }> {
     this.#ensureSchema();
-    const token = crypto.randomUUID();
-    const expiresAt = toSQLDateTime(new Date(Date.now() + WEB_SESSION_DURATION_MS));
-
-    this.sql.exec(
-      `INSERT INTO web_sessions (token, user_id, expires_at, user_agent) VALUES (?, ?, ?, ?)`,
-      token,
-      userId,
-      expiresAt,
-      userAgent || null,
-    );
-    return { ok: true, token, expires_at: expiresAt };
+    return createWebSessionFn(this.sql, userId, userAgent);
   }
 
   async getWebSession(token: string): Promise<DOResult<{ ok: true; session: WebSession }>> {
     this.#ensureSchema();
-    const rows = this.sql
-      .exec(
-        `SELECT token, user_id, expires_at, last_used, user_agent, revoked
-       FROM web_sessions
-       WHERE token = ? AND revoked = 0 AND expires_at > datetime('now')`,
-        token,
-      )
-      .toArray();
-    if (rows.length === 0) return { error: 'Session not found', code: 'NOT_FOUND' };
-
-    // Slide the window -- refresh expiry and last_used on access
-    this.sql.exec(`UPDATE web_sessions SET last_used = datetime('now') WHERE token = ?`, token);
-    return { ok: true, session: rows[0] as unknown as WebSession };
+    return getWebSessionFn(this.sql, token);
   }
 
   async revokeWebSession(token: string): Promise<{ ok: true }> {
     this.#ensureSchema();
-    this.sql.exec('UPDATE web_sessions SET revoked = 1 WHERE token = ?', token);
-    return { ok: true };
+    return revokeWebSessionFn(this.sql, token);
   }
 
   async getUserWebSessions(userId: string): Promise<{ ok: true; sessions: WebSession[] }> {
     this.#ensureSchema();
-    const sessions = this.sql
-      .exec(
-        `SELECT token, created_at, expires_at, last_used, user_agent
-       FROM web_sessions
-       WHERE user_id = ? AND revoked = 0 AND expires_at > datetime('now')
-       ORDER BY last_used DESC LIMIT 20`,
-        userId,
-      )
-      .toArray() as unknown as WebSession[];
-    return { ok: true, sessions };
+    return getUserWebSessionsFn(this.sql, userId);
   }
 
   // -- Rate limiting --
-  // Uses hourly buckets with a 24-hour sliding window. Each bucket stores
-  // the count for one hour (key = "YYYY-MM-DDTHH"). To check the limit,
-  // we SUM all buckets from the last 24 hours. This prevents the midnight-
-  // reset exploit where a user could double their quota around UTC midnight.
 
   async checkRateLimit(key: string, maxPerWindow = 3): Promise<RateLimitCheck & { ok: true }> {
     this.#ensureSchema();
-    const windowStart = hourBucket(Date.now() - 24 * 60 * 60 * 1000);
-
-    const rows = this.sql
-      .exec(
-        'SELECT COALESCE(SUM(count), 0) as total FROM account_limits WHERE ip = ? AND date >= ?',
-        key,
-        windowStart,
-      )
-      .toArray();
-
-    const count = ((rows[0] as Record<string, unknown>)?.total as number) || 0;
-    return { ok: true, allowed: count < maxPerWindow, count };
+    return checkRateLimitFn(this.sql, key, maxPerWindow);
   }
 
   async consumeRateLimit(key: string): Promise<{ ok: true }> {
     this.#ensureSchema();
-    const bucket = hourBucket(Date.now());
-
-    this.sql.exec(
-      `INSERT INTO account_limits (ip, date, count) VALUES (?, ?, 1)
-       ON CONFLICT(ip, date) DO UPDATE SET count = count + 1`,
-      key,
-      bucket,
-    );
-    return { ok: true };
+    return consumeRateLimitFn(this.sql, key);
   }
 
   /**
@@ -499,259 +242,14 @@ export class DatabaseDO extends DurableObject<Env> {
     maxPerWindow = 3,
   ): Promise<{ ok: true; allowed: boolean; count: number }> {
     this.#ensureSchema();
-    const now = Date.now();
-    const windowStart = hourBucket(now - 24 * 60 * 60 * 1000);
-    const bucket = hourBucket(now);
-
-    const rows = this.sql
-      .exec(
-        'SELECT COALESCE(SUM(count), 0) as total FROM account_limits WHERE ip = ? AND date >= ?',
-        key,
-        windowStart,
-      )
-      .toArray();
-
-    const count = ((rows[0] as Record<string, unknown>)?.total as number) || 0;
-    if (count >= maxPerWindow) {
-      return { ok: true, allowed: false, count };
-    }
-
-    this.sql.exec(
-      `INSERT INTO account_limits (ip, date, count) VALUES (?, ?, 1)
-       ON CONFLICT(ip, date) DO UPDATE SET count = count + 1`,
-      key,
-      bucket,
-    );
-
-    return { ok: true, allowed: true, count: count + 1 };
+    return checkAndConsumeFn(this.sql, key, maxPerWindow);
   }
 
   // -- Stats --
 
-  async getStats(): Promise<{
-    ok: true;
-    totalUsers: number;
-    totalSessions: number;
-    totalEdits: number;
-    totalLinesAdded: number;
-    totalLinesRemoved: number;
-    topTools: string;
-    topModels: string;
-    globalAverages: Record<string, number>;
-    toolEffectiveness: Array<Record<string, unknown>>;
-    modelEffectiveness: Array<Record<string, unknown>>;
-    toolCombinations: Array<Record<string, unknown>>;
-    completionDistribution: Array<Record<string, unknown>>;
-    toolCountDistribution: Array<Record<string, unknown>>;
-  }> {
+  async getStats(): Promise<CommunityStats> {
     this.#ensureSchema();
-    const users = this.sql.exec('SELECT COUNT(*) as count FROM users').toArray();
-    const totalUsers = ((users[0] as Record<string, unknown>)?.count as number) || 0;
-
-    // Global aggregates from user_metrics
-    const agg = this.sql
-      .exec(
-        `SELECT
-          COALESCE(SUM(total_sessions), 0) AS total_sessions,
-          COALESCE(SUM(total_edits), 0) AS total_edits,
-          COALESCE(SUM(total_lines_added), 0) AS total_lines_added,
-          COALESCE(SUM(total_lines_removed), 0) AS total_lines_removed,
-          COALESCE(SUM(total_input_tokens), 0) AS total_input_tokens,
-          COALESCE(SUM(total_output_tokens), 0) AS total_output_tokens
-        FROM user_metrics`,
-      )
-      .toArray();
-    const ga = (agg[0] as Record<string, unknown>) || {};
-
-    // Top tools across all users
-    const tools = this.sql
-      .exec(
-        `SELECT tool, COUNT(*) AS users FROM user_tools GROUP BY tool ORDER BY users DESC LIMIT 10`,
-      )
-      .toArray() as Array<Record<string, unknown>>;
-
-    // Top models across all users
-    const models = this.sql
-      .exec(
-        `SELECT model, COUNT(*) AS users FROM user_models GROUP BY model ORDER BY users DESC LIMIT 10`,
-      )
-      .toArray() as Array<Record<string, unknown>>;
-
-    // ── Community intelligence ──────────────────────────
-
-    // Global averages across active developers
-    let globalAverages: Record<string, number> = {};
-    try {
-      const avgRow = this.sql
-        .exec(
-          `SELECT
-            ROUND(AVG(CAST(completed_sessions AS REAL) / NULLIF(total_sessions, 0) * 100), 1) AS avg_completion_rate,
-            ROUND(AVG(CAST(total_edits AS REAL) / NULLIF(total_duration_min, 0)), 2) AS avg_edit_velocity,
-            ROUND(AVG(CAST(total_stuck AS REAL) / NULLIF(total_sessions, 0) * 100), 1) AS avg_stuck_rate,
-            ROUND(AVG(total_first_edit_s / NULLIF(sessions_with_first_edit, 0)), 1) AS avg_first_edit_s,
-            ROUND(AVG(CAST(total_lines_added AS REAL) / NULLIF(total_sessions, 0)), 0) AS avg_lines_per_session,
-            ROUND(AVG(total_duration_min / 60.0), 1) AS avg_focus_hours,
-            ROUND(AVG(total_edits), 0) AS avg_total_edits,
-            ROUND(AVG(total_sessions), 0) AS avg_total_sessions
-          FROM user_metrics WHERE total_sessions >= 1`,
-        )
-        .toArray()[0] as Record<string, unknown> | undefined;
-      if (avgRow) {
-        globalAverages = {
-          completion_rate: (avgRow.avg_completion_rate as number) || 0,
-          edit_velocity: (avgRow.avg_edit_velocity as number) || 0,
-          stuck_rate: (avgRow.avg_stuck_rate as number) || 0,
-          first_edit_s: (avgRow.avg_first_edit_s as number) || 0,
-          lines_per_session: (avgRow.avg_lines_per_session as number) || 0,
-          focus_hours: (avgRow.avg_focus_hours as number) || 0,
-          total_edits: (avgRow.avg_total_edits as number) || 0,
-          total_sessions: (avgRow.avg_total_sessions as number) || 0,
-        };
-      }
-    } catch {
-      /* ignore */
-    }
-
-    // Tool effectiveness: per-tool avg completion rate + velocity
-    let toolEffectiveness: Array<Record<string, unknown>> = [];
-    try {
-      toolEffectiveness = this.sql
-        .exec(
-          `SELECT ut.tool,
-            COUNT(*) AS users,
-            ROUND(AVG(CAST(um.completed_sessions AS REAL) / NULLIF(um.total_sessions, 0) * 100), 1) AS avg_completion_rate,
-            ROUND(AVG(CAST(um.total_edits AS REAL) / NULLIF(um.total_duration_min, 0)), 2) AS avg_edit_velocity,
-            ROUND(AVG(um.total_first_edit_s / NULLIF(um.sessions_with_first_edit, 0)), 1) AS avg_first_edit_s
-          FROM user_tools ut
-          JOIN user_metrics um ON ut.handle = um.handle
-          WHERE um.total_sessions >= 3
-          GROUP BY ut.tool
-          HAVING users >= 2
-          ORDER BY avg_completion_rate DESC
-          LIMIT 15`,
-        )
-        .toArray() as Array<Record<string, unknown>>;
-    } catch {
-      /* ignore */
-    }
-
-    // Model effectiveness: per-model avg completion rate
-    let modelEffectiveness: Array<Record<string, unknown>> = [];
-    try {
-      modelEffectiveness = this.sql
-        .exec(
-          `SELECT umod.model,
-            COUNT(*) AS users,
-            ROUND(AVG(CAST(um.completed_sessions AS REAL) / NULLIF(um.total_sessions, 0) * 100), 1) AS avg_completion_rate,
-            ROUND(AVG(CAST(um.total_edits AS REAL) / NULLIF(um.total_duration_min, 0)), 2) AS avg_edit_velocity
-          FROM user_models umod
-          JOIN user_metrics um ON umod.handle = um.handle
-          WHERE um.total_sessions >= 3
-          GROUP BY umod.model
-          HAVING users >= 2
-          ORDER BY avg_completion_rate DESC
-          LIMIT 15`,
-        )
-        .toArray() as Array<Record<string, unknown>>;
-    } catch {
-      /* ignore */
-    }
-
-    // Tool combinations: most popular tool pairs
-    let toolCombinations: Array<Record<string, unknown>> = [];
-    try {
-      toolCombinations = this.sql
-        .exec(
-          `SELECT t1.tool AS tool_a, t2.tool AS tool_b, COUNT(*) AS users
-          FROM user_tools t1
-          JOIN user_tools t2 ON t1.handle = t2.handle AND t1.tool < t2.tool
-          GROUP BY t1.tool, t2.tool
-          HAVING users >= 2
-          ORDER BY users DESC
-          LIMIT 10`,
-        )
-        .toArray() as Array<Record<string, unknown>>;
-    } catch {
-      /* ignore */
-    }
-
-    // Completion rate distribution: what brackets do users fall in
-    let completionDistribution: Array<Record<string, unknown>> = [];
-    try {
-      completionDistribution = this.sql
-        .exec(
-          `SELECT
-            CASE
-              WHEN CAST(completed_sessions AS REAL) / total_sessions >= 0.9 THEN '90-100'
-              WHEN CAST(completed_sessions AS REAL) / total_sessions >= 0.8 THEN '80-89'
-              WHEN CAST(completed_sessions AS REAL) / total_sessions >= 0.7 THEN '70-79'
-              WHEN CAST(completed_sessions AS REAL) / total_sessions >= 0.6 THEN '60-69'
-              WHEN CAST(completed_sessions AS REAL) / total_sessions >= 0.5 THEN '50-59'
-              ELSE '0-49'
-            END AS bracket,
-            COUNT(*) AS users
-          FROM user_metrics
-          WHERE total_sessions >= 1
-          GROUP BY bracket
-          ORDER BY bracket DESC`,
-        )
-        .toArray() as Array<Record<string, unknown>>;
-    } catch {
-      /* ignore */
-    }
-
-    // Tool count distribution: how many tools do developers use
-    let toolCountDistribution: Array<Record<string, unknown>> = [];
-    try {
-      toolCountDistribution = this.sql
-        .exec(
-          `SELECT tool_count, COUNT(*) AS users
-          FROM (SELECT handle, COUNT(*) AS tool_count FROM user_tools GROUP BY handle)
-          GROUP BY tool_count
-          ORDER BY tool_count`,
-        )
-        .toArray() as Array<Record<string, unknown>>;
-    } catch {
-      /* ignore */
-    }
-
-    return {
-      ok: true as const,
-      totalUsers,
-      totalSessions: (ga.total_sessions as number) || 0,
-      totalEdits: (ga.total_edits as number) || 0,
-      totalLinesAdded: (ga.total_lines_added as number) || 0,
-      totalLinesRemoved: (ga.total_lines_removed as number) || 0,
-      topTools: JSON.stringify(tools.map((t) => ({ tool: t.tool, users: t.users }))),
-      topModels: JSON.stringify(models.map((m) => ({ model: m.model, users: m.users }))),
-      globalAverages,
-      toolEffectiveness: toolEffectiveness.map((t) => ({
-        tool: t.tool,
-        users: t.users,
-        completionRate: t.avg_completion_rate,
-        editVelocity: t.avg_edit_velocity,
-        firstEditS: t.avg_first_edit_s,
-      })),
-      modelEffectiveness: modelEffectiveness.map((m) => ({
-        model: m.model,
-        users: m.users,
-        completionRate: m.avg_completion_rate,
-        editVelocity: m.avg_edit_velocity,
-      })),
-      toolCombinations: toolCombinations.map((c) => ({
-        toolA: c.tool_a,
-        toolB: c.tool_b,
-        users: c.users,
-      })),
-      completionDistribution: completionDistribution.map((d) => ({
-        bracket: d.bracket,
-        users: d.users,
-      })),
-      toolCountDistribution: toolCountDistribution.map((d) => ({
-        count: d.tool_count,
-        users: d.users,
-      })),
-    };
+    return getStatsFn(this.sql);
   }
 
   // -- Global user metrics --
@@ -761,188 +259,14 @@ export class DatabaseDO extends DurableObject<Env> {
     summary: Record<string, unknown>,
   ): Promise<{ ok: true } | DOError> {
     this.#ensureSchema();
-    const outcome = (summary.outcome as string) || null;
-    const editCount = Number(summary.edit_count) || 0;
-    const linesAdded = Number(summary.lines_added) || 0;
-    const linesRemoved = Number(summary.lines_removed) || 0;
-    const durationMin = Number(summary.duration_min) || 0;
-    const inputTokens = Number(summary.input_tokens) || 0;
-    const outputTokens = Number(summary.output_tokens) || 0;
-    // Cache token fields default to 0 for sessions closed before phase 2
-    // where the columns didn't exist. Anthropic prompt-cached sessions make
-    // these the dominant input-side volume, so omitting the rollup would
-    // permanently undercount heavy-cache users on the lifetime metrics.
-    const cacheReadTokens = Number(summary.cache_read_tokens) || 0;
-    const cacheCreationTokens = Number(summary.cache_creation_tokens) || 0;
-    const gotStuck = Number(summary.got_stuck) || 0;
-    const memoriesSaved = Number(summary.memories_saved) || 0;
-    const memoriesSearched = Number(summary.memories_searched) || 0;
-    const hostTool = (summary.host_tool as string) || null;
-    const agentModel = (summary.agent_model as string) || null;
-
-    // Compute first-edit latency in seconds (if first_edit_at exists)
-    let firstEditS = 0;
-    let hasFirstEdit = 0;
-    const firstEditAt = summary.first_edit_at as string | null;
-    const startedAt = summary.started_at as string | null;
-    if (firstEditAt && startedAt) {
-      const diff =
-        (new Date(String(firstEditAt).replace(' ', 'T') + 'Z').getTime() -
-          new Date(String(startedAt).replace(' ', 'T') + 'Z').getTime()) /
-        1000;
-      if (diff >= 0) {
-        firstEditS = diff;
-        hasFirstEdit = 1;
-      }
-    }
-
-    const completed = outcome === 'completed' ? 1 : 0;
-    const abandoned = outcome === 'abandoned' ? 1 : 0;
-    const failed = outcome === 'failed' ? 1 : 0;
-
-    this.sql.exec(
-      `INSERT INTO user_metrics (handle, total_sessions, completed_sessions, abandoned_sessions, failed_sessions,
-        total_edits, total_lines_added, total_lines_removed, total_duration_min,
-        total_input_tokens, total_output_tokens, total_cache_read_tokens, total_cache_creation_tokens,
-        total_stuck, total_memories_saved, total_memories_searched,
-        total_first_edit_s, sessions_with_first_edit)
-      VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(handle) DO UPDATE SET
-        total_sessions = total_sessions + 1,
-        completed_sessions = completed_sessions + excluded.completed_sessions,
-        abandoned_sessions = abandoned_sessions + excluded.abandoned_sessions,
-        failed_sessions = failed_sessions + excluded.failed_sessions,
-        total_edits = total_edits + excluded.total_edits,
-        total_lines_added = total_lines_added + excluded.total_lines_added,
-        total_lines_removed = total_lines_removed + excluded.total_lines_removed,
-        total_duration_min = total_duration_min + excluded.total_duration_min,
-        total_input_tokens = total_input_tokens + excluded.total_input_tokens,
-        total_output_tokens = total_output_tokens + excluded.total_output_tokens,
-        total_cache_read_tokens = total_cache_read_tokens + excluded.total_cache_read_tokens,
-        total_cache_creation_tokens = total_cache_creation_tokens + excluded.total_cache_creation_tokens,
-        total_stuck = total_stuck + excluded.total_stuck,
-        total_memories_saved = total_memories_saved + excluded.total_memories_saved,
-        total_memories_searched = total_memories_searched + excluded.total_memories_searched,
-        total_first_edit_s = total_first_edit_s + excluded.total_first_edit_s,
-        sessions_with_first_edit = sessions_with_first_edit + excluded.sessions_with_first_edit,
-        updated_at = datetime('now')`,
-      handle,
-      completed,
-      abandoned,
-      failed,
-      editCount,
-      linesAdded,
-      linesRemoved,
-      durationMin,
-      inputTokens,
-      outputTokens,
-      cacheReadTokens,
-      cacheCreationTokens,
-      gotStuck,
-      memoriesSaved,
-      memoriesSearched,
-      firstEditS,
-      hasFirstEdit,
-    );
-
-    if (hostTool && hostTool !== 'unknown') {
-      this.sql.exec(
-        'INSERT OR IGNORE INTO user_tools (handle, tool) VALUES (?, ?)',
-        handle,
-        hostTool,
-      );
-    }
-    if (agentModel) {
-      this.sql.exec(
-        'INSERT OR IGNORE INTO user_models (handle, model) VALUES (?, ?)',
-        handle,
-        agentModel,
-      );
-    }
-
-    return { ok: true };
+    return updateUserMetricsFn(this.sql, handle, summary);
   }
 
   async getUserGlobalRank(
     handle: string,
   ): Promise<{ ok: true; rank: Record<string, unknown> | null; total_developers: number }> {
     this.#ensureSchema();
-
-    const countRow = this.sql
-      .exec('SELECT COUNT(*) AS cnt FROM user_metrics WHERE total_sessions >= 1')
-      .toArray();
-    const totalDevelopers = ((countRow[0] as Record<string, unknown>)?.cnt as number) || 0;
-
-    if (totalDevelopers === 0) {
-      return { ok: true, rank: null, total_developers: 0 };
-    }
-
-    // Check if user exists in metrics
-    const userRow = this.sql.exec('SELECT 1 FROM user_metrics WHERE handle = ?', handle).toArray();
-    if (userRow.length === 0) {
-      return { ok: true, rank: null, total_developers: totalDevelopers };
-    }
-
-    const rows = this.sql
-      .exec(
-        `WITH base AS (
-          SELECT
-            um.handle,
-            um.total_sessions,
-            um.completed_sessions,
-            um.total_edits,
-            um.total_lines_added,
-            um.total_lines_removed,
-            um.total_duration_min,
-            um.total_stuck,
-            um.total_memories_saved,
-            um.total_memories_searched,
-            um.total_first_edit_s,
-            um.sessions_with_first_edit,
-            um.total_input_tokens,
-            um.total_output_tokens,
-            CAST(um.completed_sessions AS REAL) / NULLIF(um.total_sessions, 0) * 100 AS completion_rate,
-            CAST(um.total_edits AS REAL) / NULLIF(um.total_duration_min, 0) AS edit_velocity,
-            (SELECT COUNT(*) FROM user_tools ut WHERE ut.handle = um.handle) AS tool_count,
-            CASE WHEN um.sessions_with_first_edit > 0
-              THEN um.total_first_edit_s / um.sessions_with_first_edit ELSE NULL END AS avg_first_edit_s,
-            CAST(um.total_stuck AS REAL) / NULLIF(um.total_sessions, 0) * 100 AS stuck_rate,
-            CAST(um.total_lines_added AS REAL) / NULLIF(um.total_sessions, 0) AS lines_per_session,
-            um.total_lines_added AS total_lines,
-            ROUND(um.total_duration_min / 60.0, 1) AS focus_hours
-          FROM user_metrics um
-          WHERE um.total_sessions >= 1
-        ),
-        ranked AS (
-          SELECT *,
-            ROUND(PERCENT_RANK() OVER (ORDER BY completion_rate) * 100) AS completion_rate_pct,
-            ROUND(PERCENT_RANK() OVER (ORDER BY edit_velocity) * 100) AS edit_velocity_pct,
-            ROUND(PERCENT_RANK() OVER (ORDER BY tool_count) * 100) AS tool_diversity_pct,
-            ROUND(PERCENT_RANK() OVER (ORDER BY avg_first_edit_s DESC) * 100) AS first_edit_pct,
-            ROUND(PERCENT_RANK() OVER (ORDER BY stuck_rate DESC) * 100) AS stuck_rate_pct,
-            ROUND(PERCENT_RANK() OVER (ORDER BY lines_per_session) * 100) AS lines_per_session_pct,
-            ROUND(PERCENT_RANK() OVER (ORDER BY total_lines) * 100) AS total_lines_pct,
-            ROUND(PERCENT_RANK() OVER (ORDER BY focus_hours) * 100) AS focus_hours_pct
-          FROM base
-        )
-        SELECT * FROM ranked WHERE handle = ?`,
-        handle,
-      )
-      .toArray();
-
-    if (rows.length === 0) {
-      return { ok: true, rank: null, total_developers: totalDevelopers };
-    }
-
-    const rank = rows[0] as Record<string, unknown>;
-
-    // No composite "effectiveness score" — the 8 raw percentile dimensions
-    // (completion_rate_pct, edit_velocity_pct, tool_diversity_pct,
-    // first_edit_pct, stuck_rate_pct, lines_per_session_pct,
-    // total_lines_pct, focus_hours_pct) are what the UI consumes. Any
-    // weighted mean across incomparable axes would be a fabricated number.
-
-    return { ok: true, rank, total_developers: totalDevelopers };
+    return getUserGlobalRankFn(this.sql, handle);
   }
 
   // -- Tool evaluations (logic in evaluations.ts) --
@@ -1031,80 +355,28 @@ export class DatabaseDO extends DurableObject<Env> {
     name: string | null = null,
   ): Promise<{ ok: true }> {
     this.#ensureSchema();
-    this.sql.exec(
-      `INSERT INTO user_teams (user_id, team_id, team_name) VALUES (?, ?, ?)
-       ON CONFLICT(user_id, team_id) DO UPDATE SET
-         team_name = COALESCE(excluded.team_name, user_teams.team_name)`,
-      userId,
-      teamId,
-      name,
-    );
-    return { ok: true };
+    return addUserTeamFn(this.sql, userId, teamId, name);
   }
 
   async getUserTeams(userId: string): Promise<{ ok: true; teams: UserTeam[] }> {
     this.#ensureSchema();
-    const teams = this.sql
-      .exec(
-        'SELECT team_id, team_name, joined_at FROM user_teams WHERE user_id = ? ORDER BY joined_at DESC LIMIT 50',
-        userId,
-      )
-      .toArray() as unknown as UserTeam[];
-    return { ok: true, teams };
+    return getUserTeamsFn(this.sql, userId);
   }
 
   async removeUserTeam(userId: string, teamId: string): Promise<{ ok: true }> {
     this.#ensureSchema();
-    this.sql.exec('DELETE FROM user_teams WHERE user_id = ? AND team_id = ?', userId, teamId);
-    return { ok: true };
+    return removeUserTeamFn(this.sql, userId, teamId);
   }
 
   // -- Tool suggestions --
 
   async saveSuggestion(
-    suggestion: { name: string; url?: string | null; note?: string | null },
+    suggestion: SuggestionInput,
     userId: string,
     userHandle: string,
   ): Promise<DOResult<{ ok: true; suggestion_id: string }>> {
     this.#ensureSchema();
-
-    const name = suggestion.name.trim();
-
-    // Duplicate check against existing tool evaluations (case-insensitive)
-    const existingTool = this.sql
-      .exec('SELECT 1 FROM tool_evaluations WHERE LOWER(name) = LOWER(?)', name)
-      .toArray();
-    if (existingTool.length > 0) {
-      return { error: 'This tool already exists in the directory', code: 'CONFLICT' };
-    }
-
-    // Duplicate check against pending suggestions (case-insensitive)
-    const existingSuggestion = this.sql
-      .exec(
-        "SELECT 1 FROM tool_suggestions WHERE LOWER(name) = LOWER(?) AND status = 'pending'",
-        name,
-      )
-      .toArray();
-    if (existingSuggestion.length > 0) {
-      return {
-        error: 'This tool has already been suggested and is pending review',
-        code: 'CONFLICT',
-      };
-    }
-
-    const id = crypto.randomUUID();
-    this.sql.exec(
-      `INSERT INTO tool_suggestions (id, name, url, note, suggested_by, suggested_by_handle)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      id,
-      name,
-      suggestion.url || null,
-      suggestion.note || null,
-      userId,
-      userHandle,
-    );
-
-    return { ok: true, suggestion_id: id };
+    return saveSuggestionFn(this.sql, suggestion, userId, userHandle);
   }
 
   async listSuggestions(
@@ -1112,22 +384,7 @@ export class DatabaseDO extends DurableObject<Env> {
     limit = 50,
   ): Promise<{ ok: true; suggestions: Record<string, unknown>[]; total: number }> {
     this.#ensureSchema();
-
-    const suggestions = this.sql
-      .exec(
-        `SELECT id, name, url, note, suggested_by_handle, status, reject_reason, reviewed_at, created_at
-         FROM tool_suggestions WHERE status = ? ORDER BY created_at DESC LIMIT ?`,
-        status,
-        limit,
-      )
-      .toArray() as unknown as Record<string, unknown>[];
-
-    const totalRows = this.sql
-      .exec('SELECT COUNT(*) as count FROM tool_suggestions WHERE status = ?', status)
-      .toArray();
-    const total = ((totalRows[0] as Record<string, unknown>)?.count as number) || 0;
-
-    return { ok: true, suggestions, total };
+    return listSuggestionsFn(this.sql, status, limit);
   }
 
   async reviewSuggestion(
@@ -1136,24 +393,7 @@ export class DatabaseDO extends DurableObject<Env> {
     rejectReason?: string | null,
   ): Promise<DOResult<{ ok: true }>> {
     this.#ensureSchema();
-
-    const rows = this.sql.exec('SELECT status FROM tool_suggestions WHERE id = ?', id).toArray();
-    if (rows.length === 0) {
-      return { error: 'Suggestion not found', code: 'NOT_FOUND' };
-    }
-    if ((rows[0] as Record<string, unknown>).status !== 'pending') {
-      return { error: 'Suggestion has already been reviewed', code: 'CONFLICT' };
-    }
-
-    const status = action === 'approve' ? 'approved' : 'rejected';
-    this.sql.exec(
-      `UPDATE tool_suggestions SET status = ?, reject_reason = ?, reviewed_at = datetime('now') WHERE id = ?`,
-      status,
-      action === 'reject' ? rejectReason || null : null,
-      id,
-    );
-
-    return { ok: true };
+    return reviewSuggestionFn(this.sql, id, action, rejectReason);
   }
 
   // -- Agent profiles --
@@ -1163,56 +403,6 @@ export class DatabaseDO extends DurableObject<Env> {
     profile: Partial<AgentProfile>,
   ): Promise<DOResult<{ ok: true }>> {
     this.#ensureSchema();
-    const user = this.sql.exec('SELECT id FROM users WHERE id = ?', userId).toArray();
-    if (user.length === 0) return { error: 'User not found', code: 'NOT_FOUND' };
-
-    this.sql.exec(
-      `INSERT INTO agent_profiles (user_id, framework, languages, frameworks, tools, platforms, registered_at, last_active)
-       VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-       ON CONFLICT(user_id) DO UPDATE SET
-         framework = excluded.framework,
-         languages = excluded.languages,
-         frameworks = excluded.frameworks,
-         tools = excluded.tools,
-         platforms = excluded.platforms,
-         last_active = datetime('now')`,
-      userId,
-      profile.framework || null,
-      JSON.stringify(profile.languages || []),
-      JSON.stringify(profile.frameworks || []),
-      JSON.stringify(profile.tools || []),
-      JSON.stringify(profile.platforms || []),
-    );
-
-    return { ok: true };
+    return updateAgentProfileFn(this.sql, userId, profile);
   }
-
-  // -- Private helpers --
-
-  #generateHandle(): string {
-    const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
-    const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
-    return adj + noun;
-  }
-
-  #handleExists(handle: string): boolean {
-    return this.sql.exec('SELECT 1 FROM users WHERE handle = ?', handle).toArray().length > 0;
-  }
-
-  /** Resolve a unique handle, appending random hex on collision. */
-  #resolveUniqueHandle(preferred: string): string | null {
-    if (!this.#handleExists(preferred)) return preferred;
-    // First collision: append 4 hex chars (e.g. "swiftfox" -> "swiftfoxa7f2")
-    const attempt2 = this.#generateHandle() + crypto.randomUUID().slice(0, 4);
-    if (!this.#handleExists(attempt2)) return attempt2;
-    // Second collision: append 8 hex chars for near-guaranteed uniqueness
-    const attempt3 = this.#generateHandle() + crypto.randomUUID().slice(0, 8);
-    if (!this.#handleExists(attempt3)) return attempt3;
-    return null;
-  }
-}
-
-/** Return the hourly bucket key for a given timestamp (e.g. "2026-04-02T14"). */
-function hourBucket(ms: number): string {
-  return new Date(ms).toISOString().slice(0, 13);
 }
