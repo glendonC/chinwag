@@ -88,10 +88,14 @@ export function validateTagsArray(
 }
 
 /**
- * Wrap a handler with rate limit check + consume pattern.
- * Checks the rate limit before running the handler and always consumes
- * the rate limit regardless of handler outcome. This prevents attackers
- * from flooding with invalid requests without hitting limits.
+ * Wrap a handler with an atomic check-and-consume rate limit.
+ *
+ * The token is consumed at check time, so a request that passes the limit is
+ * counted even if the handler later errors out — same fail-safe semantics as
+ * before, preventing attackers from flooding with invalid requests for free.
+ * Unlike a separate check+consume, this closes the TOCTOU race where
+ * concurrent requests could both read an under-limit count and each slip
+ * through before either had incremented it.
  */
 export async function withRateLimit(
   db: DurableObjectStub<DatabaseDO>,
@@ -100,29 +104,18 @@ export async function withRateLimit(
   errorMsg: string,
   handler: () => Promise<Response>,
 ): Promise<Response> {
-  let limit: { allowed: boolean };
+  let result: { allowed: boolean };
   try {
-    limit = await db.checkRateLimit(key, max);
+    result = rpc(await db.checkAndConsume(key, max));
   } catch (err) {
-    log.error('rate limit check failed', {
+    log.error('rate limit check-and-consume failed', {
       key,
       error: (err as Error)?.message || String(err),
     });
     return json({ error: 'Service temporarily unavailable' }, 503);
   }
-  if (!limit.allowed) {
+  if (!result.allowed) {
     return json({ error: errorMsg }, 429, { 'Retry-After': '3600' });
-  }
-  // Consume immediately -- every request that passes the check costs a token,
-  // regardless of whether the handler succeeds or returns an error status.
-  // This prevents attackers from flooding with invalid requests for free.
-  try {
-    await db.consumeRateLimit(key);
-  } catch (err) {
-    log.error('rate limit consume failed', {
-      key,
-      error: (err as Error)?.message || String(err),
-    });
   }
   return handler();
 }

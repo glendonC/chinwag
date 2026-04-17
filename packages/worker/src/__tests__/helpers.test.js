@@ -594,8 +594,7 @@ describe('requireJson', () => {
 describe('withRateLimit', () => {
   it('returns 429 when rate limit reached', async () => {
     const mockDb = {
-      checkRateLimit: async () => ({ allowed: false, count: 5 }),
-      consumeRateLimit: async () => {},
+      checkAndConsume: async () => ({ ok: true, allowed: false, count: 5 }),
     };
     const handler = async () => new Response('ok', { status: 200 });
 
@@ -605,27 +604,27 @@ describe('withRateLimit', () => {
     expect(body.error).toBe('Rate limit exceeded');
   });
 
-  it('runs handler and consumes limit on success', async () => {
-    let consumed = false;
+  it('runs handler and consumes limit atomically on success', async () => {
+    let consumedKey = null;
     const mockDb = {
-      checkRateLimit: async () => ({ allowed: true, count: 2 }),
-      consumeRateLimit: async () => {
-        consumed = true;
+      checkAndConsume: async (key) => {
+        consumedKey = key;
+        return { ok: true, allowed: true, count: 3 };
       },
     };
     const handler = async () => new Response(JSON.stringify({ ok: true }), { status: 200 });
 
     const response = await withRateLimit(mockDb, 'test-key', 5, 'limit', handler);
     expect(response.status).toBe(200);
-    expect(consumed).toBe(true);
+    expect(consumedKey).toBe('test-key');
   });
 
-  it('consumes rate limit on handler failure (status >= 400)', async () => {
-    let consumed = false;
+  it('token is charged at check time, even if handler later errors', async () => {
+    let callCount = 0;
     const mockDb = {
-      checkRateLimit: async () => ({ allowed: true, count: 0 }),
-      consumeRateLimit: async () => {
-        consumed = true;
+      checkAndConsume: async () => {
+        callCount++;
+        return { ok: true, allowed: true, count: 1 };
       },
     };
     const handler = async () =>
@@ -633,30 +632,31 @@ describe('withRateLimit', () => {
 
     const response = await withRateLimit(mockDb, 'test-key', 5, 'limit', handler);
     expect(response.status).toBe(400);
-    expect(consumed).toBe(true);
+    expect(callCount).toBe(1);
   });
 
-  it('consumes rate limit on 500 error', async () => {
-    let consumed = false;
+  it('charges a token on 500 error too', async () => {
+    let callCount = 0;
     const mockDb = {
-      checkRateLimit: async () => ({ allowed: true, count: 0 }),
-      consumeRateLimit: async () => {
-        consumed = true;
+      checkAndConsume: async () => {
+        callCount++;
+        return { ok: true, allowed: true, count: 1 };
       },
     };
     const handler = async () => new Response('Internal error', { status: 500 });
 
     const response = await withRateLimit(mockDb, 'test-key', 5, 'limit', handler);
     expect(response.status).toBe(500);
-    expect(consumed).toBe(true);
+    expect(callCount).toBe(1);
   });
 
   it('different rate limit keys do not interfere', async () => {
     const counts = { 'key-a': 5, 'key-b': 0 };
     const mockDb = {
-      checkRateLimit: async (key, max) => ({ allowed: counts[key] < max, count: counts[key] }),
-      consumeRateLimit: async (key) => {
+      checkAndConsume: async (key, max) => {
+        if (counts[key] >= max) return { ok: true, allowed: false, count: counts[key] };
         counts[key]++;
+        return { ok: true, allowed: true, count: counts[key] };
       },
     };
 
@@ -674,8 +674,7 @@ describe('withRateLimit', () => {
   it('does not invoke handler when rate limited', async () => {
     let handlerCalled = false;
     const mockDb = {
-      checkRateLimit: async () => ({ allowed: false, count: 10 }),
-      consumeRateLimit: async () => {},
+      checkAndConsume: async () => ({ ok: true, allowed: false, count: 10 }),
     };
     const handler = async () => {
       handlerCalled = true;
