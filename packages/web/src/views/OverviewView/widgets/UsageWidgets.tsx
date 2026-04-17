@@ -1,7 +1,17 @@
+import type { UserAnalytics } from '../../../lib/apiSchemas.js';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
 import { StatWidget, CoverageNote, capabilityCoverageNote } from './shared.js';
 
+// True when no day in the period was observed — distinct from "days were
+// observed but every metric was zero." Widgets render `--` in the first
+// case and `0` in the second, so the user can tell "system captured
+// nothing" apart from "I genuinely did no work."
+function isEmptyPeriod(analytics: UserAnalytics): boolean {
+  return analytics.daily_trends.length === 0;
+}
+
 function SessionsWidget({ analytics }: WidgetBodyProps) {
+  if (isEmptyPeriod(analytics)) return <StatWidget value="--" />;
   const v = analytics.daily_trends.reduce((s, d) => s + d.sessions, 0);
   const pc = analytics.period_comparison;
   const delta = pc.previous
@@ -11,6 +21,7 @@ function SessionsWidget({ analytics }: WidgetBodyProps) {
 }
 
 function EditsWidget({ analytics }: WidgetBodyProps) {
+  if (isEmptyPeriod(analytics)) return <StatWidget value="--" />;
   const v = analytics.daily_trends.reduce((s, d) => s + d.edits, 0);
   const pc = analytics.period_comparison;
   const delta = pc.previous
@@ -20,16 +31,19 @@ function EditsWidget({ analytics }: WidgetBodyProps) {
 }
 
 function LinesAddedWidget({ analytics }: WidgetBodyProps) {
+  if (isEmptyPeriod(analytics)) return <StatWidget value="--" />;
   const v = analytics.daily_trends.reduce((s, d) => s + d.lines_added, 0);
   return <StatWidget value={`+${v.toLocaleString()}`} />;
 }
 
 function LinesRemovedWidget({ analytics }: WidgetBodyProps) {
+  if (isEmptyPeriod(analytics)) return <StatWidget value="--" />;
   const v = analytics.daily_trends.reduce((s, d) => s + d.lines_removed, 0);
   return <StatWidget value={`-${v.toLocaleString()}`} />;
 }
 
 function FilesTouchedWidget({ analytics }: WidgetBodyProps) {
+  if (isEmptyPeriod(analytics)) return <StatWidget value="--" />;
   return <StatWidget value={String(analytics.file_heatmap.length)} />;
 }
 
