@@ -136,7 +136,10 @@ function ScoreCard({
       <span className={styles.scoreDesc}>{tierDesc[tier]}</span>
       {totalDevelopers > 0 && tier !== 'New' && (
         <span className={styles.scoreContext}>
-          Top {Math.max(1, 100 - score)}% of {totalDevelopers.toLocaleString()} developers
+          Top {Math.max(1, 100 - score)}%
+          {totalDevelopers >= 100
+            ? ` of ${totalDevelopers.toLocaleString()} developers`
+            : ' of developers'}
         </span>
       )}
     </div>
@@ -774,6 +777,7 @@ export default function GlobalView(): ReactNode {
   const m = gr.metrics;
   const t = gr.totals;
   const avg = gs.globalAverages;
+  const hasEnoughSessions = t.totalSessions >= 10;
 
   const completionHisto = useMemo(() => {
     if (gs.completionDistribution.length === 0) return [];
@@ -922,21 +926,34 @@ export default function GlobalView(): ReactNode {
         <SectionHead
           label={`Your Rank${gr.totalDevelopers > 0 ? ` among ${gr.totalDevelopers.toLocaleString()} developers` : ''}`}
         />
-        <div className={styles.percentileGrid}>
+        {!hasEnoughSessions && (
+          <p className={styles.cardContext} style={{ marginBottom: 16 }}>
+            Complete {10 - t.totalSessions} more session{10 - t.totalSessions === 1 ? '' : 's'} to
+            unlock percentile rankings.
+          </p>
+        )}
+        <div
+          className={styles.percentileGrid}
+          style={!hasEnoughSessions ? { opacity: 0.35, pointerEvents: 'none' } : undefined}
+        >
           <BellCard
             metric="Sessions completed"
-            percentile={m.completion_rate?.percentile ?? 0}
-            value={`${m.completion_rate?.value ?? 0}%`}
+            percentile={hasEnoughSessions ? (m.completion_rate?.percentile ?? 0) : 0}
+            value={hasEnoughSessions ? `${m.completion_rate?.value ?? 0}%` : '--'}
             context={
-              m.completion_rate?.percentile != null && m.completion_rate.percentile >= 50
+              hasEnoughSessions &&
+              m.completion_rate?.percentile != null &&
+              m.completion_rate.percentile >= 50
                 ? `Your completion rate is in the top ${100 - Math.round(m.completion_rate.percentile)}% of all developers.`
-                : 'Complete more sessions to see how you compare.'
+                : hasEnoughSessions
+                  ? 'Complete more sessions to see how you compare.'
+                  : undefined
             }
           />
           <BarCard
             metric="Time to first edit"
-            percentile={m.first_edit_latency?.percentile ?? 0}
-            value={`${m.first_edit_latency?.value ?? 0}s`}
+            percentile={hasEnoughSessions ? (m.first_edit_latency?.percentile ?? 0) : 0}
+            value={hasEnoughSessions ? `${m.first_edit_latency?.value ?? 0}s` : '--'}
             lowLabel="Slower"
             highLabel="Faster"
             context={
@@ -947,8 +964,8 @@ export default function GlobalView(): ReactNode {
           />
           <ThermometerCard
             metric="Agent reliability"
-            percentile={m.stuck_rate?.percentile ?? 0}
-            value={`${100 - (m.stuck_rate?.value ?? 0)}%`}
+            percentile={hasEnoughSessions ? (m.stuck_rate?.percentile ?? 0) : 0}
+            value={hasEnoughSessions ? `${100 - (m.stuck_rate?.value ?? 0)}%` : '--'}
             lowLabel="Less reliable"
             highLabel="More reliable"
             context={
@@ -959,8 +976,8 @@ export default function GlobalView(): ReactNode {
           />
           <SpectrumCard
             metric="Edits per minute"
-            percentile={m.edit_velocity?.percentile ?? 0}
-            value={String(m.edit_velocity?.value ?? 0)}
+            percentile={hasEnoughSessions ? (m.edit_velocity?.percentile ?? 0) : 0}
+            value={hasEnoughSessions ? String(m.edit_velocity?.value ?? 0) : '--'}
             lowLabel="Slower"
             highLabel="Faster"
             context={
@@ -971,28 +988,17 @@ export default function GlobalView(): ReactNode {
           />
           <HistogramCard
             metric="Output per session"
-            percentile={m.lines_per_session?.percentile ?? 0}
-            value={(m.lines_per_session?.value ?? 0).toLocaleString()}
+            percentile={hasEnoughSessions ? (m.lines_per_session?.percentile ?? 0) : 0}
+            value={hasEnoughSessions ? (m.lines_per_session?.value ?? 0).toLocaleString() : '--'}
             unit="lines"
-            distribution={
-              completionHisto.length > 0
-                ? completionHisto
-                : [
-                    { label: '0-49', pct: 15 },
-                    { label: '50-59', pct: 10 },
-                    { label: '60-69', pct: 20 },
-                    { label: '70-79', pct: 25 },
-                    { label: '80-89', pct: 20 },
-                    { label: '90-100', pct: 10 },
-                  ]
-            }
+            distribution={completionHisto}
             userBracket={userBracket}
             context="Distribution of completion rates across all developers."
           />
           <ArcCard
             metric="Code written"
-            percentile={m.total_lines?.percentile ?? 0}
-            value={formatNum(m.total_lines?.value ?? 0)}
+            percentile={hasEnoughSessions ? (m.total_lines?.percentile ?? 0) : 0}
+            value={hasEnoughSessions ? formatNum(m.total_lines?.value ?? 0) : '--'}
             unit="lines total"
             context={
               m.total_lines?.percentile != null && m.total_lines.percentile >= 50
@@ -1002,8 +1008,8 @@ export default function GlobalView(): ReactNode {
           />
           <RingCard
             metric="Focus time"
-            percentile={m.focus_hours?.percentile ?? 0}
-            value={String(m.focus_hours?.value ?? 0)}
+            percentile={hasEnoughSessions ? (m.focus_hours?.percentile ?? 0) : 0}
+            value={hasEnoughSessions ? String(m.focus_hours?.value ?? 0) : '--'}
             unit="hours"
             context={
               avg.focus_hours > 0
@@ -1013,8 +1019,8 @@ export default function GlobalView(): ReactNode {
           />
           <DotsCard
             metric="Tools used"
-            percentile={m.tool_diversity?.percentile ?? 0}
-            value={String(m.tool_diversity?.value ?? 0)}
+            percentile={hasEnoughSessions ? (m.tool_diversity?.percentile ?? 0) : 0}
+            value={hasEnoughSessions ? String(m.tool_diversity?.value ?? 0) : '--'}
             max={8}
             context={
               (m.tool_diversity?.value ?? 0) >= 3
