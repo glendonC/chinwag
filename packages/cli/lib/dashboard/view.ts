@@ -1,6 +1,6 @@
 import { basename } from 'path';
+import type { TeamContext as SharedTeamContext } from '@chinwag/shared/contracts/dashboard.js';
 import type {
-  TeamContext as SharedTeamContext,
   TeamMemory as SharedTeamMemory,
   TeamMember as SharedTeamMember,
   TeamSession as SharedTeamSession,
