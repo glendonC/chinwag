@@ -133,11 +133,19 @@ export const handleTeamEndSession = teamJsonRoute(
       );
     }
 
-    // Write-through to global user metrics (fire-and-forget)
+    // Write-through to global user metrics (fire-and-forget).
+    // Failures are non-fatal for the session-end response but must be visible:
+    // a silent regression here would rot cross-project analytics without any
+    // signal to operators.
     const summary = result.summary as Record<string, unknown> | null;
     if (summary) {
       summary.outcome = result.outcome as string | null;
-      db.updateUserMetrics(user.handle, summary).catch(() => {});
+      db.updateUserMetrics(user.handle, summary).catch((err: unknown) => {
+        log.warn('updateUserMetrics failed for session end', {
+          handle: user.handle,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
     }
 
     auditLog('session.end', {

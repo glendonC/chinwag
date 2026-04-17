@@ -21,6 +21,9 @@ const CHAT_MODEL: AiModel = '@cf/meta/llama-4-scout-17b-16e-instruct';
 /**
  * Generate a 384-dim embedding vector for semantic similarity.
  * Returns null on failure — embedding is non-critical for all callers.
+ *
+ * Logs at warn so recurring AI outages are visible in production logs:
+ * silent null returns degrade memory dedup quality without any signal.
  */
 export async function generateEmbedding(text: string, ai: Ai): Promise<ArrayBuffer | null> {
   try {
@@ -28,9 +31,11 @@ export async function generateEmbedding(text: string, ai: Ai): Promise<ArrayBuff
     if (result?.data?.[0]) {
       return new Float32Array(result.data[0]).buffer as ArrayBuffer;
     }
+    log.warn('embedding generation returned empty result', { model: EMBEDDING_MODEL });
     return null;
   } catch (err) {
-    log.debug('embedding generation failed', {
+    log.warn('embedding generation failed', {
+      model: EMBEDDING_MODEL,
       error: err instanceof Error ? err.message : String(err),
     });
     return null;
@@ -57,7 +62,8 @@ export async function chatCompletion(ai: Ai, options: ChatOptions): Promise<stri
     const raw = (response as { response?: string })?.response;
     return typeof raw === 'string' ? raw.trim() : null;
   } catch (err) {
-    log.debug('chat completion failed', {
+    log.warn('chat completion failed', {
+      model: CHAT_MODEL,
       error: err instanceof Error ? err.message : String(err),
     });
     return null;
