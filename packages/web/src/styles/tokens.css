@@ -37,6 +37,20 @@
 
   /* ── Breakpoints (for documentation — CSS can't use vars in @media) ── */
   /* Mobile: 480px | Small: 640px | Medium: 768px | Large: 900px | Wide: 980px */
+
+  /* ── Work-type palette ──
+     Categorical palette for the work-type widgets (work-types,
+     work-type-outcomes, tool-work-type). Aliases existing semantic
+     tokens so dark-mode handling is free. Namespaced --work-* so
+     future category palettes (--tool-*, --model-*) can follow the
+     same pattern without needing a generic --chart-N scheme. */
+  --work-frontend: var(--accent);
+  --work-backend: var(--success);
+  --work-test: var(--warn);
+  --work-styling: var(--purple);
+  --work-docs: var(--info);
+  --work-config: var(--danger);
+  --work-other: var(--soft);
 }
 
 [data-theme='dark'] {

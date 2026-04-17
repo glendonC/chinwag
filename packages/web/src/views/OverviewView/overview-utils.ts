@@ -6,14 +6,17 @@ import type { DailyTrend, HourlyBucket } from '../../lib/apiSchemas.js';
 export const RANGES = [7, 30, 90] as const;
 export type RangeDays = (typeof RANGES)[number];
 
+// Work-type palette. Values are CSS custom-property references declared
+// in styles/tokens.css — they alias the app's semantic tokens so dark
+// mode is handled at the token layer, not here.
 export const WORK_TYPE_COLORS: Record<string, string> = {
-  frontend: '#5878ff',
-  backend: '#34d68a',
-  test: '#ffb366',
-  styling: '#a585ff',
-  docs: '#7e7af0',
-  config: '#ff8a7a',
-  other: '#98989d',
+  frontend: 'var(--work-frontend)',
+  backend: 'var(--work-backend)',
+  test: 'var(--work-test)',
+  styling: 'var(--work-styling)',
+  docs: 'var(--work-docs)',
+  config: 'var(--work-config)',
+  other: 'var(--work-other)',
 };
 
 export const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
