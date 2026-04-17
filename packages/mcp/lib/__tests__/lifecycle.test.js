@@ -89,7 +89,7 @@ describe('cleanupProcessSession', () => {
     const team = {
       endSession: vi.fn().mockResolvedValue({ ok: true }),
       leaveTeam: vi.fn().mockResolvedValue({ ok: true }),
-      flushToolCalls: vi.fn().mockResolvedValue({ ok: true }),
+      recordToolCalls: vi.fn().mockResolvedValue({ ok: true }),
     };
     const clearIntervalFn = vi.fn();
     const deleteRecord = vi.fn();
@@ -144,7 +144,7 @@ describe('cleanupProcessSession', () => {
     const team = {
       endSession: vi.fn().mockResolvedValue({ ok: true }),
       leaveTeam: vi.fn().mockResolvedValue({ ok: true }),
-      flushToolCalls: vi.fn().mockResolvedValue({ ok: true }),
+      recordToolCalls: vi.fn().mockResolvedValue({ ok: true }),
     };
     const writeCompleted = vi.fn();
 
@@ -208,7 +208,7 @@ describe('cleanupProcessSession', () => {
     const team = {
       endSession: vi.fn().mockResolvedValue({ ok: true }),
       leaveTeam: vi.fn().mockResolvedValue({ ok: true }),
-      flushToolCalls: vi.fn().mockResolvedValue({ ok: true }),
+      recordToolCalls: vi.fn().mockResolvedValue({ ok: true }),
     };
     const writeCompleted = vi.fn();
 

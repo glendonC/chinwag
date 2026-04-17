@@ -241,7 +241,7 @@ export async function cleanupProcessSession(
   if (state.sessionId && state.teamId) {
     if (state.toolCalls.length > 0) {
       await team
-        .flushToolCalls(state.teamId, state.sessionId, state.toolCalls)
+        .recordToolCalls(state.teamId, state.sessionId, state.toolCalls)
         .catch((err: Error) => {
           log.error('Failed to flush tool calls: ' + err.message);
         });

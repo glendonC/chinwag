@@ -110,10 +110,26 @@ export interface TeamCoordinationHandlers {
     }>,
   ): Promise<OkResult>;
   reportModel(teamId: string, model: string): Promise<OkResult>;
-  flushToolCalls(
+  recordToolCalls(
     teamId: string,
     sessionId: string,
-    calls: Array<{ tool: string; at: number }>,
+    calls: Array<{
+      tool: string;
+      at: number;
+      is_error?: boolean;
+      error_preview?: string;
+      duration_ms?: number;
+    }>,
+  ): Promise<OkResult>;
+  recordSessionTokens(
+    teamId: string,
+    sessionId: string,
+    tokens: {
+      input_tokens: number;
+      output_tokens: number;
+      cache_read_tokens?: number;
+      cache_creation_tokens?: number;
+    },
   ): Promise<OkResult>;
 }
 
@@ -266,9 +282,20 @@ export function teamHandlers(client: ApiClient): TeamHandlers {
       return client.put(`/teams/${teamId}/sessionmodel`, { model });
     },
 
-    async flushToolCalls(teamId, sessionId, calls) {
+    async recordToolCalls(teamId, sessionId, calls) {
       validateTeam(teamId);
       return client.post(`/teams/${teamId}/tool-calls`, { session_id: sessionId, calls });
+    },
+
+    async recordSessionTokens(teamId, sessionId, tokens) {
+      validateTeam(teamId);
+      return client.post(`/teams/${teamId}/sessiontokens`, {
+        session_id: sessionId,
+        input_tokens: tokens.input_tokens,
+        output_tokens: tokens.output_tokens,
+        cache_read_tokens: tokens.cache_read_tokens ?? 0,
+        cache_creation_tokens: tokens.cache_creation_tokens ?? 0,
+      });
     },
   };
 }

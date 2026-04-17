@@ -117,8 +117,8 @@ describe('registerTools', () => {
     registerTools(server, { team, state, profile, integrationDoctor });
   });
 
-  it('registers all 15 tools', () => {
-    expect(server._tools.size).toBe(15);
+  it('registers all 18 tools', () => {
+    expect(server._tools.size).toBe(18);
     const expected = [
       'chinwag_scan_integrations',
       'chinwag_configure_integration',
@@ -130,10 +130,14 @@ describe('registerTools', () => {
       'chinwag_update_memory',
       'chinwag_search_memory',
       'chinwag_delete_memory',
+      'chinwag_delete_memories_batch',
       'chinwag_claim_files',
       'chinwag_release_files',
       'chinwag_send_message',
       'chinwag_report_outcome',
+      'chinwag_report_commits',
+      'chinwag_record_tokens',
+      'chinwag_record_tool_call',
     ];
     for (const name of expected) {
       expect(server._tools.has(name)).toBe(true);
