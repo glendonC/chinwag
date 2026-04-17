@@ -104,11 +104,18 @@ export interface McpState {
   modelReportInflight: string | null;
   lastActivity: number;
   heartbeatInterval?: ReturnType<typeof setInterval> | null;
-  /** Recovery timer that fires after heartbeat death to attempt a single recovery heartbeat. */
+  /** Recovery timer that reattempts heartbeat after death with exponential backoff (capped at 30m). */
   heartbeatRecoveryTimeout?: ReturnType<typeof setTimeout> | null;
   shuttingDown: boolean;
   /** Set when initial team join fails — tools can surface this instead of a generic "Not in a team" error. */
   teamJoinError: string | null;
+  /**
+   * Resolves once the initial team join settles (success or failure).
+   * Tools await this so they don't race the backend with calls before the DO has
+   * registered membership. Always resolves — failure is surfaced via teamJoinError
+   * and teamId being nulled.
+   */
+  teamJoinComplete: Promise<void> | null;
   /** Set when heartbeat exhausts all retries — tools should tell the user to rejoin. */
   heartbeatDead: boolean;
   /** Accumulated tool call metadata flushed to the backend on session end. */

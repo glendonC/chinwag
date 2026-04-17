@@ -81,6 +81,7 @@ describe('heartbeat recovery', () => {
       heartbeatDead: false,
       sessionId: null,
       teamJoinError: null,
+      teamJoinComplete: null,
       shuttingDown: false,
       toolCalls: [],
     };

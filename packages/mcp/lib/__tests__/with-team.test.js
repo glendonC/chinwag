@@ -100,4 +100,57 @@ describe('withTeam middleware', () => {
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toBe('Custom error');
   });
+
+  // ── Team-join race guard ─────────────────────────────────────────────────
+  // Tool calls that race the initial joinTeamOnce would hit the backend before
+  // the DO registered membership and get a 403. withTeam awaits a pending join
+  // promise so the first call blocks until membership is real.
+
+  it('waits for teamJoinComplete before running handler', async () => {
+    const order = [];
+    let resolveJoin;
+    state.teamJoinComplete = new Promise((res) => {
+      resolveJoin = () => {
+        order.push('join-resolved');
+        res();
+      };
+    });
+
+    const handler = withTeam(deps, async () => {
+      order.push('handler-ran');
+      return { content: [{ type: 'text', text: 'ok' }] };
+    });
+
+    const resultPromise = handler({});
+    // Give the event loop a tick so handler would have run if unguarded.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(order).toEqual([]);
+
+    resolveJoin();
+    await resultPromise;
+    expect(order).toEqual(['join-resolved', 'handler-ran']);
+  });
+
+  it('surfaces noTeam error when join settles with teamId cleared', async () => {
+    state.teamJoinComplete = Promise.resolve();
+    state.teamId = null;
+    state.teamJoinError = 'Join failed for team "t_x": network down';
+
+    const handler = withTeam(deps, async () => {
+      return { content: [{ type: 'text', text: 'should not reach' }] };
+    });
+
+    const result = await handler({});
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/network down/);
+  });
+
+  it('no wait when teamJoinComplete is null (post-join steady state)', async () => {
+    state.teamJoinComplete = null;
+    const handler = withTeam(deps, async () => {
+      return { content: [{ type: 'text', text: 'ran' }] };
+    });
+    const result = await handler({});
+    expect(result.content[0].text).toMatch(/ran$/);
+  });
 });

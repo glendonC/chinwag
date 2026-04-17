@@ -86,6 +86,7 @@ async function main() {
     heartbeatRecoveryTimeout: null,
     shuttingDown: false,
     teamJoinError: null,
+    teamJoinComplete: null,
     heartbeatDead: false,
     toolCalls: [],
   });
@@ -118,6 +119,13 @@ async function main() {
   async function joinTeamOnce() {
     if (teamJoined || !state.teamId) return;
     teamJoined = true;
+    // Expose an in-flight promise so the tool middleware can await membership
+    // registration before hitting the backend — prevents 403s from tool calls
+    // that race ahead of the initial joinTeam round-trip.
+    let resolveJoin;
+    state.teamJoinComplete = new Promise((res) => {
+      resolveJoin = res;
+    });
     try {
       await team.joinTeam(state.teamId, projectName);
       log.info(`Joined team ${state.teamId}`);
@@ -212,6 +220,8 @@ async function main() {
       );
       state.teamJoinError = `Join failed for team "${failedTeamId}": ${reason}`;
       state.teamId = null;
+    } finally {
+      resolveJoin?.();
     }
   }
 

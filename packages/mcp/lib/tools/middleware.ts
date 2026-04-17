@@ -24,6 +24,13 @@ export function withTeam(
   options: { skipPreamble?: boolean } = {},
 ): (args: Record<string, unknown>) => Promise<McpToolResult> {
   return async (args: Record<string, unknown>) => {
+    // Wait for the initial team join to settle. This closes the race between
+    // MCP clientInfo handshake + joinTeamOnce and the first tool call — without
+    // this await, a tool can reach the backend before the DO has registered
+    // membership and get a 403 for an agent that's about to be a valid member.
+    if (state.teamJoinComplete) {
+      await state.teamJoinComplete;
+    }
     if (!state.teamId) {
       return noTeam(state);
     }
