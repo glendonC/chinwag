@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { Suspense, lazy, useState, useEffect, type ReactNode } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore, authActions } from './lib/stores/auth.js';
 import { useTeamStore, teamActions } from './lib/stores/teams.js';
@@ -14,18 +14,27 @@ import { getErrorMessage } from './lib/errorHelpers.js';
 import { useRoute, parseLocation, type Route } from './lib/router.js';
 import { isDemoMode } from './lib/demoData.js';
 
+// Eagerly loaded: the unauthenticated landing and the default post-boot
+// view. Everything else is behind a nav click and lazy-loaded so the
+// initial bundle stays lean. GlobalView in particular pulls in a
+// ~123 KB dotted-map dataset that has no business in the first paint.
 import ConnectView from './views/ConnectView/ConnectView.js';
 import OverviewView from './views/OverviewView/OverviewView.js';
-import ProjectView from './views/ProjectView/ProjectView.js';
-import SettingsView from './views/SettingsView/SettingsView.js';
-import ToolsView from './views/ToolsView/ToolsView.js';
-import GlobalView from './views/GlobalView/GlobalView.js';
-import ReportsView from './views/ReportsView/ReportsView.js';
 import Sidebar from './components/Sidebar/Sidebar.js';
 import Banner from './components/Banner/Banner.js';
 import RenderErrorBoundary from './components/RenderErrorBoundary/RenderErrorBoundary.js';
 
+const ProjectView = lazy(() => import('./views/ProjectView/ProjectView.js'));
+const SettingsView = lazy(() => import('./views/SettingsView/SettingsView.js'));
+const ToolsView = lazy(() => import('./views/ToolsView/ToolsView.js'));
+const GlobalView = lazy(() => import('./views/GlobalView/GlobalView.js'));
+const ReportsView = lazy(() => import('./views/ReportsView/ReportsView.js'));
+
 import styles from './App.module.css';
+
+function ViewLoading(): ReactNode {
+  return <div className={styles.viewLoading} aria-live="polite" />;
+}
 
 type BootState = 'loading' | 'ready' | 'unauthenticated';
 const SIDEBAR_COLLAPSE_STORAGE_KEY = 'chinwag:sidebar-collapsed-v1';
@@ -258,27 +267,37 @@ export default function App(): ReactNode {
           )}
           {activeView === 'tools' && (
             <RenderErrorBoundary label="ToolsView" resetKey={activeView}>
-              <ToolsView />
+              <Suspense fallback={<ViewLoading />}>
+                <ToolsView />
+              </Suspense>
             </RenderErrorBoundary>
           )}
           {activeView === 'project' && (
             <RenderErrorBoundary label="ProjectView" resetKey={`project-${activeTeamId}`}>
-              <ProjectView />
+              <Suspense fallback={<ViewLoading />}>
+                <ProjectView />
+              </Suspense>
             </RenderErrorBoundary>
           )}
           {activeView === 'global' && (
             <RenderErrorBoundary label="GlobalView" resetKey={activeView}>
-              <GlobalView />
+              <Suspense fallback={<ViewLoading />}>
+                <GlobalView />
+              </Suspense>
             </RenderErrorBoundary>
           )}
           {activeView === 'reports' && (
             <RenderErrorBoundary label="ReportsView" resetKey={activeView}>
-              <ReportsView />
+              <Suspense fallback={<ViewLoading />}>
+                <ReportsView />
+              </Suspense>
             </RenderErrorBoundary>
           )}
           {activeView === 'settings' && (
             <RenderErrorBoundary label="SettingsView" resetKey={activeView}>
-              <SettingsView />
+              <Suspense fallback={<ViewLoading />}>
+                <SettingsView />
+              </Suspense>
             </RenderErrorBoundary>
           )}
         </div>
