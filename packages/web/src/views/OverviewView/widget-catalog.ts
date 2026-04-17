@@ -34,7 +34,6 @@ export type WidgetViz =
   | 'data-list'
   | 'outcome-bar'
   | 'factual-grid'
-  | 'sentiment-bars'
   | 'topic-bars'
   | 'project-list'
   | 'bucket-chart'
@@ -374,18 +373,6 @@ export const WIDGET_CATALOG: WidgetDef[] = [
 
   // ── Conversations ─────────────────────
   {
-    id: 'sentiment',
-    name: 'Sentiment',
-    description: 'Your message sentiment: positive, neutral, frustrated',
-    category: 'conversations',
-    viz: 'sentiment-bars',
-    w: 4,
-    h: 3,
-    minW: 3,
-    minH: 2,
-    dataKeys: ['conversation'],
-  },
-  {
     id: 'topics',
     name: 'Topics',
     description: 'What you discuss: bug-fix, feature, refactor, testing',
@@ -701,19 +688,6 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['conversation_edit_correlation'],
   },
-  {
-    id: 'message-length',
-    name: 'Message length',
-    description: 'Average characters per user prompt vs assistant response',
-    category: 'conversations',
-    viz: 'stat-row',
-    w: 4,
-    h: 2,
-    minW: 3,
-    minH: 2,
-    dataKeys: ['conversation'],
-  },
-
   // ── Memory (extended) ───────────────
   {
     id: 'memory-outcomes',
@@ -793,7 +767,6 @@ const VIZ_MAX_CONSTRAINTS: Record<WidgetViz, { maxW: number; maxH: number }> = {
   'data-list': { maxW: 12, maxH: 8 },
   'outcome-bar': { maxW: 6, maxH: 4 },
   'factual-grid': { maxW: 12, maxH: 4 },
-  'sentiment-bars': { maxW: 8, maxH: 5 },
   'topic-bars': { maxW: 8, maxH: 5 },
   'project-list': { maxW: 12, maxH: 6 },
   'bucket-chart': { maxW: 12, maxH: 5 },

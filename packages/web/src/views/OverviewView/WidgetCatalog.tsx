@@ -30,7 +30,6 @@ const VIZ_LABELS: Record<WidgetViz, string> = {
   'data-list': 'Data table',
   'outcome-bar': 'Outcome bar',
   'factual-grid': 'Fact grid',
-  'sentiment-bars': 'Sentiment bars',
   'topic-bars': 'Topic bars',
   'project-list': 'Project list',
   'bucket-chart': 'Bucket chart',

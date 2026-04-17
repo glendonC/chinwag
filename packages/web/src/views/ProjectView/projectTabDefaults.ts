@@ -32,6 +32,6 @@ export const TRENDS_DEFAULT_LAYOUT: RGLLayout[] = [
   { i: 'models', x: 6, y: 11, w: 6, h: 3 },
   { i: 'stuckness', x: 0, y: 14, w: 6, h: 3 },
   { i: 'first-edit', x: 6, y: 14, w: 6, h: 3 },
-  { i: 'sentiment', x: 0, y: 17, w: 6, h: 3 },
-  { i: 'topics', x: 6, y: 17, w: 6, h: 3 },
+  { i: 'topics', x: 0, y: 17, w: 6, h: 3 },
+  { i: 'sentiment-outcomes', x: 6, y: 17, w: 6, h: 3 },
 ];
