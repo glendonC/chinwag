@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import SectionEmpty from '../../../components/SectionEmpty/SectionEmpty.js';
 import { DAY_LABELS, WORK_TYPE_COLORS, buildHeatmapData } from '../overview-utils.js';
 import { getToolMeta } from '../../../lib/toolMeta.js';
 import type { UserAnalytics } from '../../../lib/apiSchemas.js';
@@ -8,13 +9,27 @@ import { GhostBars, GhostStatRow } from './shared.js';
 
 const HOUR_LABELS = [0, 3, 6, 9, 12, 15, 18, 21];
 
+// Below this many populated hour×day cells the grid looks broken rather
+// than sparse — one or two lit squares against a 168-cell grid reads as
+// a load bug. Show a named empty state instead, so the user understands
+// the widget will fill in with more sessions.
+const HEATMAP_MIN_POPULATED_CELLS = 3;
+
 function HeatmapWidget({ analytics }: WidgetBodyProps) {
   return <Heatmap hourly={analytics.hourly_distribution} />;
 }
 
 function Heatmap({ hourly }: { hourly: UserAnalytics['hourly_distribution'] }) {
-  const { grid, max } = useMemo(() => buildHeatmapData(hourly), [hourly]);
-  const hasData = hourly.length > 0;
+  const { grid, max, populatedCells } = useMemo(() => {
+    const built = buildHeatmapData(hourly);
+    let cells = 0;
+    for (const row of built.grid) for (const v of row) if (v > 0) cells++;
+    return { ...built, populatedCells: cells };
+  }, [hourly]);
+
+  if (populatedCells < HEATMAP_MIN_POPULATED_CELLS) {
+    return <SectionEmpty>Heatmap fills in as you run more sessions</SectionEmpty>;
+  }
 
   return (
     <div className={styles.heatmapWrap}>
@@ -30,14 +45,14 @@ function Heatmap({ hourly }: { hourly: UserAnalytics['hourly_distribution'] }) {
           {Array.from({ length: 24 }, (_, hour) => (
             <div key={hour} className={styles.heatmapCol}>
               {Array.from({ length: 7 }, (_, dow) => {
-                const val = hasData ? grid[dow][hour] : 0;
+                const val = grid[dow][hour];
                 const opacity = max > 0 ? 0.05 + (val / max) * 0.7 : 0.04;
                 return (
                   <div
                     key={dow}
                     className={styles.heatmapCell}
                     style={{ background: 'var(--ink)', opacity }}
-                    title={hasData ? `${DAY_LABELS[dow]} ${hour}:00 — ${val} sessions` : ''}
+                    title={`${DAY_LABELS[dow]} ${hour}:00 — ${val} sessions`}
                   />
                 );
               })}
@@ -60,25 +75,7 @@ function WorkTypesWidget({ analytics }: WidgetBodyProps) {
   const workTypes = analytics.work_type_distribution;
   const total = workTypes.reduce((s, w) => s + w.sessions, 0);
   if (total === 0) {
-    return (
-      <>
-        <div className={styles.workBar}>
-          <div
-            className={styles.workSegment}
-            style={{ width: '100%', background: 'var(--ghost)', opacity: 0.3 }}
-          />
-        </div>
-        <div className={styles.workLegend} style={{ opacity: 0.3 }}>
-          {['frontend', 'backend', 'test'].map((t) => (
-            <div key={t} className={styles.workLegendItem}>
-              <span className={styles.workDot} style={{ background: WORK_TYPE_COLORS[t] }} />
-              <span className={styles.workLegendLabel}>{t}</span>
-              <span className={styles.workLegendValue}>—</span>
-            </div>
-          ))}
-        </div>
-      </>
-    );
+    return <SectionEmpty>No sessions yet</SectionEmpty>;
   }
   return (
     <>
