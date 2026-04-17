@@ -248,17 +248,21 @@ export class TeamDO extends DurableObject<Env> {
     ownerId: string | null,
     run: (resolved: string) => R,
     side: {
-      broadcast?: (result: R, resolved: string) => Record<string, unknown> | null;
+      broadcast?: (result: Exclude<R, DOError>, resolved: string) => Record<string, unknown> | null;
       broadcastOpts?: { invalidateCache?: boolean };
-      metric?: (result: R) => string | null;
+      metric?: (result: Exclude<R, DOError>) => string | null;
     } = {},
   ): R | DOError {
     return this.#withMember(agentId, ownerId, (resolved) => {
       const result = run(resolved);
       if (!isDOError(result)) {
-        const event = side.broadcast?.(result, resolved);
+        // isDOError narrows to Exclude<R, DOError> at runtime, but TS does not
+        // propagate the negation through a generic. The helper below re-asserts
+        // the refinement without losing the public signature.
+        const success: Exclude<R, DOError> = result as Exclude<R, DOError>;
+        const event = side.broadcast?.(success, resolved);
         if (event) this.#broadcastToWatchers(event, side.broadcastOpts);
-        const metric = side.metric?.(result);
+        const metric = side.metric?.(success);
         if (metric) this.#recordMetric(metric);
       }
       return result;
@@ -449,13 +453,14 @@ export class TeamDO extends DurableObject<Env> {
     runtime: Record<string, unknown> | null = null,
     ownerId: string | null = null,
   ): Promise<DOResult<{ ok: true; session_id: string }> | DOError> {
-    return this.#withMember(agentId, ownerId, (resolved) => {
-      const result = startSessionFn(this.sql, resolved, handle, framework, runtime, this.#transact);
-      if (!isDOError(result)) {
-        this.#recordMetric('sessions_started');
-      }
-      return result;
-    });
+    return this.#op(
+      agentId,
+      ownerId,
+      (resolved) => startSessionFn(this.sql, resolved, handle, framework, runtime, this.#transact),
+      {
+        metric: () => 'sessions_started',
+      },
+    );
   }
 
   async endSession(
@@ -466,12 +471,8 @@ export class TeamDO extends DurableObject<Env> {
     | DOResult<{ ok: true; outcome?: string | null; summary?: Record<string, unknown> | null }>
     | DOError
   > {
-    return this.#withMember(agentId, ownerId, (resolved) => {
-      const result = endSessionFn(this.sql, resolved, sessionId);
-      if (!isDOError(result) && result.outcome) {
-        this.#recordMetric(`outcome:${result.outcome}`);
-      }
-      return result;
+    return this.#op(agentId, ownerId, (resolved) => endSessionFn(this.sql, resolved, sessionId), {
+      metric: (r) => (r.outcome ? `outcome:${r.outcome}` : null),
     });
   }
 
@@ -605,19 +606,23 @@ export class TeamDO extends DurableObject<Env> {
     events: ConversationEventInput[],
     ownerId: string | null = null,
   ): Promise<{ ok: true; count: number } | DOError> {
-    return this.#withMember(agentId, ownerId, () => {
-      const result = batchRecordConversationEventsFn(
-        this.sql,
-        sessionId,
-        agentId,
-        handle,
-        hostTool,
-        events,
-        this.#transact,
-      );
-      this.#recordMetric('conversation_events_recorded');
-      return result;
-    });
+    return this.#op(
+      agentId,
+      ownerId,
+      () =>
+        batchRecordConversationEventsFn(
+          this.sql,
+          sessionId,
+          agentId,
+          handle,
+          hostTool,
+          events,
+          this.#transact,
+        ),
+      {
+        metric: () => 'conversation_events_recorded',
+      },
+    );
   }
 
   async getConversation(
