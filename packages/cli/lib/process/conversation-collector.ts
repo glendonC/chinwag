@@ -114,6 +114,7 @@ async function extractViaSpec(
       conversationCount: mapped.conversations.length,
       tokenExtracted: mapped.tokens !== null,
       toolCallCount: mapped.toolCalls.length,
+      ...(result.parseHealth ? { parseHealth: result.parseHealth } : {}),
     });
 
     return mapped;

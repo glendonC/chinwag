@@ -171,4 +171,15 @@ export interface ExtractionResult {
   conversations: ExtractedConversation[];
   tokens: NormalizedTokens | null;
   toolCalls: ExtractedToolCall[];
+  /**
+   * Parse-level health for JSONL inputs. Present only when the spec's format is
+   * 'jsonl' and the discovered file was non-empty. Lets the collector record
+   * malformed-line rate alongside semantic success so a tool shipping a format
+   * change surfaces as a parse-health regression, not a silent zero-output.
+   */
+  parseHealth?: {
+    totalLines: number;
+    parsedLines: number;
+    malformedLines: number;
+  };
 }

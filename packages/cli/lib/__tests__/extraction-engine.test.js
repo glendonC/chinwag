@@ -582,3 +582,101 @@ describe('extract(): no discoverable file', () => {
     rmSync(dir, { recursive: true, force: true });
   });
 });
+
+describe('extract(): JSONL parse health', () => {
+  let dir;
+  beforeEach(() => {
+    dir = fixtureRoot();
+    mkdirSync(dir, { recursive: true });
+  });
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+  function writeJsonl(filename, lines) {
+    writeFileSync(join(dir, filename), lines.join('\n') + '\n');
+  }
+
+  const baseSpec = {
+    version: 1,
+    tool: 'test',
+    format: 'jsonl',
+    discovery: { strategy: 'fixed-path', relativePath: 'session.jsonl' },
+    extractions: {
+      tokens: {
+        usagePath: 'usage',
+        fieldMapping: { input_tokens: 'input_tokens', output_tokens: 'output_tokens' },
+        normalization: 'anthropic',
+      },
+    },
+    generatedAt: '2026-04-17T00:00:00Z',
+    source: 'manual',
+  };
+
+  it('reports parseHealth with zero malformed on clean input', async () => {
+    writeJsonl('session.jsonl', [
+      JSON.stringify({ usage: { input_tokens: 1, output_tokens: 2 } }),
+      JSON.stringify({ usage: { input_tokens: 3, output_tokens: 4 } }),
+    ]);
+    const result = await extract(baseSpec, dir, 0);
+    expect(result.parseHealth).toEqual({
+      totalLines: 2,
+      parsedLines: 2,
+      malformedLines: 0,
+    });
+  });
+
+  it('counts malformed lines without aborting extraction', async () => {
+    writeJsonl('session.jsonl', [
+      JSON.stringify({ usage: { input_tokens: 1, output_tokens: 2 } }),
+      'this is not json',
+      JSON.stringify({ usage: { input_tokens: 3, output_tokens: 4 } }),
+      '{ unclosed',
+    ]);
+    const result = await extract(baseSpec, dir, 0);
+    expect(result.parseHealth).toEqual({
+      totalLines: 4,
+      parsedLines: 2,
+      malformedLines: 2,
+    });
+    // Valid entries still contribute to tokens — malformed lines are skipped,
+    // not fatal.
+    expect(result.tokens).toEqual({
+      input_tokens: 4,
+      output_tokens: 6,
+      cache_read_tokens: 0,
+      cache_creation_tokens: 0,
+    });
+  });
+
+  it('ignores blank lines when computing parse health', async () => {
+    const content = [
+      JSON.stringify({ usage: { input_tokens: 1, output_tokens: 1 } }),
+      '',
+      '   ',
+      JSON.stringify({ usage: { input_tokens: 1, output_tokens: 1 } }),
+    ].join('\n');
+    writeFileSync(join(dir, 'session.jsonl'), content);
+    const result = await extract(baseSpec, dir, 0);
+    expect(result.parseHealth).toEqual({
+      totalLines: 2,
+      parsedLines: 2,
+      malformedLines: 0,
+    });
+  });
+
+  it('omits parseHealth for markdown specs', async () => {
+    writeFileSync(join(dir, '.aider.chat.history.md'), '#### hi\n> there\n');
+    const mdSpec = {
+      version: 1,
+      tool: 'test-md',
+      format: 'markdown',
+      discovery: { strategy: 'fixed-path', relativePath: '.aider.chat.history.md' },
+      extractions: {
+        conversation: { userMarker: '#### ', assistantMarker: '> ' },
+      },
+      generatedAt: '2026-04-17T00:00:00Z',
+      source: 'manual',
+    };
+    const result = await extract(mdSpec, dir, 0);
+    expect(result.parseHealth).toBeUndefined();
+  });
+});

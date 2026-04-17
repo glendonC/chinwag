@@ -12,6 +12,7 @@
 import { readFile, readdir, stat } from 'fs/promises';
 import { join, resolve } from 'path';
 import { homedir } from 'os';
+import { createLogger } from '@chinwag/shared';
 import type {
   ParserSpec,
   FileDiscovery,
@@ -24,6 +25,15 @@ import type {
   ExtractedToolCall,
   ExtractionResult,
 } from './types.js';
+
+const log = createLogger('extraction-engine');
+
+// Warn threshold for JSONL parse rot: if a tool ships a format change that
+// corrupts most lines, we want an operator-visible signal immediately — not a
+// slow bleed visible only in the rolling health window. Small files (< 10
+// lines) are skipped to avoid noise on thin sessions.
+const MALFORMED_WARN_RATIO = 0.2;
+const MALFORMED_WARN_MIN_LINES = 10;
 
 // ── File discovery ────────────────────────────────
 
@@ -446,21 +456,44 @@ export async function extract(
 
   // JSONL or JSON: parse entries
   let entries: unknown[];
+  let parseHealth: ExtractionResult['parseHealth'];
   if (spec.format === 'jsonl') {
     entries = [];
+    let totalLines = 0;
+    let malformedLines = 0;
     for (const line of content.split('\n')) {
       if (!line.trim()) continue;
+      totalLines++;
       try {
         entries.push(JSON.parse(line));
       } catch {
-        // skip malformed lines
+        malformedLines++;
       }
+    }
+    parseHealth = {
+      totalLines,
+      parsedLines: totalLines - malformedLines,
+      malformedLines,
+    };
+    if (
+      totalLines >= MALFORMED_WARN_MIN_LINES &&
+      malformedLines / totalLines >= MALFORMED_WARN_RATIO
+    ) {
+      log.warn(
+        `JSONL parse health degraded for ${spec.tool}: ${malformedLines}/${totalLines} lines unparseable (${Math.round((malformedLines / totalLines) * 100)}%)`,
+        { tool: spec.tool, file, totalLines, malformedLines },
+      );
     }
   } else {
     try {
       const parsed = JSON.parse(content);
       entries = Array.isArray(parsed) ? parsed : [parsed];
-    } catch {
+    } catch (err) {
+      log.warn(`JSON parse failed for ${spec.tool}`, {
+        tool: spec.tool,
+        file,
+        error: err instanceof Error ? err.message : String(err),
+      });
       return { conversations: [], tokens: null, toolCalls: [] };
     }
   }
@@ -517,5 +550,7 @@ export async function extract(
     toolCalls = extractToolCallsFromEntries(entries, spec.extractions.toolCalls);
   }
 
-  return { conversations, tokens, toolCalls };
+  return parseHealth
+    ? { conversations, tokens, toolCalls, parseHealth }
+    : { conversations, tokens, toolCalls };
 }
