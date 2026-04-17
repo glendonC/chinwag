@@ -317,7 +317,6 @@ Three bin entries remain JS (`index.js`, `hook.js`, `channel.js`) because they'r
 | `lib/api.ts`                            | HTTP client. Wraps fetch with Bearer token auth, 10s timeout, retry with exponential backoff on 5xx/network errors.                                                                                                                                                 |
 | `lib/colors.ts`                         | Maps chinwag's 12 colors to ANSI terminal colors for Ink rendering.                                                                                                                                                                                                 |
 | `lib/config.ts`                         | Reads/writes the active profile config. Production uses `~/.chinwag/config.json`; local dev uses `~/.chinwag/local/config.json`.                                                                                                                                    |
-| `lib/fs-atomic.ts`                      | Cross-platform atomic file writes used for all state that survives restarts.                                                                                                                                                                                        |
 
 ### Shared (`packages/shared/`)
 
@@ -339,6 +338,7 @@ Three bin entries remain JS (`index.js`, `hook.js`, `channel.js`) because they'r
 | `process-utils.ts`             | Process info helpers (parent PID, TTY path).                                                                                                                                             |
 | `tool-call-categories.ts`      | Work-type classification for tool calls.                                                                                                                                                 |
 | `error-utils.ts` / `logger.ts` | Shared error normalization and logger facade.                                                                                                                                            |
+| `fs-atomic.ts`                 | Cross-platform atomic file writes used for all state that survives restarts. Shared so both CLI and the session-handoff path in `session-registry.ts` get torn-write safety.             |
 
 ## Data Flow
 

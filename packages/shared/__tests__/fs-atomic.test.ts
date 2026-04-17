@@ -1,11 +1,19 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { existsSync, readFileSync, readdirSync, rmSync, mkdirSync, writeFileSync } from 'fs';
-import { tmpdir } from 'os';
-import { join } from 'path';
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  mkdirSync,
+  writeFileSync,
+  statSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { writeFileAtomicSync } from '../fs-atomic.js';
 
 describe('writeFileAtomicSync', () => {
-  let dir;
+  let dir: string;
 
   beforeEach(() => {
     dir = join(tmpdir(), `chinwag-atomic-${process.pid}-${Date.now()}`);
@@ -57,16 +65,20 @@ describe('writeFileAtomicSync', () => {
   it('leaves target untouched if rename fails', () => {
     const target = join(dir, 'out.json');
     writeFileSync(target, 'original');
-    // Simulate a rename failure by making the target path a directory.
     const badTarget = join(dir, 'baddir');
     mkdirSync(badTarget);
-    // Write a file inside baddir to ensure it's non-empty (rename-over-dir fails).
     writeFileSync(join(badTarget, 'child'), 'x');
     expect(() => writeFileAtomicSync(badTarget, 'new')).toThrow();
-    // Original file is untouched.
     expect(readFileSync(target, 'utf-8')).toBe('original');
-    // Tmp cleanup happened.
     const leftover = readdirSync(dir).filter((f) => f.startsWith('baddir.') && f.endsWith('.tmp'));
     expect(leftover).toEqual([]);
+  });
+
+  it('applies the requested file mode', () => {
+    if (process.platform === 'win32') return;
+    const target = join(dir, 'secret.json');
+    writeFileAtomicSync(target, '{}', { mode: 0o600 });
+    const mode = statSync(target).mode & 0o777;
+    expect(mode).toBe(0o600);
   });
 });

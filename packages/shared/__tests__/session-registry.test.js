@@ -22,26 +22,16 @@ import {
   getCurrentTtyPath,
   isProcessAlive,
   isSessionRecordAlive,
-  writeSessionRecord,
   readSessionRecord,
   deleteSessionRecord,
   resolveSessionAgentId,
   setTerminalTitle,
   pingAgentTerminal,
   getCompletedSessionPath,
-  writeCompletedSession,
   readCompletedSession,
   deleteCompletedSession,
 } from '../session-registry.js';
-import {
-  existsSync,
-  readFileSync,
-  writeFileSync,
-  mkdirSync,
-  readdirSync,
-  unlinkSync,
-  appendFileSync,
-} from 'node:fs';
+import { existsSync, readFileSync, readdirSync, unlinkSync, appendFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
 describe('session-registry', () => {
@@ -285,101 +275,8 @@ describe('session-registry', () => {
     });
   });
 
-  // ---------------------------------------------------------------------------
-  // writeSessionRecord
-  // ---------------------------------------------------------------------------
-  describe('writeSessionRecord', () => {
-    it('writes session file with correct path and content', () => {
-      writeSessionRecord(
-        'cursor:abc',
-        { pid: 1234, tool: 'cursor', cwd: '/project', tty: '/dev/ttys001' },
-        { homeDir: '/tmp/test' },
-      );
-      expect(mkdirSync).toHaveBeenCalledWith('/tmp/test/.chinwag/sessions', {
-        recursive: true,
-        mode: 0o700,
-      });
-      expect(writeFileSync).toHaveBeenCalledWith(
-        '/tmp/test/.chinwag/sessions/cursor_abc.json',
-        expect.stringContaining('"agentId":"cursor:abc"'),
-        { mode: 0o600 },
-      );
-    });
-
-    it('returns the file path', () => {
-      const path = writeSessionRecord(
-        'agent-1',
-        { pid: 1, tool: 'test', cwd: '/', tty: null },
-        { homeDir: '/tmp' },
-      );
-      expect(path).toBe('/tmp/.chinwag/sessions/agent-1.json');
-    });
-
-    it('merges agentId into the payload', () => {
-      writeSessionRecord(
-        'my-agent',
-        { pid: 42, tool: 'claude-code', cwd: '/home', tty: null },
-        { homeDir: '/tmp' },
-      );
-      const written = JSON.parse(writeFileSync.mock.calls[0][1].trim());
-      expect(written.agentId).toBe('my-agent');
-      expect(written.pid).toBe(42);
-      expect(written.tool).toBe('claude-code');
-    });
-
-    it('creates sessions directory with 0o700 permissions', () => {
-      writeSessionRecord(
-        'agent',
-        { pid: 1, tool: 'test', cwd: '/', tty: null },
-        { homeDir: '/tmp' },
-      );
-      expect(mkdirSync).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({ mode: 0o700 }),
-      );
-    });
-
-    it('writes file with 0o600 permissions', () => {
-      writeSessionRecord(
-        'agent',
-        { pid: 1, tool: 'test', cwd: '/', tty: null },
-        { homeDir: '/tmp' },
-      );
-      expect(writeFileSync).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.any(String),
-        expect.objectContaining({ mode: 0o600 }),
-      );
-    });
-
-    it('includes trailing newline in written content', () => {
-      writeSessionRecord(
-        'agent',
-        { pid: 1, tool: 'test', cwd: '/', tty: null },
-        { homeDir: '/tmp' },
-      );
-      const written = writeFileSync.mock.calls[0][1];
-      expect(written).toMatch(/\n$/);
-    });
-
-    it('preserves optional fields like createdAt and commandMarker', () => {
-      writeSessionRecord(
-        'agent',
-        {
-          pid: 1,
-          tool: 'test',
-          cwd: '/',
-          tty: null,
-          createdAt: 12345,
-          commandMarker: 'chinwag-mcp',
-        },
-        { homeDir: '/tmp' },
-      );
-      const written = JSON.parse(writeFileSync.mock.calls[0][1].trim());
-      expect(written.createdAt).toBe(12345);
-      expect(written.commandMarker).toBe('chinwag-mcp');
-    });
-  });
+  // Write-path behavior (real fs) is covered in session-registry-writes.test.ts.
+  // This file keeps mocks for lookup/delete/resolve paths.
 
   // ---------------------------------------------------------------------------
   // readSessionRecord
@@ -919,25 +816,6 @@ describe('session-registry', () => {
   });
 
   describe('completed session records', () => {
-    it('writes to the .completed.json sibling of the session file', () => {
-      const record = {
-        agentId: 'agent-1',
-        sessionId: 'sess_abc123',
-        teamId: 't_team',
-        toolId: 'claude-code',
-        cwd: '/repo',
-        startedAt: 1000,
-        completedAt: 2000,
-      };
-      const path = writeCompletedSession(record, { homeDir: '/tmp' });
-      expect(path).toBe('/tmp/.chinwag/sessions/agent-1.completed.json');
-      expect(writeFileSync).toHaveBeenCalledWith(
-        '/tmp/.chinwag/sessions/agent-1.completed.json',
-        JSON.stringify(record) + '\n',
-        { mode: 0o600 },
-      );
-    });
-
     it('sanitizes agentId in the completion file path', () => {
       expect(getCompletedSessionPath('weird/agent?name', '/tmp')).toBe(
         '/tmp/.chinwag/sessions/weird_agent_name.completed.json',

@@ -1,7 +1,7 @@
 import { basename, join } from 'path';
 import { loadConfig, configExists } from './config.js';
 import { api } from './api.js';
-import { writeFileAtomicSync } from './fs-atomic.js';
+import { writeFileAtomicSync } from '@chinwag/shared/fs-atomic.js';
 
 export async function handleTeamCommand(subcmd: string, arg?: string): Promise<void> {
   if (!configExists()) {

@@ -101,6 +101,10 @@
     "./constants.js": {
       "types": "./dist/constants.d.ts",
       "import": "./dist/constants.js"
+    },
+    "./fs-atomic.js": {
+      "types": "./dist/fs-atomic.d.ts",
+      "import": "./dist/fs-atomic.js"
     }
   },
   "scripts": {

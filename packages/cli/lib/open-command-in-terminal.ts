@@ -2,7 +2,7 @@ import { detectTerminalEnvironment } from './terminal-spawner.js';
 import type { SpawnResult } from './terminal-spawner.js';
 import { execFileSync } from 'child_process';
 import { shellQuote, escapeAppleScriptString } from './utils/shell.js';
-import { writeFileAtomicSync } from './fs-atomic.js';
+import { writeFileAtomicSync } from '@chinwag/shared/fs-atomic.js';
 import { join } from 'path';
 import { homedir } from 'os';
 import { formatError, createLogger } from '@chinwag/shared';

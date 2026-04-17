@@ -5,10 +5,10 @@ import {
   readFileSync,
   readdirSync,
   unlinkSync,
-  writeFileSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { writeFileAtomicSync } from './fs-atomic.js';
 import { getProcessTtyPath, getProcessCommandString } from './process-utils.js';
 import { formatError } from './error-utils.js';
 import { createLogger } from './logger.js';
@@ -87,7 +87,7 @@ export function writeSessionRecord(
   const filePath = getSessionFilePath(agentId, homeDir);
   mkdirSync(getSessionsDir(homeDir), { recursive: true, mode: 0o700 });
   const payload: SessionRecord = { ...record, agentId };
-  writeFileSync(filePath, JSON.stringify(payload) + '\n', { mode: 0o600 });
+  writeFileAtomicSync(filePath, JSON.stringify(payload) + '\n', { mode: 0o600 });
   return filePath;
 }
 
@@ -192,7 +192,7 @@ export function writeCompletedSession(
 ): string {
   const filePath = getCompletedSessionPath(record.agentId, homeDir);
   mkdirSync(getSessionsDir(homeDir), { recursive: true, mode: 0o700 });
-  writeFileSync(filePath, JSON.stringify(record) + '\n', { mode: 0o600 });
+  writeFileAtomicSync(filePath, JSON.stringify(record) + '\n', { mode: 0o600 });
   return filePath;
 }
 

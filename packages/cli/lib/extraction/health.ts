@@ -10,7 +10,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { createLogger } from '@chinwag/shared';
-import { writeFileAtomicSync } from '../fs-atomic.js';
+import { writeFileAtomicSync } from '@chinwag/shared/fs-atomic.js';
 
 const log = createLogger('spec-health');
 

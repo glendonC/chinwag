@@ -1,6 +1,6 @@
 import { execFileSync } from 'child_process';
 import { existsSync, readFileSync, unlinkSync } from 'fs';
-import { writeFileAtomicSync } from './fs-atomic.js';
+import { writeFileAtomicSync } from '@chinwag/shared/fs-atomic.js';
 import { join } from 'path';
 import { homedir } from 'os';
 import { safeAgentId, isProcessAlive } from '@chinwag/shared/session-registry.js';

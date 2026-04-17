@@ -9,7 +9,7 @@ import chalk from 'chalk';
 import { existsSync, readFileSync } from 'fs';
 import { basename, join } from 'path';
 import { configExists, loadConfig, saveConfig } from '../config.js';
-import { writeFileAtomicSync } from '../fs-atomic.js';
+import { writeFileAtomicSync } from '@chinwag/shared/fs-atomic.js';
 import type { ChinwagConfig } from '../config.js';
 import { api, initAccount } from '../api.js';
 import { detectTools, configureTool } from '../mcp-config.js';

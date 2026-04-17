@@ -21,7 +21,7 @@ import { createLogger } from '@chinwag/shared';
 import { loadSpec } from './loader.js';
 import { diagnose, markHealed } from './health.js';
 import { validateSpec, checkConsensus } from './validator.js';
-import { writeFileAtomicSync } from '../fs-atomic.js';
+import { writeFileAtomicSync } from '@chinwag/shared/fs-atomic.js';
 import type { ParserSpec } from './types.js';
 
 const log = createLogger('spec-healer');
