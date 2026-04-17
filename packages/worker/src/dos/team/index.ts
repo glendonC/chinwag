@@ -2,16 +2,41 @@
 // Manages team membership, activity tracking, file conflict detection,
 // shared project memory, and session history (observability).
 //
-// Business logic is split into submodules:
-//   schema.ts      -- DDL, migrations, index creation
-//   context.ts     -- composite read queries (getContext, getSummary)
-//   identity.ts    -- agent ID resolution and ownership verification
-//   cleanup.ts     -- stale member eviction and data pruning
-//   membership.ts, activity.ts, memory.ts, locks.ts, sessions.ts, messages.ts -- domain logic
-//   runtime.ts     -- agent ID / host tool inference
+// Business logic is split into submodules (one concept per file):
+//   schema.ts         -- DDL, migrations, index creation
+//   context.ts        -- composite read queries (getContext, getSummary)
+//   identity.ts       -- agent ID resolution and ownership verification
+//   cleanup.ts        -- stale member eviction and data pruning
+//   membership.ts     -- join / leave / heartbeat
+//   activity.ts       -- update-activity / check-conflicts / report-file
+//   sessions.ts       -- session lifecycle + edits, outcomes, tokens, tool-calls, commits
+//   conversations.ts  -- conversation event ingestion + per-session stats
+//   memory.ts         -- shared memory save/search/update/delete
+//   categories.ts     -- memory category CRUD and promotion
+//   locks.ts          -- file claim/release/query
+//   messages.ts       -- inter-agent messaging
+//   commands.ts       -- command queue for managed agents
+//   analytics/        -- 14 domain modules + orchestrator (index.ts)
+//   runtime.ts        -- agent ID / host tool inference
+//   presence.ts       -- WebSocket presence helpers
+//   broadcast.ts      -- delta broadcast helpers
+//   telemetry.ts      -- per-team metric counters
+//   context-cache.ts  -- TTL cache for the composite team context read
+//   websocket.ts      -- hibernation-API lifecycle handlers
 //
-// This file owns the class shell, WebSocket handling, caching, and the
-// thin RPC wrappers that tie it all together.
+// This file owns: the DurableObject class shell, WebSocket method entry
+// points, instance-scoped caches (context, heartbeat debounce, cleanup
+// clock), the identity/member/op/owner wrappers that every RPC flows
+// through, and the public RPC surface itself.
+//
+// Deferred: per ANALYTICS_SPEC.md, a further split pulls the ~40 RPC
+// method bodies out into per-domain *-rpc modules, leaving this file as
+// a thin facade (~200 LoC). That refactor is mechanical but touches
+// every call site and the hibernation-sensitive class boundary, so it's
+// intentionally held for a dedicated session rather than bundled with
+// unrelated work. See the research plan for the 6-step extraction order
+// (wrappers → membership-handler → context-handler → commands-handler →
+// per-domain RPC modules → final cleanup).
 
 import { DurableObject } from 'cloudflare:workers';
 import type { Env, DOResult, DOError, TeamContext } from '../../types.js';
@@ -238,10 +263,21 @@ export class TeamDO extends DurableObject<Env> {
   }
 
   /**
-   * Member-scoped RPC wrapper that layers declarative side effects on top of
-   * #withMember. On non-error results, the optional broadcast/metric hooks
-   * fire. Methods whose success values fit the DO result contract can use
-   * this to avoid inlining the same three-step pattern everywhere.
+   * Member-scoped RPC wrapper that layers optional side effects on top of
+   * `#withMember`. Pattern used by ~18 RPC methods:
+   *
+   *   1. ensureSchema + NOT_MEMBER check (via #withMember)
+   *   2. Run `run(resolvedAgentId)` to produce a domain result.
+   *   3. If the result is NOT a DOError, fire the optional `broadcast` hook
+   *      (delta event to connected watchers) and/or the `metric` hook (bump a
+   *      telemetry counter). Error returns skip both by design — we never
+   *      broadcast a state change that didn't happen.
+   *
+   * Generic note: `isDOError(result)` narrows at runtime, but TS can't
+   * propagate the negation through generic `R`, so we cast once to
+   * `Exclude<R, DOError>` after the guard. The cast is safe because the guard
+   * just ran; it stays local to this helper so call sites keep a clean
+   * `R | DOError` signature.
    */
   #op<R>(
     agentId: string,
@@ -255,16 +291,12 @@ export class TeamDO extends DurableObject<Env> {
   ): R | DOError {
     return this.#withMember(agentId, ownerId, (resolved) => {
       const result = run(resolved);
-      if (!isDOError(result)) {
-        // isDOError narrows to Exclude<R, DOError> at runtime, but TS does not
-        // propagate the negation through a generic. The helper below re-asserts
-        // the refinement without losing the public signature.
-        const success: Exclude<R, DOError> = result as Exclude<R, DOError>;
-        const event = side.broadcast?.(success, resolved);
-        if (event) this.#broadcastToWatchers(event, side.broadcastOpts);
-        const metric = side.metric?.(success);
-        if (metric) this.#recordMetric(metric);
-      }
+      if (isDOError(result)) return result;
+      const success = result as Exclude<R, DOError>;
+      const event = side.broadcast?.(success, resolved);
+      if (event) this.#broadcastToWatchers(event, side.broadcastOpts);
+      const metric = side.metric?.(success);
+      if (metric) this.#recordMetric(metric);
       return result;
     });
   }
