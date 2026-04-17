@@ -106,11 +106,14 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
         avg_output_per_session: 0,
         sessions_with_token_data: 0,
         sessions_without_token_data: 0,
+        total_edits_in_token_sessions: 0,
         total_estimated_cost_usd: 0,
         pricing_refreshed_at: null,
         pricing_is_stale: false,
         models_without_pricing: [],
         models_without_pricing_total: 0,
+        cost_per_edit: null,
+        cache_hit_rate: null,
         by_model: [],
         by_tool: [],
       },
@@ -358,6 +361,7 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
     cache_creation: 0,
     with_data: 0,
     without_data: 0,
+    edits_in_token_sessions: 0,
   };
   const tokenByModel = new Map<
     string,
@@ -915,6 +919,7 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
       tokenTotalAcc.cache_creation += (tu.total_cache_creation_tokens as number) || 0;
       tokenTotalAcc.with_data += (tu.sessions_with_token_data as number) || 0;
       tokenTotalAcc.without_data += (tu.sessions_without_token_data as number) || 0;
+      tokenTotalAcc.edits_in_token_sessions += (tu.total_edits_in_token_sessions as number) || 0;
       for (const m of (tu.by_model as Array<Record<string, unknown>>) || []) {
         const key = m.agent_model as string;
         const existing = tokenByModel.get(key) || {
@@ -1084,6 +1089,7 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
       tokenTotalAcc.with_data > 0 ? Math.round(tokenTotalAcc.output / tokenTotalAcc.with_data) : 0,
     sessions_with_token_data: tokenTotalAcc.with_data,
     sessions_without_token_data: tokenTotalAcc.without_data,
+    total_edits_in_token_sessions: tokenTotalAcc.edits_in_token_sessions,
     total_estimated_cost_usd: 0,
     pricing_refreshed_at: null as string | null,
     pricing_is_stale: false,

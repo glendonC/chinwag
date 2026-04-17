@@ -499,6 +499,11 @@ export const tokenUsageStatsSchema = z.object({
   avg_output_per_session: z.number(),
   sessions_with_token_data: z.number(),
   sessions_without_token_data: z.number(),
+  /** Sum of edit_count across sessions where input_tokens IS NOT NULL.
+   *  This is the denominator for cost_per_edit — scoping to token-capturing
+   *  sessions is what prevents mixing populations (e.g. Cursor contributing
+   *  edits without token data would otherwise deflate the ratio). */
+  total_edits_in_token_sessions: z.number().default(0),
   total_estimated_cost_usd: z.number(),
   // ISO timestamp of the most recent successful LiteLLM pricing refresh, or
   // null if no refresh has ever succeeded. UI reads this + pricing_is_stale

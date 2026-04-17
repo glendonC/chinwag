@@ -20,6 +20,7 @@ export function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats 
     avg_output_per_session: 0,
     sessions_with_token_data: 0,
     sessions_without_token_data: 0,
+    total_edits_in_token_sessions: 0,
     total_estimated_cost_usd: 0,
     pricing_refreshed_at: null,
     pricing_is_stale: false,
@@ -43,7 +44,8 @@ export function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats 
            COALESCE(SUM(cache_read_tokens), 0) AS total_cache_read,
            COALESCE(SUM(cache_creation_tokens), 0) AS total_cache_creation,
            COUNT(CASE WHEN input_tokens IS NOT NULL THEN 1 END) AS with_data,
-           COUNT(CASE WHEN input_tokens IS NULL THEN 1 END) AS without_data
+           COUNT(CASE WHEN input_tokens IS NULL THEN 1 END) AS without_data,
+           COALESCE(SUM(CASE WHEN input_tokens IS NOT NULL THEN edit_count ELSE 0 END), 0) AS edits_in_token_sessions
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')`,
         days,
@@ -57,6 +59,7 @@ export function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats 
     const totalCacheCreation = (t.total_cache_creation as number) || 0;
     const withData = (t.with_data as number) || 0;
     const withoutData = (t.without_data as number) || 0;
+    const editsInTokenSessions = (t.edits_in_token_sessions as number) || 0;
 
     if (withData === 0) {
       return { ...empty, sessions_without_token_data: withoutData };
@@ -123,6 +126,7 @@ export function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats 
       avg_output_per_session: withData > 0 ? Math.round(totalOutput / withData) : 0,
       sessions_with_token_data: withData,
       sessions_without_token_data: withoutData,
+      total_edits_in_token_sessions: editsInTokenSessions,
       total_estimated_cost_usd: 0,
       pricing_refreshed_at: null,
       pricing_is_stale: false,

@@ -48,6 +48,8 @@ interface TokenUsageShape {
   pricing_is_stale: boolean;
   models_without_pricing: string[];
   models_without_pricing_total: number;
+  total_edits_in_token_sessions?: number;
+  cost_per_edit?: number | null;
   [k: string]: unknown;
 }
 
@@ -77,6 +79,7 @@ export async function enrichAnalyticsWithPricing<T>(analytics: T, env: Env): Pro
     tokenUsage.pricing_refreshed_at = snapshot.fetchedAt;
     tokenUsage.pricing_is_stale = true;
     tokenUsage.total_estimated_cost_usd = 0;
+    tokenUsage.cost_per_edit = null;
     tokenUsage.models_without_pricing = [];
     tokenUsage.models_without_pricing_total = 0;
     for (const m of tokenUsage.by_model) {
@@ -117,6 +120,16 @@ export async function enrichAnalyticsWithPricing<T>(analytics: T, env: Env): Pro
   tokenUsage.total_estimated_cost_usd = Math.round(totalCost * 100) / 100;
   tokenUsage.models_without_pricing = unpricedCapped;
   tokenUsage.models_without_pricing_total = unpricedTotal;
+
+  // cost_per_edit: scoped to sessions with token data, so the denominator
+  // can't include edits from tools that contribute edits without tokens
+  // (e.g. Cursor today). Null when no edits were made in token-capturing
+  // sessions — prefer em-dash in the UI over a divide-by-zero fiction.
+  const editsInTokenSessions = tokenUsage.total_edits_in_token_sessions ?? 0;
+  tokenUsage.cost_per_edit =
+    editsInTokenSessions > 0
+      ? Math.round((totalCost / editsInTokenSessions) * 10000) / 10000
+      : null;
 
   return analytics;
 }
