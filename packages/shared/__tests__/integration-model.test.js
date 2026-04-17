@@ -70,11 +70,11 @@ describe('HOST_INTEGRATIONS', () => {
     expect(cc.capabilities).toContain('managed-process');
   });
 
-  it('cursor is connected tier with only mcp capability', () => {
+  it('cursor is connected tier with mcp and hooks capabilities', () => {
     const cursor = HOST_INTEGRATIONS.find((h) => h.id === 'cursor');
     expect(cursor).toBeDefined();
     expect(cursor.tier).toBe('connected');
-    expect(cursor.capabilities).toEqual(['mcp']);
+    expect(cursor.capabilities).toEqual(['mcp', 'hooks']);
   });
 
   it('tools with hooks get hooks capability', () => {
@@ -278,9 +278,9 @@ describe('HOST_INTEGRATIONS capability inference details', () => {
     expect(aider.tier).toBe('managed');
   });
 
-  it('windsurf has only mcp capability and connected tier', () => {
+  it('windsurf has mcp and hooks capabilities at connected tier', () => {
     const windsurf = HOST_INTEGRATIONS.find((h) => h.id === 'windsurf');
-    expect(windsurf.capabilities).toEqual(['mcp']);
+    expect(windsurf.capabilities).toEqual(['mcp', 'hooks']);
     expect(windsurf.tier).toBe('connected');
   });
 

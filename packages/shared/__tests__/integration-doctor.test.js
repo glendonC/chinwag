@@ -595,16 +595,17 @@ describe('integration-doctor', () => {
     });
 
     it('hooksConfigured is always true for hosts without hooks', () => {
-      existsSync.mockImplementation((path) => path.endsWith('.cursor'));
+      existsSync.mockImplementation((path) => path.endsWith('.vscode'));
       execFileSync.mockImplementation(() => {
         throw new Error('not found');
       });
       readFileSync.mockReturnValue('{}');
 
       const results = scanHostIntegrations('/project');
-      const cursor = results.find((r) => r.id === 'cursor');
-      // Cursor does not have hooks, so hooksConfigured should be true
-      expect(cursor.hooksConfigured).toBe(true);
+      // VS Code, Codex, Aider, JetBrains, Amazon Q, Cline have no hooks.
+      // Pick any one to exercise the non-hook branch.
+      const vscode = results.find((r) => r.id === 'vscode');
+      expect(vscode.hooksConfigured).toBe(true);
     });
 
     it('includes issue text about missing config for detected but unconfigured hosts', () => {

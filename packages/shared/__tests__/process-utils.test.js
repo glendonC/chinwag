@@ -5,6 +5,7 @@ vi.mock('node:child_process', () => ({
 }));
 
 import { readProcessInfo, getProcessTtyPath, getProcessCommandString } from '../process-utils.js';
+import { EXEC_TIMEOUT_MS } from '../constants.js';
 import { execFileSync } from 'node:child_process';
 
 describe('process-utils', () => {
@@ -31,7 +32,7 @@ describe('process-utils', () => {
       expect(result).toEqual({ ppid: 1234, command: '/usr/bin/node index.js' });
       expect(execFileSync).toHaveBeenCalledWith('ps', ['-o', 'ppid=,command=', '-p', '42'], {
         encoding: 'utf-8',
-        timeout: 5000,
+        timeout: EXEC_TIMEOUT_MS,
       });
     });
 
@@ -179,14 +180,14 @@ describe('process-utils', () => {
       );
     });
 
-    it('uses 5000ms timeout for execFileSync', () => {
+    it('uses the shared EXEC_TIMEOUT_MS for execFileSync', () => {
       execFileSync.mockReturnValue('  1 /bin/sh');
 
       readProcessInfo(1);
       expect(execFileSync).toHaveBeenCalledWith(
         expect.any(String),
         expect.any(Array),
-        expect.objectContaining({ timeout: 5000 }),
+        expect.objectContaining({ timeout: EXEC_TIMEOUT_MS }),
       );
     });
 
@@ -209,7 +210,7 @@ describe('process-utils', () => {
       expect(result).toBe('/dev/ttys003');
       expect(execFileSync).toHaveBeenCalledWith('ps', ['-o', 'tty=', '-p', '42'], {
         encoding: 'utf-8',
-        timeout: 5000,
+        timeout: EXEC_TIMEOUT_MS,
       });
     });
 
@@ -311,7 +312,7 @@ describe('process-utils', () => {
       expect(result).toBe('/usr/bin/node server.js');
       expect(execFileSync).toHaveBeenCalledWith('ps', ['-o', 'command=', '-p', '42'], {
         encoding: 'utf-8',
-        timeout: 5000,
+        timeout: EXEC_TIMEOUT_MS,
       });
     });
 
@@ -388,14 +389,14 @@ describe('process-utils', () => {
       spy.mockRestore();
     });
 
-    it('uses 5000ms timeout', () => {
+    it('uses the shared EXEC_TIMEOUT_MS', () => {
       execFileSync.mockReturnValue('cmd');
 
       getProcessCommandString(1);
       expect(execFileSync).toHaveBeenCalledWith(
         expect.any(String),
         expect.any(Array),
-        expect.objectContaining({ timeout: 5000 }),
+        expect.objectContaining({ timeout: EXEC_TIMEOUT_MS }),
       );
     });
   });

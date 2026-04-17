@@ -9,6 +9,7 @@ vi.mock('node:child_process', () => ({
 }));
 
 import { commandExists, detectHost, detectHostIntegrations } from '../integration-detector.js';
+import { EXEC_TIMEOUT_MS } from '../constants.js';
 import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
@@ -70,14 +71,16 @@ describe('integration-detector', () => {
       );
     });
 
-    it('uses 5000ms timeout', () => {
+    it('uses the shared EXEC_TIMEOUT_MS constant', () => {
       execFileSync.mockImplementation(() => '');
 
       commandExists('cmd');
+      // Assert the call wires through the shared constant rather than a
+      // hardcoded number so the timeout can be tuned in one place.
       expect(execFileSync).toHaveBeenCalledWith(
         expect.any(String),
         expect.any(Array),
-        expect.objectContaining({ timeout: 5000 }),
+        expect.objectContaining({ timeout: EXEC_TIMEOUT_MS }),
       );
     });
 

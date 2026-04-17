@@ -17,13 +17,21 @@ describe('shared MCP tool registry', () => {
     }
   });
 
-  it('keeps process inference hints aligned with known executables', () => {
+  it('declares at least one process inference hint for every tool', () => {
     for (const tool of MCP_TOOLS) {
+      // Tools can be detected by any of: executable name (detect.cmds /
+      // processDetection.executables), or by a package substring match in the
+      // full ps command line (processDetection.commandPatterns). VS Code-hosted
+      // agents like Cline have no executable of their own and rely on the
+      // package pattern; that is still a valid process-level detection path.
       const candidates = new Set([
         ...(tool.detect?.cmds || []),
         ...(tool.processDetection?.executables || []),
+        ...(tool.processDetection?.commandPatterns || []),
       ]);
-      expect(candidates.size).toBeGreaterThan(0);
+      expect(candidates.size, `tool "${tool.id}" has no process inference hints`).toBeGreaterThan(
+        0,
+      );
     }
   });
 });

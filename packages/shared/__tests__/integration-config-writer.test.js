@@ -769,14 +769,14 @@ describe('integration-config-writer', () => {
       expect(result.error).toContain('Unknown host integration');
     });
 
-    it('configures MCP for a basic host (cursor)', () => {
+    it('configures MCP and hooks for cursor (no channel)', () => {
       readFileSync.mockReturnValue('{}');
 
       const result = configureHostIntegration('/project', 'cursor');
       expect(result.ok).toBe(true);
       expect(result.name).toBe('Cursor');
       expect(result.detail).toContain('.cursor/mcp.json');
-      expect(result.detail).not.toContain('hooks');
+      expect(result.detail).toContain('hooks');
       expect(result.detail).not.toContain('channel');
     });
 

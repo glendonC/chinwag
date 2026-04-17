@@ -2,8 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { MCP_TOOLS, getMcpToolById } from '../tool-registry.js';
 
 describe('MCP_TOOLS', () => {
-  it('has exactly 8 tools', () => {
-    expect(MCP_TOOLS).toHaveLength(8);
+  it('registers every known tool', () => {
+    // Asserted against the explicit expectedTools list below — count is
+    // derived so adding a tool means adding it to expectedTools (a single
+    // source of truth), not updating a hardcoded number here.
+    expect(MCP_TOOLS.length).toBe(expectedTools.length);
   });
 
   it('every tool has required fields: id, name, detect, processDetection, mcpConfig, catalog', () => {
@@ -21,16 +24,24 @@ describe('MCP_TOOLS', () => {
   it('every tool has processDetection with executables and aliases arrays', () => {
     for (const tool of MCP_TOOLS) {
       expect(Array.isArray(tool.processDetection.executables)).toBe(true);
-      expect(tool.processDetection.executables.length).toBeGreaterThan(0);
       expect(Array.isArray(tool.processDetection.aliases)).toBe(true);
     }
   });
 
-  it('every tool has detect with at least dirs or cmds', () => {
+  it('every tool has at least one process inference hint', () => {
+    // Standalone CLI tools declare dirs/cmds and executables. VS Code-hosted
+    // surfaces like Cline have neither and rely on the package substring
+    // matched against the full `ps` command line (commandPatterns). Any of
+    // the four paths is a valid inference hint.
     for (const tool of MCP_TOOLS) {
-      const hasDirs = Array.isArray(tool.detect.dirs) && tool.detect.dirs.length > 0;
-      const hasCmds = Array.isArray(tool.detect.cmds) && tool.detect.cmds.length > 0;
-      expect(hasDirs || hasCmds).toBe(true);
+      const hasDirs = (tool.detect.dirs?.length ?? 0) > 0;
+      const hasCmds = (tool.detect.cmds?.length ?? 0) > 0;
+      const hasExecs = (tool.processDetection.executables?.length ?? 0) > 0;
+      const hasPatterns = (tool.processDetection.commandPatterns?.length ?? 0) > 0;
+      expect(
+        hasDirs || hasCmds || hasExecs || hasPatterns,
+        `tool "${tool.id}" has no detection hints`,
+      ).toBe(true);
     }
   });
 
@@ -61,6 +72,7 @@ describe('MCP_TOOLS', () => {
     'aider',
     'jetbrains',
     'amazon-q',
+    'cline',
   ];
 
   for (const toolId of expectedTools) {
@@ -96,10 +108,27 @@ describe('MCP_TOOLS', () => {
     }
   });
 
-  it('cursor does not have hooks or channel', () => {
+  it('cursor has hooks but no channel', () => {
     const cursor = MCP_TOOLS.find((t) => t.id === 'cursor');
-    expect(cursor.hooks).toBeUndefined();
+    expect(cursor.hooks).toBe(true);
+    expect(cursor.hooksConfig).toBe('.cursor/hooks.json');
+    expect(cursor.hooksFormat).toBe('claude');
     expect(cursor.channel).toBeUndefined();
+  });
+
+  it('windsurf has hooks with the windsurf format', () => {
+    const windsurf = MCP_TOOLS.find((t) => t.id === 'windsurf');
+    expect(windsurf.hooks).toBe(true);
+    expect(windsurf.hooksConfig).toBe('.windsurf/hooks.json');
+    expect(windsurf.hooksFormat).toBe('windsurf');
+  });
+
+  it('every tool with hooks declares a hooksConfig path and format', () => {
+    for (const tool of MCP_TOOLS) {
+      if (!tool.hooks) continue;
+      expect(tool.hooksConfig, `tool "${tool.id}" missing hooksConfig`).toEqual(expect.any(String));
+      expect(['claude', 'windsurf']).toContain(tool.hooksFormat);
+    }
   });
 
   it('codex has an availability check with parse function', () => {
@@ -256,10 +285,13 @@ describe('tool spawn configurations', () => {
     expect(codex.spawn.args).toEqual(['exec', '--color', 'never']);
   });
 
-  it('aider spawn uses aider with --message', () => {
+  it('aider spawn uses aider with --message and analytics logging', () => {
     const aider = MCP_TOOLS.find((t) => t.id === 'aider');
     expect(aider.spawn.cmd).toBe('aider');
-    expect(aider.spawn.args).toEqual(['--message']);
+    // --message is the prompt flag; --analytics-log writes token/cost data
+    // that the extraction engine parses post-session.
+    expect(aider.spawn.args).toContain('--message');
+    expect(aider.spawn.args).toContain('--analytics-log');
   });
 
   it('amazon-q spawn uses q with taskArg positional', () => {

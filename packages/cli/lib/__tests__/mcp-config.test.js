@@ -118,9 +118,11 @@ describe('writeHooksConfig', () => {
     const filePath = path.join(tmpDir, '.claude', 'settings.json');
     const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 
-    // Each event should have chinwag hook entries
+    // Each event should have chinwag hook entries. PostToolUse has three
+    // matchers: Edit|Write (report-edit), Read (report-read), and Bash
+    // (report-commit).
     expect(content.hooks.PreToolUse).toHaveLength(1);
-    expect(content.hooks.PostToolUse).toHaveLength(2); // Edit|Write + Read
+    expect(content.hooks.PostToolUse).toHaveLength(3);
     expect(content.hooks.SessionStart).toHaveLength(1);
   });
 
