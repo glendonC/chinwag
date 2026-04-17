@@ -30,13 +30,13 @@ interface ConversationEvent {
   role: 'user' | 'assistant';
   content: string;
   sequence: number;
-  created_at?: string;
-  input_tokens?: number;
-  output_tokens?: number;
-  cache_read_tokens?: number;
-  cache_creation_tokens?: number;
-  model?: string;
-  stop_reason?: string;
+  created_at?: string | undefined;
+  input_tokens?: number | undefined;
+  output_tokens?: number | undefined;
+  cache_read_tokens?: number | undefined;
+  cache_creation_tokens?: number | undefined;
+  model?: string | undefined;
+  stop_reason?: string | undefined;
 }
 
 export interface TokenUsage {
@@ -49,10 +49,10 @@ export interface TokenUsage {
 export interface ToolCallEvent {
   tool: string;
   at: number;
-  is_error?: boolean;
-  error_preview?: string;
-  input_preview?: string;
-  duration_ms?: number;
+  is_error?: boolean | undefined;
+  error_preview?: string | undefined;
+  input_preview?: string | undefined;
+  duration_ms?: number | undefined;
 }
 
 type ConversationParser = (cwd: string, startedAt: number) => Promise<ConversationEvent[]>;

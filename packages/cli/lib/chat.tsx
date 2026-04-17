@@ -76,10 +76,10 @@ export function wsReducer(state: WsState, action: WsAction): WsState {
 
 interface ChatMessage {
   type: string;
-  content?: string;
-  handle?: string;
-  color?: string;
-  timestamp?: string;
+  content?: string | undefined;
+  handle?: string | undefined;
+  color?: string | undefined;
+  timestamp?: string | undefined;
 }
 
 /** @internal Exported for testing. */

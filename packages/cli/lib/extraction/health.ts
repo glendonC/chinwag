@@ -107,7 +107,7 @@ export interface HealthDiagnosis {
   needsHealing: boolean;
   recentFailureCount: number;
   totalAttempts: number;
-  lastHealedAt?: string;
+  lastHealedAt?: string | undefined;
   healAttempts: number;
 }
 

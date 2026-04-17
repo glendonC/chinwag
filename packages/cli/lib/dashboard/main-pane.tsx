@@ -81,7 +81,7 @@ function AgentsTable({
             <Text bold={sel} dimColor={isDone}>
               {label}
             </Text>
-            <Text color={activityColor} dimColor={isDone}>
+            <Text {...(activityColor ? { color: activityColor } : {})} dimColor={isDone}>
               {truncateText(activity, maxActivity)}
             </Text>
           </Text>

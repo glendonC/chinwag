@@ -389,10 +389,10 @@ export interface AgentProfile {
 
 export interface ModerationResult {
   blocked: boolean;
-  reason?: string;
-  categories?: string[];
+  reason?: string | undefined;
+  categories?: string[] | undefined;
   /** True when AI moderation was unavailable (content blocked as fail-safe) */
-  degraded?: boolean;
+  degraded?: boolean | undefined;
 }
 
 // ── Worker environment bindings (from wrangler.toml) ──

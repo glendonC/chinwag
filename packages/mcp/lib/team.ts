@@ -56,11 +56,11 @@ export interface TeamActivityHandlers {
 }
 
 export interface SearchMemoryFilters {
-  sessionId?: string;
-  agentId?: string;
-  handle?: string;
-  after?: string;
-  before?: string;
+  sessionId?: string | undefined;
+  agentId?: string | undefined;
+  handle?: string | undefined;
+  after?: string | undefined;
+  before?: string | undefined;
 }
 
 /** Shared memory: save, search, update, delete. */
@@ -101,12 +101,12 @@ export interface TeamCoordinationHandlers {
     sessionId: string,
     commits: Array<{
       sha: string;
-      branch?: string;
-      message?: string;
-      files_changed?: number;
-      lines_added?: number;
-      lines_removed?: number;
-      committed_at?: string;
+      branch?: string | undefined;
+      message?: string | undefined;
+      files_changed?: number | undefined;
+      lines_added?: number | undefined;
+      lines_removed?: number | undefined;
+      committed_at?: string | undefined;
     }>,
   ): Promise<OkResult>;
   reportModel(teamId: string, model: string): Promise<OkResult>;
@@ -116,9 +116,9 @@ export interface TeamCoordinationHandlers {
     calls: Array<{
       tool: string;
       at: number;
-      is_error?: boolean;
-      error_preview?: string;
-      duration_ms?: number;
+      is_error?: boolean | undefined;
+      error_preview?: string | undefined;
+      duration_ms?: number | undefined;
     }>,
   ): Promise<OkResult>;
   recordSessionTokens(
@@ -127,8 +127,8 @@ export interface TeamCoordinationHandlers {
     tokens: {
       input_tokens: number;
       output_tokens: number;
-      cache_read_tokens?: number;
-      cache_creation_tokens?: number;
+      cache_read_tokens?: number | undefined;
+      cache_creation_tokens?: number | undefined;
     },
   ): Promise<OkResult>;
 }

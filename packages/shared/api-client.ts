@@ -4,25 +4,24 @@ import { DEFAULT_API_URL } from './runtime-profile.js';
 export { DEFAULT_API_URL } from './runtime-profile.js';
 
 export interface ApiClientConfig {
-  baseUrl?: string;
-  authToken?: string | null;
-  agentId?: string | null;
-  runtimeIdentity?: RuntimeIdentity | null;
-  userAgent?: string | null;
-  timeoutMs?: number;
-  maxRetryAttempts?: number;
-  maxTimeoutRetryAttempts?: number;
-  retryDelayMs?: number;
-  timeoutRetryDelayMs?: number;
-  retryableCodes?: string[];
-  parseErrorMessage?: (ctx: { method: string; path: string; status: number }) => string;
-  httpErrorMessage?: (ctx: {
-    method: string;
-    path: string;
-    status: number;
-    data: unknown;
-  }) => string;
-  timeoutErrorMessage?: (ctx: { method: string; path: string }) => string;
+  baseUrl?: string | undefined;
+  authToken?: string | null | undefined;
+  agentId?: string | null | undefined;
+  runtimeIdentity?: RuntimeIdentity | null | undefined;
+  userAgent?: string | null | undefined;
+  timeoutMs?: number | undefined;
+  maxRetryAttempts?: number | undefined;
+  maxTimeoutRetryAttempts?: number | undefined;
+  retryDelayMs?: number | undefined;
+  timeoutRetryDelayMs?: number | undefined;
+  retryableCodes?: string[] | undefined;
+  parseErrorMessage?:
+    | ((ctx: { method: string; path: string; status: number }) => string)
+    | undefined;
+  httpErrorMessage?:
+    | ((ctx: { method: string; path: string; status: number; data: unknown }) => string)
+    | undefined;
+  timeoutErrorMessage?: ((ctx: { method: string; path: string }) => string) | undefined;
 }
 
 export interface JsonApiClient {
@@ -35,7 +34,7 @@ export interface JsonApiClient {
 
 export type ApiError =
   | { kind: 'http'; status: number; message: string; data?: unknown }
-  | { kind: 'network'; message: string; cause?: Error }
+  | { kind: 'network'; message: string; cause?: Error | undefined }
   | { kind: 'timeout'; message: string };
 
 export class ApiRequestError extends Error {
@@ -44,7 +43,10 @@ export class ApiRequestError extends Error {
   readonly data?: unknown;
   readonly code?: string;
 
-  constructor(apiError: ApiError, options?: { cause?: Error; code?: string }) {
+  constructor(
+    apiError: ApiError,
+    options?: { cause?: Error | undefined; code?: string | undefined },
+  ) {
     super(apiError.message);
     this.name = 'ApiRequestError';
     this.kind = apiError.kind;
@@ -184,10 +186,7 @@ export function createJsonApiClient({
       const legacyErr: LegacyApiError =
         error instanceof Error
           ? (error as LegacyApiError)
-          : (Object.assign(new Error(String(error)), {
-              status: undefined,
-              code: undefined,
-            }) as LegacyApiError);
+          : (new Error(String(error)) as LegacyApiError);
 
       if (legacyErr.name === 'AbortError') {
         if (attempt < maxTimeoutRetryAttempts) {

@@ -16,7 +16,7 @@ export function getAnimatedGlyph(kind: GlyphKind): string {
 interface CommandHintProps {
   commandKey: string;
   label: string;
-  color?: string;
+  color?: string | undefined;
 }
 
 export function CommandHint({

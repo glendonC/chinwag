@@ -37,13 +37,13 @@ interface CreateManagedAgentLaunchParams {
   task: string;
   cwd: string;
   token: string;
-  cols?: number;
-  rows?: number;
+  cols?: number | undefined;
+  rows?: number | undefined;
 }
 
 interface CreateTerminalAgentLaunchParams {
   tool: ManagedTool;
-  task?: string;
+  task?: string | undefined;
   cwd: string;
   token: string;
 }

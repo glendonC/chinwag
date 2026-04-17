@@ -183,14 +183,14 @@ export function setupShutdownHandlers({
 }
 
 interface CleanupOptions {
-  deleteRecord?: typeof deleteSessionRecord;
-  writeCompleted?: typeof writeCompletedSession;
-  clearIntervalFn?: typeof clearInterval;
-  homeDir?: string;
+  deleteRecord?: typeof deleteSessionRecord | undefined;
+  writeCompleted?: typeof writeCompletedSession | undefined;
+  clearIntervalFn?: typeof clearInterval | undefined;
+  homeDir?: string | undefined;
   /** Overridable for tests: agent startedAt timestamp for completion record. */
-  startedAt?: number;
+  startedAt?: number | undefined;
   /** Overridable for tests: toolId for completion record. */
-  toolId?: string;
+  toolId?: string | undefined;
 }
 
 export async function cleanupProcessSession(

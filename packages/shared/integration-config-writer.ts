@@ -153,7 +153,11 @@ export function writeMcpConfig(
     channel = false,
     hostId = null,
     surfaceId = null,
-  }: { channel?: boolean; hostId?: string | null; surfaceId?: string | null } = {},
+  }: {
+    channel?: boolean | undefined;
+    hostId?: string | null | undefined;
+    surfaceId?: string | null | undefined;
+  } = {},
 ): WriteResult {
   const filePath = join(cwd, relativePath);
   const isSharedRootConfig = relativePath === '.mcp.json' || relativePath === 'mcp.json';
@@ -397,7 +401,7 @@ export function writeWindsurfHooksConfig(cwd: string): WriteResult {
 export function configureHostIntegration(
   cwd: string,
   hostId: string,
-  options: { surfaceId?: string | null } = {},
+  options: { surfaceId?: string | null | undefined } = {},
 ): ConfigureResult {
   const host = getHostIntegrationById(hostId);
   if (!host) return { error: `Unknown host integration: ${hostId}` };

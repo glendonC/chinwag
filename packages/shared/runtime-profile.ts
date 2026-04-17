@@ -1,10 +1,10 @@
 export type ChinwagRuntimeProfile = 'prod' | 'local';
 
 export interface RuntimeProfileOptions {
-  profile?: string | null;
-  apiUrl?: string | null;
-  dashboardUrl?: string | null;
-  chatWsUrl?: string | null;
+  profile?: string | null | undefined;
+  apiUrl?: string | null | undefined;
+  dashboardUrl?: string | null | undefined;
+  chatWsUrl?: string | null | undefined;
 }
 
 export interface RuntimeTargets {

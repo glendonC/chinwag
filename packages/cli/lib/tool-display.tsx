@@ -129,7 +129,7 @@ export function RecommendationsList({
             <Text dimColor>{desc}</Text>
             {tool.mcpCompatible && <Text color="green"> [MCP]</Text>}
             {showVerdict && tool.verdict && (
-              <Text color={verdictColor} dimColor={!verdictColor}>
+              <Text {...(verdictColor ? { color: verdictColor } : {})} dimColor={!verdictColor}>
                 {' '}
                 [{tool.verdict}]
               </Text>
@@ -211,7 +211,10 @@ export function CategoryBrowser({
                     <Text dimColor>{desc}</Text>
                     {tool.mcpCompatible && <Text color="green"> [MCP]</Text>}
                     {tool.verdict && (
-                      <Text color={verdictColor} dimColor={!verdictColor}>
+                      <Text
+                        {...(verdictColor ? { color: verdictColor } : {})}
+                        dimColor={!verdictColor}
+                      >
                         {' '}
                         [{tool.verdict}]
                       </Text>

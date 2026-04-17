@@ -17,8 +17,8 @@ export interface DetectedTool {
 
 export interface AgentActivity {
   files: string[];
-  summary?: string | null;
-  updated_at?: string | null;
+  summary?: string | null | undefined;
+  updated_at?: string | null | undefined;
 }
 
 export type TeamMember = SharedTeamMember;
@@ -35,19 +35,19 @@ export interface ManagedAgent {
   taskArg: string;
   task: string;
   cwd: string;
-  agentId?: string;
-  agent_id?: string;
-  handle?: string | null;
+  agentId?: string | undefined;
+  agent_id?: string | undefined;
+  handle?: string | null | undefined;
   status: string;
   startedAt: number;
   exitCode: number | null;
-  outputPreview?: string | null;
-  spawnType?: string;
-  pid?: number | null;
-  activity?: AgentActivity | null;
-  session_minutes?: number | null;
-  minutes_since_update?: number | null;
-  tool?: string;
+  outputPreview?: string | null | undefined;
+  spawnType?: string | undefined;
+  pid?: number | null | undefined;
+  activity?: AgentActivity | null | undefined;
+  session_minutes?: number | null | undefined;
+  minutes_since_update?: number | null | undefined;
+  tool?: string | undefined;
 }
 
 export interface CombinedAgentRow extends ManagedAgent {
@@ -264,12 +264,12 @@ export function hasVisibleSessionActivity(session: SessionEntry | null | undefin
 }
 
 interface BuildDashboardViewOptions {
-  context?: TeamContext;
-  detectedTools?: DetectedTool[];
-  memoryFilter?: string | null;
-  memorySearch?: string;
-  cols?: number;
-  projectDir?: string;
+  context?: TeamContext | undefined;
+  detectedTools?: DetectedTool[] | undefined;
+  memoryFilter?: string | null | undefined;
+  memorySearch?: string | undefined;
+  cols?: number | undefined;
+  projectDir?: string | undefined;
 }
 
 export function buildDashboardView({

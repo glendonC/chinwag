@@ -27,7 +27,7 @@ export interface IntegrationDoctor {
   configureHostIntegration(
     cwd: string,
     hostId: string,
-    options?: { surfaceId?: string | null },
+    options?: { surfaceId?: string | null | undefined },
   ): ConfigureResult;
 }
 

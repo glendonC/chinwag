@@ -23,9 +23,9 @@ export interface InitErrorClassification {
  * Classify an HTTP/network error into a connection state and user-facing message.
  */
 export function classifyError(err: {
-  message?: string;
-  status?: number;
-  code?: string;
+  message?: string | undefined;
+  status?: number | undefined;
+  code?: string | undefined;
 }): ClassifiedError {
   const msg = err.message || '';
   const status = err.status;
@@ -58,7 +58,7 @@ export function classifyError(err: {
 export function classifyInitError({
   message = '',
   status,
-}: { message?: string; status?: number } = {}): InitErrorClassification {
+}: { message?: string | undefined; status?: number | undefined } = {}): InitErrorClassification {
   const classified = classifyError({ message, status });
 
   if (status === 429)

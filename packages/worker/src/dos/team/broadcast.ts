@@ -13,7 +13,7 @@ const log = createLogger('TeamDO');
 
 export interface BroadcastOptions {
   /** Invoked before sending when provided; used to bust context caches. */
-  invalidateCache?: () => void;
+  invalidateCache?: (() => void) | undefined;
 }
 
 export function broadcastToWatchers(

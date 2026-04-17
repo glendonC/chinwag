@@ -57,16 +57,16 @@ export interface SpawnAgentResult {
 
 export interface SpawnAgentLaunch {
   toolId: string;
-  toolName?: string;
+  toolName?: string | undefined;
   cmd: string;
-  args?: string[];
-  taskArg?: string;
+  args?: string[] | undefined;
+  taskArg?: string | undefined;
   task: string;
   cwd: string;
-  agentId?: string | null;
-  env?: NodeJS.ProcessEnv;
-  cols?: number;
-  rows?: number;
+  agentId?: string | null | undefined;
+  env?: NodeJS.ProcessEnv | undefined;
+  cols?: number | undefined;
+  rows?: number | undefined;
 }
 
 export interface AttachTerminalResult {
@@ -76,12 +76,12 @@ export interface AttachTerminalResult {
 
 export interface RegisterExternalAgentParams {
   toolId: string;
-  toolName?: string;
+  toolName?: string | undefined;
   cmd: string;
-  args?: string[];
-  taskArg?: string;
+  args?: string[] | undefined;
+  taskArg?: string | undefined;
   task: string;
   cwd: string;
-  agentId?: string | null;
-  pid?: number | null;
+  agentId?: string | null | undefined;
+  pid?: number | null | undefined;
 }

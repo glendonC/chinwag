@@ -3,7 +3,8 @@
   "compilerOptions": {
     "composite": true,
     "lib": ["ES2024"],
-    "types": ["node"]
+    "types": ["node"],
+    "exactOptionalPropertyTypes": true
   },
   "include": ["./*.js", "./*.ts", "./contracts/*.ts", "./__tests__/**/*.js", "./__tests__/**/*.ts"],
   "exclude": ["./dist", "./node_modules"]

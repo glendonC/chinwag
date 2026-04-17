@@ -16,7 +16,7 @@ interface AccountResult {
 
 interface AccountError {
   message: string;
-  status?: number;
+  status?: number | undefined;
 }
 
 interface UserInfo {

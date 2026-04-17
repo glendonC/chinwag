@@ -4,8 +4,8 @@ import { configureTool } from '../mcp-config.js';
 interface ToolEntry {
   id: string;
   name: string;
-  installCmd?: string | null;
-  website?: string;
+  installCmd?: string | null | undefined;
+  website?: string | undefined;
 }
 
 interface ToolActionResult {

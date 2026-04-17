@@ -8,25 +8,25 @@ export interface CatalogToolLike {
   id: string;
   name: string;
   description: string;
-  category?: string;
-  mcpCompatible?: boolean;
-  mcpConfigurable?: boolean;
-  website?: string;
-  installCmd?: string | null;
-  featured?: boolean;
-  verdict?: string;
-  confidence?: string;
+  category?: string | undefined;
+  mcpCompatible?: boolean | undefined;
+  mcpConfigurable?: boolean | undefined;
+  website?: string | undefined;
+  installCmd?: string | null | undefined;
+  featured?: boolean | undefined;
+  verdict?: string | undefined;
+  confidence?: string | undefined;
 }
 
 export interface EvalEntry {
   id: string;
   name: string;
-  tagline?: string;
-  category?: string;
-  mcp_support?: boolean | string;
-  metadata?: Record<string, unknown>;
-  verdict?: string;
-  confidence?: string;
+  tagline?: string | undefined;
+  category?: string | undefined;
+  mcp_support?: boolean | string | undefined;
+  metadata?: Record<string, unknown> | undefined;
+  verdict?: string | undefined;
+  confidence?: string | undefined;
 }
 
 export function evalToTool(e: EvalEntry): CatalogToolLike {

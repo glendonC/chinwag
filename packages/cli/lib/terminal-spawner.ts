@@ -87,13 +87,13 @@ const escapeAppleScript = escapeAppleScriptString;
 export interface TerminalLaunch {
   agentId: string;
   toolId: string;
-  toolName?: string;
-  cwd?: string;
+  toolName?: string | undefined;
+  cwd?: string | undefined;
   cmd: string;
-  args?: string[];
-  task?: string;
-  interactive?: boolean;
-  taskArg?: string;
+  args?: string[] | undefined;
+  task?: string | undefined;
+  interactive?: boolean | undefined;
+  taskArg?: string | undefined;
 }
 
 export interface SpawnResult {
