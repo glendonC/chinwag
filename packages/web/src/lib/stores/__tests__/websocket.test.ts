@@ -67,14 +67,26 @@ class MockWebSocket {
   }
 }
 
+type AuthSubscriber = (next: { token: string | null }, prev: { token: string | null }) => void;
+
 async function loadWebSocketModule({
-  token = 'tok_ws_test',
+  token = 'tok_ws_test' as string | null,
   activeTeamId = 't_ws',
   apiMock = vi.fn(),
   apiUrl = 'https://api.test.dev',
+  mutableTeamState,
+  mutableAuthState,
+}: {
+  token?: string | null;
+  activeTeamId?: string;
+  apiMock?: ReturnType<typeof vi.fn>;
+  apiUrl?: string;
+  mutableTeamState?: { activeTeamId: string };
+  mutableAuthState?: { token: string | null };
 } = {}) {
   vi.resetModules();
   MockWebSocket.instances = [];
+  const authSubscribers: AuthSubscriber[] = [];
 
   const wsProto = new URL(apiUrl).protocol === 'https:' ? 'wss:' : 'ws:';
   vi.doMock('../../api.js', () => ({
@@ -86,15 +98,23 @@ async function loadWebSocketModule({
       teamWsOrigin: `${wsProto}//${new URL(apiUrl).host}`,
     }),
   }));
+  const authState = mutableAuthState ?? { token };
   vi.doMock('../auth.js', () => ({
     authActions: {
-      getState: () => ({ token }),
-      subscribe: vi.fn(),
+      getState: () => authState,
+      subscribe: vi.fn((cb: AuthSubscriber) => {
+        authSubscribers.push(cb);
+        return () => {
+          const idx = authSubscribers.indexOf(cb);
+          if (idx !== -1) authSubscribers.splice(idx, 1);
+        };
+      }),
     },
   }));
+  const teamState = mutableTeamState ?? { activeTeamId };
   vi.doMock('../teams.js', () => ({
     teamActions: {
-      getState: () => ({ activeTeamId }),
+      getState: () => teamState,
     },
   }));
 
@@ -106,7 +126,7 @@ async function loadWebSocketModule({
   (globalThis as Record<string, unknown>).WebSocket = MockWebSocket;
 
   const mod = await import('../websocket.js');
-  return { ...mod, apiMock, setWsConnectedMock };
+  return { ...mod, apiMock, setWsConnectedMock, authSubscribers };
 }
 
 beforeEach(() => {
@@ -438,6 +458,137 @@ describe('websocket store', () => {
       MockWebSocket.instances[0].onmessage?.({ data: 'not valid json {{{' });
 
       expect(warnSpy).toHaveBeenCalledWith('[chinwag] Malformed WS event:', expect.any(String));
+    });
+  });
+
+  describe('auth token subscription', () => {
+    it('closes WebSocket when the auth token changes', async () => {
+      const apiMock = vi.fn().mockResolvedValue({ ticket: 'tix_abc' });
+      const {
+        connectTeamWebSocket,
+        setPollingBridge,
+        setWsConnectedMock,
+        hasActiveWebSocket,
+        authSubscribers,
+      } = await loadWebSocketModule({ apiMock });
+
+      setPollingBridge(createBridgeMock() as unknown as PollingBridge);
+
+      await connectTeamWebSocket('t_ws');
+      MockWebSocket.instances[0].simulateOpen();
+      expect(hasActiveWebSocket()).toBe(true);
+
+      expect(authSubscribers.length).toBeGreaterThan(0);
+      authSubscribers[0]({ token: 'new_token' }, { token: 'tok_ws_test' });
+
+      expect(hasActiveWebSocket()).toBe(false);
+      expect(setWsConnectedMock).toHaveBeenCalledWith(false);
+    });
+
+    it('keeps WebSocket open when the token reference changes but value is the same', async () => {
+      const apiMock = vi.fn().mockResolvedValue({ ticket: 'tix_abc' });
+      const { connectTeamWebSocket, setPollingBridge, hasActiveWebSocket, authSubscribers } =
+        await loadWebSocketModule({ apiMock });
+
+      setPollingBridge(createBridgeMock() as unknown as PollingBridge);
+
+      await connectTeamWebSocket('t_ws');
+      MockWebSocket.instances[0].simulateOpen();
+
+      authSubscribers[0]({ token: 'tok_ws_test' }, { token: 'tok_ws_test' });
+
+      expect(hasActiveWebSocket()).toBe(true);
+    });
+  });
+
+  describe('race conditions during ticket fetch', () => {
+    it('aborts if the active team changes while the ticket fetch is in flight', async () => {
+      const teamState = { activeTeamId: 't_ws' };
+      const apiMock = vi.fn().mockImplementation(async () => {
+        teamState.activeTeamId = 't_other';
+        return { ticket: 'tix_abc' };
+      });
+
+      const { connectTeamWebSocket } = await loadWebSocketModule({
+        apiMock,
+        mutableTeamState: teamState,
+      });
+
+      await connectTeamWebSocket('t_ws');
+
+      expect(MockWebSocket.instances).toHaveLength(0);
+    });
+
+    it('aborts if the auth token changes while the ticket fetch is in flight', async () => {
+      const authState: { token: string | null } = { token: 'tok_ws_test' };
+      const apiMock = vi.fn().mockImplementation(async () => {
+        authState.token = 'tok_new';
+        return { ticket: 'tix_abc' };
+      });
+
+      const { connectTeamWebSocket } = await loadWebSocketModule({
+        apiMock,
+        mutableAuthState: authState,
+      });
+
+      await connectTeamWebSocket('t_ws');
+
+      expect(MockWebSocket.instances).toHaveLength(0);
+    });
+  });
+
+  describe('reconcile concurrency', () => {
+    it('skips reconcile when a previous reconcile is still in flight', async () => {
+      vi.spyOn(Math, 'random').mockReturnValue(1);
+      const apiMock = vi.fn().mockResolvedValue({ ticket: 'tix_abc' });
+      const { connectTeamWebSocket, setPollingBridge } = await loadWebSocketModule({ apiMock });
+
+      let resolveFirst: (() => void) | undefined;
+      const bridge = createBridgeMock();
+      bridge.poll = vi.fn().mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirst = resolve;
+          }),
+      );
+      setPollingBridge(bridge as unknown as PollingBridge);
+
+      await connectTeamWebSocket('t_ws');
+      const ws = MockWebSocket.instances[0];
+      ws.simulateOpen();
+
+      // First reconcile fires at 30s and stays in flight (never resolves).
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(bridge.poll).toHaveBeenCalledTimes(1);
+
+      // A message restarts the timer with the current backoff. While the
+      // previous reconcile is still in flight, the fresh timer must not
+      // fire a second poll.
+      ws.simulateMessage({ type: 'context', data: { members: [] } });
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(bridge.poll).toHaveBeenCalledTimes(1);
+
+      // Resolving unblocks the guard; later reconciles may proceed.
+      resolveFirst?.();
+      vi.spyOn(Math, 'random').mockRestore();
+    });
+  });
+
+  describe('WebSocket constructor failure', () => {
+    it('stays on polling when the WebSocket constructor throws', async () => {
+      const apiMock = vi.fn().mockResolvedValue({ ticket: 'tix_abc' });
+      const { connectTeamWebSocket, setPollingBridge, hasActiveWebSocket } =
+        await loadWebSocketModule({ apiMock });
+
+      setPollingBridge(createBridgeMock() as unknown as PollingBridge);
+
+      (globalThis as Record<string, unknown>).WebSocket = function ThrowingWebSocket() {
+        throw new Error('WebSocket not supported');
+      };
+
+      await connectTeamWebSocket('t_ws');
+
+      expect(hasActiveWebSocket()).toBe(false);
     });
   });
 });
