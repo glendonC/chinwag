@@ -23,7 +23,7 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm ci
       - run: npx turbo run typecheck
-      - run: npx eslint .
+      - run: npx eslint . --max-warnings 0
       - run: npx prettier --check .
       - run: npm audit --omit=dev
 

@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { isKnownTool } from '../../lib/toolMeta.js';
 
 interface TeamSummary {
   team_id?: string;

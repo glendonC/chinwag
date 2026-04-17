@@ -21,11 +21,8 @@ export default function GlobalMap({ countries, online }: Props): ReactNode {
     const entries = Object.entries(countries).filter(([cc]) => cc in COUNTRY_COORDS);
     if (entries.length === 0) return [];
 
-    const maxCount = Math.max(...entries.map(([, c]) => c), 1);
-
-    return entries.map(([cc, count]) => {
+    return entries.map(([cc]) => {
       const [lat, lng] = COUNTRY_COORDS[cc];
-      const intensity = Math.min(count / maxCount, 1);
       return {
         location: [lat, lng] as [number, number],
         size: 0.025,

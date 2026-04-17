@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
-import { readFileSync } from 'fs';
 
 /** Vite plugin: rewrite dashboard routes to dashboard.html in dev. */
 function dashboardFallback() {

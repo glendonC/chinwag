@@ -47,8 +47,8 @@ export default [
       },
     },
     rules: {
-      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      'prefer-const': 'warn',
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      'prefer-const': 'error',
     },
   },
 
@@ -70,12 +70,14 @@ export default [
       'no-undef': 'off',
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': [
-        'warn',
+        'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
       '@typescript-eslint/consistent-type-imports': ['error', { fixStyle: 'inline-type-imports' }],
-      '@typescript-eslint/no-explicit-any': 'warn',
-      'prefer-const': 'warn',
+      // any is an error in source code. Tests relax this below so they can
+      // deliberately pass invalid shapes through the type boundary.
+      '@typescript-eslint/no-explicit-any': 'error',
+      'prefer-const': 'error',
     },
   },
 
@@ -140,7 +142,9 @@ export default [
     },
   },
 
-  // Test files: allow common test globals + browser globals (jsdom environment)
+  // Test files: allow common test globals + browser globals (jsdom environment).
+  // Tests often pass deliberately invalid shapes through function boundaries
+  // to exercise defensive branches, so `any` is permitted here.
   {
     files: ['**/*.test.js', '**/*.test.jsx', '**/*.test.ts', '**/*.test.tsx', '**/__tests__/**'],
     languageOptions: {
@@ -168,6 +172,9 @@ export default [
         AbortSignal: 'readonly',
         DOMException: 'readonly',
       },
+    },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
 

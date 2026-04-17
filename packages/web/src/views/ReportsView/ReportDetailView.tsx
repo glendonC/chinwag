@@ -11,7 +11,7 @@ import BackLink from '../../components/BackLink/BackLink.js';
 import SectionTitle from '../../components/SectionTitle/SectionTitle.js';
 import { setQueryParam } from '../../lib/router.js';
 import { agentGradient } from '../../lib/agentGradient.js';
-import { REPORT_CATALOG, reportHex, type ReportDef } from './report-catalog.js';
+import { REPORT_CATALOG, reportHex } from './report-catalog.js';
 import { getRunsForReport, getLatestRun } from './mock-runs.js';
 import { getPathAvailability, pathShortLabel } from './reports-path.js';
 import type { MockRun } from './types.js';

@@ -20,7 +20,6 @@ describe('formatDuration', () => {
     });
 
     it('returns "<1m" for non-number types', () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect(formatDuration('hello' as any)).toBe('<1m');
     });
   });

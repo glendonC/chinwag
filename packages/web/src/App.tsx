@@ -90,7 +90,6 @@ export default function App(): ReactNode {
     contextTeamId,
     pollError,
     consecutiveFailures,
-    lastUpdate,
   } = usePollingStore(
     useShallow((s) => ({
       dashboardData: s.dashboardData,
@@ -100,7 +99,6 @@ export default function App(): ReactNode {
       contextTeamId: s.contextTeamId,
       pollError: s.pollError,
       consecutiveFailures: s.consecutiveFailures,
-      lastUpdate: s.lastUpdate,
     })),
   );
   const activeTeamId = useTeamStore((s) => s.activeTeamId);

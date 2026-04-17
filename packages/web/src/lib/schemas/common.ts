@@ -12,8 +12,6 @@ import {
   authenticatedUserSchema as baseUserSchema,
   userTeamSchema as baseTeamSchema,
   webSocketTicketResponseSchema as baseWsTicketSchema,
-  dashboardSummarySchema as baseDashboardSummarySchema,
-  userTeamsResponseSchema as baseUserTeamsSchema,
 } from '@chinwag/shared/contracts/dashboard.js';
 
 import {
@@ -24,8 +22,6 @@ import {
   memoryCategorySchema as baseMemoryCategorySchema,
   teamMessageSchema as baseMessageSchema,
   teamSessionSchema as baseSessionSchema,
-  agentMetadataSchema,
-  memberActivitySchema,
 } from '@chinwag/shared/contracts/team.js';
 
 import {
@@ -75,7 +71,7 @@ type _MemberContractCheck =
   z.infer<typeof memberSchema> extends Pick<z.infer<typeof teamMemberSchema>, 'agent_id' | 'handle'>
     ? true
     : never;
- 
+
 const _memberCheck: _MemberContractCheck = true;
 
 export const memorySchema = baseMemorySchema.extend({
