@@ -98,6 +98,15 @@ import {
   HEARTBEAT_BROADCAST_DEBOUNCE_MS,
   METRIC_KEYS,
 } from '../../lib/constants.js';
+import {
+  getConnectedAgentIds,
+  getAllConnectedMemberIds,
+  getExecutorSockets,
+  getAvailableSpawnTools,
+  hasExecutorConnected,
+} from './presence.js';
+import { broadcastToWatchers, broadcastToExecutors } from './broadcast.js';
+import { recordMetric as recordMetricFn } from './telemetry.js';
 
 export class TeamDO extends DurableObject<Env> {
   sql: SqlStorage;
@@ -424,24 +433,14 @@ export class TeamDO extends DurableObject<Env> {
 
   /** Agent IDs with an active 'role:agent' WebSocket connection. */
   #getConnectedAgentIds(): Set<string> {
-    return new Set(
-      this.ctx
-        .getWebSockets('role:agent')
-        .flatMap((ws) => this.ctx.getTags(ws))
-        .filter((tag) => !tag.startsWith('role:') && !tag.startsWith('spawn:')),
-    );
+    return getConnectedAgentIds(this.ctx);
   }
 
   /** All member IDs with any active WebSocket (agent, watcher, daemon).
    *  Used for cleanup eviction protection — any connected socket keeps
    *  the member row alive regardless of role. */
   #getAllConnectedMemberIds(): Set<string> {
-    return new Set(
-      this.ctx
-        .getWebSockets()
-        .flatMap((ws) => this.ctx.getTags(ws))
-        .filter((tag) => !tag.startsWith('role:') && !tag.startsWith('spawn:')),
-    );
+    return getAllConnectedMemberIds(this.ctx);
   }
 
   #invalidateContextCache(): void {
@@ -450,70 +449,29 @@ export class TeamDO extends DurableObject<Env> {
   }
 
   #broadcastToWatchers(event: Record<string, unknown>, { invalidateCache = true } = {}): void {
-    if (invalidateCache) this.#invalidateContextCache();
-    const sockets = this.ctx.getWebSockets();
-    if (!sockets.length) return;
-    const data = JSON.stringify(event);
-    let failures = 0;
-    for (const ws of sockets) {
-      try {
-        ws.send(data);
-      } catch {
-        failures++;
-      }
-    }
-    if (failures > 0) {
-      log.warn('broadcast partial failure', { totalClients: sockets.length, failures });
-    }
+    broadcastToWatchers(this.ctx, event, {
+      invalidateCache: invalidateCache ? () => this.#invalidateContextCache() : undefined,
+    });
   }
 
   // -- Daemon command relay helpers --
 
   /** All connected sockets with spawn capability (any role, identified by spawn:* tags). */
   #getExecutorSockets(): WebSocket[] {
-    const executors: WebSocket[] = [];
-    for (const ws of this.ctx.getWebSockets()) {
-      try {
-        if (this.ctx.getTags(ws).some((t) => t.startsWith('spawn:'))) {
-          executors.push(ws);
-        }
-      } catch {
-        /* socket may be closing */
-      }
-    }
-    return executors;
+    return getExecutorSockets(this.ctx);
   }
 
   #broadcastToExecutors(event: Record<string, unknown>): void {
-    const sockets = this.#getExecutorSockets();
-    if (!sockets.length) return;
-    const data = JSON.stringify(event);
-    for (const ws of sockets) {
-      try {
-        ws.send(data);
-      } catch {
-        /* client may have disconnected */
-      }
-    }
+    broadcastToExecutors(this.ctx, event);
   }
 
   #hasExecutorConnected(): boolean {
-    return this.#getExecutorSockets().length > 0;
+    return hasExecutorConnected(this.ctx);
   }
 
   /** Collect available spawn tools from all connected daemon WebSocket tags. */
   #getAvailableSpawnTools(): string[] {
-    const tools = new Set<string>();
-    for (const ws of this.#getExecutorSockets()) {
-      try {
-        for (const tag of this.ctx.getTags(ws)) {
-          if (tag.startsWith('spawn:')) tools.add(tag.slice(6));
-        }
-      } catch {
-        /* socket may be closing */
-      }
-    }
-    return [...tools];
+    return getAvailableSpawnTools(this.ctx);
   }
 
   // Evict stale members and prune old sessions -- at most once per minute.
@@ -525,18 +483,7 @@ export class TeamDO extends DurableObject<Env> {
   }
 
   #recordMetric(metric: string): void {
-    // Lifetime counter
-    this.sql.exec(
-      `INSERT INTO telemetry (metric, count, last_at) VALUES (?, 1, datetime('now'))
-       ON CONFLICT(metric) DO UPDATE SET count = count + 1, last_at = datetime('now')`,
-      metric,
-    );
-    // Daily bucket for trend analysis
-    this.sql.exec(
-      `INSERT INTO daily_metrics (date, metric, count) VALUES (date('now'), ?, 1)
-       ON CONFLICT(date, metric) DO UPDATE SET count = count + 1`,
-      metric,
-    );
+    recordMetricFn(this.sql, metric);
   }
 
   // -- Identity resolution (delegated to identity.ts) --
