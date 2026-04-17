@@ -2,9 +2,7 @@
   "mcpServers": {
     "chinwag": {
       "command": "npx",
-      "args": [
-        "chinwag-mcp"
-      ]
+      "args": ["chinwag-mcp"]
     }
   }
 }

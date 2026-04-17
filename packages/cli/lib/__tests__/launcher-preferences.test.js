@@ -58,7 +58,10 @@ describe('launcher preferences', () => {
     const tools = [{ id: 'codex', name: 'Codex' }];
 
     expect(resolvePreferredManagedTool(tools, null)).toEqual({ id: 'codex', name: 'Codex' });
-    expect(resolvePreferredManagedTool(tools, 'claude-code')).toEqual({ id: 'codex', name: 'Codex' });
+    expect(resolvePreferredManagedTool(tools, 'claude-code')).toEqual({
+      id: 'codex',
+      name: 'Codex',
+    });
   });
 
   it('requires a choice when multiple tools are ready and no preference matches', () => {

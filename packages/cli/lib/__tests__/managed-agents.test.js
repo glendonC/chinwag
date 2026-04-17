@@ -35,7 +35,7 @@ describe('createManagedAgentLaunch', () => {
   it('classifies Codex auth failures for launcher gating', () => {
     const failure = classifyManagedAgentFailure(
       'codex',
-      'ERROR: Your access token could not be refreshed because your refresh token was already used. Please log out and sign in again.'
+      'ERROR: Your access token could not be refreshed because your refresh token was already used. Please log out and sign in again.',
     );
 
     expect(failure).toMatchObject({

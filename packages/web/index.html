@@ -1,424 +1,787 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#fafafa">
-  <title>chinwag · the control layer for agentic development</title>
-  <meta name="description" content="Connect all your AI coding agents. Shared memory, conflict prevention, and team coordination across every tool. Vendor-neutral. Source stays local.">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#fafafa" />
+    <title>chinwag · the control layer for agentic development</title>
+    <meta
+      name="description"
+      content="Connect all your AI coding agents. Shared memory, conflict prevention, and team coordination across every tool. Vendor-neutral. Source stays local."
+    />
 
-  <meta property="og:type" content="website">
-  <meta property="og:title" content="chinwag · the control layer for agentic development">
-  <meta property="og:description" content="Connect all your AI coding agents. Shared memory, conflict prevention, and coordination across every tool. Source stays local.">
-  <meta property="og:url" content="https://chinwag.dev">
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="chinwag · the control layer for agentic development" />
+    <meta
+      property="og:description"
+      content="Connect all your AI coding agents. Shared memory, conflict prevention, and coordination across every tool. Source stays local."
+    />
+    <meta property="og:url" content="https://chinwag.dev" />
 
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="chinwag · the control layer for agentic development">
-  <meta name="twitter:description" content="Connect all your AI coding agents. Shared memory, conflict prevention, and coordination across every tool. Source stays local.">
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="chinwag · the control layer for agentic development" />
+    <meta
+      name="twitter:description"
+      content="Connect all your AI coding agents. Shared memory, conflict prevention, and coordination across every tool. Source stays local."
+    />
 
-  <meta property="og:image" content="https://chinwag.dev/assets/og-image.png">
-  <meta property="og:image:type" content="image/png">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
-  <meta name="twitter:image" content="https://chinwag.dev/assets/og-image.png">
+    <meta property="og:image" content="https://chinwag.dev/assets/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:image" content="https://chinwag.dev/assets/og-image.png" />
 
-  <link rel="canonical" href="https://chinwag.dev">
-  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" sizes="any">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&family=Newsreader:opsz,wght@6..72,300;6..72,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles/foundation.css">
-  <link rel="stylesheet" href="styles/header.css">
-  <link rel="stylesheet" href="styles/landing.css">
-  <link rel="stylesheet" href="styles/responsive.css">
-</head>
-<body>
-  <header class="floating-ui">
-    <button class="mobile-utility-backdrop" id="mobile-utility-backdrop" type="button" aria-label="Close menu"></button>
-    <div class="control-rail">
-      <a class="brand-mark" href="#overview" aria-label="chinwag home">
-        <svg class="brand-glyph brand-glyph--color" width="24" height="24" viewBox="0 0 32 32" aria-hidden="true">
-          <path fill="#d49aae" d="M4 24 20 24 24 20 8 20z"/>
-          <path fill="#a896d4" d="M6 18 22 18 26 14 10 14z"/>
-          <path fill="#8ec0a4" d="M8 12 24 12 28 8 12 8z"/>
-        </svg>
-      </a>
+    <link rel="canonical" href="https://chinwag.dev" />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" sizes="any" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&family=Newsreader:opsz,wght@6..72,300;6..72,400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles/foundation.css" />
+    <link rel="stylesheet" href="styles/header.css" />
+    <link rel="stylesheet" href="styles/landing.css" />
+    <link rel="stylesheet" href="styles/responsive.css" />
+  </head>
+  <body>
+    <header class="floating-ui">
+      <button
+        class="mobile-utility-backdrop"
+        id="mobile-utility-backdrop"
+        type="button"
+        aria-label="Close menu"
+      ></button>
+      <div class="control-rail">
+        <a class="brand-mark" href="#overview" aria-label="chinwag home">
+          <svg
+            class="brand-glyph brand-glyph--color"
+            width="24"
+            height="24"
+            viewBox="0 0 32 32"
+            aria-hidden="true"
+          >
+            <path fill="#d49aae" d="M4 24 20 24 24 20 8 20z" />
+            <path fill="#a896d4" d="M6 18 22 18 26 14 10 14z" />
+            <path fill="#8ec0a4" d="M8 12 24 12 28 8 12 8z" />
+          </svg>
+        </a>
 
-      <div class="control-surface">
-        <nav class="control-nav" aria-label="Primary">
-          <a class="control-link" href="#overview" data-section-link="overview">Overview</a>
-          <a class="control-link" href="#features" data-section-link="features">Features</a>
-          <a class="control-link" href="#security" data-section-link="security">Security</a>
+        <div class="control-surface">
+          <nav class="control-nav" aria-label="Primary">
+            <a class="control-link" href="#overview" data-section-link="overview">Overview</a>
+            <a class="control-link" href="#features" data-section-link="features">Features</a>
+            <a class="control-link" href="#security" data-section-link="security">Security</a>
+          </nav>
+        </div>
+
+        <a
+          class="brand-mark github-mark"
+          href="https://github.com/glendonchin/chinwag"
+          target="_blank"
+          rel="noopener"
+          aria-label="View on GitHub"
+        >
+          <svg
+            class="brand-glyph"
+            width="24"
+            height="24"
+            viewBox="0 0 16 16"
+            aria-hidden="true"
+            fill="currentColor"
+          >
+            <path
+              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+            />
+          </svg>
+        </a>
+
+        <button
+          class="mobile-utility-toggle"
+          id="mobile-utility-toggle"
+          type="button"
+          aria-label="Open menu"
+          aria-expanded="false"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+
+      <div class="command-pill" id="pill">
+        <span class="command-label">Install</span>
+        <div class="command-body" aria-live="polite">
+          <span class="prompt">$</span>
+          <code id="command">npx chinwag init</code>
+        </div>
+        <button class="copy" id="copy" aria-label="Copy install command">
+          <svg class="ic" width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <rect
+              x="5.5"
+              y="5.5"
+              width="8"
+              height="8"
+              rx="1.5"
+              stroke="currentColor"
+              stroke-width="1.2"
+            />
+            <path
+              d="M10.5 5.5V3.5A2 2 0 0 0 8.5 1.5h-5a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h2"
+              stroke="currentColor"
+              stroke-width="1.2"
+            />
+          </svg>
+          <svg class="ck" width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path
+              d="M3 8.5L6.5 12L13 4"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+      </div>
+
+      <div class="mobile-nav-panel" id="mobile-nav-panel" aria-label="Navigation">
+        <div class="mobile-nav-header">
+          <span class="mobile-nav-title">Navigation</span>
+        </div>
+        <nav class="mobile-nav-list" aria-label="Mobile navigation">
+          <a class="mobile-nav-link" href="#overview" data-section-link="overview"
+            ><span class="mobile-nav-index">01</span><span>Overview</span></a
+          >
+          <a class="mobile-nav-link" href="#features" data-section-link="features"
+            ><span class="mobile-nav-index">02</span><span>Features</span></a
+          >
+          <a class="mobile-nav-link" href="#security" data-section-link="security"
+            ><span class="mobile-nav-index">03</span><span>Security</span></a
+          >
+          <a class="mobile-nav-link" href="/dashboard.html"
+            ><span class="mobile-nav-index">04</span><span>Dashboard</span></a
+          >
+          <a
+            class="mobile-nav-link mobile-nav-link-external"
+            href="https://github.com/glendonchin/chinwag"
+            target="_blank"
+            rel="noopener"
+            ><span class="mobile-nav-index">05</span><span>GitHub</span></a
+          >
         </nav>
       </div>
+    </header>
 
-      <a class="brand-mark github-mark" href="https://github.com/glendonchin/chinwag" target="_blank" rel="noopener" aria-label="View on GitHub">
-        <svg class="brand-glyph" width="24" height="24" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">
-          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
-        </svg>
-      </a>
-
-      <button class="mobile-utility-toggle" id="mobile-utility-toggle" type="button" aria-label="Open menu" aria-expanded="false">
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
+    <div class="page-gradients" aria-hidden="true">
+      <div class="gradient-blob gradient-blob--peach"></div>
+      <div class="gradient-blob gradient-blob--lavender"></div>
+      <div class="gradient-blob gradient-blob--sage"></div>
+      <div class="gradient-blob gradient-blob--amber"></div>
+      <div class="gradient-blob gradient-blob--pink"></div>
     </div>
 
-    <div class="command-pill" id="pill">
-      <span class="command-label">Install</span>
-      <div class="command-body" aria-live="polite">
-        <span class="prompt">$</span>
-        <code id="command">npx chinwag init</code>
-      </div>
-      <button class="copy" id="copy" aria-label="Copy install command">
-        <svg class="ic" width="14" height="14" viewBox="0 0 16 16" fill="none">
-          <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
-          <path d="M10.5 5.5V3.5A2 2 0 0 0 8.5 1.5h-5a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.2"/>
-        </svg>
-        <svg class="ck" width="14" height="14" viewBox="0 0 16 16" fill="none">
-          <path d="M3 8.5L6.5 12L13 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
-    </div>
-
-    <div class="mobile-nav-panel" id="mobile-nav-panel" aria-label="Navigation">
-      <div class="mobile-nav-header">
-        <span class="mobile-nav-title">Navigation</span>
-      </div>
-      <nav class="mobile-nav-list" aria-label="Mobile navigation">
-        <a class="mobile-nav-link" href="#overview" data-section-link="overview"><span class="mobile-nav-index">01</span><span>Overview</span></a>
-        <a class="mobile-nav-link" href="#features" data-section-link="features"><span class="mobile-nav-index">02</span><span>Features</span></a>
-        <a class="mobile-nav-link" href="#security" data-section-link="security"><span class="mobile-nav-index">03</span><span>Security</span></a>
-        <a class="mobile-nav-link" href="/dashboard.html"><span class="mobile-nav-index">04</span><span>Dashboard</span></a>
-        <a class="mobile-nav-link mobile-nav-link-external" href="https://github.com/glendonchin/chinwag" target="_blank" rel="noopener"><span class="mobile-nav-index">05</span><span>GitHub</span></a>
-      </nav>
-    </div>
-  </header>
-
-  <div class="page-gradients" aria-hidden="true">
-    <div class="gradient-blob gradient-blob--peach"></div>
-    <div class="gradient-blob gradient-blob--lavender"></div>
-    <div class="gradient-blob gradient-blob--sage"></div>
-    <div class="gradient-blob gradient-blob--amber"></div>
-    <div class="gradient-blob gradient-blob--pink"></div>
-  </div>
-
-  <main class="page-shell">
-
-    <!-- HERO -->
-    <section class="hero section-frame reveal" id="overview" aria-labelledby="hero-title">
-      <div class="section-copy hero-copy">
-        <p class="hero-name">chinwag</p>
-        <h1 id="hero-title">The control layer for agentic development.</h1>
-        <p class="section-sub hero-sub">Connect, coordinate, and observe every AI agent across your projects and team. Shared memory between tools. Live conflict prevention. Full observability. One place to discover, manage, and control every agent in your workflow. <a class="hero-cta" href="/dashboard.html"><span class="hero-cta__text">Dashboard</span><span class="hero-cta__arrow"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 9.5l7-7M4.5 2.5h5v5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a></p>
-      </div>
-
-      <div class="hero-visual reveal">
-        <section class="hero-atmosphere" id="hero-atmosphere" aria-hidden="true">
-          <canvas class="hero-atmosphere__particles" id="hero-particles" width="760" height="640" aria-hidden="true"></canvas>
-          <div class="hero-atmosphere__anchor">
-            <svg class="hero-atmosphere__anchor-logo" width="18" height="18" viewBox="0 0 32 32" aria-hidden="true">
-              <path fill="#d49aae" d="M4 24 20 24 24 20 8 20z"/>
-              <path fill="#a896d4" d="M6 18 22 18 26 14 10 14z"/>
-              <path fill="#8ec0a4" d="M8 12 24 12 28 8 12 8z"/>
-            </svg>
-            <span class="hero-atmosphere__brand">chinwag</span>
-          </div>
-          <span class="hero-atmosphere__label" data-hero-label="claude" data-brand="claude" style="--label-left: 20%; --label-top: 24%;">
-            <img class="hero-atmosphere__label-icon" src="assets/claude-code.svg" alt="">
-            <span class="hero-atmosphere__label-text"><span>Claude Code</span></span>
-          </span>
-          <span class="hero-atmosphere__label" data-hero-label="cursor" data-brand="cursor" style="--label-left: 18%; --label-top: 52%;">
-            <img class="hero-atmosphere__label-icon" src="assets/cursor.svg" alt="">
-            <span class="hero-atmosphere__label-text"><span>Cursor</span></span>
-          </span>
-          <span class="hero-atmosphere__label" data-hero-label="windsurf" data-brand="windsurf" style="--label-left: 24%; --label-top: 76%;">
-            <img class="hero-atmosphere__label-icon" src="assets/windsurf.svg" alt="">
-            <span class="hero-atmosphere__label-text"><span>Windsurf</span></span>
-          </span>
-          <span class="hero-atmosphere__label" data-hero-label="vscode" data-brand="vscode" style="--label-left: 80%; --label-top: 24%;">
-            <img class="hero-atmosphere__label-icon" src="assets/vscode.svg" alt="">
-            <span class="hero-atmosphere__label-text"><span>VS Code</span></span>
-          </span>
-          <span class="hero-atmosphere__label" data-hero-label="codex" data-brand="codex" style="--label-left: 82%; --label-top: 52%;">
-            <img class="hero-atmosphere__label-icon" src="assets/codex.svg" alt="">
-            <span class="hero-atmosphere__label-text"><span>Codex</span></span>
-          </span>
-          <span class="hero-atmosphere__label" data-hero-label="jetbrains" data-brand="jetbrains" style="--label-left: 76%; --label-top: 76%;">
-            <img class="hero-atmosphere__label-icon" src="assets/jetbrains.svg" alt="">
-            <span class="hero-atmosphere__label-text"><span>JetBrains</span></span>
-          </span>
-          <span class="hero-atmosphere__label" data-hero-label="aider" data-brand="aider" style="--label-left: 15%; --label-top: 38%;">
-            <img class="hero-atmosphere__label-icon" src="assets/aider.svg" alt="">
-            <span class="hero-atmosphere__label-text"><span>Aider</span></span>
-          </span>
-          <span class="hero-atmosphere__label" data-hero-label="amazonq" data-brand="amazonq" style="--label-left: 85%; --label-top: 38%;">
-            <img class="hero-atmosphere__label-icon" src="assets/amazon-q.svg" alt="">
-            <span class="hero-atmosphere__label-text"><span>Amazon Q</span></span>
-          </span>
-          <span class="hero-atmosphere__label" data-hero-label="zed" data-brand="zed" style="--label-left: 30%; --label-top: 88%;">
-            <img class="hero-atmosphere__label-icon" src="assets/zed.svg" alt="">
-            <span class="hero-atmosphere__label-text"><span>Zed</span></span>
-          </span>
-          <span class="hero-atmosphere__label" data-hero-label="cline" data-brand="cline" style="--label-left: 70%; --label-top: 88%;">
-            <img class="hero-atmosphere__label-icon" src="assets/cline.svg" alt="">
-            <span class="hero-atmosphere__label-text"><span>Cline</span></span>
-          </span>
-        </section>
-      </div>
-    </section>
-
-    <!-- WORKS WITH -->
-    <section class="tools-strip reveal" aria-label="Supported tools">
-      <div class="tools-strip__inner">
-        <span class="tools-strip__label">Works with</span>
-        <div class="tools-strip__viewport">
-          <div class="tools-strip__track">
-            <div class="tools-strip__row">
-              <span class="tools-strip__tool" data-tool="claude"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">Claude Code</span></span>
-              <span class="tools-strip__tool" data-tool="cursor"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">Cursor</span></span>
-              <span class="tools-strip__tool" data-tool="windsurf"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">Windsurf</span></span>
-              <span class="tools-strip__tool" data-tool="vscode"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">VS Code</span></span>
-              <span class="tools-strip__tool" data-tool="codex"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">Codex</span></span>
-              <span class="tools-strip__tool" data-tool="jetbrains"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">JetBrains</span></span>
-              <span class="tools-strip__tool" data-tool="aider"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">Aider</span></span>
-              <span class="tools-strip__tool" data-tool="amazonq"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">Amazon Q</span></span>
-              <span class="tools-strip__tool" data-tool="zed"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">Zed</span></span>
-              <span class="tools-strip__tool" data-tool="cline"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">Cline</span></span>
-              <span class="tools-strip__tool" data-tool="continue"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">Continue</span></span>
-
-              <span class="tools-strip__tool tools-strip__tool--any" data-tool="any"><span class="tools-strip__name">+ any MCP-compatible tool</span></span>
-            </div>
-            <div class="tools-strip__row tools-strip__row--duplicate" aria-hidden="true">
-              <span class="tools-strip__tool" data-tool="claude"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">Claude Code</span></span>
-              <span class="tools-strip__tool" data-tool="cursor"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">Cursor</span></span>
-              <span class="tools-strip__tool" data-tool="windsurf"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">Windsurf</span></span>
-              <span class="tools-strip__tool" data-tool="vscode"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">VS Code</span></span>
-              <span class="tools-strip__tool" data-tool="codex"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">Codex</span></span>
-              <span class="tools-strip__tool" data-tool="jetbrains"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">JetBrains</span></span>
-              <span class="tools-strip__tool" data-tool="aider"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">Aider</span></span>
-              <span class="tools-strip__tool" data-tool="amazonq"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">Amazon Q</span></span>
-              <span class="tools-strip__tool" data-tool="zed"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">Zed</span></span>
-              <span class="tools-strip__tool" data-tool="cline"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">Cline</span></span>
-              <span class="tools-strip__tool" data-tool="continue"><span class="tools-strip__icon" aria-hidden="true"></span><span class="tools-strip__name">Continue</span></span>
-
-              <span class="tools-strip__tool tools-strip__tool--any" data-tool="any"><span class="tools-strip__name">+ any MCP-compatible tool</span></span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- FIVE PILLARS -->
-    <section class="pillars reveal" id="features" aria-labelledby="pillars-title">
-      <div class="pillars__inner">
-        <h2 id="pillars-title" class="pillars__title">What it does.</h2>
-        <div class="pillar-grid">
-          <div class="pillar-card">
-            <h3 class="pillar-card__title">Connect</h3>
-            <p class="pillar-card__desc">One command detects your tools and writes MCP configs. Commit <code>.chinwag</code> to git. Teammates auto-join when they run init.</p>
-          </div>
-          <div class="pillar-card">
-            <h3 class="pillar-card__title">Remember</h3>
-            <p class="pillar-card__desc">Agents share persistent project knowledge across every tool and session. What one discovers, every agent knows next time.</p>
-          </div>
-          <div class="pillar-card">
-            <h3 class="pillar-card__title">Coordinate</h3>
-            <p class="pillar-card__desc">Live awareness of every agent across every tool. File-level conflict prevention before edits happen. Cross-tool, cross-teammate.</p>
-          </div>
-          <div class="pillar-card">
-            <h3 class="pillar-card__title">Discover</h3>
-            <p class="pillar-card__desc">Browse AI dev tools from your terminal or the web. See what fits your stack. Add with one action.</p>
-          </div>
-          <div class="pillar-card">
-            <h3 class="pillar-card__title">Observe</h3>
-            <p class="pillar-card__desc">See what agents are doing, how long they've been at it, where they're stuck. Per-project and cross-project visibility.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- REMEMBER -->
-    <section class="panel reveal" id="remember" data-journey-stage="remember" aria-labelledby="remember-title">
-      <div class="panel__inner">
-        <div class="panel__header">
-          <span class="panel__tag">REMEMBER</span>
-          <h2 id="remember-title" class="panel__title">Agents learn once. Every tool remembers.</h2>
-          <p class="panel__sub">Project facts persist across sessions, tools, and teammates. Knowledge compounds instead of being rediscovered.</p>
+    <main class="page-shell">
+      <!-- HERO -->
+      <section class="hero section-frame reveal" id="overview" aria-labelledby="hero-title">
+        <div class="section-copy hero-copy">
+          <p class="hero-name">chinwag</p>
+          <h1 id="hero-title">The control layer for agentic development.</h1>
+          <p class="section-sub hero-sub">
+            Connect, coordinate, and observe every AI agent across your projects and team. Shared
+            memory between tools. Live conflict prevention. Full observability. One place to
+            discover, manage, and control every agent in your workflow.
+            <a class="hero-cta" href="/dashboard.html"
+              ><span class="hero-cta__text">Dashboard</span
+              ><span class="hero-cta__arrow"
+                ><svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                  <path
+                    d="M2.5 9.5l7-7M4.5 2.5h5v5"
+                    stroke="currentColor"
+                    stroke-width="1.3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  /></svg></span
+            ></a>
+          </p>
         </div>
 
-        <div class="panel__demo panel__demo--terminal">
-          <div class="term">
-            <div class="term__bar">
-              <span class="term__dot"></span><span class="term__dot"></span><span class="term__dot"></span>
-              <span class="term__label">chinwag memory</span>
+        <div class="hero-visual reveal">
+          <section class="hero-atmosphere" id="hero-atmosphere" aria-hidden="true">
+            <canvas
+              class="hero-atmosphere__particles"
+              id="hero-particles"
+              width="760"
+              height="640"
+              aria-hidden="true"
+            ></canvas>
+            <div class="hero-atmosphere__anchor">
+              <svg
+                class="hero-atmosphere__anchor-logo"
+                width="18"
+                height="18"
+                viewBox="0 0 32 32"
+                aria-hidden="true"
+              >
+                <path fill="#d49aae" d="M4 24 20 24 24 20 8 20z" />
+                <path fill="#a896d4" d="M6 18 22 18 26 14 10 14z" />
+                <path fill="#8ec0a4" d="M8 12 24 12 28 8 12 8z" />
+              </svg>
+              <span class="hero-atmosphere__brand">chinwag</span>
             </div>
-            <div class="term__body">
-              <div class="term__line"><span class="term__prompt">$</span> <span class="term__cmd">chinwag_get_team_context</span></div>
-              <div class="term__line term__line--blank"></div>
-              <div class="term__line"><span class="term__muted">Project knowledge:</span></div>
-              <div class="term__line"><span class="term__tag term__tag--warn">gotcha</span> Tests require Redis on 6379</div>
-              <div class="term__line"><span class="term__tag term__tag--info">config</span> Deploy needs AWS_REGION=us-west-2 in CI</div>
-              <div class="term__line"><span class="term__tag term__tag--ok">decision</span> Zod at API boundary, not Joi</div>
-              <div class="term__line"><span class="term__tag term__tag--ref">pattern</span> All DO communication uses RPC, not fetch</div>
-              <div class="term__line term__line--blank"></div>
-              <div class="term__line"><span class="term__muted">Agents:</span></div>
-              <div class="term__line">
-                <span class="term__agent">
-                  <img src="assets/claude-code.svg" alt="" class="term__agent-icon">claude_code
-                </span>
-                <span class="term__muted">editing</span> src/auth/session.js
-              </div>
-              <div class="term__line">
-                <span class="term__agent">
-                  <img src="assets/cursor.svg" alt="" class="term__agent-icon">cursor
-                </span>
-                <span class="term__muted">editing</span> packages/web/styles/landing.css
-              </div>
-            </div>
-          </div>
+            <span
+              class="hero-atmosphere__label"
+              data-hero-label="claude"
+              data-brand="claude"
+              style="--label-left: 20%; --label-top: 24%"
+            >
+              <img class="hero-atmosphere__label-icon" src="assets/claude-code.svg" alt="" />
+              <span class="hero-atmosphere__label-text"><span>Claude Code</span></span>
+            </span>
+            <span
+              class="hero-atmosphere__label"
+              data-hero-label="cursor"
+              data-brand="cursor"
+              style="--label-left: 18%; --label-top: 52%"
+            >
+              <img class="hero-atmosphere__label-icon" src="assets/cursor.svg" alt="" />
+              <span class="hero-atmosphere__label-text"><span>Cursor</span></span>
+            </span>
+            <span
+              class="hero-atmosphere__label"
+              data-hero-label="windsurf"
+              data-brand="windsurf"
+              style="--label-left: 24%; --label-top: 76%"
+            >
+              <img class="hero-atmosphere__label-icon" src="assets/windsurf.svg" alt="" />
+              <span class="hero-atmosphere__label-text"><span>Windsurf</span></span>
+            </span>
+            <span
+              class="hero-atmosphere__label"
+              data-hero-label="vscode"
+              data-brand="vscode"
+              style="--label-left: 80%; --label-top: 24%"
+            >
+              <img class="hero-atmosphere__label-icon" src="assets/vscode.svg" alt="" />
+              <span class="hero-atmosphere__label-text"><span>VS Code</span></span>
+            </span>
+            <span
+              class="hero-atmosphere__label"
+              data-hero-label="codex"
+              data-brand="codex"
+              style="--label-left: 82%; --label-top: 52%"
+            >
+              <img class="hero-atmosphere__label-icon" src="assets/codex.svg" alt="" />
+              <span class="hero-atmosphere__label-text"><span>Codex</span></span>
+            </span>
+            <span
+              class="hero-atmosphere__label"
+              data-hero-label="jetbrains"
+              data-brand="jetbrains"
+              style="--label-left: 76%; --label-top: 76%"
+            >
+              <img class="hero-atmosphere__label-icon" src="assets/jetbrains.svg" alt="" />
+              <span class="hero-atmosphere__label-text"><span>JetBrains</span></span>
+            </span>
+            <span
+              class="hero-atmosphere__label"
+              data-hero-label="aider"
+              data-brand="aider"
+              style="--label-left: 15%; --label-top: 38%"
+            >
+              <img class="hero-atmosphere__label-icon" src="assets/aider.svg" alt="" />
+              <span class="hero-atmosphere__label-text"><span>Aider</span></span>
+            </span>
+            <span
+              class="hero-atmosphere__label"
+              data-hero-label="amazonq"
+              data-brand="amazonq"
+              style="--label-left: 85%; --label-top: 38%"
+            >
+              <img class="hero-atmosphere__label-icon" src="assets/amazon-q.svg" alt="" />
+              <span class="hero-atmosphere__label-text"><span>Amazon Q</span></span>
+            </span>
+            <span
+              class="hero-atmosphere__label"
+              data-hero-label="zed"
+              data-brand="zed"
+              style="--label-left: 30%; --label-top: 88%"
+            >
+              <img class="hero-atmosphere__label-icon" src="assets/zed.svg" alt="" />
+              <span class="hero-atmosphere__label-text"><span>Zed</span></span>
+            </span>
+            <span
+              class="hero-atmosphere__label"
+              data-hero-label="cline"
+              data-brand="cline"
+              style="--label-left: 70%; --label-top: 88%"
+            >
+              <img class="hero-atmosphere__label-icon" src="assets/cline.svg" alt="" />
+              <span class="hero-atmosphere__label-text"><span>Cline</span></span>
+            </span>
+          </section>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- COORDINATE -->
-    <section class="panel reveal" id="coordinate" data-journey-stage="coordinate" aria-labelledby="coordinate-title">
-      <div class="panel__inner">
-        <div class="panel__header">
-          <span class="panel__tag">COORDINATE</span>
-          <h2 id="coordinate-title" class="panel__title">See who's where. Avoid collisions.</h2>
-          <p class="panel__sub">Real-time awareness across every tool. Conflicting edits blocked where tools allow it, warned everywhere else.</p>
-        </div>
+      <!-- WORKS WITH -->
+      <section class="tools-strip reveal" aria-label="Supported tools">
+        <div class="tools-strip__inner">
+          <span class="tools-strip__label">Works with</span>
+          <div class="tools-strip__viewport">
+            <div class="tools-strip__track">
+              <div class="tools-strip__row">
+                <span class="tools-strip__tool" data-tool="claude"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">Claude Code</span></span
+                >
+                <span class="tools-strip__tool" data-tool="cursor"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">Cursor</span></span
+                >
+                <span class="tools-strip__tool" data-tool="windsurf"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">Windsurf</span></span
+                >
+                <span class="tools-strip__tool" data-tool="vscode"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">VS Code</span></span
+                >
+                <span class="tools-strip__tool" data-tool="codex"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">Codex</span></span
+                >
+                <span class="tools-strip__tool" data-tool="jetbrains"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">JetBrains</span></span
+                >
+                <span class="tools-strip__tool" data-tool="aider"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">Aider</span></span
+                >
+                <span class="tools-strip__tool" data-tool="amazonq"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">Amazon Q</span></span
+                >
+                <span class="tools-strip__tool" data-tool="zed"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">Zed</span></span
+                >
+                <span class="tools-strip__tool" data-tool="cline"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">Cline</span></span
+                >
+                <span class="tools-strip__tool" data-tool="continue"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">Continue</span></span
+                >
 
-        <div class="panel__demo panel__demo--flow">
-          <div class="term coord-term">
-            <div class="term__bar">
-              <span class="term__dot"></span><span class="term__dot"></span><span class="term__dot"></span>
-              <span class="term__label">chinwag coordinate</span>
-            </div>
-            <div class="term__body coord-feed" id="coord-feed">
-              <div class="term__line coord-line"><span class="term__muted">Live activity</span></div>
-              <div class="term__line term__line--blank coord-line"></div>
-              <div class="term__line term__line--flex coord-line">
-                <span class="coord-dot coord-dot--active"></span>
-                <span class="term__agent"><img src="assets/claude-code.svg" alt="" class="term__agent-icon">claude_code</span>
-                <span class="term__muted term__flex-fill">src/auth/middleware.js</span>
-                <span class="term__status term__status--active">editing</span>
+                <span class="tools-strip__tool tools-strip__tool--any" data-tool="any"
+                  ><span class="tools-strip__name">+ any MCP-compatible tool</span></span
+                >
               </div>
-              <div class="term__line term__line--flex coord-line">
-                <span class="coord-dot coord-dot--active"></span>
-                <span class="term__agent"><img src="assets/windsurf.svg" alt="" class="term__agent-icon">windsurf</span>
-                <span class="term__muted term__flex-fill">packages/api/routes.js</span>
-                <span class="term__status term__status--active">editing</span>
+              <div class="tools-strip__row tools-strip__row--duplicate" aria-hidden="true">
+                <span class="tools-strip__tool" data-tool="claude"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">Claude Code</span></span
+                >
+                <span class="tools-strip__tool" data-tool="cursor"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">Cursor</span></span
+                >
+                <span class="tools-strip__tool" data-tool="windsurf"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">Windsurf</span></span
+                >
+                <span class="tools-strip__tool" data-tool="vscode"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">VS Code</span></span
+                >
+                <span class="tools-strip__tool" data-tool="codex"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">Codex</span></span
+                >
+                <span class="tools-strip__tool" data-tool="jetbrains"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">JetBrains</span></span
+                >
+                <span class="tools-strip__tool" data-tool="aider"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">Aider</span></span
+                >
+                <span class="tools-strip__tool" data-tool="amazonq"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">Amazon Q</span></span
+                >
+                <span class="tools-strip__tool" data-tool="zed"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">Zed</span></span
+                >
+                <span class="tools-strip__tool" data-tool="cline"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">Cline</span></span
+                >
+                <span class="tools-strip__tool" data-tool="continue"
+                  ><span class="tools-strip__icon" aria-hidden="true"></span
+                  ><span class="tools-strip__name">Continue</span></span
+                >
+
+                <span class="tools-strip__tool tools-strip__tool--any" data-tool="any"
+                  ><span class="tools-strip__name">+ any MCP-compatible tool</span></span
+                >
               </div>
-              <div class="term__line term__line--flex coord-line">
-                <span class="coord-dot coord-dot--active"></span>
-                <span class="term__agent"><img src="assets/cursor.svg" alt="" class="term__agent-icon">cursor</span>
-                <span class="term__muted term__flex-fill">src/auth/session.js</span>
-                <span class="term__status term__status--active">editing</span>
-              </div>
-              <div class="term__line term__line--blank coord-line"></div>
-              <div class="term__line term__line--flex coord-line coord-line--conflict">
-                <span class="coord-dot coord-dot--conflict"></span>
-                <span class="term__agent"><img src="assets/jetbrains.svg" alt="" class="term__agent-icon">jetbrains</span>
-                <span class="term__muted">requested</span>
-                <code class="coord-conflict-file">src/auth/session.js</code>
-              </div>
-              <div class="term__line coord-line coord-line--alert">
-                <span class="coord-alert">
-                  <svg class="coord-alert__icon" width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 5v3m0 2.5v.5M2.5 13.5h11L8 2.5 2.5 13.5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  <span class="coord-alert__label">CONFLICT</span>
-                </span>
-                <code class="coord-conflict-file">src/auth/session.js</code>
-                <span class="coord-alert__agents">cursor + jetbrains</span>
-              </div>
-              <div class="term__line coord-line coord-line--resolution">
-                <span class="coord-resolution__action">Edit blocked on JetBrains &middot; Warning shown in Cursor</span>
-              </div>
-              <div class="term__line term__line--blank coord-line"></div>
-              <div class="term__line coord-line coord-line--summary"><span class="term__muted">3 conflicts prevented &middot; 4 agents active &middot; 0 lost work</span></div>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- OBSERVE -->
-    <section class="panel reveal" id="observe" data-journey-stage="observe" aria-labelledby="observe-title">
-      <div class="panel__inner">
-        <div class="panel__header">
-          <span class="panel__tag">OBSERVE</span>
-          <h2 id="observe-title" class="panel__title">Your agents, at a glance.</h2>
-          <p class="panel__sub">Session tracking, stuckness detection, and edit history across all tools and projects.</p>
-        </div>
-
-        <div class="panel__demo panel__demo--terminal">
-          <div class="term">
-            <div class="term__bar">
-              <span class="term__dot"></span><span class="term__dot"></span><span class="term__dot"></span>
-              <span class="term__label">chinwag dashboard</span>
+      <!-- FIVE PILLARS -->
+      <section class="pillars reveal" id="features" aria-labelledby="pillars-title">
+        <div class="pillars__inner">
+          <h2 id="pillars-title" class="pillars__title">What it does.</h2>
+          <div class="pillar-grid">
+            <div class="pillar-card">
+              <h3 class="pillar-card__title">Connect</h3>
+              <p class="pillar-card__desc">
+                One command detects your tools and writes MCP configs. Commit
+                <code>.chinwag</code> to git. Teammates auto-join when they run init.
+              </p>
             </div>
-            <div class="term__body">
-              <div class="term__line"><span class="term__muted">Active sessions</span></div>
-              <div class="term__line term__line--blank"></div>
-              <div class="term__line term__line--flex">
-                <span class="term__agent"><img src="assets/claude-code.svg" alt="" class="term__agent-icon">claude_code</span>
-                <span class="term__muted term__flex-fill">src/auth/middleware.js</span>
-                <span class="term__meta">12 min</span>
-                <span class="term__status term__status--active">active</span>
-              </div>
-              <div class="term__line term__line--flex">
-                <span class="term__agent"><img src="assets/cursor.svg" alt="" class="term__agent-icon">cursor</span>
-                <span class="term__muted term__flex-fill">packages/web/landing.css</span>
-                <span class="term__meta">34 min</span>
-                <span class="term__status term__status--stuck">may be stuck</span>
-              </div>
-              <div class="term__line term__line--flex">
-                <span class="term__agent"><img src="assets/windsurf.svg" alt="" class="term__agent-icon">windsurf</span>
-                <span class="term__muted term__flex-fill">tests/integration/auth.js</span>
-                <span class="term__meta">4 min</span>
-                <span class="term__status term__status--active">active</span>
-              </div>
-              <div class="term__line term__line--blank"></div>
-              <div class="term__line"><span class="term__muted">Recent</span></div>
-              <div class="term__line term__line--blank"></div>
-              <div class="term__line term__line--flex">
-                <span class="term__agent"><img src="assets/cursor.svg" alt="" class="term__agent-icon">cursor</span>
-                <span class="term__flex-fill">Refactored payment validation</span>
-                <span class="term__meta">2h ago &middot; 14 edits</span>
-              </div>
-              <div class="term__line term__line--flex">
-                <span class="term__agent"><img src="assets/claude-code.svg" alt="" class="term__agent-icon">claude_code</span>
-                <span class="term__flex-fill">Fixed Redis connection pool</span>
-                <span class="term__meta">4h ago &middot; 8 edits</span>
-              </div>
-              <div class="term__line term__line--blank"></div>
-              <div class="term__line"><span class="term__muted">3 conflicts prevented &middot; 8 memories shared &middot; 47 edits tracked</span></div>
+            <div class="pillar-card">
+              <h3 class="pillar-card__title">Remember</h3>
+              <p class="pillar-card__desc">
+                Agents share persistent project knowledge across every tool and session. What one
+                discovers, every agent knows next time.
+              </p>
+            </div>
+            <div class="pillar-card">
+              <h3 class="pillar-card__title">Coordinate</h3>
+              <p class="pillar-card__desc">
+                Live awareness of every agent across every tool. File-level conflict prevention
+                before edits happen. Cross-tool, cross-teammate.
+              </p>
+            </div>
+            <div class="pillar-card">
+              <h3 class="pillar-card__title">Discover</h3>
+              <p class="pillar-card__desc">
+                Browse AI dev tools from your terminal or the web. See what fits your stack. Add
+                with one action.
+              </p>
+            </div>
+            <div class="pillar-card">
+              <h3 class="pillar-card__title">Observe</h3>
+              <p class="pillar-card__desc">
+                See what agents are doing, how long they've been at it, where they're stuck.
+                Per-project and cross-project visibility.
+              </p>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- TRUST -->
-    <section class="trust-section reveal" id="security" data-journey-stage="security" aria-labelledby="security-title">
-      <div class="trust-section__inner">
-        <div class="trust-section__header">
-          <span class="panel__tag">TRUST</span>
-          <h2 id="security-title" class="trust-section__title">Metadata only. Source stays local.</h2>
-          <p class="trust-section__sub">Coordination without handing over your codebase.</p>
-        </div>
+      <!-- REMEMBER -->
+      <section
+        class="panel reveal"
+        id="remember"
+        data-journey-stage="remember"
+        aria-labelledby="remember-title"
+      >
+        <div class="panel__inner">
+          <div class="panel__header">
+            <span class="panel__tag">REMEMBER</span>
+            <h2 id="remember-title" class="panel__title">
+              Agents learn once. Every tool remembers.
+            </h2>
+            <p class="panel__sub">
+              Project facts persist across sessions, tools, and teammates. Knowledge compounds
+              instead of being rediscovered.
+            </p>
+          </div>
 
-        <div class="trust-split" id="trust-viz">
-
-          <div class="trust-card trust-card--local trust-stagger">
-            <div class="trust-card__bar">
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 1L2 4v4.5c0 3.5 2.5 6 6 7.5 3.5-1.5 6-4 6-7.5V4L8 1z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 8l1.5 1.5L10 6.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              <span class="trust-card__bar-label">Your machine</span>
+          <div class="panel__demo panel__demo--terminal">
+            <div class="term">
+              <div class="term__bar">
+                <span class="term__dot"></span><span class="term__dot"></span
+                ><span class="term__dot"></span>
+                <span class="term__label">chinwag memory</span>
+              </div>
+              <div class="term__body">
+                <div class="term__line">
+                  <span class="term__prompt">$</span>
+                  <span class="term__cmd">chinwag_get_team_context</span>
+                </div>
+                <div class="term__line term__line--blank"></div>
+                <div class="term__line"><span class="term__muted">Project knowledge:</span></div>
+                <div class="term__line">
+                  <span class="term__tag term__tag--warn">gotcha</span> Tests require Redis on 6379
+                </div>
+                <div class="term__line">
+                  <span class="term__tag term__tag--info">config</span> Deploy needs
+                  AWS_REGION=us-west-2 in CI
+                </div>
+                <div class="term__line">
+                  <span class="term__tag term__tag--ok">decision</span> Zod at API boundary, not Joi
+                </div>
+                <div class="term__line">
+                  <span class="term__tag term__tag--ref">pattern</span> All DO communication uses
+                  RPC, not fetch
+                </div>
+                <div class="term__line term__line--blank"></div>
+                <div class="term__line"><span class="term__muted">Agents:</span></div>
+                <div class="term__line">
+                  <span class="term__agent">
+                    <img src="assets/claude-code.svg" alt="" class="term__agent-icon" />claude_code
+                  </span>
+                  <span class="term__muted">editing</span> src/auth/session.js
+                </div>
+                <div class="term__line">
+                  <span class="term__agent">
+                    <img src="assets/cursor.svg" alt="" class="term__agent-icon" />cursor
+                  </span>
+                  <span class="term__muted">editing</span> packages/web/styles/landing.css
+                </div>
+              </div>
             </div>
-            <div class="trust-card__body trust-card__body--code">
-<pre class="trust-pre"><code><span class="tc-ln"> 1</span>  <span class="tc-kw">import</span> { verify } <span class="tc-kw">from</span> <span class="tc-str">'jwt'</span>;
+          </div>
+        </div>
+      </section>
+
+      <!-- COORDINATE -->
+      <section
+        class="panel reveal"
+        id="coordinate"
+        data-journey-stage="coordinate"
+        aria-labelledby="coordinate-title"
+      >
+        <div class="panel__inner">
+          <div class="panel__header">
+            <span class="panel__tag">COORDINATE</span>
+            <h2 id="coordinate-title" class="panel__title">See who's where. Avoid collisions.</h2>
+            <p class="panel__sub">
+              Real-time awareness across every tool. Conflicting edits blocked where tools allow it,
+              warned everywhere else.
+            </p>
+          </div>
+
+          <div class="panel__demo panel__demo--flow">
+            <div class="term coord-term">
+              <div class="term__bar">
+                <span class="term__dot"></span><span class="term__dot"></span
+                ><span class="term__dot"></span>
+                <span class="term__label">chinwag coordinate</span>
+              </div>
+              <div class="term__body coord-feed" id="coord-feed">
+                <div class="term__line coord-line">
+                  <span class="term__muted">Live activity</span>
+                </div>
+                <div class="term__line term__line--blank coord-line"></div>
+                <div class="term__line term__line--flex coord-line">
+                  <span class="coord-dot coord-dot--active"></span>
+                  <span class="term__agent"
+                    ><img
+                      src="assets/claude-code.svg"
+                      alt=""
+                      class="term__agent-icon"
+                    />claude_code</span
+                  >
+                  <span class="term__muted term__flex-fill">src/auth/middleware.js</span>
+                  <span class="term__status term__status--active">editing</span>
+                </div>
+                <div class="term__line term__line--flex coord-line">
+                  <span class="coord-dot coord-dot--active"></span>
+                  <span class="term__agent"
+                    ><img src="assets/windsurf.svg" alt="" class="term__agent-icon" />windsurf</span
+                  >
+                  <span class="term__muted term__flex-fill">packages/api/routes.js</span>
+                  <span class="term__status term__status--active">editing</span>
+                </div>
+                <div class="term__line term__line--flex coord-line">
+                  <span class="coord-dot coord-dot--active"></span>
+                  <span class="term__agent"
+                    ><img src="assets/cursor.svg" alt="" class="term__agent-icon" />cursor</span
+                  >
+                  <span class="term__muted term__flex-fill">src/auth/session.js</span>
+                  <span class="term__status term__status--active">editing</span>
+                </div>
+                <div class="term__line term__line--blank coord-line"></div>
+                <div class="term__line term__line--flex coord-line coord-line--conflict">
+                  <span class="coord-dot coord-dot--conflict"></span>
+                  <span class="term__agent"
+                    ><img
+                      src="assets/jetbrains.svg"
+                      alt=""
+                      class="term__agent-icon"
+                    />jetbrains</span
+                  >
+                  <span class="term__muted">requested</span>
+                  <code class="coord-conflict-file">src/auth/session.js</code>
+                </div>
+                <div class="term__line coord-line coord-line--alert">
+                  <span class="coord-alert">
+                    <svg
+                      class="coord-alert__icon"
+                      width="12"
+                      height="12"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                    >
+                      <path
+                        d="M8 5v3m0 2.5v.5M2.5 13.5h11L8 2.5 2.5 13.5z"
+                        stroke="currentColor"
+                        stroke-width="1.3"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                    <span class="coord-alert__label">CONFLICT</span>
+                  </span>
+                  <code class="coord-conflict-file">src/auth/session.js</code>
+                  <span class="coord-alert__agents">cursor + jetbrains</span>
+                </div>
+                <div class="term__line coord-line coord-line--resolution">
+                  <span class="coord-resolution__action"
+                    >Edit blocked on JetBrains &middot; Warning shown in Cursor</span
+                  >
+                </div>
+                <div class="term__line term__line--blank coord-line"></div>
+                <div class="term__line coord-line coord-line--summary">
+                  <span class="term__muted"
+                    >3 conflicts prevented &middot; 4 agents active &middot; 0 lost work</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- OBSERVE -->
+      <section
+        class="panel reveal"
+        id="observe"
+        data-journey-stage="observe"
+        aria-labelledby="observe-title"
+      >
+        <div class="panel__inner">
+          <div class="panel__header">
+            <span class="panel__tag">OBSERVE</span>
+            <h2 id="observe-title" class="panel__title">Your agents, at a glance.</h2>
+            <p class="panel__sub">
+              Session tracking, stuckness detection, and edit history across all tools and projects.
+            </p>
+          </div>
+
+          <div class="panel__demo panel__demo--terminal">
+            <div class="term">
+              <div class="term__bar">
+                <span class="term__dot"></span><span class="term__dot"></span
+                ><span class="term__dot"></span>
+                <span class="term__label">chinwag dashboard</span>
+              </div>
+              <div class="term__body">
+                <div class="term__line"><span class="term__muted">Active sessions</span></div>
+                <div class="term__line term__line--blank"></div>
+                <div class="term__line term__line--flex">
+                  <span class="term__agent"
+                    ><img
+                      src="assets/claude-code.svg"
+                      alt=""
+                      class="term__agent-icon"
+                    />claude_code</span
+                  >
+                  <span class="term__muted term__flex-fill">src/auth/middleware.js</span>
+                  <span class="term__meta">12 min</span>
+                  <span class="term__status term__status--active">active</span>
+                </div>
+                <div class="term__line term__line--flex">
+                  <span class="term__agent"
+                    ><img src="assets/cursor.svg" alt="" class="term__agent-icon" />cursor</span
+                  >
+                  <span class="term__muted term__flex-fill">packages/web/landing.css</span>
+                  <span class="term__meta">34 min</span>
+                  <span class="term__status term__status--stuck">may be stuck</span>
+                </div>
+                <div class="term__line term__line--flex">
+                  <span class="term__agent"
+                    ><img src="assets/windsurf.svg" alt="" class="term__agent-icon" />windsurf</span
+                  >
+                  <span class="term__muted term__flex-fill">tests/integration/auth.js</span>
+                  <span class="term__meta">4 min</span>
+                  <span class="term__status term__status--active">active</span>
+                </div>
+                <div class="term__line term__line--blank"></div>
+                <div class="term__line"><span class="term__muted">Recent</span></div>
+                <div class="term__line term__line--blank"></div>
+                <div class="term__line term__line--flex">
+                  <span class="term__agent"
+                    ><img src="assets/cursor.svg" alt="" class="term__agent-icon" />cursor</span
+                  >
+                  <span class="term__flex-fill">Refactored payment validation</span>
+                  <span class="term__meta">2h ago &middot; 14 edits</span>
+                </div>
+                <div class="term__line term__line--flex">
+                  <span class="term__agent"
+                    ><img
+                      src="assets/claude-code.svg"
+                      alt=""
+                      class="term__agent-icon"
+                    />claude_code</span
+                  >
+                  <span class="term__flex-fill">Fixed Redis connection pool</span>
+                  <span class="term__meta">4h ago &middot; 8 edits</span>
+                </div>
+                <div class="term__line term__line--blank"></div>
+                <div class="term__line">
+                  <span class="term__muted"
+                    >3 conflicts prevented &middot; 8 memories shared &middot; 47 edits
+                    tracked</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TRUST -->
+      <section
+        class="trust-section reveal"
+        id="security"
+        data-journey-stage="security"
+        aria-labelledby="security-title"
+      >
+        <div class="trust-section__inner">
+          <div class="trust-section__header">
+            <span class="panel__tag">TRUST</span>
+            <h2 id="security-title" class="trust-section__title">
+              Metadata only. Source stays local.
+            </h2>
+            <p class="trust-section__sub">Coordination without handing over your codebase.</p>
+          </div>
+
+          <div class="trust-split" id="trust-viz">
+            <div class="trust-card trust-card--local trust-stagger">
+              <div class="trust-card__bar">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M8 1L2 4v4.5c0 3.5 2.5 6 6 7.5 3.5-1.5 6-4 6-7.5V4L8 1z"
+                    stroke="currentColor"
+                    stroke-width="1.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M6 8l1.5 1.5L10 6.5"
+                    stroke="currentColor"
+                    stroke-width="1.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span class="trust-card__bar-label">Your machine</span>
+              </div>
+              <div class="trust-card__body trust-card__body--code">
+                <pre
+                  class="trust-pre"
+                ><code><span class="tc-ln"> 1</span>  <span class="tc-kw">import</span> { verify } <span class="tc-kw">from</span> <span class="tc-str">'jwt'</span>;
 <span class="tc-ln"> 2</span>  <span class="tc-kw">import</span> { db } <span class="tc-kw">from</span> <span class="tc-str">'../db'</span>;
 <span class="tc-ln"> 3</span>
 <span class="tc-ln"> 4</span>  <span class="tc-kw">export async function</span> <span class="tc-fn">check</span>(tok) {
@@ -427,89 +790,127 @@
 <span class="tc-ln"> 7</span>    <span class="tc-kw">if</span> (!u) <span class="tc-kw">return</span> <span class="tc-val">null</span>;
 <span class="tc-ln"> 8</span>    <span class="tc-kw">return</span> { id: u.id, role: u.role };
 <span class="tc-ln"> 9</span>  }</code></pre>
+              </div>
+              <div class="trust-card__footer">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+                  <rect
+                    x="3"
+                    y="7"
+                    width="10"
+                    height="7"
+                    rx="1.5"
+                    stroke="currentColor"
+                    stroke-width="1.2"
+                  />
+                  <path
+                    d="M5.5 7V5a2.5 2.5 0 015 0v2"
+                    stroke="currentColor"
+                    stroke-width="1.2"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                <span>Source code, secrets, git history, file contents</span>
+              </div>
             </div>
-            <div class="trust-card__footer">
-              <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 7V5a2.5 2.5 0 015 0v2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-              <span>Source code, secrets, git history, file contents</span>
+
+            <div class="trust-arrow" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M5 12h14m0 0l-5-5m5 5l-5 5"
+                  stroke="currentColor"
+                  stroke-width="1.3"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+
+            <div class="trust-card trust-card--sent trust-stagger">
+              <div class="trust-card__bar trust-card__bar--sent">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M1.5 4.5L8 1.5l6.5 3M8 8v6.5M2 6v6l6 3 6-3V6"
+                    stroke="currentColor"
+                    stroke-width="1.1"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span class="trust-card__bar-label">chinwag sees</span>
+              </div>
+              <div class="trust-card__body trust-card__body--meta">
+                <div class="trust-meta__row trust-meta-stagger">
+                  <span class="trust-meta__key">file</span>
+                  <span class="trust-meta__val">src/auth/session.js</span>
+                </div>
+                <div class="trust-meta__row trust-meta-stagger">
+                  <span class="trust-meta__key">agent</span>
+                  <span class="trust-meta__val">cursor</span>
+                </div>
+                <div class="trust-meta__row trust-meta-stagger">
+                  <span class="trust-meta__key">status</span>
+                  <span class="trust-meta__val">editing</span>
+                </div>
+                <div class="trust-meta__row trust-meta-stagger">
+                  <span class="trust-meta__key">task</span>
+                  <span class="trust-meta__val">Refactoring auth flow</span>
+                </div>
+              </div>
+              <div class="trust-card__footer trust-card__footer--sent">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M1.5 4.5L8 1.5l6.5 3M8 8v6.5M2 6v6l6 3 6-3V6"
+                    stroke="currentColor"
+                    stroke-width="1.1"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span>File paths, task labels, saved facts</span>
+              </div>
             </div>
           </div>
-
-          <div class="trust-arrow" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m0 0l-5-5m5 5l-5 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
-
-          <div class="trust-card trust-card--sent trust-stagger">
-            <div class="trust-card__bar trust-card__bar--sent">
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M1.5 4.5L8 1.5l6.5 3M8 8v6.5M2 6v6l6 3 6-3V6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              <span class="trust-card__bar-label">chinwag sees</span>
-            </div>
-            <div class="trust-card__body trust-card__body--meta">
-              <div class="trust-meta__row trust-meta-stagger">
-                <span class="trust-meta__key">file</span>
-                <span class="trust-meta__val">src/auth/session.js</span>
-              </div>
-              <div class="trust-meta__row trust-meta-stagger">
-                <span class="trust-meta__key">agent</span>
-                <span class="trust-meta__val">cursor</span>
-              </div>
-              <div class="trust-meta__row trust-meta-stagger">
-                <span class="trust-meta__key">status</span>
-                <span class="trust-meta__val">editing</span>
-              </div>
-              <div class="trust-meta__row trust-meta-stagger">
-                <span class="trust-meta__key">task</span>
-                <span class="trust-meta__val">Refactoring auth flow</span>
-              </div>
-            </div>
-            <div class="trust-card__footer trust-card__footer--sent">
-              <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M1.5 4.5L8 1.5l6.5 3M8 8v6.5M2 6v6l6 3 6-3V6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              <span>File paths, task labels, saved facts</span>
-            </div>
-          </div>
-
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- HOW IT WORKS -->
-    <section class="setup reveal" aria-labelledby="setup-title">
-      <div class="setup__inner">
-        <h2 id="setup-title" class="setup__title">Three steps. Full coordination.</h2>
-        <div class="setup__steps">
-          <div class="setup__step">
-            <span class="setup__num">1</span>
-            <div class="setup__content">
-              <code class="setup__code">npx chinwag init</code>
-              <p class="setup__desc">Detects your tools, writes configs, creates your team.</p>
+      <!-- HOW IT WORKS -->
+      <section class="setup reveal" aria-labelledby="setup-title">
+        <div class="setup__inner">
+          <h2 id="setup-title" class="setup__title">Three steps. Full coordination.</h2>
+          <div class="setup__steps">
+            <div class="setup__step">
+              <span class="setup__num">1</span>
+              <div class="setup__content">
+                <code class="setup__code">npx chinwag init</code>
+                <p class="setup__desc">Detects your tools, writes configs, creates your team.</p>
+              </div>
             </div>
-          </div>
-          <div class="setup__step">
-            <span class="setup__num">2</span>
-            <div class="setup__content">
-              <code class="setup__code">git add .chinwag &amp;&amp; git commit</code>
-              <p class="setup__desc">Teammates auto-join when they run init.</p>
+            <div class="setup__step">
+              <span class="setup__num">2</span>
+              <div class="setup__content">
+                <code class="setup__code">git add .chinwag &amp;&amp; git commit</code>
+                <p class="setup__desc">Teammates auto-join when they run init.</p>
+              </div>
             </div>
-          </div>
-          <div class="setup__step">
-            <span class="setup__num">3</span>
-            <div class="setup__content">
-              <span class="setup__code setup__code--text">Open any tool</span>
-              <p class="setup__desc">Agents share a brain. Conflicts prevented. Done.</p>
+            <div class="setup__step">
+              <span class="setup__num">3</span>
+              <div class="setup__content">
+                <span class="setup__code setup__code--text">Open any tool</span>
+                <p class="setup__desc">Agents share a brain. Conflicts prevented. Done.</p>
+              </div>
             </div>
           </div>
         </div>
+      </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="site-footer" aria-label="Footer">
+      <div class="footer-shell">
+        <span class="footer-legal">Open source &middot; MIT License</span>
       </div>
-    </section>
+    </footer>
 
-  </main>
-
-  <!-- FOOTER -->
-  <footer class="site-footer" aria-label="Footer">
-    <div class="footer-shell">
-      <span class="footer-legal">Open source &middot; MIT License</span>
-    </div>
-  </footer>
-
-  <script type="module" src="script.js"></script>
-</body>
+    <script type="module" src="script.js"></script>
+  </body>
 </html>

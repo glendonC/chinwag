@@ -43,8 +43,9 @@ describe('getAgentTargetLabel', () => {
   });
 
   it('returns combined handle and display name', () => {
-    expect(getAgentTargetLabel({ handle: 'alice', _display: 'Claude Code' }))
-      .toBe('alice (Claude Code)');
+    expect(getAgentTargetLabel({ handle: 'alice', _display: 'Claude Code' })).toBe(
+      'alice (Claude Code)',
+    );
   });
 
   it('falls back to handle alone', () => {
@@ -62,8 +63,9 @@ describe('getAgentIntent', () => {
   });
 
   it('returns output preview for dead managed agent', () => {
-    expect(getAgentIntent({ _managed: true, _dead: true, outputPreview: 'Done refactoring' }))
-      .toBe('Done refactoring');
+    expect(getAgentIntent({ _managed: true, _dead: true, outputPreview: 'Done refactoring' })).toBe(
+      'Done refactoring',
+    );
   });
 
   it('returns summary when available', () => {
@@ -188,24 +190,19 @@ describe('getAgentMeta', () => {
 
 describe('getRecentResultSummary', () => {
   it('returns tool state detail for failed agent with detail', () => {
-    expect(getRecentResultSummary(
-      { _failed: true },
-      { detail: 'Auth expired' }
-    )).toBe('Auth expired');
+    expect(getRecentResultSummary({ _failed: true }, { detail: 'Auth expired' })).toBe(
+      'Auth expired',
+    );
   });
 
   it('returns output preview when available', () => {
-    expect(getRecentResultSummary(
-      { outputPreview: 'Refactored 3 files' },
-      null
-    )).toBe('Refactored 3 files');
+    expect(getRecentResultSummary({ outputPreview: 'Refactored 3 files' }, null)).toBe(
+      'Refactored 3 files',
+    );
   });
 
   it('returns task when available', () => {
-    expect(getRecentResultSummary(
-      { task: 'Fix login bug' },
-      null
-    )).toBe('Fix login bug');
+    expect(getRecentResultSummary({ task: 'Fix login bug' }, null)).toBe('Fix login bug');
   });
 
   it('returns generic failure message for failed agent', () => {

@@ -115,7 +115,9 @@
   letter-spacing: -0.02em;
   white-space: nowrap;
   color: rgba(24, 20, 17, 0.44);
-  transition: color 0.2s ease, opacity 0.2s ease;
+  transition:
+    color 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .control-link {
@@ -147,7 +149,9 @@
   grid-template-columns: max-content minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  transition: opacity 0.28s ease, transform 0.28s var(--motion-smooth);
+  transition:
+    opacity 0.28s ease,
+    transform 0.28s var(--motion-smooth);
 }
 
 .command-label {
@@ -244,7 +248,9 @@
   height: 1.5px;
   border-radius: 999px;
   background: rgba(12, 16, 20, 0.82);
-  transition: transform 0.24s ease, opacity 0.24s ease;
+  transition:
+    transform 0.24s ease,
+    opacity 0.24s ease;
   transform-origin: center;
 }
 
@@ -269,7 +275,9 @@
   opacity: 0;
   pointer-events: none;
   transform: translateY(-10px) scale(0.985);
-  transition: opacity 0.24s ease, transform 0.24s var(--motion-smooth);
+  transition:
+    opacity 0.24s ease,
+    transform 0.24s var(--motion-smooth);
 }
 
 .mobile-nav-header {

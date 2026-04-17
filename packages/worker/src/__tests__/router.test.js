@@ -4,12 +4,14 @@ import { buildRoutes, matchRoute } from '../lib/router.js';
 const noop = () => {};
 
 function makeRoutes(defs) {
-  return buildRoutes(defs.map(([method, path, auth]) => ({
-    method,
-    path,
-    handler: noop,
-    auth: auth ?? true,
-  })));
+  return buildRoutes(
+    defs.map(([method, path, auth]) => ({
+      method,
+      path,
+      handler: noop,
+      auth: auth ?? true,
+    })),
+  );
 }
 
 describe('buildRoutes', () => {

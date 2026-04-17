@@ -340,9 +340,11 @@ describe('scanEnvironment', () => {
         if (path.endsWith('tsconfig.json')) return true;
         return false;
       });
-      readFileSync.mockReturnValue(JSON.stringify({
-        devDependencies: { typescript: '^5.0.0' },
-      }));
+      readFileSync.mockReturnValue(
+        JSON.stringify({
+          devDependencies: { typescript: '^5.0.0' },
+        }),
+      );
       const profile = scanEnvironment('/test');
       // javascript from package.json + typescript from tsconfig.json
       expect(profile.languages).toEqual(['javascript', 'typescript']);
@@ -367,8 +369,8 @@ describe('scanEnvironment', () => {
       existsSync.mockReturnValue(false);
       scanEnvironment('/custom/path');
       // Check that existsSync was called with paths under /custom/path
-      const calls = existsSync.mock.calls.map(c => c[0]);
-      expect(calls.some(c => c.startsWith('/custom/path/'))).toBe(true);
+      const calls = existsSync.mock.calls.map((c) => c[0]);
+      expect(calls.some((c) => c.startsWith('/custom/path/'))).toBe(true);
     });
   });
 });

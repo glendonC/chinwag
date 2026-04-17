@@ -144,7 +144,8 @@ describe('detectToolName', () => {
 
   it('infers tools from registry-backed executable names', () => {
     const readProcessInfoFn = vi.fn((pid) => {
-      if (pid === 50) return { ppid: 1, command: '/Applications/PyCharm.app/Contents/MacOS/pycharm project' };
+      if (pid === 50)
+        return { ppid: 1, command: '/Applications/PyCharm.app/Contents/MacOS/pycharm project' };
       return null;
     });
 
@@ -194,11 +195,13 @@ describe('detectRuntimeIdentity', () => {
       return null;
     });
 
-    expect(detectRuntimeIdentity('fallback', {
-      parentPid: 10,
-      readProcessInfoFn,
-      defaultTransport: 'mcp',
-    })).toMatchObject({
+    expect(
+      detectRuntimeIdentity('fallback', {
+        parentPid: 10,
+        readProcessInfoFn,
+        defaultTransport: 'mcp',
+      }),
+    ).toMatchObject({
       hostTool: 'vscode',
       transport: 'mcp',
       detectionSource: 'parent-process',

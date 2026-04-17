@@ -30,13 +30,15 @@ function projectY(lat) {
 }
 
 function ringToPath(ring) {
-  return ring
-    .map((coord, i) => {
-      const x = projectX(coord[0]).toFixed(1);
-      const y = projectY(coord[1]).toFixed(1);
-      return `${i === 0 ? 'M' : 'L'}${x} ${y}`;
-    })
-    .join(' ') + 'Z';
+  return (
+    ring
+      .map((coord, i) => {
+        const x = projectX(coord[0]).toFixed(1);
+        const y = projectY(coord[1]).toFixed(1);
+        return `${i === 0 ? 'M' : 'L'}${x} ${y}`;
+      })
+      .join(' ') + 'Z'
+  );
 }
 
 function geometryToPath(geometry) {
@@ -65,10 +67,9 @@ for (const feature of geo.features) {
 }
 
 // Also generate a single combined land mass path for efficiency
-const landTopo = JSON.parse(readFileSync(
-  resolve(__dirname, '../../../node_modules/world-atlas/land-110m.json'),
-  'utf-8',
-));
+const landTopo = JSON.parse(
+  readFileSync(resolve(__dirname, '../../../node_modules/world-atlas/land-110m.json'), 'utf-8'),
+);
 const landGeo = topojson.feature(landTopo, landTopo.objects.land);
 const landPaths = [];
 for (const feature of landGeo.features) {
@@ -92,4 +93,6 @@ writeFileSync(outPath, output, 'utf-8');
 
 // Report file size
 const sizeKB = (Buffer.byteLength(output, 'utf-8') / 1024).toFixed(1);
-console.log(`Generated worldPaths.ts (${sizeKB} KB) with ${geo.features.length} countries merged into land path`);
+console.log(
+  `Generated worldPaths.ts (${sizeKB} KB) with ${geo.features.length} countries merged into land path`,
+);

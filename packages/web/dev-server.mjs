@@ -45,38 +45,40 @@ function send404(res) {
   });
 }
 
-http.createServer((req, res) => {
-  try {
-    const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
-    let { pathname } = url;
-    if (pathname === '/') {
-      pathname = '/index.html';
-    }
+http
+  .createServer((req, res) => {
+    try {
+      const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+      let { pathname } = url;
+      if (pathname === '/') {
+        pathname = '/index.html';
+      }
 
-    const filePath = safeJoin(ROOT, pathname.slice(1));
-    if (!filePath) {
-      send404(res);
-      return;
-    }
-
-    const resolved = path.resolve(filePath);
-    if (!resolved.startsWith(ROOT + path.sep) && resolved !== path.resolve(ROOT)) {
-      res.writeHead(403).end();
-      return;
-    }
-
-    fs.stat(resolved, (err, st) => {
-      if (!err && st.isFile()) {
-        const ext = path.extname(resolved);
-        res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
-        fs.createReadStream(resolved).pipe(res);
+      const filePath = safeJoin(ROOT, pathname.slice(1));
+      if (!filePath) {
+        send404(res);
         return;
       }
-      send404(res);
-    });
-  } catch {
-    res.writeHead(400).end();
-  }
-}).listen(PORT, () => {
-  console.error(`chinwag web  http://localhost:${PORT}  (missing routes → 404.html)`);
-});
+
+      const resolved = path.resolve(filePath);
+      if (!resolved.startsWith(ROOT + path.sep) && resolved !== path.resolve(ROOT)) {
+        res.writeHead(403).end();
+        return;
+      }
+
+      fs.stat(resolved, (err, st) => {
+        if (!err && st.isFile()) {
+          const ext = path.extname(resolved);
+          res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+          fs.createReadStream(resolved).pipe(res);
+          return;
+        }
+        send404(res);
+      });
+    } catch {
+      res.writeHead(400).end();
+    }
+  })
+  .listen(PORT, () => {
+    console.error(`chinwag web  http://localhost:${PORT}  (missing routes → 404.html)`);
+  });

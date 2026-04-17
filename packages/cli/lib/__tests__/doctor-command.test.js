@@ -42,6 +42,8 @@ describe('doctor repair target selection', () => {
   });
 
   it('prefers an explicit host target', () => {
-    expect(selectRepairTargets(scanResults, { hostId: 'claude-code', fixAll: false })).toEqual(['claude-code']);
+    expect(selectRepairTargets(scanResults, { hostId: 'claude-code', fixAll: false })).toEqual([
+      'claude-code',
+    ]);
   });
 });
