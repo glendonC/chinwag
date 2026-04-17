@@ -66,7 +66,7 @@ export default function LiveNowView({ liveAgents, focusAgentId, onBack, onOpenPr
       <div className={styles.detail}>
         <header className={styles.header}>
           <BackLink label="Overview" onClick={onBack} />
-          <h1 className={styles.title}>Live agents</h1>
+          <h1 className={styles.title}>live agents</h1>
           <span className={styles.subtitle}>No one working right now across your projects.</span>
         </header>
       </div>
@@ -86,7 +86,7 @@ export default function LiveNowView({ liveAgents, focusAgentId, onBack, onOpenPr
     <div className={styles.detail}>
       <header className={styles.header}>
         <BackLink label="Overview" onClick={onBack} />
-        <h1 className={styles.title}>Live agents</h1>
+        <h1 className={styles.title}>live agents</h1>
         <span className={styles.subtitle}>{subtitleParts.join(' · ')}</span>
       </header>
 

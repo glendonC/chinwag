@@ -78,7 +78,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   // ── Live (presence / coordination) ────
   {
     id: 'live-agents',
-    name: 'Live agents',
+    name: 'live agents',
     description: 'Agents working across your projects right now',
     category: 'live',
     viz: 'live-list',
@@ -90,7 +90,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'live-conflicts',
-    name: 'Live conflicts',
+    name: 'live conflicts',
     description: 'Files being edited by more than one agent right now',
     category: 'live',
     viz: 'data-list',
@@ -102,7 +102,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'files-in-play',
-    name: 'Active files',
+    name: 'active files',
     description: 'Files currently being edited across your projects',
     category: 'live',
     viz: 'data-list',
@@ -116,7 +116,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   // ── Usage (KPI stats) ─────────────────
   {
     id: 'sessions',
-    name: 'Sessions',
+    name: 'sessions',
     description: 'Total sessions this period',
     category: 'usage',
     viz: 'stat',
@@ -128,7 +128,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'edits',
-    name: 'Edits',
+    name: 'edits',
     description: 'Total edits made by agents',
     category: 'usage',
     viz: 'stat',
@@ -140,7 +140,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'lines-added',
-    name: 'Lines added',
+    name: 'lines added',
     description: 'Total lines of code added',
     category: 'usage',
     viz: 'stat',
@@ -152,7 +152,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'lines-removed',
-    name: 'Lines removed',
+    name: 'lines removed',
     description: 'Total lines of code removed',
     category: 'usage',
     viz: 'stat',
@@ -164,7 +164,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'files-touched',
-    name: 'Files touched',
+    name: 'files touched',
     description: 'Unique files edited by agents',
     category: 'usage',
     viz: 'stat',
@@ -176,7 +176,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'cost',
-    name: 'Cost',
+    name: 'cost',
     description: 'Estimated cost from token usage',
     category: 'usage',
     viz: 'stat',
@@ -188,7 +188,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'cost-per-edit',
-    name: 'Cost per edit',
+    name: 'cost per edit',
     description: 'Average cost per file edit across sessions with token data',
     category: 'usage',
     viz: 'stat',
@@ -200,7 +200,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'cache-efficiency',
-    name: 'Cache hit rate',
+    name: 'cache hit rate',
     description: 'Share of input tokens served from prompt cache',
     category: 'tools',
     viz: 'stat',
@@ -214,7 +214,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   // ── Trends (sparklines) ───────────────
   {
     id: 'session-trend',
-    name: 'Session trend',
+    name: 'session trend',
     description: 'Daily session volume over time',
     category: 'usage',
     viz: 'sparkline',
@@ -226,7 +226,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'edit-velocity',
-    name: 'Edits per hour',
+    name: 'edits per hour',
     description: 'Edits per hour trend over time',
     category: 'usage',
     viz: 'sparkline',
@@ -240,7 +240,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   // ── Outcomes ──────────────────────────
   {
     id: 'outcomes',
-    name: 'Outcomes',
+    name: 'outcomes',
     description: 'Finished, abandoned, and failed sessions',
     category: 'outcomes',
     viz: 'outcome-bar',
@@ -252,7 +252,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'one-shot-rate',
-    name: 'One-shot rate',
+    name: 'one-shot rate',
     description: 'Percentage of sessions where edits worked without retry',
     category: 'outcomes',
     viz: 'stat',
@@ -264,7 +264,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'stuckness',
-    name: 'Stuck sessions',
+    name: 'stuck sessions',
     description: 'Sessions where the agent stalled for 15+ minutes',
     category: 'outcomes',
     viz: 'stat-row',
@@ -278,7 +278,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   // ── Activity ──────────────────────────
   {
     id: 'heatmap',
-    name: 'Activity heatmap',
+    name: 'activity heatmap',
     description: 'When you run sessions by hour and day of week',
     category: 'activity',
     viz: 'heatmap',
@@ -290,7 +290,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'work-types',
-    name: 'Work types',
+    name: 'work types',
     description: 'What kind of work: frontend, backend, test, docs, etc.',
     category: 'activity',
     viz: 'proportional-bar',
@@ -304,7 +304,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   // ── Codebase ──────────────────────────
   {
     id: 'commit-stats',
-    name: 'Commits',
+    name: 'commits',
     description: 'Commit activity from agent sessions',
     category: 'codebase',
     viz: 'stat-row',
@@ -316,7 +316,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'directories',
-    name: 'Top directories',
+    name: 'top directories',
     description: 'Most-edited directories by touch count',
     category: 'codebase',
     viz: 'bar-chart',
@@ -328,7 +328,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'files',
-    name: 'Top files',
+    name: 'top files',
     description: 'Most-edited files by touch count',
     category: 'codebase',
     viz: 'data-list',
@@ -342,7 +342,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   // ── Tools & Models ────────────────────
   {
     id: 'tools',
-    name: 'Tool comparison',
+    name: 'tool comparison',
     description: 'AI tools and their session/edit counts',
     category: 'tools',
     viz: 'factual-grid',
@@ -354,7 +354,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'models',
-    name: 'Models',
+    name: 'models',
     description: 'AI models and their session/edit counts',
     category: 'tools',
     viz: 'data-list',
@@ -368,7 +368,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   // ── Conversations ─────────────────────
   {
     id: 'topics',
-    name: 'Topics',
+    name: 'topics',
     description: 'What you discuss: bug-fix, feature, refactor, testing',
     category: 'conversations',
     viz: 'topic-bars',
@@ -382,7 +382,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   // ── Memory ────────────────────────────
   {
     id: 'memory-stats',
-    name: 'Memory usage',
+    name: 'memory usage',
     description: 'Shared memories, searches, and freshness',
     category: 'memory',
     viz: 'stat-row',
@@ -396,7 +396,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   // ── Team ──────────────────────────────
   {
     id: 'team-members',
-    name: 'Team members',
+    name: 'team members',
     description: 'Teammates and their session/edit activity',
     category: 'team',
     viz: 'data-list',
@@ -410,7 +410,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   // ── Projects ──────────────────────────
   {
     id: 'projects',
-    name: 'Projects',
+    name: 'projects',
     description: 'Your connected projects',
     category: 'usage',
     viz: 'project-list',
@@ -424,7 +424,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   // ── Outcomes (extended) ─────────────
   {
     id: 'first-edit',
-    name: 'Time to first edit',
+    name: 'time to first edit',
     description: 'How long before agents start producing edits',
     category: 'outcomes',
     viz: 'stat-row',
@@ -436,7 +436,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'duration-dist',
-    name: 'Session durations',
+    name: 'session durations',
     description: 'Distribution of session lengths',
     category: 'outcomes',
     viz: 'bar-chart',
@@ -448,7 +448,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'scope-complexity',
-    name: 'Scope complexity',
+    name: 'scope complexity',
     description: 'Files touched per session vs completion rate',
     category: 'outcomes',
     viz: 'bucket-chart',
@@ -462,7 +462,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   // ── Activity (extended) ─────────────
   {
     id: 'prompt-efficiency',
-    name: 'Prompt efficiency',
+    name: 'prompt efficiency',
     description: 'User turns per edit trend over time',
     category: 'activity',
     viz: 'sparkline',
@@ -474,7 +474,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'hourly-effectiveness',
-    name: 'Completion rate by hour',
+    name: 'completion rate by hour',
     description: 'Completion rate and output by hour of day',
     category: 'activity',
     viz: 'bar-chart',
@@ -486,7 +486,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'work-type-outcomes',
-    name: 'Work type outcomes',
+    name: 'work type outcomes',
     description: 'Completion rate by work type',
     category: 'activity',
     viz: 'bar-chart',
@@ -500,7 +500,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   // ── Codebase (extended) ─────────────
   {
     id: 'file-churn',
-    name: 'File churn',
+    name: 'file churn',
     description: 'Files edited across multiple sessions',
     category: 'codebase',
     viz: 'data-list',
@@ -512,7 +512,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'file-rework',
-    name: 'File rework',
+    name: 'file rework',
     description: 'Files with high failed-edit ratios',
     category: 'codebase',
     viz: 'data-list',
@@ -524,7 +524,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'audit-staleness',
-    name: 'Stale directories',
+    name: 'stale directories',
     description: 'Directories with no recent activity',
     category: 'codebase',
     viz: 'data-list',
@@ -536,7 +536,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'concurrent-edits',
-    name: 'Edit collisions',
+    name: 'edit collisions',
     description: 'Files touched by multiple agents in the same period — conflict risk',
     category: 'codebase',
     viz: 'data-list',
@@ -550,7 +550,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   // ── Tools (extended) ────────────────
   {
     id: 'tool-outcomes',
-    name: 'Tool outcomes',
+    name: 'tool outcomes',
     description: 'Completion breakdown per tool',
     category: 'tools',
     viz: 'bar-chart',
@@ -562,7 +562,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'tool-handoffs',
-    name: 'Tool handoffs',
+    name: 'tool handoffs',
     description: 'Files that move between different tools',
     category: 'tools',
     viz: 'data-list',
@@ -574,7 +574,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'tool-calls',
-    name: 'Tool calls',
+    name: 'tool calls',
     description: 'Total calls, error rate, research-to-edit ratio',
     category: 'tools',
     viz: 'stat-row',
@@ -586,7 +586,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'tool-call-freq',
-    name: 'Tool call frequency',
+    name: 'tool call frequency',
     description: 'Most-invoked tools with error rates',
     category: 'tools',
     viz: 'bar-chart',
@@ -598,7 +598,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'tool-call-errors',
-    name: 'Tool call errors',
+    name: 'tool call errors',
     description: 'Common error patterns across tools',
     category: 'tools',
     viz: 'data-list',
@@ -610,7 +610,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'token-detail',
-    name: 'Token usage',
+    name: 'token usage',
     description: 'Token consumption by model and tool',
     category: 'tools',
     viz: 'data-list',
@@ -622,7 +622,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'tool-daily',
-    name: 'Tool adoption',
+    name: 'tool adoption',
     description: 'Daily session volume per tool — adoption and migration over time',
     category: 'tools',
     viz: 'multi-sparkline',
@@ -634,7 +634,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'tool-work-type',
-    name: 'Tool work mix',
+    name: 'tool work mix',
     description: 'What kind of work each tool handles',
     category: 'tools',
     viz: 'proportional-bar',
@@ -646,7 +646,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'data-coverage',
-    name: 'Data coverage',
+    name: 'data coverage',
     description: 'Which insight categories have data and which are waiting',
     category: 'tools',
     viz: 'data-list',
@@ -660,7 +660,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   // ── Conversations (extended) ────────
   {
     id: 'sentiment-outcomes',
-    name: 'Outcomes by sentiment',
+    name: 'outcomes by sentiment',
     description: 'How conversation sentiment correlates with session success',
     category: 'conversations',
     viz: 'bar-chart',
@@ -672,7 +672,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'conversation-depth',
-    name: 'Conversation depth',
+    name: 'conversation depth',
     description: 'How conversation length affects edit output',
     category: 'conversations',
     viz: 'bucket-chart',
@@ -685,7 +685,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   // ── Memory (extended) ───────────────
   {
     id: 'memory-outcomes',
-    name: 'Outcomes by memory',
+    name: 'outcomes by memory',
     description: 'How memory usage correlates with session success',
     category: 'memory',
     viz: 'bar-chart',
@@ -697,7 +697,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'top-memories',
-    name: 'Top memories',
+    name: 'top memories',
     description: 'Most-accessed shared memories',
     category: 'memory',
     viz: 'data-list',
@@ -711,7 +711,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   // ── Team (extended) ─────────────────
   {
     id: 'conflict-impact',
-    name: 'Conflict impact',
+    name: 'conflict impact',
     description: 'How conflicts affect session completion',
     category: 'team',
     viz: 'stat-row',
@@ -723,7 +723,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'retry-patterns',
-    name: 'Recurring failures',
+    name: 'recurring failures',
     description: 'Files edited repeatedly across failed sessions',
     category: 'team',
     viz: 'data-list',
@@ -735,7 +735,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'file-overlap',
-    name: 'File overlap',
+    name: 'file overlap',
     description: 'Share of files touched by more than one agent',
     category: 'team',
     viz: 'stat-row',
@@ -790,15 +790,15 @@ export function getWidget(id: string): WidgetDef | undefined {
 // ── Category metadata ───────────────────────────
 
 export const CATEGORIES: Array<{ id: WidgetCategory; label: string }> = [
-  { id: 'live', label: 'Live' },
-  { id: 'usage', label: 'Usage' },
-  { id: 'outcomes', label: 'Outcomes' },
-  { id: 'activity', label: 'Activity' },
-  { id: 'codebase', label: 'Codebase' },
-  { id: 'tools', label: 'Tools & Models' },
-  { id: 'conversations', label: 'Conversations' },
-  { id: 'memory', label: 'Memory' },
-  { id: 'team', label: 'Team' },
+  { id: 'live', label: 'live' },
+  { id: 'usage', label: 'usage' },
+  { id: 'outcomes', label: 'outcomes' },
+  { id: 'activity', label: 'activity' },
+  { id: 'codebase', label: 'codebase' },
+  { id: 'tools', label: 'tools & models' },
+  { id: 'conversations', label: 'conversations' },
+  { id: 'memory', label: 'memory' },
+  { id: 'team', label: 'team' },
 ];
 
 // ── Default layout for new users ────────────────
