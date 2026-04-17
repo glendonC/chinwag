@@ -39,7 +39,7 @@ function getAdminKey(env: { ADMIN_KEY?: string }): string | undefined {
 }
 
 const CACHE_HEADERS = {
-  'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600',
+  headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600' },
 };
 
 export const handleDirectoryStats = publicRoute(async ({ env }) => {

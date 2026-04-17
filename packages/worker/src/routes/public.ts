@@ -185,7 +185,7 @@ export const handleToolCatalog = publicRoute(async ({ request, env }) => {
 
     const categories = await getCategoryNames(env);
     return json({ tools, categories }, 200, {
-      'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+      headers: { 'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400' },
     });
   });
 });

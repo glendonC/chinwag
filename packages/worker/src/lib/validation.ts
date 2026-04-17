@@ -115,7 +115,7 @@ export async function withRateLimit(
     return json({ error: 'Service temporarily unavailable' }, 503);
   }
   if (!result.allowed) {
-    return json({ error: errorMsg }, 429, { 'Retry-After': '3600' });
+    return json({ error: errorMsg }, 429, { headers: { 'Retry-After': '3600' } });
   }
   return handler();
 }
@@ -206,7 +206,7 @@ export async function withIpRateLimit(
   const result = rpc(await db.checkAndConsume(key, max));
   if (!result.allowed) {
     return json({ error: 'Rate limit exceeded. Try again later.' }, 429, {
-      'Retry-After': '3600',
+      headers: { 'Retry-After': '3600' },
     });
   }
   return handler();

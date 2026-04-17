@@ -8,6 +8,7 @@ import { enrichTokenUsageWithPricing } from '../../lib/pricing-enrich.js';
 import { authedRoute } from '../../lib/middleware.js';
 import { MAX_DASHBOARD_TEAMS } from '../../lib/constants.js';
 import { getToolsWithCapability } from '@chinwag/shared/tool-registry.js';
+import { userAnalyticsSchema } from '@chinwag/shared/contracts/analytics.js';
 import { DO_CALL_TIMEOUT_MS, withTimeout } from './helpers.js';
 
 const log = createLogger('routes.user.teams');
@@ -44,92 +45,96 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
   const effectiveDays = teams.length > 1 ? Math.min(days, CROSS_TEAM_MAX_DAYS) : days;
 
   if (teams.length === 0) {
-    return json({
-      ok: true,
-      period_days: days,
-      file_heatmap: [],
-      daily_trends: [],
-      tool_distribution: [],
-      outcome_distribution: [],
-      daily_metrics: [],
-      hourly_distribution: [],
-      tool_hourly: [],
-      tool_daily: [],
-      model_outcomes: [],
-      tool_outcomes: [],
-      completion_summary: {
-        total_sessions: 0,
-        completed: 0,
-        abandoned: 0,
-        failed: 0,
-        unknown: 0,
-        completion_rate: 0,
-        prev_completion_rate: null,
-      },
-      tool_comparison: [],
-      work_type_distribution: [],
-      tool_work_type: [],
-      file_churn: [],
-      duration_distribution: [],
-      concurrent_edits: [],
-      member_analytics: [],
-      retry_patterns: [],
-      conflict_correlation: [],
-      edit_velocity: [],
-      memory_usage: {
-        total_memories: 0,
-        searches: 0,
-        searches_with_results: 0,
-        search_hit_rate: 0,
-        memories_created_period: 0,
-        memories_updated_period: 0,
-        stale_memories: 0,
-        avg_memory_age_days: 0,
-      },
-      period_comparison: {
-        current: {
-          completion_rate: 0,
-          avg_duration_min: 0,
-          stuckness_rate: 0,
-          memory_hit_rate: 0,
-          edit_velocity: 0,
+    return json(
+      {
+        ok: true,
+        period_days: days,
+        file_heatmap: [],
+        daily_trends: [],
+        tool_distribution: [],
+        outcome_distribution: [],
+        daily_metrics: [],
+        hourly_distribution: [],
+        tool_hourly: [],
+        tool_daily: [],
+        model_outcomes: [],
+        tool_outcomes: [],
+        completion_summary: {
           total_sessions: 0,
+          completed: 0,
+          abandoned: 0,
+          failed: 0,
+          unknown: 0,
+          completion_rate: 0,
+          prev_completion_rate: null,
         },
-        previous: null,
+        tool_comparison: [],
+        work_type_distribution: [],
+        tool_work_type: [],
+        file_churn: [],
+        duration_distribution: [],
+        concurrent_edits: [],
+        member_analytics: [],
+        retry_patterns: [],
+        conflict_correlation: [],
+        edit_velocity: [],
+        memory_usage: {
+          total_memories: 0,
+          searches: 0,
+          searches_with_results: 0,
+          search_hit_rate: 0,
+          memories_created_period: 0,
+          memories_updated_period: 0,
+          stale_memories: 0,
+          avg_memory_age_days: 0,
+        },
+        period_comparison: {
+          current: {
+            completion_rate: 0,
+            avg_duration_min: 0,
+            stuckness_rate: 0,
+            memory_hit_rate: 0,
+            edit_velocity: 0,
+            total_sessions: 0,
+          },
+          previous: null,
+        },
+        token_usage: {
+          total_input_tokens: 0,
+          total_output_tokens: 0,
+          total_cache_read_tokens: 0,
+          total_cache_creation_tokens: 0,
+          avg_input_per_session: 0,
+          avg_output_per_session: 0,
+          sessions_with_token_data: 0,
+          sessions_without_token_data: 0,
+          total_edits_in_token_sessions: 0,
+          total_estimated_cost_usd: 0,
+          pricing_refreshed_at: null,
+          pricing_is_stale: false,
+          models_without_pricing: [],
+          models_without_pricing_total: 0,
+          cost_per_edit: null,
+          cache_hit_rate: null,
+          by_model: [],
+          by_tool: [],
+        },
+        commit_stats: {
+          total_commits: 0,
+          commits_per_session: 0,
+          sessions_with_commits: 0,
+          avg_time_to_first_commit_min: null,
+          by_tool: [],
+          daily_commits: [],
+          outcome_correlation: [],
+          commit_edit_ratio: [],
+        },
+        teams_included: 0,
+        degraded: false,
       },
-      token_usage: {
-        total_input_tokens: 0,
-        total_output_tokens: 0,
-        total_cache_read_tokens: 0,
-        total_cache_creation_tokens: 0,
-        avg_input_per_session: 0,
-        avg_output_per_session: 0,
-        sessions_with_token_data: 0,
-        sessions_without_token_data: 0,
-        total_edits_in_token_sessions: 0,
-        total_estimated_cost_usd: 0,
-        pricing_refreshed_at: null,
-        pricing_is_stale: false,
-        models_without_pricing: [],
-        models_without_pricing_total: 0,
-        cost_per_edit: null,
-        cache_hit_rate: null,
-        by_model: [],
-        by_tool: [],
-      },
-      commit_stats: {
-        total_commits: 0,
-        commits_per_session: 0,
-        sessions_with_commits: 0,
-        avg_time_to_first_commit_min: null,
-        by_tool: [],
-        daily_commits: [],
-        outcome_correlation: [],
-        commit_edit_ratio: [],
-      },
-      teams_included: 0,
-      degraded: false,
-    });
+      200,
+      { schema: userAnalyticsSchema },
+    );
   }
 
   const capped = teams.slice(0, MAX_DASHBOARD_TEAMS);
@@ -1119,180 +1124,114 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
   };
   await enrichTokenUsageWithPricing(tokenUsagePayload, env);
 
-  return json({
-    ok: true,
-    period_days: effectiveDays,
-    daily_trends: [...dailyTrends.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([day, v]) => ({
-        day,
-        sessions: v.sessions,
-        edits: v.edits,
-        lines_added: v.lines_added,
-        lines_removed: v.lines_removed,
-        avg_duration_min:
-          v.duration_count > 0 ? Math.round((v.duration_sum / v.duration_count) * 10) / 10 : 0,
-        completed: v.completed,
-        abandoned: v.abandoned,
-        failed: v.failed,
-      })),
-    outcome_distribution: [...outcomes.entries()]
-      .sort(([, a], [, b]) => b - a)
-      .map(([outcome, count]) => ({ outcome, count })),
-    tool_distribution: [...tools.entries()]
-      .sort(([, a], [, b]) => b.sessions - a.sessions)
-      .map(([host_tool, v]) => ({ host_tool, sessions: v.sessions, edits: v.edits })),
-    file_heatmap: [...heatmap.entries()]
-      .sort(([, a], [, b]) => b.touch_count - a.touch_count)
-      .slice(0, 50)
-      .map(([file, v]) => ({
-        file,
-        touch_count: v.touch_count,
-        work_type: v.work_type,
-        outcome_rate:
-          v.outcome_count > 0 ? Math.round((v.outcome_sum / v.outcome_count) * 10) / 10 : 0,
-        total_lines_added: v.lines_added,
-        total_lines_removed: v.lines_removed,
-      })),
-    hourly_distribution: [...hourly.entries()].map(([key, v]) => {
-      const [hour, dow] = key.split('-').map(Number);
-      return { hour, dow, sessions: v.sessions, edits: v.edits };
-    }),
-    tool_hourly: [...toolHourly.entries()].map(([key, v]) => {
-      const [toolPart, timePart] = [
-        key.slice(0, key.lastIndexOf(':')),
-        key.slice(key.lastIndexOf(':') + 1),
-      ];
-      const [hour, dow] = timePart.split('-').map(Number);
-      return { host_tool: toolPart, hour, dow, sessions: v.sessions, edits: v.edits };
-    }),
-    tool_daily: [...toolDaily.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, v]) => {
-        const sep = key.indexOf(':');
-        return {
-          host_tool: key.slice(0, sep),
-          day: key.slice(sep + 1),
+  return json(
+    {
+      ok: true,
+      period_days: effectiveDays,
+      daily_trends: [...dailyTrends.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([day, v]) => ({
+          day,
           sessions: v.sessions,
           edits: v.edits,
           lines_added: v.lines_added,
           lines_removed: v.lines_removed,
           avg_duration_min:
             v.duration_count > 0 ? Math.round((v.duration_sum / v.duration_count) * 10) / 10 : 0,
-        };
-      }),
-    model_outcomes: [...models.entries()]
-      .sort(([, a], [, b]) => b.count - a.count)
-      .map(([key, v]) => {
-        const [agent_model, outcome] = key.split(':');
-        return {
-          agent_model,
-          outcome,
-          count: v.count,
-          avg_duration_min: v.count > 0 ? Math.round((v.duration_sum / v.count) * 10) / 10 : 0,
-          total_edits: v.total_edits,
+          completed: v.completed,
+          abandoned: v.abandoned,
+          failed: v.failed,
+        })),
+      outcome_distribution: [...outcomes.entries()]
+        .sort(([, a], [, b]) => b - a)
+        .map(([outcome, count]) => ({ outcome, count })),
+      tool_distribution: [...tools.entries()]
+        .sort(([, a], [, b]) => b.sessions - a.sessions)
+        .map(([host_tool, v]) => ({ host_tool, sessions: v.sessions, edits: v.edits })),
+      file_heatmap: [...heatmap.entries()]
+        .sort(([, a], [, b]) => b.touch_count - a.touch_count)
+        .slice(0, 50)
+        .map(([file, v]) => ({
+          file,
+          touch_count: v.touch_count,
+          work_type: v.work_type,
+          outcome_rate:
+            v.outcome_count > 0 ? Math.round((v.outcome_sum / v.outcome_count) * 10) / 10 : 0,
           total_lines_added: v.lines_added,
           total_lines_removed: v.lines_removed,
-        };
+        })),
+      hourly_distribution: [...hourly.entries()].map(([key, v]) => {
+        const [hour, dow] = key.split('-').map(Number);
+        return { hour, dow, sessions: v.sessions, edits: v.edits };
       }),
-    tool_outcomes: [...toolOutcomes.entries()]
-      .sort(([, a], [, b]) => b - a)
-      .map(([key, count]) => {
-        const sep = key.indexOf(':');
-        return { host_tool: key.slice(0, sep), outcome: key.slice(sep + 1), count };
+      tool_hourly: [...toolHourly.entries()].map(([key, v]) => {
+        const [toolPart, timePart] = [
+          key.slice(0, key.lastIndexOf(':')),
+          key.slice(key.lastIndexOf(':') + 1),
+        ];
+        const [hour, dow] = timePart.split('-').map(Number);
+        return { host_tool: toolPart, hour, dow, sessions: v.sessions, edits: v.edits };
       }),
-    daily_metrics: [...dailyMetrics.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, count]) => {
-        const idx = key.indexOf(':');
-        return { date: key.slice(0, idx), metric: key.slice(idx + 1), count };
-      }),
-    completion_summary: {
-      total_sessions: completionAcc.total_sessions,
-      completed: completionAcc.completed,
-      abandoned: completionAcc.abandoned,
-      failed: completionAcc.failed,
-      unknown: completionAcc.unknown,
-      completion_rate:
-        completionAcc.total_sessions > 0
-          ? Math.round((completionAcc.completed / completionAcc.total_sessions) * 1000) / 10
-          : 0,
-      prev_completion_rate:
-        completionAcc.prev_total > 0
-          ? Math.round((completionAcc.prev_completed / completionAcc.prev_total) * 1000) / 10
-          : null,
-    },
-    tool_comparison: [...toolComp.entries()]
-      .sort(([, a], [, b]) => b.sessions - a.sessions)
-      .map(([host_tool, v]) => ({
-        host_tool,
-        sessions: v.sessions,
-        completed: v.completed,
-        abandoned: v.abandoned,
-        failed: v.failed,
-        completion_rate: v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
-        avg_duration_min:
-          v.duration_count > 0 ? Math.round((v.duration_sum / v.duration_count) * 10) / 10 : 0,
-        total_edits: v.total_edits,
-        total_lines_added: v.total_lines_added,
-        total_lines_removed: v.total_lines_removed,
-      })),
-    work_type_distribution: [...workTypes.entries()]
-      .sort(([, a], [, b]) => b.sessions - a.sessions)
-      .map(([work_type, v]) => ({
-        work_type,
-        sessions: v.sessions,
-        edits: v.edits,
-        lines_added: v.lines_added,
-        lines_removed: v.lines_removed,
-        files: v.files.size,
-      })),
-    tool_work_type: [...toolWorkTypes.entries()]
-      .sort(([, a], [, b]) => b.sessions - a.sessions)
-      .map(([key, v]) => {
-        const sep = key.indexOf(':');
-        return {
-          host_tool: key.slice(0, sep),
-          work_type: key.slice(sep + 1),
-          sessions: v.sessions,
-          edits: v.edits,
-        };
-      }),
-    file_churn: [...fileChurn.entries()]
-      .sort(([, a], [, b]) => b.session_count - a.session_count)
-      .slice(0, 30)
-      .map(([file, v]) => ({
-        file,
-        session_count: v.session_count,
-        total_edits: v.total_edits,
-        total_lines: v.total_lines,
-      })),
-    duration_distribution: ['0-5m', '5-15m', '15-30m', '30-60m', '60m+'].map((bucket) => ({
-      bucket,
-      count: durationBuckets.get(bucket) || 0,
-    })),
-    concurrent_edits: [...concurrentEdits.entries()]
-      .sort(([, a], [, b]) => b.agents.size - a.agents.size)
-      .slice(0, 20)
-      .map(([file, v]) => ({
-        file,
-        agents: v.agents.size,
-        edit_count: v.edit_count,
-      })),
-    member_analytics: [...memberAcc.entries()]
-      .sort(([, a], [, b]) => b.sessions - a.sessions)
-      .slice(0, 50)
-      .map(([handle, v]) => {
-        let primaryTool: string | null = null;
-        let maxCount = 0;
-        for (const [tool, count] of v.tools) {
-          if (count > maxCount) {
-            primaryTool = tool;
-            maxCount = count;
-          }
-        }
-        return {
-          handle,
+      tool_daily: [...toolDaily.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, v]) => {
+          const sep = key.indexOf(':');
+          return {
+            host_tool: key.slice(0, sep),
+            day: key.slice(sep + 1),
+            sessions: v.sessions,
+            edits: v.edits,
+            lines_added: v.lines_added,
+            lines_removed: v.lines_removed,
+            avg_duration_min:
+              v.duration_count > 0 ? Math.round((v.duration_sum / v.duration_count) * 10) / 10 : 0,
+          };
+        }),
+      model_outcomes: [...models.entries()]
+        .sort(([, a], [, b]) => b.count - a.count)
+        .map(([key, v]) => {
+          const [agent_model, outcome] = key.split(':');
+          return {
+            agent_model,
+            outcome,
+            count: v.count,
+            avg_duration_min: v.count > 0 ? Math.round((v.duration_sum / v.count) * 10) / 10 : 0,
+            total_edits: v.total_edits,
+            total_lines_added: v.lines_added,
+            total_lines_removed: v.lines_removed,
+          };
+        }),
+      tool_outcomes: [...toolOutcomes.entries()]
+        .sort(([, a], [, b]) => b - a)
+        .map(([key, count]) => {
+          const sep = key.indexOf(':');
+          return { host_tool: key.slice(0, sep), outcome: key.slice(sep + 1), count };
+        }),
+      daily_metrics: [...dailyMetrics.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, count]) => {
+          const idx = key.indexOf(':');
+          return { date: key.slice(0, idx), metric: key.slice(idx + 1), count };
+        }),
+      completion_summary: {
+        total_sessions: completionAcc.total_sessions,
+        completed: completionAcc.completed,
+        abandoned: completionAcc.abandoned,
+        failed: completionAcc.failed,
+        unknown: completionAcc.unknown,
+        completion_rate:
+          completionAcc.total_sessions > 0
+            ? Math.round((completionAcc.completed / completionAcc.total_sessions) * 1000) / 10
+            : 0,
+        prev_completion_rate:
+          completionAcc.prev_total > 0
+            ? Math.round((completionAcc.prev_completed / completionAcc.prev_total) * 1000) / 10
+            : null,
+      },
+      tool_comparison: [...toolComp.entries()]
+        .sort(([, a], [, b]) => b.sessions - a.sessions)
+        .map(([host_tool, v]) => ({
+          host_tool,
           sessions: v.sessions,
           completed: v.completed,
           abandoned: v.abandoned,
@@ -1303,307 +1242,385 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
           total_edits: v.total_edits,
           total_lines_added: v.total_lines_added,
           total_lines_removed: v.total_lines_removed,
-          total_commits: v.total_commits,
-          primary_tool: primaryTool,
-        };
-      }),
-    retry_patterns: [...retryAcc.entries()]
-      .sort(([, a], [, b]) => b.attempts - a.attempts)
-      .slice(0, 30)
-      .map(([key, v]) => {
-        const sep = key.indexOf(':');
-        return {
-          handle: key.slice(0, sep),
-          file: key.slice(sep + 1),
-          attempts: v.attempts,
-          final_outcome: v.final_outcome,
-          resolved: v.resolved,
-        };
-      }),
-    conflict_correlation: [...conflictAcc.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([bucket, v]) => ({
-        bucket,
-        sessions: v.sessions,
-        completed: v.completed,
-        completion_rate: v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
-      })),
-    edit_velocity: [...velocityAcc.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([day, v]) => ({
-        day,
-        edits_per_hour: v.hours > 0 ? Math.round((v.edits / v.hours) * 10) / 10 : 0,
-        lines_per_hour: v.hours > 0 ? Math.round((v.lines / v.hours) * 10) / 10 : 0,
-        total_session_hours: Math.round(v.hours * 100) / 100,
-      })),
-    memory_usage: {
-      total_memories: memoryAcc.total_memories,
-      searches: memoryAcc.searches,
-      searches_with_results: memoryAcc.searches_with_results,
-      search_hit_rate:
-        memoryAcc.searches > 0
-          ? Math.round((memoryAcc.searches_with_results / memoryAcc.searches) * 1000) / 10
-          : 0,
-      memories_created_period: memoryAcc.memories_created_period,
-      memories_updated_period: memoryAcc.memories_updated_period,
-      stale_memories: memoryAcc.stale_memories,
-      avg_memory_age_days:
-        memoryAcc.age_count > 0
-          ? Math.round((memoryAcc.age_sum / memoryAcc.age_count) * 10) / 10
-          : 0,
-    },
-    work_type_outcomes: [...workTypeOutcomesAcc.entries()]
-      .sort(([, a], [, b]) => b.sessions - a.sessions)
-      .map(([work_type, v]) => ({
-        work_type,
-        sessions: v.sessions,
-        completed: v.completed,
-        abandoned: v.abandoned,
-        failed: v.failed,
-        completion_rate: v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
-      })),
-    conversation_edit_correlation: [...convEditAcc.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([bucket, v]) => ({
-        bucket,
-        sessions: v.sessions,
-        avg_edits: v.sessions > 0 ? Math.round(v.total_edits / v.sessions) : 0,
-        avg_lines: v.sessions > 0 ? Math.round(v.total_lines / v.sessions) : 0,
-        completion_rate: v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
-      })),
-    file_rework: [...fileReworkAcc.entries()]
-      .sort(
-        ([, a], [, b]) =>
-          (b.total_edits > 0 ? b.failed_edits / b.total_edits : 0) -
-          (a.total_edits > 0 ? a.failed_edits / a.total_edits : 0),
-      )
-      .slice(0, 20)
-      .map(([file, v]) => ({
-        file,
-        total_edits: v.total_edits,
-        failed_edits: v.failed_edits,
-        rework_ratio:
-          v.total_edits > 0 ? Math.round((v.failed_edits / v.total_edits) * 100) / 100 : 0,
-      })),
-    directory_heatmap: [...dirHeatmapAcc.entries()]
-      .sort(([, a], [, b]) => b.touch_count - a.touch_count)
-      .slice(0, 20)
-      .map(([directory, v]) => ({
-        directory,
-        touch_count: v.touch_count,
-        file_count: v.file_count,
-        total_lines: v.total_lines,
-        completion_rate: v.rate_count > 0 ? Math.round((v.rate_sum / v.rate_count) * 10) / 10 : 0,
-      })),
-    stuckness: {
-      total_sessions: stucknessAcc.total_sessions,
-      stuck_sessions: stucknessAcc.stuck_sessions,
-      stuckness_rate:
-        stucknessAcc.total_sessions > 0
-          ? Math.round((stucknessAcc.stuck_sessions / stucknessAcc.total_sessions) * 1000) / 10
-          : 0,
-      stuck_completion_rate:
-        stucknessAcc.stuck_total > 0
-          ? Math.round((stucknessAcc.stuck_completed / stucknessAcc.stuck_total) * 1000) / 10
-          : 0,
-      normal_completion_rate:
-        stucknessAcc.normal_total > 0
-          ? Math.round((stucknessAcc.normal_completed / stucknessAcc.normal_total) * 1000) / 10
-          : 0,
-    },
-    file_overlap: {
-      total_files: fileOverlapAcc.total_files,
-      overlapping_files: fileOverlapAcc.overlapping_files,
-      overlap_rate:
-        fileOverlapAcc.total_files > 0
-          ? Math.round((fileOverlapAcc.overlapping_files / fileOverlapAcc.total_files) * 1000) / 10
-          : 0,
-    },
-    audit_staleness: [...auditStalenessAcc.entries()]
-      .sort(([, a], [, b]) => b.days_since - a.days_since)
-      .slice(0, 20)
-      .map(([directory, v]) => ({
-        directory,
-        last_edit: v.last_edit,
-        days_since: v.days_since,
-        prior_edit_count: v.prior_edit_count,
-      })),
-    first_edit_stats: {
-      avg_minutes_to_first_edit:
-        firstEditAcc.count > 0
-          ? Math.round((firstEditAcc.sum_avg / firstEditAcc.count) * 10) / 10
-          : 0,
-      median_minutes_to_first_edit:
-        firstEditAcc.count > 0
-          ? Math.round((firstEditAcc.sum_median / firstEditAcc.count) * 10) / 10
-          : 0,
-      by_tool: [...firstEditAcc.by_tool.entries()]
-        .sort(([, a], [, b]) => b.sessions - a.sessions)
-        .map(([host_tool, v]) => ({
-          host_tool,
-          avg_minutes: v.sessions > 0 ? Math.round((v.sum_avg / v.sessions) * 10) / 10 : 0,
-          sessions: v.sessions,
         })),
-    },
-    memory_outcome_correlation: [...memOutcomeAcc.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([bucket, v]) => ({
+      work_type_distribution: [...workTypes.entries()]
+        .sort(([, a], [, b]) => b.sessions - a.sessions)
+        .map(([work_type, v]) => ({
+          work_type,
+          sessions: v.sessions,
+          edits: v.edits,
+          lines_added: v.lines_added,
+          lines_removed: v.lines_removed,
+          files: v.files.size,
+        })),
+      tool_work_type: [...toolWorkTypes.entries()]
+        .sort(([, a], [, b]) => b.sessions - a.sessions)
+        .map(([key, v]) => {
+          const sep = key.indexOf(':');
+          return {
+            host_tool: key.slice(0, sep),
+            work_type: key.slice(sep + 1),
+            sessions: v.sessions,
+            edits: v.edits,
+          };
+        }),
+      file_churn: [...fileChurn.entries()]
+        .sort(([, a], [, b]) => b.session_count - a.session_count)
+        .slice(0, 30)
+        .map(([file, v]) => ({
+          file,
+          session_count: v.session_count,
+          total_edits: v.total_edits,
+          total_lines: v.total_lines,
+        })),
+      duration_distribution: ['0-5m', '5-15m', '15-30m', '30-60m', '60m+'].map((bucket) => ({
         bucket,
-        sessions: v.sessions,
-        completed: v.completed,
-        completion_rate: v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
+        count: durationBuckets.get(bucket) || 0,
       })),
-    top_memories: [...topMemoriesAcc.entries()]
-      .sort(([, a], [, b]) => b.access_count - a.access_count)
-      .slice(0, 20)
-      .map(([id, v]) => ({
-        id,
-        text_preview: v.text_preview,
-        access_count: v.access_count,
-        last_accessed_at: v.last_accessed_at,
-        created_at: v.created_at,
-      })),
-    period_comparison: (() => {
-      const cs = periodCurrentAcc.total_sessions_sum;
-      const ps = periodPreviousAcc.total_sessions_sum;
-      return {
-        current: {
-          completion_rate:
-            cs > 0 ? Math.round((periodCurrentAcc.completion_sum / cs) * 10) / 10 : 0,
-          avg_duration_min: cs > 0 ? Math.round((periodCurrentAcc.duration_sum / cs) * 10) / 10 : 0,
-          stuckness_rate: cs > 0 ? Math.round((periodCurrentAcc.stuck_sum / cs) * 10) / 10 : 0,
-          memory_hit_rate:
-            cs > 0 ? Math.round((periodCurrentAcc.memory_hit_sum / cs) * 10) / 10 : 0,
-          edit_velocity: cs > 0 ? Math.round((periodCurrentAcc.velocity_sum / cs) * 10) / 10 : 0,
-          total_sessions: cs,
-        },
-        previous:
-          periodPreviousAcc.count > 0
-            ? {
-                completion_rate:
-                  ps > 0 ? Math.round((periodPreviousAcc.completion_sum / ps) * 10) / 10 : 0,
-                avg_duration_min:
-                  ps > 0 ? Math.round((periodPreviousAcc.duration_sum / ps) * 10) / 10 : 0,
-                stuckness_rate:
-                  ps > 0 ? Math.round((periodPreviousAcc.stuck_sum / ps) * 10) / 10 : 0,
-                memory_hit_rate:
-                  ps > 0 ? Math.round((periodPreviousAcc.memory_hit_sum / ps) * 10) / 10 : 0,
-                edit_velocity:
-                  ps > 0 ? Math.round((periodPreviousAcc.velocity_sum / ps) * 10) / 10 : 0,
-                total_sessions: ps,
-              }
-            : null,
-      };
-    })(),
-    token_usage: tokenUsagePayload,
-    scope_complexity: [...scopeComplexityAcc.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([bucket, v]) => ({
-        bucket,
-        sessions: v.sessions,
-        avg_edits: v.sessions > 0 ? Math.round(v.edits_sum / v.sessions) : 0,
-        avg_duration_min: v.sessions > 0 ? Math.round((v.duration_sum / v.sessions) * 10) / 10 : 0,
-        completion_rate: v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
-      })),
-    prompt_efficiency: [...promptEfficiencyAcc.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([day, v]) => ({
-        day,
-        avg_turns_per_edit: v.sessions > 0 ? Math.round((v.turns_sum / v.sessions) * 10) / 10 : 0,
-        sessions: v.sessions,
-      })),
-    hourly_effectiveness: [...hourlyEffectivenessAcc.entries()]
-      .sort(([a], [b]) => a - b)
-      .map(([hour, v]) => ({
-        hour,
-        sessions: v.sessions,
-        completion_rate: v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
-        avg_edits: v.sessions > 0 ? Math.round(v.edits_sum / v.sessions) : 0,
-      })),
-    outcome_tags: [...outcomeTagsAcc.entries()]
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 30)
-      .map(([key, count]) => {
-        const sep = key.lastIndexOf(':');
-        return { tag: key.slice(0, sep), outcome: key.slice(sep + 1), count };
-      }),
-    tool_handoffs: [...toolHandoffsAcc.entries()]
-      .sort(([, a], [, b]) => b.file_count - a.file_count)
-      .slice(0, 20)
-      .map(([key, v]) => {
-        const sep = key.indexOf(':');
-        return {
-          from_tool: key.slice(0, sep),
-          to_tool: key.slice(sep + 1),
-          file_count: v.file_count,
-          handoff_completion_rate:
-            v.total > 0 ? Math.round((v.completed / v.total) * 1000) / 10 : 0,
-        };
-      }),
-    commit_stats: (() => {
-      const totalSessions = completionAcc.total_sessions || 1;
-      return {
-        total_commits: commitAcc.total_commits,
-        commits_per_session:
-          totalSessions > 0 ? Math.round((commitAcc.total_commits / totalSessions) * 100) / 100 : 0,
-        sessions_with_commits: commitAcc.sessions_with_commits,
-        avg_time_to_first_commit_min:
-          commitAcc.ttfc_count > 0
-            ? Math.round((commitAcc.ttfc_sum / commitAcc.ttfc_count) * 10) / 10
-            : null,
-        by_tool: [...commitByTool.entries()]
-          .sort(([, a], [, b]) => b.commits - a.commits)
-          .map(([host_tool, v]) => ({
-            host_tool,
-            commits: v.commits,
-            avg_files_changed: v.commits > 0 ? Math.round((v.files_sum / v.commits) * 10) / 10 : 0,
-            avg_lines: v.commits > 0 ? Math.round((v.lines_sum / v.commits) * 10) / 10 : 0,
-          })),
-        daily_commits: [...commitDaily.entries()]
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([day, commits]) => ({ day, commits })),
-        outcome_correlation: [...commitOutcomeAcc.entries()]
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([bucket, v]) => ({
-            bucket,
+      concurrent_edits: [...concurrentEdits.entries()]
+        .sort(([, a], [, b]) => b.agents.size - a.agents.size)
+        .slice(0, 20)
+        .map(([file, v]) => ({
+          file,
+          agents: v.agents.size,
+          edit_count: v.edit_count,
+        })),
+      member_analytics: [...memberAcc.entries()]
+        .sort(([, a], [, b]) => b.sessions - a.sessions)
+        .slice(0, 50)
+        .map(([handle, v]) => {
+          let primaryTool: string | null = null;
+          let maxCount = 0;
+          for (const [tool, count] of v.tools) {
+            if (count > maxCount) {
+              primaryTool = tool;
+              maxCount = count;
+            }
+          }
+          return {
+            handle,
             sessions: v.sessions,
             completed: v.completed,
+            abandoned: v.abandoned,
+            failed: v.failed,
             completion_rate:
               v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
-          })),
-        commit_edit_ratio: [...commitEditRatioAcc.entries()].map(([bucket, v]) => ({
+            avg_duration_min:
+              v.duration_count > 0 ? Math.round((v.duration_sum / v.duration_count) * 10) / 10 : 0,
+            total_edits: v.total_edits,
+            total_lines_added: v.total_lines_added,
+            total_lines_removed: v.total_lines_removed,
+            total_commits: v.total_commits,
+            primary_tool: primaryTool,
+          };
+        }),
+      retry_patterns: [...retryAcc.entries()]
+        .sort(([, a], [, b]) => b.attempts - a.attempts)
+        .slice(0, 30)
+        .map(([key, v]) => {
+          const sep = key.indexOf(':');
+          return {
+            handle: key.slice(0, sep),
+            file: key.slice(sep + 1),
+            attempts: v.attempts,
+            final_outcome: v.final_outcome,
+            resolved: v.resolved,
+          };
+        }),
+      conflict_correlation: [...conflictAcc.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([bucket, v]) => ({
           bucket,
           sessions: v.sessions,
+          completed: v.completed,
           completion_rate: v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
-          avg_edits: v.sessions > 0 ? Math.round((v.edits_sum / v.sessions) * 10) / 10 : 0,
-          avg_commits: v.sessions > 0 ? Math.round((v.commits_sum / v.sessions) * 10) / 10 : 0,
         })),
-      };
-    })(),
-    data_coverage: (() => {
-      const allTools = [...activeToolsSet];
-      const capConversation = new Set(getToolsWithCapability('conversationLogs'));
-      const capTokens = new Set(getToolsWithCapability('tokenUsage'));
-      const reporting = allTools.filter((t) => capConversation.has(t) || capTokens.has(t));
-      const withoutData = allTools.filter((t) => !capConversation.has(t) && !capTokens.has(t));
-      const capsAvailable: string[] = [];
-      const capsMissing: string[] = [];
-      if (allTools.some((t) => capConversation.has(t))) capsAvailable.push('conversationLogs');
-      else if (allTools.length > 0) capsMissing.push('conversationLogs');
-      if (allTools.some((t) => capTokens.has(t))) capsAvailable.push('tokenUsage');
-      else if (allTools.length > 0) capsMissing.push('tokenUsage');
-      return {
-        tools_reporting: reporting,
-        tools_without_data: withoutData,
-        coverage_rate:
-          allTools.length > 0 ? Math.round((reporting.length / allTools.length) * 100) / 100 : 0,
-        capabilities_available: capsAvailable,
-        capabilities_missing: capsMissing,
-      };
-    })(),
-    teams_included: included,
-    degraded: failed > 0,
-  });
+      edit_velocity: [...velocityAcc.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([day, v]) => ({
+          day,
+          edits_per_hour: v.hours > 0 ? Math.round((v.edits / v.hours) * 10) / 10 : 0,
+          lines_per_hour: v.hours > 0 ? Math.round((v.lines / v.hours) * 10) / 10 : 0,
+          total_session_hours: Math.round(v.hours * 100) / 100,
+        })),
+      memory_usage: {
+        total_memories: memoryAcc.total_memories,
+        searches: memoryAcc.searches,
+        searches_with_results: memoryAcc.searches_with_results,
+        search_hit_rate:
+          memoryAcc.searches > 0
+            ? Math.round((memoryAcc.searches_with_results / memoryAcc.searches) * 1000) / 10
+            : 0,
+        memories_created_period: memoryAcc.memories_created_period,
+        memories_updated_period: memoryAcc.memories_updated_period,
+        stale_memories: memoryAcc.stale_memories,
+        avg_memory_age_days:
+          memoryAcc.age_count > 0
+            ? Math.round((memoryAcc.age_sum / memoryAcc.age_count) * 10) / 10
+            : 0,
+      },
+      work_type_outcomes: [...workTypeOutcomesAcc.entries()]
+        .sort(([, a], [, b]) => b.sessions - a.sessions)
+        .map(([work_type, v]) => ({
+          work_type,
+          sessions: v.sessions,
+          completed: v.completed,
+          abandoned: v.abandoned,
+          failed: v.failed,
+          completion_rate: v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
+        })),
+      conversation_edit_correlation: [...convEditAcc.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([bucket, v]) => ({
+          bucket,
+          sessions: v.sessions,
+          avg_edits: v.sessions > 0 ? Math.round(v.total_edits / v.sessions) : 0,
+          avg_lines: v.sessions > 0 ? Math.round(v.total_lines / v.sessions) : 0,
+          completion_rate: v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
+        })),
+      file_rework: [...fileReworkAcc.entries()]
+        .sort(
+          ([, a], [, b]) =>
+            (b.total_edits > 0 ? b.failed_edits / b.total_edits : 0) -
+            (a.total_edits > 0 ? a.failed_edits / a.total_edits : 0),
+        )
+        .slice(0, 20)
+        .map(([file, v]) => ({
+          file,
+          total_edits: v.total_edits,
+          failed_edits: v.failed_edits,
+          rework_ratio:
+            v.total_edits > 0 ? Math.round((v.failed_edits / v.total_edits) * 100) / 100 : 0,
+        })),
+      directory_heatmap: [...dirHeatmapAcc.entries()]
+        .sort(([, a], [, b]) => b.touch_count - a.touch_count)
+        .slice(0, 20)
+        .map(([directory, v]) => ({
+          directory,
+          touch_count: v.touch_count,
+          file_count: v.file_count,
+          total_lines: v.total_lines,
+          completion_rate: v.rate_count > 0 ? Math.round((v.rate_sum / v.rate_count) * 10) / 10 : 0,
+        })),
+      stuckness: {
+        total_sessions: stucknessAcc.total_sessions,
+        stuck_sessions: stucknessAcc.stuck_sessions,
+        stuckness_rate:
+          stucknessAcc.total_sessions > 0
+            ? Math.round((stucknessAcc.stuck_sessions / stucknessAcc.total_sessions) * 1000) / 10
+            : 0,
+        stuck_completion_rate:
+          stucknessAcc.stuck_total > 0
+            ? Math.round((stucknessAcc.stuck_completed / stucknessAcc.stuck_total) * 1000) / 10
+            : 0,
+        normal_completion_rate:
+          stucknessAcc.normal_total > 0
+            ? Math.round((stucknessAcc.normal_completed / stucknessAcc.normal_total) * 1000) / 10
+            : 0,
+      },
+      file_overlap: {
+        total_files: fileOverlapAcc.total_files,
+        overlapping_files: fileOverlapAcc.overlapping_files,
+        overlap_rate:
+          fileOverlapAcc.total_files > 0
+            ? Math.round((fileOverlapAcc.overlapping_files / fileOverlapAcc.total_files) * 1000) /
+              10
+            : 0,
+      },
+      audit_staleness: [...auditStalenessAcc.entries()]
+        .sort(([, a], [, b]) => b.days_since - a.days_since)
+        .slice(0, 20)
+        .map(([directory, v]) => ({
+          directory,
+          last_edit: v.last_edit,
+          days_since: v.days_since,
+          prior_edit_count: v.prior_edit_count,
+        })),
+      first_edit_stats: {
+        avg_minutes_to_first_edit:
+          firstEditAcc.count > 0
+            ? Math.round((firstEditAcc.sum_avg / firstEditAcc.count) * 10) / 10
+            : 0,
+        median_minutes_to_first_edit:
+          firstEditAcc.count > 0
+            ? Math.round((firstEditAcc.sum_median / firstEditAcc.count) * 10) / 10
+            : 0,
+        by_tool: [...firstEditAcc.by_tool.entries()]
+          .sort(([, a], [, b]) => b.sessions - a.sessions)
+          .map(([host_tool, v]) => ({
+            host_tool,
+            avg_minutes: v.sessions > 0 ? Math.round((v.sum_avg / v.sessions) * 10) / 10 : 0,
+            sessions: v.sessions,
+          })),
+      },
+      memory_outcome_correlation: [...memOutcomeAcc.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([bucket, v]) => ({
+          bucket,
+          sessions: v.sessions,
+          completed: v.completed,
+          completion_rate: v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
+        })),
+      top_memories: [...topMemoriesAcc.entries()]
+        .sort(([, a], [, b]) => b.access_count - a.access_count)
+        .slice(0, 20)
+        .map(([id, v]) => ({
+          id,
+          text_preview: v.text_preview,
+          access_count: v.access_count,
+          last_accessed_at: v.last_accessed_at,
+          created_at: v.created_at,
+        })),
+      period_comparison: (() => {
+        const cs = periodCurrentAcc.total_sessions_sum;
+        const ps = periodPreviousAcc.total_sessions_sum;
+        return {
+          current: {
+            completion_rate:
+              cs > 0 ? Math.round((periodCurrentAcc.completion_sum / cs) * 10) / 10 : 0,
+            avg_duration_min:
+              cs > 0 ? Math.round((periodCurrentAcc.duration_sum / cs) * 10) / 10 : 0,
+            stuckness_rate: cs > 0 ? Math.round((periodCurrentAcc.stuck_sum / cs) * 10) / 10 : 0,
+            memory_hit_rate:
+              cs > 0 ? Math.round((periodCurrentAcc.memory_hit_sum / cs) * 10) / 10 : 0,
+            edit_velocity: cs > 0 ? Math.round((periodCurrentAcc.velocity_sum / cs) * 10) / 10 : 0,
+            total_sessions: cs,
+          },
+          previous:
+            periodPreviousAcc.count > 0
+              ? {
+                  completion_rate:
+                    ps > 0 ? Math.round((periodPreviousAcc.completion_sum / ps) * 10) / 10 : 0,
+                  avg_duration_min:
+                    ps > 0 ? Math.round((periodPreviousAcc.duration_sum / ps) * 10) / 10 : 0,
+                  stuckness_rate:
+                    ps > 0 ? Math.round((periodPreviousAcc.stuck_sum / ps) * 10) / 10 : 0,
+                  memory_hit_rate:
+                    ps > 0 ? Math.round((periodPreviousAcc.memory_hit_sum / ps) * 10) / 10 : 0,
+                  edit_velocity:
+                    ps > 0 ? Math.round((periodPreviousAcc.velocity_sum / ps) * 10) / 10 : 0,
+                  total_sessions: ps,
+                }
+              : null,
+        };
+      })(),
+      token_usage: tokenUsagePayload,
+      scope_complexity: [...scopeComplexityAcc.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([bucket, v]) => ({
+          bucket,
+          sessions: v.sessions,
+          avg_edits: v.sessions > 0 ? Math.round(v.edits_sum / v.sessions) : 0,
+          avg_duration_min:
+            v.sessions > 0 ? Math.round((v.duration_sum / v.sessions) * 10) / 10 : 0,
+          completion_rate: v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
+        })),
+      prompt_efficiency: [...promptEfficiencyAcc.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([day, v]) => ({
+          day,
+          avg_turns_per_edit: v.sessions > 0 ? Math.round((v.turns_sum / v.sessions) * 10) / 10 : 0,
+          sessions: v.sessions,
+        })),
+      hourly_effectiveness: [...hourlyEffectivenessAcc.entries()]
+        .sort(([a], [b]) => a - b)
+        .map(([hour, v]) => ({
+          hour,
+          sessions: v.sessions,
+          completion_rate: v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
+          avg_edits: v.sessions > 0 ? Math.round(v.edits_sum / v.sessions) : 0,
+        })),
+      outcome_tags: [...outcomeTagsAcc.entries()]
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 30)
+        .map(([key, count]) => {
+          const sep = key.lastIndexOf(':');
+          return { tag: key.slice(0, sep), outcome: key.slice(sep + 1), count };
+        }),
+      tool_handoffs: [...toolHandoffsAcc.entries()]
+        .sort(([, a], [, b]) => b.file_count - a.file_count)
+        .slice(0, 20)
+        .map(([key, v]) => {
+          const sep = key.indexOf(':');
+          return {
+            from_tool: key.slice(0, sep),
+            to_tool: key.slice(sep + 1),
+            file_count: v.file_count,
+            handoff_completion_rate:
+              v.total > 0 ? Math.round((v.completed / v.total) * 1000) / 10 : 0,
+          };
+        }),
+      commit_stats: (() => {
+        const totalSessions = completionAcc.total_sessions || 1;
+        return {
+          total_commits: commitAcc.total_commits,
+          commits_per_session:
+            totalSessions > 0
+              ? Math.round((commitAcc.total_commits / totalSessions) * 100) / 100
+              : 0,
+          sessions_with_commits: commitAcc.sessions_with_commits,
+          avg_time_to_first_commit_min:
+            commitAcc.ttfc_count > 0
+              ? Math.round((commitAcc.ttfc_sum / commitAcc.ttfc_count) * 10) / 10
+              : null,
+          by_tool: [...commitByTool.entries()]
+            .sort(([, a], [, b]) => b.commits - a.commits)
+            .map(([host_tool, v]) => ({
+              host_tool,
+              commits: v.commits,
+              avg_files_changed:
+                v.commits > 0 ? Math.round((v.files_sum / v.commits) * 10) / 10 : 0,
+              avg_lines: v.commits > 0 ? Math.round((v.lines_sum / v.commits) * 10) / 10 : 0,
+            })),
+          daily_commits: [...commitDaily.entries()]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([day, commits]) => ({ day, commits })),
+          outcome_correlation: [...commitOutcomeAcc.entries()]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([bucket, v]) => ({
+              bucket,
+              sessions: v.sessions,
+              completed: v.completed,
+              completion_rate:
+                v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
+            })),
+          commit_edit_ratio: [...commitEditRatioAcc.entries()].map(([bucket, v]) => ({
+            bucket,
+            sessions: v.sessions,
+            completion_rate:
+              v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
+            avg_edits: v.sessions > 0 ? Math.round((v.edits_sum / v.sessions) * 10) / 10 : 0,
+            avg_commits: v.sessions > 0 ? Math.round((v.commits_sum / v.sessions) * 10) / 10 : 0,
+          })),
+        };
+      })(),
+      data_coverage: (() => {
+        const allTools = [...activeToolsSet];
+        const capConversation = new Set(getToolsWithCapability('conversationLogs'));
+        const capTokens = new Set(getToolsWithCapability('tokenUsage'));
+        const reporting = allTools.filter((t) => capConversation.has(t) || capTokens.has(t));
+        const withoutData = allTools.filter((t) => !capConversation.has(t) && !capTokens.has(t));
+        const capsAvailable: string[] = [];
+        const capsMissing: string[] = [];
+        if (allTools.some((t) => capConversation.has(t))) capsAvailable.push('conversationLogs');
+        else if (allTools.length > 0) capsMissing.push('conversationLogs');
+        if (allTools.some((t) => capTokens.has(t))) capsAvailable.push('tokenUsage');
+        else if (allTools.length > 0) capsMissing.push('tokenUsage');
+        return {
+          tools_reporting: reporting,
+          tools_without_data: withoutData,
+          coverage_rate:
+            allTools.length > 0 ? Math.round((reporting.length / allTools.length) * 100) / 100 : 0,
+          capabilities_available: capsAvailable,
+          capabilities_missing: capsMissing,
+        };
+      })(),
+      teams_included: included,
+      degraded: failed > 0,
+    },
+    200,
+    { schema: userAnalyticsSchema },
+  );
 });
 
 function todayStr(): string {
