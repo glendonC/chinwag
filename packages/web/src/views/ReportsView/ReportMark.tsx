@@ -1,6 +1,7 @@
-// Per-report Lucide icon. Stroke is painted with a per-report SVG
-// linear gradient defined in ReportGradientDefs (same document), so the
-// icon's silhouette carries the same hue-family as the row's mesh.
+// Per-report Lucide icon. Stroke is painted in a single solid color —
+// the report's accent — giving each report a quiet identity cue
+// without the gradient decoration that previously made the catalog
+// feel performative.
 
 import type { ReactNode } from 'react';
 import { Compass, Flame, GitMerge, Radio, type LucideIcon } from 'lucide-react';
@@ -12,25 +13,16 @@ const MARKS: Record<string, LucideIcon> = {
   'onboarding-brief': Compass,
 };
 
-export function reportGradientId(reportId: string): string {
-  return `report-icon-grad-${reportId}`;
-}
-
 export function ReportMark({
   reportId,
+  color,
   size = 56,
 }: {
   reportId: string;
+  color?: string;
   size?: number;
 }): ReactNode {
   const Icon = MARKS[reportId];
   if (!Icon) return null;
-  return (
-    <Icon
-      size={size}
-      strokeWidth={1.5}
-      absoluteStrokeWidth
-      color={`url(#${reportGradientId(reportId)})`}
-    />
-  );
+  return <Icon size={size} strokeWidth={1.5} absoluteStrokeWidth color={color ?? 'currentColor'} />;
 }

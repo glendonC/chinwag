@@ -1,7 +1,8 @@
 /* ═══════════════════════════════════════════
    ReportDetailView — report home page
-   Header → hero (description + launch) → latest →
-   metadata → past runs.
+   Header → launch → past runs table → reads. Single-page, no tabs,
+   no colored hero block, no pill chips, no status dots, no row-level
+   exceptions. Utilitarian — everything that survives is functional.
    ═══════════════════════════════════════════ */
 
 .detail {
@@ -31,13 +32,6 @@
   gap: 18px;
 }
 
-.headerMain {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 32px;
-}
-
 .headerCopy {
   display: flex;
   flex-direction: column;
@@ -63,230 +57,70 @@
   margin: 0;
 }
 
-.headerTagline {
+.headerDescription {
   font-size: var(--text-md);
-  color: var(--soft);
-  line-height: 1.4;
+  color: var(--muted);
+  line-height: 1.55;
   margin: 0;
-  font-weight: 300;
-}
-
-/* ── Hero block (description + launch CTA + trust line) ── */
-
-.heroBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 28px 28px 24px;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--report-color) 5%, transparent);
-  position: relative;
-  overflow: hidden;
-}
-
-.heroBlock::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--report-gradient);
-  opacity: 0.06;
-  pointer-events: none;
-}
-
-.heroBlockInner {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  gap: 32px;
-  justify-content: space-between;
-}
-
-.heroCopy {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
   max-width: 640px;
 }
 
-.heroLabel {
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  color: var(--muted);
-  letter-spacing: var(--tracking-eyebrow);
-  text-transform: uppercase;
-}
+/* ── Launch row ──
+   Button only — the trust line was chrome. The Launch button carries
+   the report's accent color so the primary action reads at a glance;
+   the run page shows `via Claude Code` when actually launched. */
 
-.heroDescription {
-  font-size: var(--text-md);
-  color: var(--ink);
-  line-height: 1.55;
-  margin: 0;
-  font-weight: 300;
+.launchRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 .launchBtn {
-  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 22px;
-  border-radius: var(--radius-pill);
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: var(--radius-xs);
   background: var(--report-color);
   color: #fff;
   border: none;
   font-family: var(--sans);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: var(--text-base);
+  font-weight: 400;
   cursor: pointer;
   transition:
     transform var(--motion-fast) ease,
     box-shadow 0.2s var(--motion);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
 }
 
 .launchBtn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 20px -8px var(--report-color);
+  box-shadow: 0 6px 16px -8px var(--report-color);
 }
 
 .launchBtn:active {
   transform: translateY(0);
 }
 
-.trustLine {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+/* ── Section label ──
+   Uniform label across runs + reads so those sections read as
+   siblings, not as visually distinct cards. */
+
+.sectionLabel {
   font-family: var(--mono);
   font-size: var(--text-2xs);
-  color: var(--muted);
-  letter-spacing: var(--tracking-stat);
-  padding-top: 4px;
-}
-
-.trustDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--report-color);
-  flex-shrink: 0;
-}
-
-/* ── Latest run row (highlighted) ── */
-
-.latestBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.latestRow {
-  display: grid;
-  grid-template-columns: minmax(120px, auto) 1fr auto;
-  align-items: center;
-  gap: 24px;
-  padding: 14px 18px;
-  background: transparent;
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  text-align: left;
-  font-family: var(--mono);
-  transition:
-    background var(--motion-fast) ease,
-    color var(--motion-fast) ease;
-}
-
-.latestRow:hover {
-  background: var(--ghost);
-}
-
-.latestRowDate {
-  font-size: var(--text-sm);
-  color: var(--ink);
-  letter-spacing: var(--tracking-stat);
-}
-
-.latestRowMeta {
-  font-size: var(--text-xs);
   color: var(--soft);
-  letter-spacing: var(--tracking-stat);
-}
-
-.latestRowAction {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--text-2xs);
-  color: var(--report-color);
-  letter-spacing: var(--tracking-stat);
+  letter-spacing: var(--tracking-eyebrow);
   text-transform: uppercase;
 }
 
-.latestRow:hover .latestRowAction {
-  transform: translateX(2px);
-  transition: transform var(--motion-fast) ease;
-}
-
-/* ── Metadata grid (Reads / Produces) ── */
-
-.metaGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
-}
-
-.metaBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.chipList {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.chip {
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  color: var(--ink);
-  padding: 5px 11px;
-  background: var(--ghost);
-  border-radius: var(--radius-pill);
-  letter-spacing: var(--tracking-stat);
-}
-
-/* ── Example finding ── */
-
-.exampleBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-width: 820px;
-}
-
-.example {
-  font-size: var(--text-md);
-  color: var(--ink);
-  line-height: 1.6;
-  font-style: italic;
-  margin: 0;
-  padding-left: 16px;
-  border-left: 2px solid var(--report-color);
-  opacity: 0.92;
-  font-weight: 300;
-}
-
-/* ── Past runs list ── */
+/* ── Past runs table ──
+   Four columns, mono typography, tabular-nums. Header row mirrors the
+   catalog header's pattern (same letter-spacing, same muted weight)
+   so the two tables read as one vocabulary. No status dots — status
+   lives in the Findings cell as prose (running / queued / failed). */
 
 .runsSection {
   display: flex;
@@ -294,111 +128,120 @@
   gap: 14px;
 }
 
-.runsHeader {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-}
-
-.runs {
+.runsTable {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
 .runsEmpty {
-  font-family: var(--mono);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   color: var(--muted);
-  letter-spacing: var(--tracking-stat);
   margin: 0;
-  padding: 10px 0;
+  padding: 8px 0;
+}
+
+/* Row grid — shared by header row and every data row so columns align
+   pixel-perfect. Left-aligned date + findings + duration, right-
+   aligned path. */
+.runsHeaderRow,
+.runRow {
+  display: grid;
+  grid-template-columns: 120px minmax(180px, 1fr) 100px 140px;
+  align-items: baseline;
+  column-gap: 28px;
+  padding: 10px 14px;
+}
+
+.runsHeaderRow {
+  font-family: var(--mono);
+  font-size: var(--text-10);
+  font-weight: 500;
+  color: var(--soft);
+  letter-spacing: var(--tracking-table);
+  text-transform: uppercase;
+  padding-bottom: 8px;
+}
+
+.runsHeaderCell {
+  white-space: nowrap;
+}
+
+.runsHeaderCell:last-child {
+  justify-self: end;
 }
 
 .runRow {
-  display: grid;
-  grid-template-columns: 10px 110px 1fr auto auto;
-  align-items: center;
-  column-gap: 18px;
-  padding: 12px 14px;
   background: transparent;
   border: none;
   cursor: pointer;
   font-family: var(--mono);
   font-size: var(--text-xs);
-  color: var(--soft);
   text-align: left;
   border-radius: var(--radius-xs);
-  transition:
-    background var(--motion-fast) ease,
-    color var(--motion-fast) ease;
+  width: 100%;
+  transition: background var(--motion-fast) ease;
 }
 
 .runRow:hover {
   background: var(--ghost);
-  color: var(--ink);
-}
-
-.runDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  justify-self: center;
-}
-
-.runDotComplete {
-  background: var(--success);
-}
-
-.runDotFailed {
-  background: var(--danger);
-}
-
-.runDotRunning {
-  background: var(--report-color);
-  animation: livePulse 2s ease-in-out infinite;
-}
-
-.runDotQueued {
-  background: var(--muted);
-}
-
-@keyframes livePulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
 }
 
 .runDate {
   color: var(--ink);
   letter-spacing: var(--tracking-stat);
+  font-variant-numeric: tabular-nums;
 }
 
 .runMeta {
-  color: var(--soft);
+  color: var(--muted);
   letter-spacing: var(--tracking-stat);
+  font-variant-numeric: tabular-nums;
 }
 
 .runPath {
-  color: var(--muted);
+  color: var(--soft);
   letter-spacing: var(--tracking-stat);
   text-transform: lowercase;
+  justify-self: end;
 }
 
-.runChevron {
+/* ── Earlier runs expand link ── */
+
+.earlierLink {
+  align-self: flex-start;
+  background: transparent;
+  border: none;
+  padding: 10px 14px;
+  font-family: var(--mono);
+  font-size: var(--text-xs);
   color: var(--muted);
+  letter-spacing: var(--tracking-stat);
+  cursor: pointer;
+  transition: color var(--motion-fast) ease;
 }
 
-.runRow:hover .runChevron {
-  color: var(--report-color);
-  transform: translateX(2px);
-  transition:
-    transform var(--motion-fast) ease,
-    color var(--motion-fast) ease;
+.earlierLink:hover {
+  color: var(--ink);
+}
+
+/* ── Reads row ──
+   Plain inline text, not pills — the chips created a false
+   affordance (no click target exists for "session outcomes"). Prose
+   is more honest and takes less real estate. */
+
+.readsRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.readsText {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0;
+  max-width: 60ch;
 }
 
 /* ── Not found ── */
@@ -420,7 +263,7 @@
 
 .notFoundBody {
   font-size: var(--text-sm);
-  color: var(--soft);
+  color: var(--muted);
   margin: 0;
   max-width: 640px;
 }
@@ -432,45 +275,22 @@
     gap: 28px;
   }
 
-  .headerMain {
-    flex-direction: column;
-    gap: 14px;
-  }
-
-  .heroBlock {
-    padding: 22px 20px 20px;
-  }
-
-  .heroBlockInner {
-    flex-direction: column;
-    gap: 18px;
-  }
-
-  .launchBtn {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .metaGrid {
-    grid-template-columns: 1fr;
-    gap: 22px;
-  }
-
+  .runsHeaderRow,
   .runRow {
-    grid-template-columns: 10px 1fr auto auto;
-    column-gap: 12px;
+    grid-template-columns: 90px 1fr 80px;
+    column-gap: 16px;
   }
 
-  .runDate {
+  .runsHeaderRow .runsHeaderCell:nth-child(4),
+  .runRow .runPath {
     display: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .latestRow,
+  .launchBtn,
   .runRow,
-  .runChevron,
-  .launchBtn {
+  .earlierLink {
     transition: none;
   }
 }

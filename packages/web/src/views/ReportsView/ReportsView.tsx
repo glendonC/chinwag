@@ -15,11 +15,10 @@ import { useQueryParam, setQueryParam } from '../../lib/router.js';
 import { agentGradient } from '../../lib/agentGradient.js';
 import { projectGradient } from '../../lib/projectGradient.js';
 import { REPORT_CATALOG, reportHex, type ReportDef } from './report-catalog.js';
-import { hexToHue } from './reportMesh.js';
-import { ReportMark, reportGradientId } from './ReportMark.js';
+import { ReportMark } from './ReportMark.js';
 import { getLatestRun, getRunsForReport } from './mock-runs.js';
+import { getCompletedReportFor } from './mock-findings.js';
 import { computeFreshness, formatFreshness } from './freshness.js';
-import { getPathAvailability } from './reports-path.js';
 import type { MockRun } from './types.js';
 import ReportRunView from './ReportRunView.js';
 import ReportDetailView from './ReportDetailView.js';
@@ -27,53 +26,16 @@ import styles from './ReportsView.module.css';
 
 // ── format helpers ──
 
-function formatRelativeDate(iso: string): string {
-  const date = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins < 1) return 'just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  const diffHrs = Math.floor(diffMins / 60);
-  if (diffHrs < 24) return `${diffHrs}h ago`;
-  const diffDays = Math.floor(diffHrs / 24);
-  if (diffDays === 1) return 'yesterday';
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
-
-// ── Per-report icon gradient defs ──
-//
-// Each Lucide icon in a row references its own <linearGradient> by id
-// (via `color="url(#...)"`). The gradients live in one hidden SVG at
-// the top of the catalog — cross-SVG id references work as long as
-// everything lives in the same document.
-
-function ReportGradientDefs(): ReactNode {
-  return (
-    <svg width={0} height={0} aria-hidden="true" className={styles.gradientDefs}>
-      <defs>
-        {REPORT_CATALOG.map((report) => {
-          const hex = reportHex(report);
-          const h = hexToHue(hex);
-          const accent = (h + 160) % 360;
-          return (
-            <linearGradient
-              key={report.id}
-              id={reportGradientId(report.id)}
-              x1="0%"
-              y1="0%"
-              x2="100%"
-              y2="100%"
-            >
-              <stop offset="0%" stopColor={`hsl(${h}, 78%, 58%)`} />
-              <stop offset="100%" stopColor={`hsl(${accent}, 62%, 66%)`} />
-            </linearGradient>
-          );
-        })}
-      </defs>
-    </svg>
-  );
+// One-line hint for the collapsed hover. Adapts to run state. Never
+// claims more than the data: "N findings last run" is honest; "N
+// critical" is not until severity has a real rubric per report.
+function formatHoverHint(latestRun: MockRun | undefined): string {
+  if (!latestRun) return 'Not yet run';
+  if (latestRun.status === 'running') return 'Running now';
+  if (latestRun.status === 'queued') return 'Queued';
+  if (latestRun.status === 'failed') return 'Last run failed';
+  const n = latestRun.findingsCount ?? 0;
+  return `${n} finding${n === 1 ? '' : 's'} last run`;
 }
 
 // ── Column header row (matches the row grid template) ──
@@ -121,7 +83,7 @@ const ReportRow = memo(function ReportRow({
       onClick={() => onView(report)}
     >
       <div className={styles.rowArt} aria-hidden="true">
-        <ReportMark reportId={report.id} />
+        <ReportMark reportId={report.id} color={hex} />
       </div>
 
       <div className={styles.rowBody}>
@@ -139,26 +101,51 @@ const ReportRow = memo(function ReportRow({
 });
 
 // ── Hover preview tooltip (positioned adjacent to card) ──
+//
+// Two states, one panel. Collapsed by default: title, description,
+// one-line hint, action bar. `D` expands to reveal Reads, the latest
+// finding (real when a run exists, template-only before any run),
+// and a runs-total microline. `D` again or hovering a different
+// report resets to collapsed.
+//
+// Nothing here fabricates: no cost estimate, no "quality" claim, no
+// severity count without a rubric. The hint line says what the
+// backend can honestly report.
 
 function HoverTooltip({
   report,
   pastRuns,
   latestRun,
+  expanded,
   style,
   visible,
 }: {
   report: ReportDef;
   pastRuns: MockRun[];
   latestRun: MockRun | undefined;
+  expanded: boolean;
   style: CSSProperties | undefined;
   visible: boolean;
 }): ReactNode {
   const hex = reportHex(report);
-  const path = getPathAvailability();
+  const completed = getCompletedReportFor(report.id);
+
+  // Latest finding surfaces only when a completed run has real findings.
+  // Before first run, the expanded state just shows Reads — no template
+  // masquerading as a live result.
+  const hasLatest = latestRun?.status === 'complete' && completed && completed.findings.length > 0;
+  const latestTitle = hasLatest ? completed.findings[0].title : null;
+  const moreCount = hasLatest
+    ? Math.max(0, (latestRun.findingsCount ?? completed.findings.length) - 1)
+    : 0;
 
   return (
     <div
-      className={clsx(styles.tooltip, visible && styles.tooltipVisible)}
+      className={clsx(
+        styles.tooltip,
+        visible && styles.tooltipVisible,
+        expanded && styles.tooltipExpanded,
+      )}
       style={
         {
           ...style,
@@ -167,57 +154,50 @@ function HoverTooltip({
       }
       aria-hidden="true"
     >
-      <div className={styles.tooltipHeader}>
-        <span className={styles.tooltipName}>{report.name}</span>
-      </div>
+      <span className={styles.tooltipName}>{report.name}</span>
 
       <p className={styles.tooltipDescription}>{report.description}</p>
 
-      <div className={styles.tooltipChipBlock}>
-        <span className={styles.tooltipChipLabel}>Reads</span>
-        <div className={styles.tooltipChips}>
-          {report.reads.slice(0, 4).map((r) => (
-            <span key={r} className={styles.tooltipChip}>
-              {r}
-            </span>
-          ))}
-        </div>
-      </div>
+      {!expanded && <span className={styles.tooltipHint}>{formatHoverHint(latestRun)}</span>}
 
-      <div className={styles.tooltipExample}>
-        <span className={styles.tooltipExampleLabel}>Example finding</span>
-        <p className={styles.tooltipExampleText}>{report.exampleInsight}</p>
-      </div>
+      {expanded && (
+        <>
+          <div className={styles.tooltipBlock}>
+            <span className={styles.tooltipBlockLabel}>Reads</span>
+            <p className={styles.tooltipReadsText}>
+              {report.reads.map((r) => r.toLowerCase()).join(', ')}.
+            </p>
+          </div>
 
-      {pastRuns.length > 0 && latestRun && (
-        <div className={styles.tooltipRunsBlock}>
-          <span className={styles.tooltipRunsLabel}>Past runs · {pastRuns.length}</span>
-          {latestRun.status === 'complete' && (
-            <span className={styles.tooltipRunsLatest}>
-              Last: {formatRelativeDate(latestRun.completedAt ?? latestRun.startedAt)} ·{' '}
-              {latestRun.findingsCount ?? 0} findings
-              {latestRun.criticalCount ? ` · ${latestRun.criticalCount} critical` : ''}
+          {latestTitle && (
+            <div className={styles.tooltipBlock}>
+              <span className={styles.tooltipBlockLabel}>Latest finding</span>
+              <p className={styles.tooltipLatestTitle}>{latestTitle}</p>
+              {moreCount > 0 && (
+                <span className={styles.tooltipLatestMore}>
+                  + {moreCount} more finding{moreCount === 1 ? '' : 's'}
+                </span>
+              )}
+            </div>
+          )}
+
+          {pastRuns.length > 0 && (
+            <span className={styles.tooltipHint}>
+              {pastRuns.length} run{pastRuns.length === 1 ? '' : 's'} total
             </span>
           )}
-          {latestRun.status === 'running' && (
-            <span className={styles.tooltipRunsLatest}>
-              Currently running · {latestRun.currentPhase ?? 'starting'}
-            </span>
-          )}
-          {latestRun.status === 'queued' && (
-            <span className={styles.tooltipRunsLatest}>Queued · waiting for CLI</span>
-          )}
-        </div>
+        </>
       )}
-
-      <p className={styles.tooltipTrust}>{path.trustLine}</p>
 
       <div className={styles.tooltipActions}>
         <span className={styles.tooltipAction}>
-          <kbd className={styles.kbd}>Enter</kbd> View details
+          <kbd className={styles.kbd}>Enter</kbd> open
         </span>
         <span className={styles.tooltipAction}>
-          <kbd className={styles.kbd}>L</kbd> Launch run
+          <kbd className={styles.kbd}>L</kbd> launch
+        </span>
+        <span className={styles.tooltipAction}>
+          <kbd className={styles.kbd}>D</kbd> {expanded ? 'hide details' : 'show details'}
         </span>
       </div>
     </div>
@@ -261,18 +241,28 @@ function CatalogView(): ReactNode {
     REPORT_CATALOG[0]?.id ?? null,
   );
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
+  // Expansion is per-hover. Reset whenever the displayed report changes so
+  // a user who expanded report A and sweeps to report B doesn't see B's
+  // content pre-expanded.
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  const handleHover = useCallback((reportId: string | null, x?: number, y?: number) => {
-    if (reportId === null) {
-      setHoveredId(null);
-      return;
-    }
-    if (x != null && y != null) {
-      setHoveredId(reportId);
-      setDisplayReportId(reportId);
-      setHoverPos({ x, y });
-    }
-  }, []);
+  const handleHover = useCallback(
+    (reportId: string | null, x?: number, y?: number) => {
+      if (reportId === null) {
+        setHoveredId(null);
+        return;
+      }
+      if (x != null && y != null) {
+        setHoveredId(reportId);
+        if (reportId !== displayReportId) {
+          setDisplayReportId(reportId);
+          setIsExpanded(false);
+        }
+        setHoverPos({ x, y });
+      }
+    },
+    [displayReportId],
+  );
 
   // mouseLeave on the catalog (not individual rows) — so cursor crossing
   // between rows keeps the tooltip visible instead of flickering it out
@@ -286,9 +276,10 @@ function CatalogView(): ReactNode {
   }, []);
 
   // Keyboard shortcuts on the hovered row. Mirrors DirectoryView: while a
-  // row is hovered, Enter navigates to the detail view and L launches a
-  // fresh run directly (skipping the detail page). Guarded against focus
-  // inside any text input so typing elsewhere on the page is unaffected.
+  // row is hovered, Enter navigates to the detail view, L launches a fresh
+  // run directly (skipping the detail page), and D toggles the hover
+  // between collapsed and expanded. Guarded against focus inside any text
+  // input so typing elsewhere on the page is unaffected.
   useEffect(() => {
     if (!hoveredId) return;
     const onKey = (e: KeyboardEvent) => {
@@ -299,6 +290,9 @@ function CatalogView(): ReactNode {
         e.preventDefault();
       } else if (e.key === 'l' || e.key === 'L') {
         setQueryParam('run', `live-${hoveredId}-${Date.now()}`);
+        e.preventDefault();
+      } else if (e.key === 'd' || e.key === 'D') {
+        setIsExpanded((prev) => !prev);
         e.preventDefault();
       }
     };
@@ -353,8 +347,6 @@ function CatalogView(): ReactNode {
         </div>
       )}
 
-      <ReportGradientDefs />
-
       <CatalogHeader />
 
       <div className={styles.catalog} onMouseLeave={handleCatalogLeave}>
@@ -385,6 +377,7 @@ function CatalogView(): ReactNode {
             report={displayReport}
             pastRuns={getRunsForReport(displayReport.id)}
             latestRun={getLatestRun(displayReport.id)}
+            expanded={isExpanded}
             style={tooltipStyle}
             visible={!!hoveredId}
           />,

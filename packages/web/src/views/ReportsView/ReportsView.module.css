@@ -86,13 +86,6 @@
    rows aligned pixel-perfect — same track sizing and gap on both.
    ═══════════════════════════════════════════ */
 
-.gradientDefs {
-  position: absolute;
-  width: 0;
-  height: 0;
-  pointer-events: none;
-}
-
 .catalogHeader {
   display: grid;
   grid-template-columns: var(--row-grid);
@@ -261,7 +254,7 @@
 .tooltip {
   position: fixed;
   z-index: 100;
-  width: 380px;
+  width: 340px;
   padding: 22px 24px;
   display: flex;
   flex-direction: column;
@@ -269,9 +262,8 @@
   background: var(--page-bg);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg), var(--shadow-xs);
-  /* Clips the ::before mesh to the tooltip's rounded border. Safe for
-     the box-shadow — shadows render outside the element's border box,
-     they're not affected by overflow: hidden on the element. */
+  /* Clips the ::before wash to the rounded border. Safe for the
+     box-shadow — shadows render outside the element's border box. */
   overflow: hidden;
   opacity: 0;
   pointer-events: none;
@@ -301,124 +293,91 @@
     transform 0.12s ease 0.15s;
 }
 
-.tooltipHeader {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+/* The expanded state doesn't need its own visual treatment — the extra
+   blocks inherit the same vertical rhythm. This class is kept as a hook
+   for future per-state tweaks (e.g. subtle animation on block reveal). */
+.tooltipExpanded {
+  /* reserved */
 }
 
 .tooltipName {
   font-family: var(--display);
-  font-size: var(--text-lg);
+  font-size: var(--text-xl);
   font-weight: 400;
   color: var(--ink);
   letter-spacing: -0.02em;
-  flex: 1;
+  line-height: 1.25;
 }
 
 .tooltipDescription {
-  font-size: var(--text-xs);
+  font-size: var(--text-base);
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* One-line hint in the collapsed state. Honest copy only — "N findings
+   last run" / "Not yet run" / "Running now". No fabricated severity
+   counts, no invented quality claims. */
+.tooltipHint {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
   color: var(--soft);
-  line-height: 1.55;
-  margin: 0;
+  letter-spacing: var(--tracking-stat);
+  font-variant-numeric: tabular-nums;
 }
 
-.tooltipChipBlock {
+/* Expanded-state blocks share a label + content pattern. */
+.tooltipBlock {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.tooltipChipLabel {
+.tooltipBlockLabel {
   font-family: var(--mono);
   font-size: var(--text-2xs);
-  color: var(--muted);
+  color: var(--soft);
   letter-spacing: var(--tracking-eyebrow);
   text-transform: uppercase;
 }
 
-.tooltipChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.tooltipChip {
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  color: var(--ink);
-  padding: 3px 9px;
-  background: var(--ghost);
-  border-radius: var(--radius-pill);
-  letter-spacing: var(--tracking-stat);
-}
-
-.tooltipExample {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.tooltipExampleLabel {
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
+.tooltipReadsText {
+  font-family: var(--sans);
+  font-size: var(--text-sm);
   color: var(--muted);
-  letter-spacing: var(--tracking-eyebrow);
-  text-transform: uppercase;
-}
-
-.tooltipExampleText {
-  font-size: var(--text-xs);
-  color: var(--ink);
   line-height: 1.55;
-  font-style: italic;
   margin: 0;
-  padding-left: 12px;
-  border-left: 1px solid var(--report-color);
-  opacity: 0.9;
 }
 
-.tooltipRunsBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.tooltipRunsLabel {
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  color: var(--muted);
-  letter-spacing: var(--tracking-eyebrow);
-  text-transform: uppercase;
-}
-
-.tooltipRunsLatest {
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
+.tooltipLatestTitle {
+  font-size: var(--text-base);
   color: var(--ink);
-  letter-spacing: var(--tracking-stat);
-}
-
-.tooltipTrust {
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  color: var(--muted);
-  letter-spacing: var(--tracking-stat);
   line-height: 1.5;
   margin: 0;
+  /* No italic, no border-left: the earlier pattern dressed a canned
+     string to look like a quote. With real findings, plain text is
+     more honest and reads cleaner. */
+}
+
+.tooltipLatestMore {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Tooltip actions row ──
-   Mirrors DirectoryView's .tooltipActions: flex row pinned to the bottom
-   with a hairline separator, kbd chips + label per action. Two actions
-   for Reports: Enter → detail view, L → launch run. */
+   Flex row pinned to the bottom. No divider line — spacing separates,
+   per the dashboard design rules. kbd chips + label per action. Three
+   actions: Enter → detail view, L → launch run, D → toggle details. */
 
 .tooltipActions {
   display: flex;
-  gap: 16px;
-  padding-top: 14px;
+  flex-wrap: wrap;
+  gap: 14px;
   margin-top: 4px;
-  border-top: 1px solid var(--ghost);
 }
 
 .tooltipAction {

@@ -1,19 +1,14 @@
-// Report detail view — opened when ?report=<id> is in the URL.
-// Lightweight "report home page": header, primary launch CTA, latest run
-// summary, past runs list, and the static "what this report does" content.
+// Report home page — opened when ?report=<id> is in the URL.
 //
-// Click "Launch" → spawns a fresh simulated run via ?run=live-<id>-<ts>
-// Click any past run → navigates to that run via ?run=<runId>
+// Header → launch → past runs table → reads. No expanded latest row
+// (locked row template, no per-row exceptions). No status dots. No
+// trust line chrome. Click any run → run page. Utilitarian pass.
 
 import { type CSSProperties, type ReactNode } from 'react';
-import clsx from 'clsx';
 import BackLink from '../../components/BackLink/BackLink.js';
-import SectionTitle from '../../components/SectionTitle/SectionTitle.js';
 import { setQueryParam } from '../../lib/router.js';
-import { agentGradient } from '../../lib/agentGradient.js';
-import { REPORT_CATALOG, reportHex } from './report-catalog.js';
-import { getRunsForReport, getLatestRun } from './mock-runs.js';
-import { getPathAvailability, pathShortLabel } from './reports-path.js';
+import { REPORT_CATALOG, reportHex, type ReportDef } from './report-catalog.js';
+import { getRunsForReport } from './mock-runs.js';
 import type { MockRun } from './types.js';
 import styles from './ReportDetailView.module.css';
 
@@ -21,6 +16,8 @@ interface Props {
   reportId: string;
   onBack: () => void;
 }
+
+const COMPACT_RUN_LIMIT = 8;
 
 // ── helpers ──
 
@@ -49,9 +46,39 @@ function formatRelativeDate(iso: string): string {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-// ── Past runs list ──
+// Short cadence token for the eyebrow. Derived from cadenceDays, not
+// from the prose `frequency` field (which is meant for longer
+// descriptions, not metadata chrome).
+function formatCadence(days: number | null): string {
+  if (days === null) return 'one-time';
+  if (days <= 1) return 'daily';
+  if (days <= 7) return 'weekly';
+  if (days <= 14) return 'bi-weekly';
+  if (days <= 30) return 'monthly';
+  if (days <= 90) return 'quarterly';
+  return 'yearly';
+}
 
-function PastRunsList({
+function findingsCell(run: MockRun): string {
+  if (run.status === 'complete') {
+    const n = run.findingsCount ?? 0;
+    return `${n} finding${n === 1 ? '' : 's'}`;
+  }
+  if (run.status === 'running') {
+    return run.currentPhase ? `running · ${run.currentPhase.toLowerCase()}` : 'running';
+  }
+  if (run.status === 'queued') return 'queued';
+  return 'failed';
+}
+
+function durationCell(run: MockRun): string {
+  if (run.status === 'complete' && run.durationMs) return formatDuration(run.durationMs);
+  return '—';
+}
+
+// ── Past runs (uniform table) ──
+
+function PastRuns({
   runs,
   onSelect,
 }: {
@@ -59,64 +86,76 @@ function PastRunsList({
   onSelect: (runId: string) => void;
 }): ReactNode {
   if (runs.length === 0) {
-    return <p className={styles.runsEmpty}>No past runs yet. Launch the first one above.</p>;
+    return (
+      <section className={styles.runsSection}>
+        <span className={styles.sectionLabel}>Past runs</span>
+        <p className={styles.runsEmpty}>No runs yet. Launch above to see findings.</p>
+      </section>
+    );
   }
 
+  const visible = runs.slice(0, COMPACT_RUN_LIMIT);
+  const hiddenCount = Math.max(0, runs.length - visible.length);
+
   return (
-    <div className={styles.runs}>
-      {runs.map((run) => {
-        const dotClass =
-          run.status === 'complete'
-            ? styles.runDotComplete
-            : run.status === 'failed'
-              ? styles.runDotFailed
-              : run.status === 'running'
-                ? styles.runDotRunning
-                : styles.runDotQueued;
+    <section className={styles.runsSection}>
+      <span className={styles.sectionLabel}>Past runs</span>
 
-        const meta =
-          run.status === 'complete'
-            ? `${formatDuration(run.durationMs ?? 0)} · ${run.findingsCount ?? 0} findings${
-                run.criticalCount ? ` · ${run.criticalCount} critical` : ''
-              }`
-            : run.status === 'failed'
-              ? `failed after ${formatDuration(run.durationMs ?? 0)}`
-              : run.status === 'running'
-                ? `${run.currentPhase ?? 'starting'}`
-                : 'waiting for CLI';
+      <div className={styles.runsTable}>
+        <div className={styles.runsHeaderRow} aria-hidden="true">
+          <span className={styles.runsHeaderCell}>Date</span>
+          <span className={styles.runsHeaderCell}>Findings</span>
+          <span className={styles.runsHeaderCell}>Duration</span>
+          <span className={styles.runsHeaderCell}>Path</span>
+        </div>
 
-        return (
+        {visible.map((run) => (
           <button
             key={run.id}
             type="button"
             className={styles.runRow}
             onClick={() => onSelect(run.id)}
           >
-            <span className={clsx(styles.runDot, dotClass)} aria-hidden="true" />
             <span className={styles.runDate}>
               {formatRelativeDate(run.completedAt ?? run.startedAt)}
             </span>
-            <span className={styles.runMeta}>{meta}</span>
-            <span className={styles.runPath}>{pathShortLabel(run.path)}</span>
-            <svg
-              className={styles.runChevron}
-              width="10"
-              height="10"
-              viewBox="0 0 10 10"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M3.5 2 6.5 5 3.5 8"
-                stroke="currentColor"
-                strokeWidth="1.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            <span className={styles.runMeta}>{findingsCell(run)}</span>
+            <span className={styles.runMeta}>{durationCell(run)}</span>
+            <span className={styles.runPath}>claude code</span>
           </button>
-        );
-      })}
+        ))}
+
+        {hiddenCount > 0 && (
+          <button type="button" className={styles.earlierLink}>
+            ↳ {hiddenCount} earlier run{hiddenCount === 1 ? '' : 's'}
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// ── Reads row (plain inline text, no pills) ──
+
+function ReadsRow({ reads }: { reads: string[] }): ReactNode {
+  return (
+    <section className={styles.readsRow}>
+      <span className={styles.sectionLabel}>Reads</span>
+      <p className={styles.readsText}>{reads.map((r) => r.toLowerCase()).join(', ')}.</p>
+    </section>
+  );
+}
+
+// ── Not-found body ──
+
+function NotFound({ onBack }: { onBack: () => void }): ReactNode {
+  return (
+    <div className={styles.detail}>
+      <div className={styles.notFound}>
+        <BackLink label="Reports" onClick={onBack} />
+        <h1 className={styles.notFoundTitle}>Report not found</h1>
+        <p className={styles.notFoundBody}>This report does not exist or has been removed.</p>
+      </div>
     </div>
   );
 }
@@ -124,30 +163,18 @@ function PastRunsList({
 // ── Main ──
 
 export default function ReportDetailView({ reportId, onBack }: Props): ReactNode {
-  const report = REPORT_CATALOG.find((r) => r.id === reportId);
+  const report: ReportDef | undefined = REPORT_CATALOG.find((r) => r.id === reportId);
 
-  if (!report) {
-    return (
-      <div className={styles.detail}>
-        <div className={styles.notFound}>
-          <BackLink label="Reports" onClick={onBack} />
-          <h1 className={styles.notFoundTitle}>Report not found</h1>
-          <p className={styles.notFoundBody}>This report does not exist or has been removed.</p>
-        </div>
-      </div>
-    );
-  }
+  if (!report) return <NotFound onBack={onBack} />;
 
   const hex = reportHex(report);
-  const pastRuns = getRunsForReport(report.id);
-  const latestRun = getLatestRun(report.id);
-  const path = getPathAvailability();
+  const runs = getRunsForReport(report.id);
 
-  const handleLaunch = () => {
+  const handleLaunch = (): void => {
     setQueryParam('run', `live-${report.id}-${Date.now()}`);
   };
 
-  const handleSelectRun = (runId: string) => {
+  const handleSelectRun = (runId: string): void => {
     setQueryParam('run', runId);
   };
 
@@ -157,114 +184,38 @@ export default function ReportDetailView({ reportId, onBack }: Props): ReactNode
       style={
         {
           '--report-color': hex,
-          '--report-gradient': agentGradient(hex),
         } as CSSProperties
       }
     >
       <header className={styles.header}>
         <BackLink label="Reports" onClick={onBack} />
-        <div className={styles.headerMain}>
-          <div className={styles.headerCopy}>
-            <span className={styles.headerEyebrow}>
-              {report.category} · {report.frequency}
-            </span>
-            <h1 className={styles.headerTitle}>{report.name}</h1>
-            <p className={styles.headerTagline}>{report.tagline}</p>
-          </div>
+        <div className={styles.headerCopy}>
+          <span className={styles.headerEyebrow}>
+            {report.category} · {formatCadence(report.cadenceDays)}
+          </span>
+          <h1 className={styles.headerTitle}>{report.name}</h1>
+          <p className={styles.headerDescription}>{report.description}</p>
         </div>
       </header>
 
-      <section className={styles.heroBlock}>
-        <div className={styles.heroBlockInner}>
-          <div className={styles.heroCopy}>
-            <span className={styles.heroLabel}>What this report does</span>
-            <p className={styles.heroDescription}>{report.description}</p>
-          </div>
-          <button type="button" className={styles.launchBtn} onClick={handleLaunch}>
-            <span>Launch</span>
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path
-                d="M2 7h9M6.5 2.5 11 7l-4.5 4.5"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-        </div>
-        <div className={styles.trustLine}>
-          <span className={styles.trustDot} aria-hidden="true" />
-          <span>{path.trustLine}</span>
-        </div>
-      </section>
+      <div className={styles.launchRow}>
+        <button type="button" className={styles.launchBtn} onClick={handleLaunch}>
+          <span>Launch</span>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path
+              d="M2 7h9M6.5 2.5 11 7l-4.5 4.5"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      </div>
 
-      {latestRun && latestRun.status === 'complete' && (
-        <section className={styles.latestBlock}>
-          <SectionTitle>Latest report</SectionTitle>
-          <button
-            type="button"
-            className={styles.latestRow}
-            onClick={() => handleSelectRun(latestRun.id)}
-          >
-            <span className={styles.latestRowDate}>
-              {formatRelativeDate(latestRun.completedAt ?? latestRun.startedAt)}
-            </span>
-            <span className={styles.latestRowMeta}>
-              {latestRun.findingsCount ?? 0} findings
-              {latestRun.criticalCount ? ` · ${latestRun.criticalCount} critical` : ''}
-              {latestRun.durationMs ? ` · ${formatDuration(latestRun.durationMs)}` : ''}
-            </span>
-            <span className={styles.latestRowAction}>
-              Open
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                <path
-                  d="M3.5 2 6.5 5 3.5 8"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </span>
-          </button>
-        </section>
-      )}
+      <PastRuns runs={runs} onSelect={handleSelectRun} />
 
-      <section className={styles.metaGrid}>
-        <div className={styles.metaBlock}>
-          <SectionTitle>Reads</SectionTitle>
-          <ul className={styles.chipList}>
-            {report.reads.map((r) => (
-              <li key={r} className={styles.chip}>
-                {r}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className={styles.metaBlock}>
-          <SectionTitle>Produces</SectionTitle>
-          <ul className={styles.chipList}>
-            {report.produces.map((p) => (
-              <li key={p} className={styles.chip}>
-                {p}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      <section className={styles.exampleBlock}>
-        <SectionTitle>Example finding</SectionTitle>
-        <p className={styles.example}>{report.exampleInsight}</p>
-      </section>
-
-      <section className={styles.runsSection}>
-        <div className={styles.runsHeader}>
-          <SectionTitle>Past runs {pastRuns.length > 0 && `· ${pastRuns.length}`}</SectionTitle>
-        </div>
-        <PastRunsList runs={pastRuns} onSelect={handleSelectRun} />
-      </section>
+      <ReadsRow reads={report.reads} />
     </div>
   );
 }
