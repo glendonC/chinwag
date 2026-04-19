@@ -144,7 +144,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     scope: 'both',
     viz: 'live-list',
     w: 12,
-    h: 3,
+    h: 4,
     minW: 4,
     minH: 2,
     dataKeys: ['dashboard'],
@@ -935,7 +935,7 @@ const VIZ_MAX_CONSTRAINTS: Record<WidgetViz, { maxW: number; maxH: number }> = {
   'topic-bars': { maxW: 8, maxH: 5 },
   'project-list': { maxW: 12, maxH: 6 },
   'bucket-chart': { maxW: 12, maxH: 5 },
-  'live-list': { maxW: 12, maxH: 3 },
+  'live-list': { maxW: 12, maxH: 4 },
 };
 
 // ── Lookup ───────────────────────────────────────
@@ -1031,8 +1031,10 @@ export const CATEGORIES: Array<{ id: WidgetCategory; label: string }> = [
 // (colSpan, rowSpan) sum per row totalling 12 cols.
 
 export const DEFAULT_LAYOUT: WidgetSlot[] = [
-  // Live presence + conflicts — 6 + 6
-  { id: 'live-agents', colSpan: 6, rowSpan: 3 },
+  // Live presence + conflicts — 6 + 6. live-agents at rowSpan 4 so 8
+  // agents (LIVE_AGENTS_CAP) fit simultaneously without overflow clipping;
+  // fitContent compresses back down for smaller teams.
+  { id: 'live-agents', colSpan: 6, rowSpan: 4 },
   { id: 'live-conflicts', colSpan: 6, rowSpan: 3 },
 
   // KPI strip — 4 + 4 + 4

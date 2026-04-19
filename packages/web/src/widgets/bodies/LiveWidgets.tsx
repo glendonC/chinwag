@@ -6,11 +6,18 @@ import ToolIcon from '../../components/ToolIcon/ToolIcon.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
 import { formatDuration } from '../../lib/utils.js';
 import { setQueryParam } from '../../lib/router.js';
-import styles from '../../views/OverviewView/OverviewView.module.css';
+import shared from '../widget-shared.module.css';
+import styles from './LiveWidgets.module.css';
 import { groupFilesByTeam } from '../live-data.js';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
 
-const LIVE_AGENTS_CAP = 3;
+// Simultaneous-visibility cap per the 04-19 audit: cap-at-3 hid 70% of a
+// 10-agent team behind a "+N more" link, which defeated the cockpit thesis
+// (cross-tool presence at a glance). 8 matches the 2026-04-13 worked-
+// example threshold where horizontal overflow was first surfaced; beyond
+// that the SectionOverflow link is the honest fallback. Widget body scrolls
+// if the cap exceeds the current rowSpan height.
+const LIVE_AGENTS_CAP = 8;
 
 function LiveAgentsWidget({ liveAgents }: WidgetBodyProps) {
   if (liveAgents.length === 0) {
@@ -65,31 +72,37 @@ function LiveAgentsWidget({ liveAgents }: WidgetBodyProps) {
   );
 }
 
-function LiveConflictsWidget({ liveAgents }: WidgetBodyProps) {
+function LiveConflictsWidget({ liveAgents, locks }: WidgetBodyProps) {
   const conflicts = useMemo(
     () => groupFilesByTeam(liveAgents).filter((g) => g.agents.length > 1),
     [liveAgents],
   );
+  // Cross-reference claim state via a pill (per 04-19 audit). The two data
+  // sources stay separate — a claim is intent, an active edit is action —
+  // but when a file appears in both we surface it so the conflict row
+  // signals "claim-backed collision," which escalates review priority.
+  const claimedFiles = useMemo(() => new Set(locks.map((l) => l.file_path)), [locks]);
 
   if (conflicts.length === 0) {
     return <SectionEmpty>No collisions right now</SectionEmpty>;
   }
 
   return (
-    <div className={styles.dataList}>
+    <div className={shared.dataList}>
       {conflicts.map((c, i) => (
         <div
           key={`${c.teamId}\u0000${c.file}`}
-          className={styles.dataRow}
+          className={shared.dataRow}
           style={{ '--row-index': i } as CSSProperties}
           title={c.file}
         >
-          <span className={styles.dataName}>{c.file}</span>
-          <div className={styles.dataMeta}>
-            <span className={styles.dataStat}>
-              <span className={styles.dataStatDanger}>{c.agents.length}</span> agents
+          <span className={shared.dataName}>{c.file}</span>
+          <div className={shared.dataMeta}>
+            {claimedFiles.has(c.file) && <span className={shared.statusPill}>claimed</span>}
+            <span className={shared.dataStat}>
+              <span className={shared.dataStatDanger}>{c.agents.length}</span> agents
             </span>
-            <span className={styles.dataStat}>{c.agents.map((a) => a.handle).join(' · ')}</span>
+            <span className={shared.dataStat}>{c.agents.map((a) => a.handle).join(' · ')}</span>
           </div>
         </div>
       ))}
@@ -97,7 +110,7 @@ function LiveConflictsWidget({ liveAgents }: WidgetBodyProps) {
   );
 }
 
-function FilesInPlayWidget({ liveAgents }: WidgetBodyProps) {
+function FilesInPlayWidget({ liveAgents, locks }: WidgetBodyProps) {
   const files = useMemo(
     () =>
       groupFilesByTeam(liveAgents)
@@ -105,13 +118,14 @@ function FilesInPlayWidget({ liveAgents }: WidgetBodyProps) {
         .slice(0, 12),
     [liveAgents],
   );
+  const claimedFiles = useMemo(() => new Set(locks.map((l) => l.file_path)), [locks]);
 
   if (files.length === 0) {
     return <SectionEmpty>No active files</SectionEmpty>;
   }
 
   return (
-    <div className={styles.dataList}>
+    <div className={shared.dataList}>
       {files.map((f, i) => {
         const multi = f.agents.length > 1;
         const lead = f.agents[0];
@@ -119,19 +133,20 @@ function FilesInPlayWidget({ liveAgents }: WidgetBodyProps) {
         return (
           <div
             key={`${f.teamId}\u0000${f.file}`}
-            className={styles.dataRow}
+            className={shared.dataRow}
             style={{ '--row-index': i } as CSSProperties}
             title={f.file}
           >
-            <span className={styles.dataName}>{f.file}</span>
-            <div className={styles.dataMeta}>
-              <span className={styles.dataStat}>
-                <span className={clsx(multi ? styles.dataStatDanger : styles.dataStatValue)}>
+            <span className={shared.dataName}>{f.file}</span>
+            <div className={shared.dataMeta}>
+              {claimedFiles.has(f.file) && <span className={shared.statusPill}>claimed</span>}
+              <span className={shared.dataStat}>
+                <span className={clsx(multi ? shared.dataStatDanger : shared.dataStatValue)}>
                   {f.agents.length}
                 </span>{' '}
                 {multi ? 'agents' : 'agent'}
               </span>
-              <span className={styles.dataStat}>
+              <span className={shared.dataStat}>
                 {lead.handle}
                 {extra > 0 ? ` +${extra}` : ''}
               </span>
@@ -154,23 +169,23 @@ function ClaimedFilesWidget({ locks }: WidgetBodyProps) {
   }
 
   return (
-    <div className={styles.dataList}>
+    <div className={shared.dataList}>
       {sorted.map((lock, i) => {
         const meta = getToolMeta(lock.host_tool ?? 'unknown');
         const minutes = lock.minutes_held ?? 0;
         return (
           <div
             key={`${lock.agent_id ?? lock.handle}\u0000${lock.file_path}`}
-            className={styles.dataRow}
+            className={shared.dataRow}
             style={{ '--row-index': i } as CSSProperties}
             title={lock.file_path}
           >
-            <span className={styles.dataName}>{lock.file_path}</span>
-            <div className={styles.dataMeta}>
-              <span className={styles.dataStat} style={{ color: meta.color }}>
+            <span className={shared.dataName}>{lock.file_path}</span>
+            <div className={shared.dataMeta}>
+              <span className={shared.dataStat} style={{ color: meta.color }}>
                 {lock.handle}
               </span>
-              <span className={styles.dataStat}>{formatDuration(minutes)}</span>
+              <span className={shared.dataStat}>{formatDuration(minutes)}</span>
             </div>
           </div>
         );
