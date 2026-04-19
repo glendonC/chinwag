@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api.js';
 import { authActions } from '../lib/stores/auth.js';
+import { createDemoAnalytics } from '../lib/demoAnalytics.js';
 import {
   type TeamAnalytics,
   type UserAnalytics,
@@ -11,7 +12,6 @@ import {
   userAnalyticsSchema,
   validateResponse,
   createEmptyAnalytics,
-  createEmptyUserAnalytics,
 } from '../lib/apiSchemas.js';
 
 interface UseTeamAnalyticsReturn {
@@ -80,7 +80,7 @@ export function useTeamExtendedAnalytics(
   days = 30,
   enabled = true,
 ): UseTeamExtendedAnalyticsReturn {
-  const [analytics, setAnalytics] = useState<UserAnalytics>(createEmptyUserAnalytics);
+  const [analytics, setAnalytics] = useState<UserAnalytics>(createDemoAnalytics);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -108,9 +108,12 @@ export function useTeamExtendedAnalytics(
         );
         if (cancelled) return;
         const parsed = validateResponse(userAnalyticsSchema, raw, 'team-extended-analytics', {
-          fallback: createEmptyUserAnalytics,
+          fallback: createDemoAnalytics,
         });
-        setAnalytics(parsed);
+        const hasRealData =
+          parsed.period_comparison.current.total_sessions > 0 ||
+          parsed.daily_trends.some((d) => d.sessions > 0);
+        if (hasRealData) setAnalytics(parsed);
       } catch (err) {
         if (cancelled) return;
         if ((err as Error).name !== 'AbortError') {

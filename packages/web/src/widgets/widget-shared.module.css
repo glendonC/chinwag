@@ -29,6 +29,71 @@
   letter-spacing: 0;
 }
 
+/* Stat widget wrapped in a button — opens a shared category detail view.
+ * Preserves the heroStatValue display at rest. A subtle mono hint reveals
+ * under the value on hover/focus so the resting state stays chromeless. */
+.statButton {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: baseline;
+  position: relative;
+  transition: transform var(--motion-fast) var(--motion);
+  transform-origin: left center;
+}
+
+.statButton:hover {
+  transform: scale(1.02);
+}
+
+.statButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: var(--radius-xs);
+}
+
+.statDetailHint {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(-2px);
+  pointer-events: none;
+  transition:
+    opacity var(--motion-fast) ease,
+    transform var(--motion-fast) var(--motion);
+}
+
+.statButton:hover .statDetailHint,
+.statButton:focus-visible .statDetailHint {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .statButton,
+  .statDetailHint {
+    transition: none;
+  }
+  .statButton:hover {
+    transform: none;
+  }
+}
+
 .statBlock {
   display: flex;
   flex-direction: column;
@@ -78,10 +143,29 @@
   border-radius: var(--radius-xs);
   animation: rowReveal 0.3s var(--motion) both;
   animation-delay: calc(var(--row-index, 0) * 35ms);
+  /* Button reset so `.dataRow` works identically whether rendered as a div
+   * or a button. Keeps the row a full-width flex container and strips the
+   * default button chrome (background, border, font, text-align). */
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  width: 100%;
+}
+
+button.dataRow {
+  cursor: pointer;
 }
 
 .dataRow:hover {
   background: var(--hover-bg);
+}
+
+.dataRow:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .dataName {

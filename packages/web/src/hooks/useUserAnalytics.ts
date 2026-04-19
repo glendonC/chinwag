@@ -4,12 +4,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api.js';
 import { authActions } from '../lib/stores/auth.js';
-import {
-  type UserAnalytics,
-  userAnalyticsSchema,
-  validateResponse,
-  createEmptyUserAnalytics,
-} from '../lib/apiSchemas.js';
+import { createDemoAnalytics } from '../lib/demoAnalytics.js';
+import { type UserAnalytics, userAnalyticsSchema, validateResponse } from '../lib/apiSchemas.js';
 
 interface UseUserAnalyticsReturn {
   analytics: UserAnalytics;
@@ -22,7 +18,7 @@ export function useUserAnalytics(
   enabled = true,
   teamIds?: string[],
 ): UseUserAnalyticsReturn {
-  const [analytics, setAnalytics] = useState<UserAnalytics>(createEmptyUserAnalytics);
+  const [analytics, setAnalytics] = useState<UserAnalytics>(createDemoAnalytics);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -51,9 +47,14 @@ export function useUserAnalytics(
         });
         if (cancelled) return;
         const parsed = validateResponse(userAnalyticsSchema, raw, 'user-analytics', {
-          fallback: createEmptyUserAnalytics,
+          fallback: createDemoAnalytics,
         });
-        setAnalytics(parsed);
+        // Keep demo seed when backend returns a valid-but-empty shape so dev
+        // dashboards aren't wiped by a logged-in-but-quiet team.
+        const hasRealData =
+          parsed.period_comparison.current.total_sessions > 0 ||
+          parsed.daily_trends.some((d) => d.sessions > 0);
+        if (hasRealData) setAnalytics(parsed);
       } catch (err) {
         if (cancelled) return;
         if ((err as Error).name !== 'AbortError') {

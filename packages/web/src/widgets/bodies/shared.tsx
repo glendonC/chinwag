@@ -15,10 +15,17 @@ export function StatWidget({
   value,
   delta,
   deltaInvert,
+  onOpenDetail,
+  detailAriaLabel,
 }: {
   value: string;
   delta?: { current: number; previous: number } | null;
   deltaInvert?: boolean;
+  /** When provided, the stat value is rendered as a button that opens a
+   * category detail surface. Used by sessions to drill into Usage Detail;
+   * other stats opt in as their detail tabs land. */
+  onOpenDetail?: () => void;
+  detailAriaLabel?: string;
 }) {
   let deltaEl = null;
   if (delta && delta.previous > 0) {
@@ -33,11 +40,25 @@ export function StatWidget({
       </span>
     );
   }
-  return (
+  const inner = (
     <span className={styles.heroStatValue}>
       {value}
       {deltaEl}
     </span>
+  );
+  if (!onOpenDetail) return inner;
+  return (
+    <button
+      type="button"
+      className={styles.statButton}
+      onClick={onOpenDetail}
+      aria-label={detailAriaLabel}
+    >
+      {inner}
+      <span className={styles.statDetailHint} aria-hidden="true">
+        → detail
+      </span>
+    </button>
   );
 }
 
