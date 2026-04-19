@@ -54,11 +54,13 @@ function LiveAgentsWidget({ liveAgents }: WidgetBodyProps) {
           );
         })}
       </div>
-      <SectionOverflow
-        count={overflow}
-        label={overflow === 1 ? 'agent' : 'agents'}
-        onClick={() => setQueryParam('live', '')}
-      />
+      <div className={styles.liveTableOverflow}>
+        <SectionOverflow
+          count={overflow}
+          label={overflow === 1 ? 'agent' : 'agents'}
+          onClick={() => setQueryParam('live', '')}
+        />
+      </div>
     </div>
   );
 }

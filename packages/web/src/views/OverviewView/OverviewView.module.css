@@ -371,19 +371,34 @@
  * .liveDot is retained below because TeamWidgets.projectLive still uses it.
  */
 
+/*
+ * Single grid container owns the column tracks. Header + rows are
+ * subgrids so their cells share the same x-coords — prevents the
+ * drift that happens when separate grids each compute `auto` tracks
+ * against their own content (header's "MEMBER" ≠ row's handle width).
+ *
+ * Column distribution: Member hugs the left edge with all leftover
+ * space absorbed as dead track on its right, which pushes Tool, Project,
+ * and View into a tight cluster against the right edge. Identity on the
+ * left, metadata + action on the right — clear reading axis, no drifting
+ * middle column. `minmax(0, 1fr)` on Member lets the handle ellipsis on
+ * narrow widgets rather than overflowing.
+ */
 .liveTable {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto 56px;
+  column-gap: var(--space-md);
+  row-gap: 0;
+  /* Keep rows content-sized. Without this, the grid's default align-content
+   * resolves to `stretch`, which would inflate auto-sized row tracks to fill
+   * the widget body — making a single row look like it has 30px of vertical
+   * padding. `start` anchors rows to the top at their natural height. */
+  align-content: start;
   flex: 1;
   min-height: 0;
 }
 
 /*
- * Column layout mirrors ToolsView.scoredRow: the first column is
- * flexible (1fr with a min) so it absorbs any excess width, and every
- * other column is fixed. That eliminates the awkward empty gap between
- * the last data column and the View pill.
- *
  * margin: 0 -14px combined with padding: 12px 14px makes the row content
  * align flush with the widget body edge (same x as the project filter
  * pills above) while the hover pill still gets its 14px inset breathing
@@ -393,19 +408,9 @@
  */
 .liveTableHeader,
 .liveTableRow {
+  grid-column: 1 / -1;
   display: grid;
-  /* Half-width widget sizing (6/12 cols). Member column is flex (takes
-   * the excess so other tracks stay compact and View lands at the right
-   * edge). `minmax(0, 1fr)` on the flex track allows it to shrink past
-   * its min-content width (a long handle won't force grid overflow).
-   * Tool and Project are capped so the Flex column always has room to
-   * absorb. Last track is `auto` so the View pill sizes to its text. */
-  grid-template-columns:
-    minmax(0, 1fr)
-    minmax(80px, 160px)
-    minmax(80px, 180px)
-    56px;
-  gap: var(--space-md);
+  grid-template-columns: subgrid;
   align-items: center;
   margin: 0 -14px;
 }
@@ -424,13 +429,15 @@
 }
 
 .liveTableBody {
-  display: flex;
-  flex-direction: column;
-  /* No gap and no overflow-y:auto here. overflow-y:auto forces overflow-x
-   * to auto too, which clips the rows' `margin: 0 -14px` horizontal bleed
-   * and makes the hover strip look narrower than the detail view. Row
+  /* `display: contents` dissolves this wrapper so each row becomes a
+   * direct child of `.liveTable` and can subgrid onto its tracks. Row
    * count is capped by LIVE_AGENTS_CAP + SectionOverflow, so scrolling
    * isn't needed. */
+  display: contents;
+}
+
+.liveTableOverflow {
+  grid-column: 1 / -1;
 }
 
 .liveTableRow {
