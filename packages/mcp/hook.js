@@ -24,6 +24,7 @@ import {
   extractBashCommand,
   extractBashResult,
   rawLooksLikeGitCommit,
+  getHookBlockExitCode,
 } from './dist/hook-payload.js';
 
 const log = createLogger('hook');
@@ -108,9 +109,9 @@ async function checkConflict(team, teamId, input) {
 
     if (issues.length > 0) {
       process.stdout.write(`CONFLICT: ${issues.join('; ')}\n`);
-      // Windsurf pre-hooks block with exit code 2; Claude Code / Cursor use
-      // any non-zero code. Using 2 is safe across all three.
-      process.exit(hostId === 'windsurf' ? 2 : 1);
+      // Per-host block code lives on the tool registry — Windsurf requires
+      // exit 2 to block; other hosts accept any non-zero code.
+      process.exit(getHookBlockExitCode(hostId));
     }
 
     process.exit(0);
@@ -158,7 +159,9 @@ async function reportCommit(team, teamId, input) {
   const resultStr = extractBashResult(input, hostId);
 
   // Verify the command was actually a git commit (not just mentioned in output).
-  if (!command.includes('git commit')) {
+  // Also skip dry-runs — they don't update HEAD, so the Windsurf fallback of
+  // `git log -1 HEAD` would incorrectly report the previous commit as new.
+  if (!command.includes('git commit') || command.includes('--dry-run')) {
     process.exit(0);
   }
 

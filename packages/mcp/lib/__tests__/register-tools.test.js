@@ -117,8 +117,8 @@ describe('registerTools', () => {
     registerTools(server, { team, state, profile, integrationDoctor });
   });
 
-  it('registers all 18 tools', () => {
-    expect(server._tools.size).toBe(18);
+  it('registers all 19 tools', () => {
+    expect(server._tools.size).toBe(19);
     const expected = [
       'chinwag_scan_integrations',
       'chinwag_configure_integration',
@@ -138,6 +138,7 @@ describe('registerTools', () => {
       'chinwag_report_commits',
       'chinwag_record_tokens',
       'chinwag_record_tool_call',
+      'chinwag_configure_budget',
     ];
     for (const name of expected) {
       expect(server._tools.has(name)).toBe(true);
@@ -580,12 +581,14 @@ describe('registerTools', () => {
     it('works with no parameters (empty search)', async () => {
       team.searchMemories.mockResolvedValue({ memories: [] });
       await server.callTool('chinwag_search_memory', {});
+      // Search applies the resolved budget cap even when the agent omits `limit`,
+      // so context stays bounded by team/user/runtime config. Default is 20.
       expect(team.searchMemories).toHaveBeenCalledWith(
         't_test123',
         undefined,
         undefined,
         undefined,
-        undefined,
+        20,
         expect.any(Object),
       );
     });

@@ -324,6 +324,28 @@ describe('hook.js logic', () => {
     });
   });
 
+  // --- reportCommit handler ---
+
+  describe('reportCommit handler', () => {
+    it('skips when the bash command is not a git commit', () => {
+      const command = 'npm test';
+      const proceed = command.includes('git commit') && !command.includes('--dry-run');
+      expect(proceed).toBe(false);
+    });
+
+    it('skips git commit --dry-run (no HEAD update, would misreport prior commit)', () => {
+      const command = 'git commit --dry-run -m "preview"';
+      const proceed = command.includes('git commit') && !command.includes('--dry-run');
+      expect(proceed).toBe(false);
+    });
+
+    it('proceeds for a real git commit', () => {
+      const command = 'git commit -m "feat: new feature"';
+      const proceed = command.includes('git commit') && !command.includes('--dry-run');
+      expect(proceed).toBe(true);
+    });
+  });
+
   // --- Subcommand routing ---
 
   describe('subcommand routing', () => {

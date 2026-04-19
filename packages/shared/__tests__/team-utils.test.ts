@@ -172,7 +172,39 @@ describe('findTeamFile', () => {
         root: '/home/user/project',
         teamId: 't_abcdef0123456789',
         teamName: 'My Project',
+        budgets: null,
       } satisfies TeamFileInfo);
+    });
+
+    it('parses team-level budget overrides when present', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockReadFileSync.mockReturnValue(
+        JSON.stringify({
+          team: 't_abcdef0123456789',
+          name: 'Team with budgets',
+          budgets: {
+            memoryResultCap: 5,
+            coordinationBroadcast: 'silent',
+            unknownField: 'dropped',
+          },
+        }),
+      );
+
+      const result = findTeamFile('/home/user/project');
+      expect(result?.budgets).toEqual({
+        memoryResultCap: 5,
+        coordinationBroadcast: 'silent',
+      });
+    });
+
+    it('leaves budgets null when the field is absent', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockReadFileSync.mockReturnValue(
+        JSON.stringify({ team: 't_abcdef0123456789', name: 'No budgets' }),
+      );
+
+      const result = findTeamFile('/home/user/project');
+      expect(result?.budgets).toBeNull();
     });
   });
 
@@ -189,6 +221,7 @@ describe('findTeamFile', () => {
         root: '/home/user/project',
         teamId: 't_0000000000000001',
         teamName: 'project', // defaults to basename
+        budgets: null,
       });
     });
 
@@ -207,6 +240,7 @@ describe('findTeamFile', () => {
         root: '/a',
         teamId: 't_1111111111111111',
         teamName: 'Root',
+        budgets: null,
       });
     });
 

@@ -29,6 +29,8 @@ import {
   executeStopCommand,
   cleanupSpawnedProcesses,
 } from './dist/command-executor.js';
+import { loadTeamBudgets } from './dist/team.js';
+import { parseBudgetConfig, resolveBudgets } from '@chinwag/shared/budget-config.js';
 
 const log = createLogger('mcp');
 
@@ -73,7 +75,25 @@ async function main() {
   const profile = scanEnvironment();
   await registerProfile(client, profile);
 
-  // 4. Initialize shared state (Proxy-guarded to prevent typo bugs)
+  // 4. Resolve context-budget config from team → user defaults.
+  // Runtime overrides land later via `chinwag_configure_budget`.
+  // Budget loading is best-effort — a broken team or user config must never
+  // prevent the MCP server from starting.
+  let teamBudgets = null;
+  try {
+    teamBudgets = loadTeamBudgets();
+  } catch (err) {
+    log.warn(`Failed to load team budgets: ${err?.message || err}`);
+  }
+  let userBudgets = null;
+  try {
+    userBudgets = parseBudgetConfig(ctx.config?.budgets);
+  } catch (err) {
+    log.warn(`Failed to parse user budgets: ${err?.message || err}`);
+  }
+  const budgets = resolveBudgets({ team: teamBudgets, user: userBudgets });
+
+  // 5. Initialize shared state (Proxy-guarded to prevent typo bugs)
   const state = createAgentState({
     teamId,
     ws: null,
@@ -89,6 +109,7 @@ async function main() {
     teamJoinComplete: null,
     heartbeatDead: false,
     toolCalls: [],
+    budgets,
   });
 
   const projectName = basename(process.cwd());

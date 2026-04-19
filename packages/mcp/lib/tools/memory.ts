@@ -12,6 +12,7 @@ import {
   MEMORY_SEARCH_MAX_LIMIT,
   API_TIMEOUT_MS,
 } from '../constants.js';
+import { BUDGET_DEFAULTS, truncateMemoryText } from '@chinwag/shared/budget-config.js';
 import { withTeam } from './middleware.js';
 import type { AddToolFn, ToolDeps } from './types.js';
 
@@ -156,8 +157,14 @@ export function registerMemoryTools(
       async (args) => {
         const { query, tags, session_id, agent_id, handle, after, before, limit } =
           args as SearchMemoryArgs;
+        // Apply budget: the agent can request fewer results, but never more
+        // than the resolved team/user/runtime cap. Omitting `limit` defaults
+        // to the cap itself so context stays bounded.
+        const budgets = state.budgets ?? BUDGET_DEFAULTS;
+        const cap = budgets.memoryResultCap;
+        const effectiveLimit = typeof limit === 'number' ? Math.min(limit, cap) : cap;
         const result = await withTimeout(
-          team.searchMemories(state.teamId!, query, tags, undefined, limit, {
+          team.searchMemories(state.teamId!, query, tags, undefined, effectiveLimit, {
             sessionId: session_id,
             agentId: agent_id,
             handle,
@@ -170,9 +177,11 @@ export function registerMemoryTools(
         if (memories.length === 0) {
           return { content: [{ type: 'text' as const, text: 'No memories found.' }] };
         }
+        const truncation = budgets.memoryContentTruncation;
         const lines = memories.map((m) => {
           const tagStr = m.tags?.length ? ` [${m.tags.join(', ')}]` : '';
-          return `${m.text}${tagStr} (id: ${m.id}, by ${m.handle})`;
+          const body = truncateMemoryText(m.text, truncation);
+          return `${body}${tagStr} (id: ${m.id}, by ${m.handle})`;
         });
         return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
       },

@@ -12,6 +12,7 @@ import { registerOutcomeTool } from './outcome.js';
 import { registerCommitsTool } from './commits.js';
 import { registerIntegrationTools } from './integrations.js';
 import { registerTelemetryTools } from './telemetry.js';
+import { registerBudgetTool } from './budget.js';
 import type { ToolDeps, AddToolFn } from './types.js';
 import type { EnvironmentProfile } from '../profile.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -56,6 +57,7 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
   registerCommitsTool(wrappedAddTool, deps);
   registerIntegrationTools(wrappedAddTool, deps);
   registerTelemetryTools(wrappedAddTool, deps);
+  registerBudgetTool(wrappedAddTool, deps);
 }
 
 export function registerResources(server: McpServer, profile: EnvironmentProfile): void {

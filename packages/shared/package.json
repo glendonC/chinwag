@@ -105,6 +105,10 @@
     "./fs-atomic.js": {
       "types": "./dist/fs-atomic.d.ts",
       "import": "./dist/fs-atomic.js"
+    },
+    "./budget-config.js": {
+      "types": "./dist/budget-config.d.ts",
+      "import": "./dist/budget-config.js"
     }
   },
   "scripts": {

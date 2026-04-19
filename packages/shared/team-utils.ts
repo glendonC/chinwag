@@ -1,11 +1,14 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
+import { parseBudgetConfig, type BudgetConfig } from './budget-config.js';
 
 export interface TeamFileInfo {
   filePath: string;
   root: string;
   teamId: string;
   teamName: string;
+  /** Team-level budget defaults from the `.chinwag` file, if present. */
+  budgets: Partial<BudgetConfig> | null;
 }
 
 /**
@@ -25,7 +28,11 @@ export function findTeamFile(startDir = process.cwd()): TeamFileInfo | null {
     if (existsSync(filePath)) {
       try {
         const raw = readFileSync(filePath, 'utf-8');
-        const data = JSON.parse(raw) as { team?: string | null; name?: string | null };
+        const data = JSON.parse(raw) as {
+          team?: string | null;
+          name?: string | null;
+          budgets?: unknown;
+        };
         const teamId = data.team ?? null;
         if (!teamId || !isValidTeamId(teamId)) return null;
         return {
@@ -33,6 +40,7 @@ export function findTeamFile(startDir = process.cwd()): TeamFileInfo | null {
           root: dir,
           teamId,
           teamName: data.name || basename(dir),
+          budgets: parseBudgetConfig(data.budgets),
         };
       } catch {
         return null;

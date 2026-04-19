@@ -9,10 +9,15 @@
 //  - Claude Code: https://docs.anthropic.com/en/docs/claude-code/hooks
 //  - Windsurf:    https://docs.windsurf.com/windsurf/cascade/hooks
 
+import { getMcpToolById } from '@chinwag/shared/tool-registry.js';
+
 export interface HookArgs {
   subcommand: string | null;
   hostId: string;
 }
+
+/** Default exit code a pre-hook returns to block the operation. */
+const DEFAULT_HOOK_BLOCK_EXIT_CODE = 1;
 
 /**
  * Parse hook CLI args. Expected shape after cli.tsx strips the 'hook' prefix:
@@ -20,6 +25,10 @@ export interface HookArgs {
  *
  * Host defaults to 'claude-code' (matches DEFAULT_HOOK_HOST in the config writer,
  * which omits --tool for back-compat on the default host).
+ *
+ * A `--tool` with a missing or flag-like value (e.g. `--tool --other`) is
+ * treated as absent so malformed hook configs degrade to the default host
+ * rather than picking up a stray flag as the host id.
  */
 export function parseHookArgs(argv: readonly string[]): HookArgs {
   const args = argv.slice(2);
@@ -30,7 +39,9 @@ export function parseHookArgs(argv: readonly string[]): HookArgs {
     const token = args[i];
     if (token === '--tool' || token === '--host') {
       const next = args[i + 1];
-      if (typeof next === 'string') hostId = next;
+      if (typeof next === 'string' && !next.startsWith('--')) {
+        hostId = next;
+      }
       i++;
     } else if (subcommand === null && typeof token === 'string' && !token.startsWith('--')) {
       subcommand = token;
@@ -38,6 +49,16 @@ export function parseHookArgs(argv: readonly string[]): HookArgs {
   }
 
   return { subcommand, hostId };
+}
+
+/**
+ * Return the exit code a pre-hook must use to block the current operation for
+ * the given host. Uses the `hookBlockExitCode` field on the tool registry
+ * entry if present; otherwise returns 1 (which every supported host treats as
+ * "block").
+ */
+export function getHookBlockExitCode(hostId: string): number {
+  return getMcpToolById(hostId)?.hookBlockExitCode ?? DEFAULT_HOOK_BLOCK_EXIT_CODE;
 }
 
 interface UnknownObject {

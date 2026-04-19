@@ -8,6 +8,7 @@ import {
   writeCompletedSession,
   writeSessionRecord,
 } from '@chinwag/shared/session-registry.js';
+import { BUDGET_DEFAULTS, type BudgetConfig } from '@chinwag/shared/budget-config.js';
 import { generateAgentId, getConfiguredAgentId } from './identity.js';
 import { createLogger } from './utils/logger.js';
 import { getErrorMessage } from './utils/responses.js';
@@ -120,7 +121,16 @@ export interface McpState {
   heartbeatDead: boolean;
   /** Accumulated tool call metadata flushed to the backend on session end. */
   toolCalls: Array<{ tool: string; at: number }>;
+  /**
+   * Resolved context-budget for the session.
+   * Populated at bootstrap from team `.chinwag` and user `~/.chinwag/config.json`.
+   * Mutated by `chinwag_configure_budget` for runtime overrides.
+   */
+  budgets: BudgetConfig;
 }
+
+/** Re-exported so entry points can seed `budgets` without a deep import. */
+export { BUDGET_DEFAULTS };
 
 // ── Shutdown ──
 

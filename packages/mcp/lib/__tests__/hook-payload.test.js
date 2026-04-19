@@ -6,6 +6,7 @@ import {
   extractBashCommand,
   extractBashResult,
   rawLooksLikeGitCommit,
+  getHookBlockExitCode,
 } from '../hook-payload.ts';
 
 describe('parseHookArgs', () => {
@@ -56,6 +57,40 @@ describe('parseHookArgs', () => {
       subcommand: 'report-edit',
       hostId: 'claude-code',
     });
+  });
+
+  it('ignores --tool when followed by another flag (malformed config)', () => {
+    expect(parseHookArgs(['node', 'script', 'report-edit', '--tool', '--surface', 'cli'])).toEqual({
+      subcommand: 'report-edit',
+      hostId: 'claude-code',
+    });
+  });
+
+  it('last --tool wins when specified multiple times', () => {
+    expect(
+      parseHookArgs(['node', 'script', 'report-edit', '--tool', 'cursor', '--tool', 'windsurf']),
+    ).toEqual({
+      subcommand: 'report-edit',
+      hostId: 'windsurf',
+    });
+  });
+});
+
+describe('getHookBlockExitCode', () => {
+  it('returns 2 for Windsurf (Cascade spec)', () => {
+    expect(getHookBlockExitCode('windsurf')).toBe(2);
+  });
+
+  it('returns 1 (default) for Claude Code', () => {
+    expect(getHookBlockExitCode('claude-code')).toBe(1);
+  });
+
+  it('returns 1 (default) for Cursor', () => {
+    expect(getHookBlockExitCode('cursor')).toBe(1);
+  });
+
+  it('returns 1 (default) for unknown host ids so malformed configs degrade safely', () => {
+    expect(getHookBlockExitCode('definitely-not-a-real-tool')).toBe(1);
   });
 });
 

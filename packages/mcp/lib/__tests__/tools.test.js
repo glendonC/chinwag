@@ -375,12 +375,14 @@ describe('memory tools (unit)', () => {
     it('works with empty parameters', async () => {
       team.searchMemories.mockResolvedValue({ memories: [] });
       await collector.callTool('chinwag_search_memory', {});
+      // Search applies the resolved budget cap even when the agent omits `limit`,
+      // so context stays bounded by team/user/runtime config. Default is 20.
       expect(team.searchMemories).toHaveBeenCalledWith(
         't_mem',
         undefined,
         undefined,
         undefined,
-        undefined,
+        20,
         {
           sessionId: undefined,
           agentId: undefined,

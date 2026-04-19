@@ -2,6 +2,7 @@
 
 import * as z from 'zod/v4';
 import { setTerminalTitle } from '@chinwag/shared/session-registry.js';
+import { BUDGET_DEFAULTS } from '@chinwag/shared/budget-config.js';
 import { normalizeFiles } from '../utils/paths.js';
 import { withTimeout } from '../utils/responses.js';
 import {
@@ -42,7 +43,13 @@ export function registerActivityTool(
     withTeam(deps, async (args, { preamble }) => {
       const { files: rawFiles, summary } = args as UpdateActivityArgs;
       const files = normalizeFiles(rawFiles);
-      await withTimeout(team.updateActivity(state.teamId!, files, summary), API_TIMEOUT_MS);
+      // Silent mode: skip the backend broadcast but still update local terminal
+      // title so the developer's own environment reflects their intent.
+      const budgets = state.budgets ?? BUDGET_DEFAULTS;
+      const silent = budgets.coordinationBroadcast === 'silent';
+      if (!silent) {
+        await withTimeout(team.updateActivity(state.teamId!, files, summary), API_TIMEOUT_MS);
+      }
       // Set terminal tab title to the agent's task -- stable identity
       if (state.tty && summary) {
         const label =
@@ -51,8 +58,11 @@ export function registerActivityTool(
             : summary;
         setTerminalTitle(state.tty, `chinwag \u00B7 ${label}`);
       }
+      const suffix = silent ? ' (local only; team broadcast disabled)' : '';
       return {
-        content: [{ type: 'text' as const, text: `${preamble}Activity updated: ${summary}` }],
+        content: [
+          { type: 'text' as const, text: `${preamble}Activity updated: ${summary}${suffix}` },
+        ],
       };
     }),
   );

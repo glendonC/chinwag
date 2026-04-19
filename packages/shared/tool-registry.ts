@@ -93,6 +93,13 @@ export interface McpTool {
    * (pre_write_code/post_write_code/post_run_command with direct commands).
    */
   hooksFormat?: 'claude' | 'windsurf';
+  /**
+   * Exit code a pre-hook script must return to block the impending operation.
+   * Most hosts accept any non-zero code. Windsurf's Cascade spec reserves
+   * exit 2 specifically for "block"; other non-zero codes are treated as
+   * warnings. Omit for the default of 1.
+   */
+  hookBlockExitCode?: number;
   channel?: boolean;
   spawn?: ToolSpawnConfig;
   availabilityCheck?: ToolAvailabilityCheck;
@@ -230,6 +237,7 @@ export const MCP_TOOLS: McpTool[] = [
     hooks: true,
     hooksConfig: '.windsurf/hooks.json',
     hooksFormat: 'windsurf',
+    hookBlockExitCode: 2,
     dataCapabilities: {
       toolCallLogs: true,
       hooks: true,

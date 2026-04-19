@@ -3,6 +3,7 @@ import {
   isValidTeamId,
   findTeamFile as findTeamFileShared,
 } from '@chinwag/shared/team-utils.js';
+import type { BudgetConfig } from '@chinwag/shared/budget-config.js';
 import type { TeamContext, ConflictInfo, LockedFileInfo, MemoryInfo } from './utils/display.js';
 
 export { TEAM_ID_PATTERN, isValidTeamId };
@@ -146,6 +147,15 @@ export type TeamHandlers = TeamMemberHandlers &
 export function findTeamFile(cwd: string = process.cwd()): string | null {
   const result = findTeamFileShared(cwd);
   return result ? result.teamId : null;
+}
+
+/**
+ * Load team-level budget overrides from the `.chinwag` file, if present.
+ * Returns null when no team file exists or no budgets are declared.
+ */
+export function loadTeamBudgets(cwd: string = process.cwd()): Partial<BudgetConfig> | null {
+  const info = findTeamFileShared(cwd);
+  return info?.budgets || null;
 }
 
 export function teamHandlers(client: ApiClient): TeamHandlers {
