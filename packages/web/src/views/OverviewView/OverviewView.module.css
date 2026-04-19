@@ -404,7 +404,7 @@
     minmax(0, 1fr)
     minmax(80px, 160px)
     minmax(80px, 180px)
-    auto;
+    56px;
   gap: var(--space-md);
   align-items: center;
   margin: 0 -14px;
