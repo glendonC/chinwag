@@ -55,6 +55,10 @@ export function buildEmptyAnalyticsResponse(days: number): UserAnalytics {
       memories_updated_period: 0,
       stale_memories: 0,
       avg_memory_age_days: 0,
+      merged_memories: 0,
+      pending_consolidation_proposals: 0,
+      formation_observations_by_recommendation: { keep: 0, merge: 0, evolve: 0, discard: 0 },
+      secrets_blocked_period: 0,
     },
     period_comparison: {
       current: {

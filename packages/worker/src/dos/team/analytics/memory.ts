@@ -5,45 +5,50 @@ import type {
   MemoryUsageStats,
   MemoryOutcomeCorrelation,
   MemoryAccessEntry,
+  FormationRecommendationCounts,
 } from '@chinwag/shared/contracts/analytics.js';
 
 const log = createLogger('TeamDO.analytics');
 
 export function queryMemoryUsage(sql: SqlStorage, days: number): MemoryUsageStats {
   try {
-    // Total memories
-    const totalRow = sql.exec('SELECT COUNT(*) AS cnt FROM memories').one() as Record<
-      string,
-      unknown
-    >;
+    // Total memories — exclude soft-merged rows so the count reflects what
+    // search would actually return. The merged rows stay in the table for
+    // unmerge recourse but are not "live" memory.
+    const totalRow = sql
+      .exec('SELECT COUNT(*) AS cnt FROM memories WHERE merged_into IS NULL')
+      .one() as Record<string, unknown>;
     const total = (totalRow?.cnt as number) || 0;
 
-    // Memories created/updated in period
+    // Memories created/updated in period (excluding soft-merged)
     const periodRow = sql
       .exec(
         `SELECT
            SUM(CASE WHEN created_at > datetime('now', '-' || ? || ' days') THEN 1 ELSE 0 END) AS created,
            SUM(CASE WHEN updated_at > datetime('now', '-' || ? || ' days')
                       AND updated_at != created_at THEN 1 ELSE 0 END) AS updated
-         FROM memories`,
+         FROM memories
+         WHERE merged_into IS NULL`,
         days,
         days,
       )
       .one() as Record<string, unknown>;
 
-    // Stale memories (not accessed in 30+ days)
+    // Stale memories (not accessed in 30+ days, excluding soft-merged)
     const staleRow = sql
       .exec(
         `SELECT COUNT(*) AS cnt FROM memories
-         WHERE (last_accessed_at IS NULL AND created_at < datetime('now', '-30 days'))
-            OR (last_accessed_at IS NOT NULL AND last_accessed_at < datetime('now', '-30 days'))`,
+         WHERE merged_into IS NULL
+           AND ((last_accessed_at IS NULL AND created_at < datetime('now', '-30 days'))
+                OR (last_accessed_at IS NOT NULL AND last_accessed_at < datetime('now', '-30 days')))`,
       )
       .one() as Record<string, unknown>;
 
-    // Average memory age
+    // Average memory age (excluding soft-merged)
     const ageRow = sql
       .exec(
-        "SELECT ROUND(AVG(julianday('now') - julianday(created_at)), 1) AS avg_age FROM memories",
+        `SELECT ROUND(AVG(julianday('now') - julianday(created_at)), 1) AS avg_age
+         FROM memories WHERE merged_into IS NULL`,
       )
       .one() as Record<string, unknown>;
 
@@ -62,6 +67,51 @@ export function queryMemoryUsage(sql: SqlStorage, days: number): MemoryUsageStat
     const searches = (searchRow?.searches as number) || 0;
     const hits = (searchRow?.hits as number) || 0;
 
+    // Lifetime count of soft-merged memories (consolidation history).
+    const mergedRow = sql
+      .exec('SELECT COUNT(*) AS cnt FROM memories WHERE merged_into IS NOT NULL')
+      .one() as Record<string, unknown>;
+
+    // Live count of consolidation proposals awaiting review.
+    const pendingRow = safeOne(
+      sql,
+      "SELECT COUNT(*) AS cnt FROM consolidation_proposals WHERE status = 'pending'",
+    );
+
+    // Formation observations by recommendation, period-scoped.
+    const formationRows = safeAll(
+      sql,
+      `SELECT recommendation, COUNT(*) AS cnt
+       FROM formation_observations
+       WHERE status = 'observed'
+         AND created_at > datetime('now', '-' || ? || ' days')
+       GROUP BY recommendation`,
+      days,
+    );
+    const formationCounts: FormationRecommendationCounts = {
+      keep: 0,
+      merge: 0,
+      evolve: 0,
+      discard: 0,
+    };
+    for (const r of formationRows) {
+      const rec = String(r.recommendation as string);
+      if (rec === 'keep' || rec === 'merge' || rec === 'evolve' || rec === 'discard') {
+        formationCounts[rec] = (r.cnt as number) || 0;
+      }
+    }
+
+    // Period-scoped count of secret-detector blocks.
+    const secretsRow = sql
+      .exec(
+        `SELECT COALESCE(SUM(count), 0) AS cnt
+         FROM daily_metrics
+         WHERE metric = 'secrets_blocked'
+           AND date > date('now', '-' || ? || ' days')`,
+        days,
+      )
+      .one() as Record<string, unknown>;
+
     return {
       total_memories: total,
       searches,
@@ -71,6 +121,10 @@ export function queryMemoryUsage(sql: SqlStorage, days: number): MemoryUsageStat
       memories_updated_period: (periodRow?.updated as number) || 0,
       stale_memories: (staleRow?.cnt as number) || 0,
       avg_memory_age_days: (ageRow?.avg_age as number) || 0,
+      merged_memories: (mergedRow?.cnt as number) || 0,
+      pending_consolidation_proposals: (pendingRow?.cnt as number) || 0,
+      formation_observations_by_recommendation: formationCounts,
+      secrets_blocked_period: (secretsRow?.cnt as number) || 0,
     };
   } catch (err) {
     log.warn(`memoryUsage query failed: ${err}`);
@@ -83,7 +137,34 @@ export function queryMemoryUsage(sql: SqlStorage, days: number): MemoryUsageStat
       memories_updated_period: 0,
       stale_memories: 0,
       avg_memory_age_days: 0,
+      merged_memories: 0,
+      pending_consolidation_proposals: 0,
+      formation_observations_by_recommendation: { keep: 0, merge: 0, evolve: 0, discard: 0 },
+      secrets_blocked_period: 0,
     };
+  }
+}
+
+/**
+ * Tolerant wrappers around sql.exec for queries that may target tables
+ * not yet present (e.g. consolidation_proposals if migration 020 hasn't
+ * run, formation_observations if 021 hasn't). Returns sentinel values
+ * instead of throwing so the analytics endpoint stays alive on a freshly
+ * upgraded team where one migration is pending.
+ */
+function safeOne(sql: SqlStorage, query: string, ...params: unknown[]): Record<string, unknown> {
+  try {
+    return sql.exec(query, ...params).one() as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+function safeAll(sql: SqlStorage, query: string, ...params: unknown[]): Record<string, unknown>[] {
+  try {
+    return sql.exec(query, ...params).toArray() as Record<string, unknown>[];
+  } catch {
+    return [];
   }
 }
 
@@ -129,7 +210,8 @@ export function queryTopMemories(sql: SqlStorage, days: number): MemoryAccessEnt
       .exec(
         `SELECT id, text, access_count, last_accessed_at, created_at
          FROM memories
-         WHERE access_count > 0
+         WHERE merged_into IS NULL
+           AND access_count > 0
            AND (last_accessed_at IS NOT NULL AND last_accessed_at > datetime('now', '-' || ? || ' days'))
          ORDER BY access_count DESC
          LIMIT 20`,

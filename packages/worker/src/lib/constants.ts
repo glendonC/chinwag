@@ -183,6 +183,10 @@ export const METRIC_KEYS = {
   MEMORIES_SAVED: 'memories_saved',
   MEMORIES_SEARCHED: 'memories_searched',
   MEMORIES_SEARCH_HITS: 'memories_search_hits',
+  // Increments whenever the secret detector refuses a memory write
+  // (force: true bypass not counted — those reach the store as documented
+  // patterns, not blocked credentials).
+  SECRETS_BLOCKED: 'secrets_blocked',
   CONFLICT_CHECKS: 'conflict_checks',
   CONFLICTS_FOUND: 'conflicts_found',
   COMMANDS_SUBMITTED: 'commands_submitted',

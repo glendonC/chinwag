@@ -218,6 +218,14 @@ export const editVelocityTrendSchema = z.object({
 });
 export type EditVelocityTrend = z.infer<typeof editVelocityTrendSchema>;
 
+export const formationRecommendationCountsSchema = z.object({
+  keep: z.number(),
+  merge: z.number(),
+  evolve: z.number(),
+  discard: z.number(),
+});
+export type FormationRecommendationCounts = z.infer<typeof formationRecommendationCountsSchema>;
+
 export const memoryUsageStatsSchema = z.object({
   total_memories: z.number(),
   searches: z.number(),
@@ -227,6 +235,17 @@ export const memoryUsageStatsSchema = z.object({
   memories_updated_period: z.number(),
   stale_memories: z.number(),
   avg_memory_age_days: z.number(),
+  // Lifetime count of memories that consolidation soft-merged. Stays in
+  // the table for unmerge recourse; not included in total_memories.
+  merged_memories: z.number(),
+  // Live count of consolidation proposals awaiting human / agent review.
+  pending_consolidation_proposals: z.number(),
+  // Period-scoped count of formation observations by recommendation type.
+  // 'keep' is the trivial case; merge/evolve/discard are flag candidates.
+  formation_observations_by_recommendation: formationRecommendationCountsSchema,
+  // Period-scoped count of writes the secret detector blocked. Signal
+  // that the filter is doing work; counts before-and-after force=true.
+  secrets_blocked_period: z.number(),
 });
 export type MemoryUsageStats = z.infer<typeof memoryUsageStatsSchema>;
 

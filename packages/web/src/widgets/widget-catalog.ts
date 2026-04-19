@@ -119,6 +119,17 @@ export interface WidgetDef {
    * explicitly for 'live' or 'all-time' widgets. See WidgetTimeScope.
    */
   timeScope?: WidgetTimeScope;
+  /**
+   * When true, the widget renders at its content's natural height, up to
+   * the declared `h` rowSpan. WidgetGrid measures content via ResizeObserver
+   * and compresses the grid-row assignment so sparse widgets don't reserve
+   * empty vertical space. When content exceeds the cap, the widget body
+   * scrolls. Opt-in because mixed fit + fixed widgets in the same visual
+   * row may create minor y-misalignment — best reserved for widgets that
+   * are commonly sparse (live presence, list overflow) rather than charts
+   * with intrinsic proportions.
+   */
+  fitContent?: boolean;
 }
 
 // ── The catalog ──────────────────────────────────
@@ -138,6 +149,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['dashboard'],
     timeScope: 'live',
+    fitContent: true,
   },
   {
     id: 'live-conflicts',
@@ -152,6 +164,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['dashboard'],
     timeScope: 'live',
+    fitContent: true,
   },
   {
     id: 'files-in-play',
@@ -166,6 +179,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['dashboard'],
     timeScope: 'live',
+    fitContent: true,
   },
   {
     id: 'claimed-files',
@@ -180,6 +194,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['dashboard'],
     timeScope: 'live',
+    fitContent: true,
   },
 
   // ── Usage (KPI stats) ─────────────────
@@ -301,6 +316,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 2,
     dataKeys: ['daily_trends'],
+    fitContent: true,
   },
   {
     id: 'edit-velocity',
@@ -314,6 +330,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 2,
     dataKeys: ['edit_velocity'],
+    fitContent: true,
   },
 
   // ── Outcomes ──────────────────────────
@@ -329,6 +346,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 3,
     minH: 2,
     dataKeys: ['completion_summary'],
+    fitContent: true,
   },
   {
     id: 'one-shot-rate',
@@ -582,6 +600,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 2,
     dataKeys: ['prompt_efficiency'],
+    fitContent: true,
   },
   {
     id: 'hourly-effectiveness',
@@ -838,6 +857,19 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 2,
     dataKeys: ['top_memories'],
+  },
+  {
+    id: 'formation-summary',
+    name: 'auditor flags',
+    description: 'What the formation auditor recommended for memories saved this period',
+    category: 'memory',
+    scope: 'both',
+    viz: 'bar-chart',
+    w: 6,
+    h: 3,
+    minW: 4,
+    minH: 2,
+    dataKeys: ['memory_usage'],
   },
 
   // ── Team (extended) ─────────────────

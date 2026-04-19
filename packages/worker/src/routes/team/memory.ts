@@ -36,6 +36,15 @@ export const handleTeamSaveMemory = teamJsonRoute(async ({ body, user, env, team
   if (!force) {
     const secrets = detectSecrets(text);
     if (secrets.length > 0) {
+      // Telemetry: record the block so the dashboard can surface "X writes
+      // blocked this week" as signal that the filter is doing work. Done
+      // before returning so the metric increments even on rejected writes.
+      const teamStub = env.TEAM.get(env.TEAM.idFromName(teamId));
+      try {
+        await teamStub.recordTelemetry('secrets_blocked');
+      } catch {
+        /* non-critical */
+      }
       return json(
         {
           error: 'Memory contains potential secret(s); refusing to store',
@@ -225,6 +234,12 @@ export const handleTeamUpdateMemory = teamJsonRoute(
     if (text !== undefined && !force) {
       const secrets = detectSecrets(text);
       if (secrets.length > 0) {
+        const teamStub = env.TEAM.get(env.TEAM.idFromName(teamId));
+        try {
+          await teamStub.recordTelemetry('secrets_blocked');
+        } catch {
+          /* non-critical */
+        }
         return json(
           {
             error: 'Memory contains potential secret(s); refusing to update',

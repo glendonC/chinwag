@@ -254,6 +254,19 @@ export class TeamDO extends DurableObject<Env> {
     recordMetricFn(this.sql, metric);
   }
 
+  /**
+   * Public surface for telemetry-only RPC calls. Route handlers that
+   * decide to record a metric without invoking a write path (e.g. the
+   * secret detector blocking a save) call this. Cheap; just bumps
+   * daily_metrics. No member resolution needed — the route already
+   * authenticated the caller.
+   */
+  async recordTelemetry(metric: string): Promise<{ ok: true }> {
+    this.#ensureSchema();
+    this.#recordMetric(metric);
+    return { ok: true };
+  }
+
   // -- Identity resolution (delegated to identity.ts) --
 
   #resolveOwnedAgentId(agentId: string, ownerId: string | null = null): string | null {

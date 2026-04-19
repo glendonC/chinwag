@@ -148,6 +148,13 @@ export interface MemoryUsageAcc {
   stale_memories: number;
   age_sum: number;
   age_count: number;
+  merged_memories: number;
+  pending_consolidation_proposals: number;
+  formation_keep: number;
+  formation_merge: number;
+  formation_evolve: number;
+  formation_discard: number;
+  secrets_blocked_period: number;
 }
 
 export function createMemoryUsageAcc(): MemoryUsageAcc {
@@ -160,6 +167,13 @@ export function createMemoryUsageAcc(): MemoryUsageAcc {
     stale_memories: 0,
     age_sum: 0,
     age_count: 0,
+    merged_memories: 0,
+    pending_consolidation_proposals: 0,
+    formation_keep: 0,
+    formation_merge: 0,
+    formation_evolve: 0,
+    formation_discard: 0,
+    secrets_blocked_period: 0,
   };
 }
 
@@ -176,6 +190,16 @@ export function mergeMemoryUsage(acc: MemoryUsageAcc, team: TeamResult): void {
     acc.age_sum += mu.avg_memory_age_days * mu.total_memories;
     acc.age_count += mu.total_memories;
   }
+  acc.merged_memories += mu.merged_memories ?? 0;
+  acc.pending_consolidation_proposals += mu.pending_consolidation_proposals ?? 0;
+  const f = mu.formation_observations_by_recommendation;
+  if (f) {
+    acc.formation_keep += f.keep ?? 0;
+    acc.formation_merge += f.merge ?? 0;
+    acc.formation_evolve += f.evolve ?? 0;
+    acc.formation_discard += f.discard ?? 0;
+  }
+  acc.secrets_blocked_period += mu.secrets_blocked_period ?? 0;
 }
 
 export function projectMemoryUsage(acc: MemoryUsageAcc): MemoryUsageStats {
@@ -188,5 +212,14 @@ export function projectMemoryUsage(acc: MemoryUsageAcc): MemoryUsageStats {
     memories_updated_period: acc.memories_updated_period,
     stale_memories: acc.stale_memories,
     avg_memory_age_days: acc.age_count > 0 ? round1(acc.age_sum / acc.age_count) : 0,
+    merged_memories: acc.merged_memories,
+    pending_consolidation_proposals: acc.pending_consolidation_proposals,
+    formation_observations_by_recommendation: {
+      keep: acc.formation_keep,
+      merge: acc.formation_merge,
+      evolve: acc.formation_evolve,
+      discard: acc.formation_discard,
+    },
+    secrets_blocked_period: acc.secrets_blocked_period,
   };
 }
