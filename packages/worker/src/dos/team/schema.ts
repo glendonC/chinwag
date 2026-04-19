@@ -694,6 +694,17 @@ const migrations: Migration[] = [
       );
     },
   },
+  {
+    name: '022_memory_search_hits_per_session',
+    up(sql) {
+      // Per-session hit counter. Companion to memories_searched (count of
+      // search calls); this counts calls that returned at least one result.
+      // Needed so memory_outcome_correlation can distinguish "searched and
+      // got something useful" from "searched and got nothing" — the latter
+      // is a retrieval-quality signal, not a memory-usage signal.
+      addColumnIfMissing(sql, 'sessions', 'memories_search_hits INTEGER DEFAULT 0');
+    },
+  },
 ];
 
 export function ensureSchema(

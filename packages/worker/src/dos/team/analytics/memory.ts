@@ -173,10 +173,23 @@ export function queryMemoryOutcomeCorrelation(
   days: number,
 ): MemoryOutcomeCorrelation[] {
   try {
+    // Three-bucket split:
+    //   hit memory     — at least one search call returned results
+    //   missed search  — searched but every call came back empty
+    //   no search      — did not search memory at all
+    // Bucketing on hits (not raw search count) keeps the correlation honest
+    // under hybrid + MMR retrieval: a session that searches and gets noise
+    // is materially different from one that searches and finds relevant
+    // context. Pre-MMR the two collapsed to 'used memory', which is the
+    // A2 semantic failure this query fixes.
     const rows = sql
       .exec(
         `SELECT
-           CASE WHEN memories_searched > 0 THEN 'used memory' ELSE 'no memory' END AS bucket,
+           CASE
+             WHEN memories_search_hits > 0 THEN 'hit memory'
+             WHEN memories_searched > 0 THEN 'missed search'
+             ELSE 'no search'
+           END AS bucket,
            COUNT(*) AS sessions,
            SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS completed,
            ROUND(CAST(SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
@@ -184,7 +197,12 @@ export function queryMemoryOutcomeCorrelation(
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
          GROUP BY bucket
-         ORDER BY bucket`,
+         ORDER BY
+           CASE bucket
+             WHEN 'hit memory' THEN 0
+             WHEN 'missed search' THEN 1
+             ELSE 2
+           END`,
         days,
       )
       .toArray();

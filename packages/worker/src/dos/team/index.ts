@@ -768,6 +768,10 @@ export class TeamDO extends DurableObject<Env> {
       );
       if ('ok' in result && result.memories && result.memories.length > 0) {
         this.#recordMetric(METRIC_KEYS.MEMORIES_SEARCH_HITS);
+        this.sql.exec(
+          `UPDATE sessions SET memories_search_hits = memories_search_hits + 1 WHERE agent_id = ? AND ended_at IS NULL`,
+          resolved,
+        );
       }
       return result;
     });
