@@ -5,7 +5,7 @@ import { getWidget } from '../../widgets/widget-catalog.js';
 // has its own layout stored under a separate localStorage key so users can
 // customize each tab independently.
 
-const STORAGE_VERSION = 1;
+const STORAGE_VERSION = 2;
 const UNDO_STACK_LIMIT = 25;
 
 interface RGLLayout {
@@ -44,11 +44,40 @@ function buildDefaultLayout(defaults: RGLLayout[]): DashboardLayout {
   };
 }
 
+// v1 → v2: live-agents shrank from w=12 to w=6 and pairs with live-conflicts.
+// Preserve the user's widget selection, rebuild positions from the new defaults.
+function migrateV1ToV2(
+  parsed: { widgets: WidgetPosition[] },
+  defaults: RGLLayout[],
+): DashboardLayout {
+  const selectedIds = new Set(parsed.widgets.map((w) => w.id));
+  const rebuilt = buildDefaultLayout(defaults);
+  rebuilt.widgets = rebuilt.widgets.filter((w) => selectedIds.has(w.id));
+  for (const wp of parsed.widgets) {
+    if (!rebuilt.widgets.some((w) => w.id === wp.id)) {
+      const def = getWidget(wp.id);
+      rebuilt.widgets.push({
+        id: wp.id,
+        x: 0,
+        y: Infinity,
+        w: def?.w ?? 6,
+        h: def?.h ?? 3,
+      });
+    }
+  }
+  return rebuilt;
+}
+
 function loadDashboard(tabId: string, defaults: RGLLayout[]): DashboardLayout {
   try {
     const raw = localStorage.getItem(storageKey(tabId));
     if (raw) {
       const parsed = JSON.parse(raw);
+      if (parsed?.version === 1 && Array.isArray(parsed.widgets)) {
+        const migrated = migrateV1ToV2(parsed, defaults);
+        saveDashboard(tabId, migrated);
+        return migrated;
+      }
       if (parsed?.version === STORAGE_VERSION && Array.isArray(parsed.widgets)) {
         return parsed;
       }

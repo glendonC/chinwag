@@ -13,11 +13,11 @@ interface RGLLayout {
 // right now, what files are contested, what's in play. KPI strip below
 // for at-a-glance project health. Trends tab owns the historical charts.
 export const ACTIVITY_DEFAULT_LAYOUT: RGLLayout[] = [
-  // Live presence banner
-  { i: 'live-agents', x: 0, y: 0, w: 12, h: 3 },
-  // Live operational row
-  { i: 'live-conflicts', x: 0, y: 3, w: 6, h: 3 },
-  { i: 'files-in-play', x: 6, y: 3, w: 6, h: 3 },
+  // Live presence + conflicts side by side
+  { i: 'live-agents', x: 0, y: 0, w: 6, h: 3 },
+  { i: 'live-conflicts', x: 6, y: 0, w: 6, h: 3 },
+  // Files in play (full width)
+  { i: 'files-in-play', x: 0, y: 3, w: 12, h: 3 },
   // At-a-glance KPI strip
   { i: 'sessions', x: 0, y: 6, w: 3, h: 2 },
   { i: 'edits', x: 3, y: 6, w: 3, h: 2 },

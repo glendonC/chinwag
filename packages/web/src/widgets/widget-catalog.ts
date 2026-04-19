@@ -881,8 +881,9 @@ export const CATEGORIES: Array<{ id: WidgetCategory; label: string }> = [
 // x/y positions on the 12-column grid
 
 export const DEFAULT_LAYOUT: RGLLayout[] = [
-  // Row 0: Live presence table (full width)
-  { i: 'live-agents', x: 0, y: 0, w: 12, h: 3 },
+  // Row 0: Live presence + conflicts side by side
+  { i: 'live-agents', x: 0, y: 0, w: 6, h: 3 },
+  { i: 'live-conflicts', x: 6, y: 0, w: 6, h: 3 },
 
   // Row 3: KPI stats — edits, cost, cost-per-edit (4-col each)
   { i: 'edits', x: 0, y: 3, w: 4, h: 2 },
