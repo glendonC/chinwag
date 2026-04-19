@@ -15,7 +15,7 @@ import {
   ScopeComplexitySection,
 } from './DrillSections.js';
 import type { ToolDrillIn } from './useScoredStackData.js';
-import { workTypeColor } from '../OverviewView/overview-utils.js';
+import { workTypeColor } from '../../widgets/utils.js';
 import styles from './StackToolDetail.module.css';
 
 interface Props {

@@ -38,7 +38,7 @@ import SpawnForm from '../../components/SpawnAgentModal/SpawnAgentModal.jsx';
 import { WidgetRenderer } from '../../widgets/WidgetRenderer.js';
 import { WidgetCatalog } from '../../widgets/WidgetCatalog.js';
 import { getWidget } from '../../widgets/widget-catalog.js';
-import type { LiveAgent } from '../OverviewView/useOverviewData.js';
+import type { LiveAgent } from '../../widgets/types.js';
 import type { UserAnalytics, ConversationAnalytics, Lock } from '../../lib/apiSchemas.js';
 
 import overviewStyles from '../OverviewView/OverviewView.module.css';

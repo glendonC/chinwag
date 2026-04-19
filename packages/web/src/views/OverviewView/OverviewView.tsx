@@ -88,7 +88,8 @@ import {
   SkeletonStatGrid,
   SkeletonRows,
 } from '../../components/Skeleton/Skeleton.jsx';
-import { useOverviewData, type LiveAgent } from './useOverviewData.js';
+import { useOverviewData } from './useOverviewData.js';
+import type { LiveAgent } from '../../widgets/types.js';
 import LiveNowView from './LiveNowView.js';
 import { RANGES, type RangeDays, summarizeNames } from './overview-utils.js';
 import { useOverviewLayout } from './useOverviewLayout.js';

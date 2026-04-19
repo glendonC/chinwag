@@ -16,7 +16,7 @@ import { useMemo } from 'react';
 import { getToolMeta } from '../../lib/toolMeta.js';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.jsx';
 import type { ToolWorkTypeBreakdown } from '../../lib/apiSchemas.js';
-import { WORK_TYPE_COLORS, WORK_TYPES, type WorkType } from '../OverviewView/overview-utils.js';
+import { WORK_TYPE_COLORS, WORK_TYPES, type WorkType } from '../../widgets/utils.js';
 import { PREVIEW_TOOL_WORK_TYPE } from './previewData.js';
 import styles from './StackWorkTypeMatrix.module.css';
 

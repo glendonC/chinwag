@@ -1,12 +1,12 @@
 import { useMemo, type CSSProperties } from 'react';
 import SectionEmpty from '../../components/SectionEmpty/SectionEmpty.js';
-import { Sparkline } from '../../views/OverviewView/overview-charts.js';
+import { Sparkline } from '../charts.js';
 import {
   TOOL_ERROR_RATE_WARN_THRESHOLD,
   aggregateModels,
   formatDuration,
   workTypeColor,
-} from '../../views/OverviewView/overview-utils.js';
+} from '../utils.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
 import { formatRelativeTime } from '../../lib/relativeTime.js';
 import type { TokenUsageStats, UserAnalytics } from '../../lib/apiSchemas.js';

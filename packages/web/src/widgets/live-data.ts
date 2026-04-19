@@ -1,4 +1,4 @@
-import type { LiveAgent } from './useOverviewData.js';
+import type { LiveAgent } from './types.js';
 
 export interface FileGroup {
   teamId: string;

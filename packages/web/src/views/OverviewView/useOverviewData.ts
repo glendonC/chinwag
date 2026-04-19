@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import type { LiveAgent } from '../../widgets/types.js';
 
 interface TeamSummary {
   team_id?: string;
@@ -18,18 +19,6 @@ interface TeamSummary {
   }>;
   hosts_configured?: Array<{ host_tool?: string; joins: number }>;
   [key: string]: unknown;
-}
-
-export interface LiveAgent {
-  agent_id: string;
-  handle: string;
-  host_tool: string;
-  agent_surface: string | null;
-  files: string[];
-  summary: string | null;
-  session_minutes: number | null;
-  teamName: string;
-  teamId: string;
 }
 
 interface UseOverviewDataReturn {

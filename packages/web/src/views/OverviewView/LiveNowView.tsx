@@ -4,8 +4,8 @@ import { getToolMeta } from '../../lib/toolMeta.js';
 import { formatDuration } from '../../lib/utils.js';
 import BackLink from '../../components/BackLink/BackLink.js';
 import SectionTitle from '../../components/SectionTitle/SectionTitle.js';
-import type { LiveAgent } from './useOverviewData.js';
-import { groupFilesByTeam } from './liveData.js';
+import type { LiveAgent } from '../../widgets/types.js';
+import { groupFilesByTeam } from '../../widgets/live-data.js';
 import styles from './LiveNowView.module.css';
 
 interface Props {

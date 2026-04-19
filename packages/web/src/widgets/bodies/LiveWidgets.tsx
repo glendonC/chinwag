@@ -5,7 +5,7 @@ import { getToolMeta } from '../../lib/toolMeta.js';
 import { formatDuration } from '../../lib/utils.js';
 import { setQueryParam } from '../../lib/router.js';
 import styles from '../../views/OverviewView/OverviewView.module.css';
-import { groupFilesByTeam } from '../../views/OverviewView/liveData.js';
+import { groupFilesByTeam } from '../live-data.js';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
 
 function LiveAgentsWidget({ liveAgents }: WidgetBodyProps) {
