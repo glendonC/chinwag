@@ -394,18 +394,17 @@
 .liveTableHeader,
 .liveTableRow {
   display: grid;
-  /* First three tracks match LiveNowView.agentsHeader/agentsRow so widget
-   * and detail columns align on the same data. Last track holds the View
-   * pill with justify-self: end. `minmax(64px, 1fr)` (not plain `1fr` or
-   * `auto`) pins an explicit min so header and row resolve to the same
-   * track sizes: with plain `1fr` the implicit min is `auto`, which
-   * collapses to 0 for the empty header slot but ~50px for the row's
-   * View pill, throwing off the preceding columns. */
+  /* Half-width widget sizing (6/12 cols). Member column is flex (takes
+   * the excess so other tracks stay compact and View lands at the right
+   * edge). `minmax(0, 1fr)` on the flex track allows it to shrink past
+   * its min-content width (a long handle won't force grid overflow).
+   * Tool and Project are capped so the Flex column always has room to
+   * absorb. Last track is `auto` so the View pill sizes to its text. */
   grid-template-columns:
-    minmax(180px, 220px)
-    minmax(150px, 180px)
-    minmax(160px, 220px)
-    minmax(64px, 1fr);
+    minmax(0, 1fr)
+    minmax(80px, 160px)
+    minmax(80px, 180px)
+    auto;
   gap: var(--space-md);
   align-items: center;
   margin: 0 -14px;
