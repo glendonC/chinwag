@@ -1514,6 +1514,18 @@
   color: var(--soft);
 }
 
+.footer-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, currentColor 35%, transparent);
+  text-underline-offset: 2px;
+  transition: text-decoration-color 0.2s var(--motion-smooth);
+}
+
+.footer-link:hover {
+  text-decoration-color: currentColor;
+}
+
 /* ═══════════════════════════════════════════
    REVEAL ANIMATION
    ═══════════════════════════════════════════ */
