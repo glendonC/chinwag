@@ -24,10 +24,15 @@ const CHAT_MODEL: AiModel = '@cf/meta/llama-4-scout-17b-16e-instruct';
  *
  * Logs at warn so recurring AI outages are visible in production logs:
  * silent null returns degrade memory dedup quality without any signal.
+ *
+ * Uses cls pooling explicitly: Cloudflare's bge-small-en-v1.5 endpoint
+ * defaults to mean pooling for backcompat, but the upstream HF model card
+ * is calibrated for cls. Mean pooling silently degrades quality by several
+ * MTEB points, especially on longer inputs. Always pass `pooling: 'cls'`.
  */
 export async function generateEmbedding(text: string, ai: Ai): Promise<ArrayBuffer | null> {
   try {
-    const result = await ai.run(EMBEDDING_MODEL, { text: [text] });
+    const result = await ai.run(EMBEDDING_MODEL, { text: [text], pooling: 'cls' });
     if (result?.data?.[0]) {
       return new Float32Array(result.data[0]).buffer as ArrayBuffer;
     }

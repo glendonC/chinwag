@@ -7,6 +7,7 @@ import { createLogger } from '../../lib/logger.js';
 import { requireString, validateTagsArray, withTeamRateLimit } from '../../lib/validation.js';
 import { generateEmbedding } from '../../lib/ai.js';
 import { detectSecrets } from '@chinwag/shared/secret-detector.js';
+import { isLiteralQuery } from '../../dos/team/memory.js';
 import {
   MAX_MEMORY_TEXT_LENGTH,
   MAX_TAGS_PER_MEMORY,
@@ -122,7 +123,7 @@ export const handleTeamSaveMemory = teamJsonRoute(async ({ body, user, env, team
   });
 });
 
-export const handleTeamSearchMemory = teamRoute(async ({ request, agentId, team, user }) => {
+export const handleTeamSearchMemory = teamRoute(async ({ request, agentId, team, user, env }) => {
   const url = new URL(request.url);
   const rawQuery = url.searchParams.get('q') || null;
   if (rawQuery && rawQuery.length > MEMORY_SEARCH_MAX_QUERY_LENGTH) {
@@ -175,18 +176,32 @@ export const handleTeamSearchMemory = teamRoute(async ({ request, agentId, team,
   // default for back-compat.
   const format = url.searchParams.get('format') === 'compact' ? 'compact' : 'detail';
 
-  return doResult(
-    team.searchMemories(agentId, query, tags, categories, limit, user.id, {
-      sessionId,
-      agentId: filterAgentId,
-      handle: filterHandle,
-      after,
-      before,
-      decay,
-      format,
-    }),
-    'searchMemories',
-  );
+  // Hybrid retrieval: generate a query embedding for non-literal queries.
+  // Literal-shaped queries (paths, SHAs, identifiers) are strictly better
+  // served by FTS5 alone — embeddings semantically conflate similar paths.
+  // The DO will detect literal queries and skip vector regardless, but
+  // skipping the embedding call here saves a Workers AI round-trip.
+  let queryEmbedding: ArrayBuffer | null = null;
+  let degraded = false;
+  if (query && !isLiteralQuery(query)) {
+    queryEmbedding = await generateEmbedding(query, env.AI);
+    if (!queryEmbedding) degraded = true;
+  }
+
+  const result = await team.searchMemories(agentId, query, tags, categories, limit, user.id, {
+    sessionId,
+    agentId: filterAgentId,
+    handle: filterHandle,
+    after,
+    before,
+    decay,
+    format,
+    queryEmbedding,
+  });
+  if (result && typeof result === 'object' && 'ok' in result && result.ok && degraded) {
+    (result as Record<string, unknown>).degraded = true;
+  }
+  return doResult(result, 'searchMemories');
 });
 
 export const handleTeamUpdateMemory = teamJsonRoute(

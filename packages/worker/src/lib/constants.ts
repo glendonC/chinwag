@@ -74,6 +74,19 @@ export const MEMORY_DECAY_TAGS_SHORT = ['scratch', 'debug', 'wip', 'temp', 'todo
 // reader; recall benefit plateaus by ~3x in spot tests.
 export const MEMORY_DECAY_CANDIDATE_MULTIPLIER = 3;
 
+// Hybrid retrieval (vector + FTS) settings.
+// RRF k=60 is the industry default (Qdrant, OpenSearch, Graphiti). Lower
+// values sharpen top-rank differentiation at the cost of being more sensitive
+// to single-source noise. Re-evaluate once we have query-trace data to tune.
+export const MEMORY_HYBRID_RRF_K = 60;
+// Pull this many vector candidates per query for the RRF merge. Bigger pool
+// improves recall on paraphrased queries; bge-small cosine over 2000 rows is
+// fast enough that 30 is fine.
+export const MEMORY_HYBRID_VECTOR_TOP_N = 30;
+// MMR diversification lambda. λ=0.5 (Graphiti default) balances relevance
+// and diversity. λ→1 is pure relevance; λ→0 is pure diversity.
+export const MEMORY_MMR_LAMBDA = 0.5;
+
 // --- String length limits (worker-specific) ---
 export const MAX_STATUS_LENGTH = 280;
 export const MAX_FRAMEWORK_LENGTH = 50;

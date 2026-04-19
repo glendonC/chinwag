@@ -15,6 +15,9 @@ import {
   MEMORY_DECAY_TAGS_LONG,
   MEMORY_DECAY_TAGS_SHORT,
   MEMORY_DECAY_CANDIDATE_MULTIPLIER,
+  MEMORY_HYBRID_RRF_K,
+  MEMORY_HYBRID_VECTOR_TOP_N,
+  MEMORY_MMR_LAMBDA,
 } from '../../lib/constants.js';
 import { sqlChanges, withTransaction } from '../../lib/validation.js';
 import { recordTagUsage } from './categories.js';
@@ -185,6 +188,12 @@ interface SearchMemoriesResult {
   ok: true;
   memories: Memory[] | CompactMemory[];
   format?: 'detail' | 'compact';
+  /**
+   * True when the route asked for hybrid retrieval but the query embedding
+   * could not be generated (Workers AI failed) — results came from FTS5
+   * alone. Lets callers retry with backoff or surface a quality warning.
+   */
+  degraded?: boolean;
 }
 
 export interface SearchFilters {
@@ -212,6 +221,13 @@ export interface SearchFilters {
    * text, then call back for detail on hits worth investigating.
    */
   format?: 'detail' | 'compact';
+  /**
+   * Pre-computed query embedding for hybrid retrieval. The route handler
+   * generates this in parallel with the SQL fetch. Hybrid only activates
+   * when an embedding is provided AND the query is non-literal (paths,
+   * SHAs, identifiers stay FTS-only). On null, falls back to FTS-only.
+   */
+  queryEmbedding?: ArrayBuffer | null;
 }
 
 export interface CompactMemory {
@@ -277,6 +293,87 @@ function decayScore(createdAt: string, accessCount: number, tags: string[]): num
   const decay = Math.exp(-ageDays / halflife);
   const accessBoost = 1 + Math.log(1 + Math.max(0, accessCount));
   return decay * accessBoost;
+}
+
+/**
+ * Detect literal-shaped queries (file paths, SHAs, identifiers, command
+ * names, file extensions). For these, FTS5 is strictly better than vector
+ * search — embeddings semantically conflate similar paths or hashes and
+ * push the exact match down. The router falls back to FTS-only.
+ */
+export function isLiteralQuery(q: string): boolean {
+  if (!q) return false;
+  const trimmed = q.trim();
+  if (!trimmed) return false;
+  if (trimmed.includes('/') || trimmed.includes('\\')) return true;
+  if (trimmed.includes('::')) return true;
+  if (/[A-Za-z_]\w*\(/.test(trimmed)) return true;
+  if (/\b[a-f0-9]{12,}\b/i.test(trimmed)) return true;
+  if (/\.[a-z]{2,5}\b/i.test(trimmed)) return true;
+  if (/^[A-Z][A-Z0-9_]{3,}$/.test(trimmed)) return true;
+  return false;
+}
+
+/**
+ * Reciprocal Rank Fusion: combine two ranked lists into a single ranked
+ * list. Each document's score is the sum over all rankings of 1/(k + rank).
+ * k=60 is the industry default per Cormack et al. 2009; flattens the curve
+ * so neither ranker dominates.
+ */
+export function rrfMerge(
+  ftsRanked: string[],
+  vectorRanked: string[],
+  k: number = MEMORY_HYBRID_RRF_K,
+): Map<string, number> {
+  const scores = new Map<string, number>();
+  ftsRanked.forEach((id, i) => {
+    scores.set(id, (scores.get(id) ?? 0) + 1 / (k + i + 1));
+  });
+  vectorRanked.forEach((id, i) => {
+    scores.set(id, (scores.get(id) ?? 0) + 1 / (k + i + 1));
+  });
+  return scores;
+}
+
+/**
+ * MMR (Maximal Marginal Relevance) diversification. Iteratively picks the
+ * candidate that maximises `lambda * relevance - (1 - lambda) * max_sim`,
+ * where max_sim is the cosine to the most-similar already-picked memory.
+ * Prevents one hot memory from starving diverse results.
+ *
+ * Skips diversification (returns input ordering) when any candidate is
+ * missing an embedding — partial diversity is worse than none.
+ */
+export function mmrDiversify(
+  ranked: { id: string; relevance: number; embedding: Float32Array | null }[],
+  k: number,
+  lambda: number = MEMORY_MMR_LAMBDA,
+): string[] {
+  if (ranked.length <= 1) return ranked.map((r) => r.id);
+  if (ranked.some((r) => r.embedding === null)) return ranked.slice(0, k).map((r) => r.id);
+
+  const selected: typeof ranked = [];
+  const remaining = [...ranked];
+  while (selected.length < k && remaining.length > 0) {
+    let bestIdx = 0;
+    let bestScore = -Infinity;
+    for (let i = 0; i < remaining.length; i++) {
+      const cand = remaining[i]!;
+      let maxSim = 0;
+      for (const sel of selected) {
+        const sim = cosineSimilarity(cand.embedding!, sel.embedding!);
+        if (sim > maxSim) maxSim = sim;
+      }
+      const score = lambda * cand.relevance - (1 - lambda) * maxSim;
+      if (score > bestScore) {
+        bestScore = score;
+        bestIdx = i;
+      }
+    }
+    selected.push(remaining[bestIdx]!);
+    remaining.splice(bestIdx, 1);
+  }
+  return selected.map((s) => s.id);
 }
 
 export function searchMemories(sql: SqlStorage, filters: SearchFilters): SearchMemoriesResult {
@@ -350,8 +447,14 @@ export function searchMemories(sql: SqlStorage, filters: SearchFilters): SearchM
   // exponential decay and a log-scale access boost. `decay: 'off'` falls back
   // to pure recency for "show me everything" queries.
   const decayEnabled = filters.decay !== 'off';
-  const fetchLimit = decayEnabled ? cappedLimit * MEMORY_DECAY_CANDIDATE_MULTIPLIER : cappedLimit;
-  const sqlStr = `SELECT m.id, m.text, m.tags, m.categories, m.handle, m.host_tool, m.agent_surface, m.agent_model, m.session_id, m.created_at, m.updated_at, m.last_accessed_at, m.access_count,
+  // Hybrid retrieval activates only when the route supplied a query
+  // embedding AND the query is non-literal. Literal queries (paths, SHAs,
+  // function names) are strictly better served by FTS5 alone — embeddings
+  // semantically conflate similar paths and push the exact match down.
+  const hybridEligible = !!filters.queryEmbedding && !!query && !isLiteralQuery(query);
+  const fetchLimit =
+    decayEnabled || hybridEligible ? cappedLimit * MEMORY_DECAY_CANDIDATE_MULTIPLIER : cappedLimit;
+  const sqlStr = `SELECT m.id, m.text, m.tags, m.categories, m.handle, m.host_tool, m.agent_surface, m.agent_model, m.session_id, m.created_at, m.updated_at, m.last_accessed_at, m.access_count, m.embedding,
                    CASE
                      WHEN m.last_accessed_at IS NULL THEN 1
                      WHEN (julianday('now') - julianday(m.last_accessed_at)) * 86400 > ? THEN 1
@@ -362,14 +465,103 @@ export function searchMemories(sql: SqlStorage, filters: SearchFilters): SearchM
   params.unshift(throttleSeconds);
   params.push(fetchLimit);
 
-  const rows = sql.exec(sqlStr, ...params).toArray();
+  const ftsRows = sql.exec(sqlStr, ...params).toArray();
+
+  // Hybrid: also pull top-N vector candidates from anywhere in the corpus
+  // that satisfies the same non-text filters. These will surface
+  // semantically-close memories that FTS missed (paraphrased queries).
+  // RRF then merges FTS rank with vector rank.
+  let rows: Record<string, unknown>[] = ftsRows as Record<string, unknown>[];
+  let vectorRanking: string[] = [];
+  if (hybridEligible) {
+    // Build the same WHERE minus the FTS clause (vector ignores text query)
+    const nonFtsConditions: string[] = [];
+    const nonFtsParams: unknown[] = [];
+    if (tags && tags.length > 0) {
+      const tagClauses = tags.map(() => "tags LIKE ? ESCAPE '\\'");
+      nonFtsConditions.push(`(${tagClauses.join(' OR ')})`);
+      for (const tag of tags) nonFtsParams.push(`%"${escapeLike(tag)}"%`);
+    }
+    if (categories && categories.length > 0) {
+      const catClauses = categories.map(() => "categories LIKE ? ESCAPE '\\'");
+      nonFtsConditions.push(`(${catClauses.join(' OR ')})`);
+      for (const cat of categories) nonFtsParams.push(`%"${escapeLike(cat)}"%`);
+    }
+    if (sessionId) {
+      nonFtsConditions.push('session_id = ?');
+      nonFtsParams.push(sessionId);
+    }
+    if (agentId) {
+      nonFtsConditions.push('agent_id = ?');
+      nonFtsParams.push(agentId);
+    }
+    if (handle) {
+      nonFtsConditions.push('handle = ?');
+      nonFtsParams.push(handle);
+    }
+    if (after) {
+      nonFtsConditions.push('created_at > ?');
+      nonFtsParams.push(after);
+    }
+    if (before) {
+      nonFtsConditions.push('created_at < ?');
+      nonFtsParams.push(before);
+    }
+    nonFtsConditions.push('embedding IS NOT NULL');
+    const vecWhere = `WHERE ${nonFtsConditions.join(' AND ')}`;
+
+    const vecRows = sql
+      .exec(
+        `SELECT m.id, m.text, m.tags, m.categories, m.handle, m.host_tool, m.agent_surface, m.agent_model, m.session_id, m.created_at, m.updated_at, m.last_accessed_at, m.access_count, m.embedding,
+                CASE
+                  WHEN m.last_accessed_at IS NULL THEN 1
+                  WHEN (julianday('now') - julianday(m.last_accessed_at)) * 86400 > ? THEN 1
+                  ELSE 0
+                END AS is_stale
+         FROM memories m ${vecWhere}`,
+        throttleSeconds,
+        ...nonFtsParams,
+      )
+      .toArray() as Record<string, unknown>[];
+
+    const queryVec = new Float32Array(filters.queryEmbedding!);
+    type VecScored = { row: Record<string, unknown>; sim: number };
+    const vecScored: VecScored[] = [];
+    for (const r of vecRows) {
+      const buf = r.embedding as ArrayBuffer | null;
+      if (!buf) continue;
+      const stored = new Float32Array(buf);
+      if (stored.length !== queryVec.length) continue;
+      vecScored.push({ row: r, sim: cosineSimilarity(queryVec, stored) });
+    }
+    vecScored.sort((a, b) => b.sim - a.sim);
+    const topVec = vecScored.slice(0, MEMORY_HYBRID_VECTOR_TOP_N);
+    vectorRanking = topVec.map((v) => v.row.id as string);
+
+    // Union FTS candidates with vector candidates (dedup by id)
+    const ftsIds = new Set(ftsRows.map((r) => (r as Record<string, unknown>).id as string));
+    const merged = [...(ftsRows as Record<string, unknown>[])];
+    for (const v of topVec) {
+      if (!ftsIds.has(v.row.id as string)) merged.push(v.row);
+    }
+    rows = merged;
+  }
 
   // Throttled last_accessed_at update — only touch rows flagged is_stale by SQL.
   // Writes cost 20x reads on DO SQLite, so we avoid updating on every search.
   const idsToTouch: string[] = [];
-  type Scored = { memory: Memory; relevanceWeight: number; decayWeight: number };
-  const scored: Scored[] = rows.map((m, idx) => {
-    const row = m as Record<string, unknown>;
+  type Scored = {
+    id: string;
+    memory: Memory;
+    relevanceWeight: number;
+    decayWeight: number;
+    embedding: Float32Array | null;
+  };
+  // FTS rank order from the recency-sorted SQL result (position-based)
+  const ftsRanking = (ftsRows as Record<string, unknown>[]).map((r) => r.id as string);
+  const rrfScores = hybridEligible ? rrfMerge(ftsRanking, vectorRanking) : null;
+
+  const scored: Scored[] = rows.map((row, idx) => {
     const parsedTags = safeParse(
       (row.tags as string) || '[]',
       `searchMemories memory=${row.id} tags`,
@@ -387,19 +579,19 @@ export function searchMemories(sql: SqlStorage, filters: SearchFilters): SearchM
       idsToTouch.push(row.id as string);
     }
 
-    // Strip the SQL-only is_stale + access_count columns from the returned
-    // row so callers see the same Memory shape as before. access_count is
-    // used internally for decay scoring but kept off the wire for now.
-    const { is_stale: _is_stale, access_count, ...rest } = row;
+    // Strip the SQL-only is_stale + access_count + embedding columns from
+    // the returned row so callers see the same Memory shape as before.
+    // access_count and embedding are used internally for scoring/MMR.
+    const { is_stale: _is_stale, access_count, embedding: embedBlob, ...rest } = row;
     const memory = {
       ...rest,
       tags: parsedTags,
       categories: parsedCategories,
     } as unknown as Memory;
 
-    // SQL ranks by recency, so position 0 = most recent. Reciprocal-rank
-    // weight gives diminishing returns to deeper candidates.
-    const relevanceWeight = 1 / (idx + 1);
+    // Relevance: hybrid uses RRF score, FTS-only uses reciprocal of position.
+    const id = row.id as string;
+    const relevanceWeight = rrfScores ? (rrfScores.get(id) ?? 1 / (idx + 1)) : 1 / (idx + 1);
     const decayWeight = decayEnabled
       ? decayScore(
           (row.created_at as string) ?? new Date().toISOString(),
@@ -407,13 +599,25 @@ export function searchMemories(sql: SqlStorage, filters: SearchFilters): SearchM
           parsedTags as string[],
         )
       : 1;
-    return { memory, relevanceWeight, decayWeight };
+    const embedding = embedBlob instanceof ArrayBuffer ? new Float32Array(embedBlob) : null;
+    return { id, memory, relevanceWeight, decayWeight, embedding };
   });
 
   let memories: Memory[];
-  if (decayEnabled) {
+  if (decayEnabled || rrfScores) {
     scored.sort((a, b) => b.relevanceWeight * b.decayWeight - a.relevanceWeight * a.decayWeight);
-    memories = scored.slice(0, cappedLimit).map((s) => s.memory);
+  }
+  if (hybridEligible) {
+    // MMR diversification on the merged candidate set. Falls back to
+    // ranked order if any candidate is missing an embedding.
+    const ranked = scored.map((s) => ({
+      id: s.id,
+      relevance: s.relevanceWeight * s.decayWeight,
+      embedding: s.embedding,
+    }));
+    const orderedIds = mmrDiversify(ranked, cappedLimit);
+    const byId = new Map(scored.map((s) => [s.id, s.memory]));
+    memories = orderedIds.map((id) => byId.get(id)!).filter(Boolean);
   } else {
     memories = scored.slice(0, cappedLimit).map((s) => s.memory);
   }
