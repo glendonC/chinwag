@@ -13,6 +13,7 @@ import { writeFileAtomicSync } from '@chinwag/shared/fs-atomic.js';
 import type { ChinwagConfig } from '../config.js';
 import { api, initAccount } from '../api.js';
 import { detectTools, configureTool } from '../mcp-config.js';
+import { installChinwagHooks } from '../hooks/install.js';
 import { classifyError } from '../utils/errors.js';
 import type { AuthenticatedUser } from '@chinwag/shared/contracts/dashboard.js';
 import type { InitAccountResponse, CreateTeamResponse } from '../types/api.js';
@@ -191,6 +192,26 @@ export async function runInit(): Promise<void> {
       `    ${dim('Run')} ${chalk.cyan('npx chinwag doctor')} ${dim('to diagnose and repair.')}`,
     );
   }
+
+  // Step 5: Git pre-commit hook (tool-agnostic enforcement of file leases).
+  // Skips silently outside a git repo; prints a single line of status when
+  // it fires. Advisory by default — developers can set CHINWAG_GUARD=block
+  // to have the hook actually refuse commits on conflict.
+  const hookResult = installChinwagHooks(cwd);
+  if (hookResult.status === 'installed') {
+    const where = hookResult.customHooksPath ? dim(' (custom hooksPath)') : '';
+    const preservedNote = hookResult.preservedOriginal
+      ? dim(' — your existing pre-commit preserved as .orig and chained first')
+      : '';
+    console.log(`  ${ok} Git hook installed${where}${preservedNote}`);
+  } else if (hookResult.status === 'upgraded') {
+    const where = hookResult.customHooksPath ? dim(' (custom hooksPath)') : '';
+    console.log(`  ${ok} Git hook upgraded${where}`);
+  } else if (hookResult.status === 'error') {
+    console.log(`  ${chalk.yellow('!')} Git hook skipped: ${hookResult.error}`);
+  }
+  // status === 'skipped-not-a-repo' is silent — a non-git directory is a
+  // legitimate use case (e.g. running chinwag in a plain project folder).
 
   // Next steps
   console.log('');
