@@ -44,15 +44,37 @@ export function getUserGlobalRank(
           um.sessions_with_first_edit,
           um.total_input_tokens,
           um.total_output_tokens,
+          um.total_tool_calls,
+          um.total_errored_tool_calls,
+          um.total_active_min,
           CAST(um.completed_sessions AS REAL) / NULLIF(um.total_sessions, 0) * 100 AS completion_rate,
-          CAST(um.total_edits AS REAL) / NULLIF(um.total_duration_min, 0) AS edit_velocity,
+          -- Velocity now uses active minutes so it measures edits-per-minute-of-work,
+          -- not edits-per-minute-of-session-open-time. Falls back to total_duration_min
+          -- for rows written before migration 008 (total_active_min starts at 0).
+          CAST(um.total_edits AS REAL) / NULLIF(COALESCE(NULLIF(um.total_active_min, 0), um.total_duration_min), 0) AS edit_velocity,
           (SELECT COUNT(*) FROM user_tools ut WHERE ut.handle = um.handle) AS tool_count,
           CASE WHEN um.sessions_with_first_edit > 0
             THEN um.total_first_edit_s / um.sessions_with_first_edit ELSE NULL END AS avg_first_edit_s,
+          -- Unreliability blends orphan-close rate with tool-call error rate at 50/50.
+          -- stuck_rate alone only captured "did MCP die"; errored_tool_call share
+          -- captures "did the agent actually fail at its work." Both expressed as 0-100
+          -- so the blend stays in percent space.
           CAST(um.total_stuck AS REAL) / NULLIF(um.total_sessions, 0) * 100 AS stuck_rate,
+          CAST(um.total_errored_tool_calls AS REAL) / NULLIF(um.total_tool_calls, 0) * 100 AS tool_error_rate,
+          CASE
+            WHEN um.total_tool_calls > 0 THEN
+              (CAST(um.total_stuck AS REAL) / NULLIF(um.total_sessions, 0) * 100) * 0.5
+              + (CAST(um.total_errored_tool_calls AS REAL) / NULLIF(um.total_tool_calls, 0) * 100) * 0.5
+            ELSE
+              CAST(um.total_stuck AS REAL) / NULLIF(um.total_sessions, 0) * 100
+          END AS unreliability_score,
           CAST(um.total_lines_added AS REAL) / NULLIF(um.total_sessions, 0) AS lines_per_session,
           um.total_lines_added AS total_lines,
-          ROUND(um.total_duration_min / 60.0, 1) AS focus_hours
+          -- Focus uses active minutes (gap-capped time between real activity) instead
+          -- of total_duration_min (wall-clock session open time). Backfill fallback:
+          -- rows with no active_min yet fall through to duration so pre-008 history
+          -- still ranks, just less defensibly.
+          ROUND(COALESCE(NULLIF(um.total_active_min, 0), um.total_duration_min) / 60.0, 1) AS focus_hours
         FROM user_metrics um
         WHERE um.total_sessions >= 1
       ),
@@ -62,7 +84,11 @@ export function getUserGlobalRank(
           ROUND(PERCENT_RANK() OVER (ORDER BY edit_velocity) * 100) AS edit_velocity_pct,
           ROUND(PERCENT_RANK() OVER (ORDER BY tool_count) * 100) AS tool_diversity_pct,
           ROUND(PERCENT_RANK() OVER (ORDER BY avg_first_edit_s DESC) * 100) AS first_edit_pct,
-          ROUND(PERCENT_RANK() OVER (ORDER BY stuck_rate DESC) * 100) AS stuck_rate_pct,
+          -- stuck_rate_pct ranks on the composite unreliability_score now (higher
+          -- composite = worse, so DESC gives higher percentile = better reliability).
+          -- Name stays stuck_rate_pct so the wire contract with the web client is
+          -- unchanged; the underlying signal is now the defensible version.
+          ROUND(PERCENT_RANK() OVER (ORDER BY unreliability_score DESC) * 100) AS stuck_rate_pct,
           ROUND(PERCENT_RANK() OVER (ORDER BY lines_per_session) * 100) AS lines_per_session_pct,
           ROUND(PERCENT_RANK() OVER (ORDER BY total_lines) * 100) AS total_lines_pct,
           ROUND(PERCENT_RANK() OVER (ORDER BY focus_hours) * 100) AS focus_hours_pct

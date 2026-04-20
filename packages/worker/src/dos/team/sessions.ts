@@ -13,6 +13,40 @@ import { sqlChanges, withTransaction } from '../../lib/validation.js';
 
 const log = createLogger('TeamDO.sessions');
 
+/**
+ * Cap on how much time between two consecutive activities rolls into
+ * active_min. Anything larger is treated as idle and discarded. 60 seconds
+ * is a compromise: thoughtful pauses between edits (reading, thinking,
+ * reviewing agent output) count, but walking away from the keyboard does
+ * not. Feed for the Focus axis in rank.ts — the whole point is to stop
+ * session-open time from inflating Focus.
+ */
+const ACTIVE_GAP_CAP_MINUTES = 1.0;
+
+/**
+ * Bump the active session's active_min + last_active_at on every real
+ * activity path (edits, tool calls, memory ops). First activity in a session
+ * sets last_active_at without accruing — the pre-first-activity interval is
+ * startup/planning time, not active work. Subsequent activities accrue the
+ * time elapsed since the previous activity, capped at ACTIVE_GAP_CAP_MINUTES.
+ */
+export function bumpActiveTime(sql: SqlStorage, resolvedAgentId: string): void {
+  sql.exec(
+    `UPDATE sessions SET
+       active_min = CASE
+         WHEN last_active_at IS NULL THEN active_min
+         ELSE active_min + MIN(
+           (julianday('now') - julianday(last_active_at)) * 1440,
+           ?
+         )
+       END,
+       last_active_at = datetime('now')
+     WHERE agent_id = ? AND ended_at IS NULL`,
+    ACTIVE_GAP_CAP_MINUTES,
+    resolvedAgentId,
+  );
+}
+
 export function startSession(
   sql: SqlStorage,
   resolvedAgentId: string,
@@ -141,15 +175,21 @@ export function endSession(
   if (sqlChanges(sql) === 0)
     return { error: 'Session not found or not owned by this agent', code: 'NOT_FOUND' };
 
-  // Read closed session for global metrics write-through
+  // Read closed session for global metrics write-through. active_min ships
+  // alongside duration_min so Focus reflects actual work, not session-open
+  // time. tool-call rollup is joined so Reliability can compose stuck_rate
+  // with the share of tool calls that errored.
   const closedRows = sql
     .exec(
-      `SELECT host_tool, agent_model, edit_count, lines_added, lines_removed,
-        input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens,
-        got_stuck, memories_saved, memories_searched,
-        first_edit_at, started_at, ended_at,
-        ROUND((julianday(ended_at) - julianday(started_at)) * 24 * 60, 2) AS duration_min
-      FROM sessions WHERE id = ?`,
+      `SELECT s.host_tool, s.agent_model, s.edit_count, s.lines_added, s.lines_removed,
+        s.input_tokens, s.output_tokens, s.cache_read_tokens, s.cache_creation_tokens,
+        s.got_stuck, s.memories_saved, s.memories_searched,
+        s.first_edit_at, s.started_at, s.ended_at,
+        COALESCE(s.active_min, 0) AS active_min,
+        ROUND((julianday(s.ended_at) - julianday(s.started_at)) * 24 * 60, 2) AS duration_min,
+        COALESCE((SELECT COUNT(*) FROM tool_calls WHERE session_id = s.id), 0) AS tool_call_count,
+        COALESCE((SELECT SUM(is_error) FROM tool_calls WHERE session_id = s.id), 0) AS errored_tool_call_count
+      FROM sessions s WHERE s.id = ?`,
       sessionId,
     )
     .toArray();
@@ -205,6 +245,8 @@ export function recordEdit(
     .toArray();
 
   if (sessions.length === 0) return { ok: true, skipped: true }; // No active session
+
+  bumpActiveTime(sql, resolvedAgentId);
 
   const session = sessions[0] as Record<string, unknown>;
   const sessionId = session.id as string;
@@ -358,6 +400,7 @@ export function recordToolCalls(
   calls: ToolCallInput[],
 ): { ok: true; recorded: number } {
   const capped = calls.slice(0, MAX_TOOL_CALLS_BATCH);
+  if (capped.length > 0) bumpActiveTime(sql, resolvedAgentId);
   let recorded = 0;
   for (const call of capped) {
     if (typeof call.tool !== 'string' || !call.tool) continue;

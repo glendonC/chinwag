@@ -21,6 +21,7 @@ import {
 } from '../../lib/constants.js';
 import { sqlChanges, withTransaction } from '../../lib/validation.js';
 import { recordTagUsage } from './categories.js';
+import { bumpActiveTime } from './sessions.js';
 
 const log = createLogger('TeamDO.memory');
 
@@ -179,7 +180,10 @@ export function saveMemory(
       recordTagUsage(sql, normalizedTags);
     }
 
-    // Record in active session
+    // Record in active session. bumpActiveTime fires first so last_active_at
+    // advances on memory saves too — otherwise a session of pure memory work
+    // would never accrue active_min.
+    bumpActiveTime(sql, resolvedAgentId);
     sql.exec(
       `UPDATE sessions SET memories_saved = memories_saved + 1
        WHERE agent_id = ? AND ended_at IS NULL`,

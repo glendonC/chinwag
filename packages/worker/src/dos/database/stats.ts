@@ -70,7 +70,10 @@ export function getStats(sql: SqlStorage): CommunityStats {
           ROUND(AVG(CAST(total_lines_added AS REAL) / NULLIF(total_sessions, 0)), 0) AS avg_lines_per_session,
           ROUND(AVG(total_duration_min / 60.0), 1) AS avg_focus_hours,
           ROUND(AVG(total_edits), 0) AS avg_total_edits,
-          ROUND(AVG(total_sessions), 0) AS avg_total_sessions
+          ROUND(AVG(total_sessions), 0) AS avg_total_sessions,
+          ROUND(AVG(total_lines_added), 0) AS avg_total_lines_added,
+          ROUND(AVG(total_input_tokens + total_output_tokens), 0) AS avg_total_tokens,
+          ROUND(AVG(total_memories_saved), 1) AS avg_total_memories
         FROM user_metrics WHERE total_sessions >= 1`,
       )
       .toArray()[0] as Record<string, unknown> | undefined;
@@ -84,6 +87,9 @@ export function getStats(sql: SqlStorage): CommunityStats {
         focus_hours: (avgRow.avg_focus_hours as number) || 0,
         total_edits: (avgRow.avg_total_edits as number) || 0,
         total_sessions: (avgRow.avg_total_sessions as number) || 0,
+        total_lines_added: (avgRow.avg_total_lines_added as number) || 0,
+        total_tokens: (avgRow.avg_total_tokens as number) || 0,
+        total_memories: (avgRow.avg_total_memories as number) || 0,
       };
     }
   } catch {

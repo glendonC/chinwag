@@ -286,6 +286,38 @@ const migrations: Migration[] = [
       }
     },
   },
+  {
+    name: '008_defensible_rank_axes',
+    up(sql) {
+      // Three rollup columns so the radar's Reliability and Focus axes stop
+      // being proxies for shutdown-discipline and session-open-time:
+      //
+      //   total_tool_calls / total_errored_tool_calls: Reliability blends
+      //     stuck_rate with the share of tool calls that errored. Stuck
+      //     alone captures only "did MCP die" — errored calls capture
+      //     "did the agent actually fail at its work."
+      //
+      //   total_active_min: Focus now measures active work — minutes
+      //     bracketing real activity (edits, tool calls, memory ops).
+      //     Idle minutes with the agent open no longer inflate the axis.
+      //
+      // Each column is additive, defaults to 0, and rolls up on session end
+      // (clean path + orphan sweep + historical backfill) alongside the
+      // existing token/edit totals.
+      const adds = [
+        'ALTER TABLE user_metrics ADD COLUMN total_tool_calls INTEGER DEFAULT 0',
+        'ALTER TABLE user_metrics ADD COLUMN total_errored_tool_calls INTEGER DEFAULT 0',
+        'ALTER TABLE user_metrics ADD COLUMN total_active_min REAL DEFAULT 0',
+      ];
+      for (const stmt of adds) {
+        try {
+          sql.exec(stmt);
+        } catch (err) {
+          if (!getErrorMessage(err).toLowerCase().includes('duplicate column name')) throw err;
+        }
+      }
+    },
+  },
 ];
 
 export function ensureSchema(sql: SqlStorage, transact: <T>(fn: () => T) => T): void {

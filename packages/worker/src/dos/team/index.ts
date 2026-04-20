@@ -45,7 +45,7 @@ import { isDOError } from '../../lib/errors.js';
 import { ensureSchema } from './schema.js';
 import { queryTeamContext, queryTeamSummary } from './context.js';
 import { resolveOwnedAgentId } from './identity.js';
-import { runCleanup } from './cleanup.js';
+import { runCleanup, collectHandleBackfills, type OrphanSummary } from './cleanup.js';
 import { join, leave, heartbeat as heartbeatFn } from './membership.js';
 import {
   updateActivity as updateActivityFn,
@@ -102,6 +102,7 @@ import {
   getSessionsInRange as getSessionsInRangeFn,
   getEditHistory as getEditHistoryFn,
   enrichSessionModel as enrichSessionModelFn,
+  bumpActiveTime,
 } from './sessions.js';
 import type { EditEntry, SessionRecord } from './sessions.js';
 import {
@@ -143,6 +144,10 @@ import { broadcastToWatchers, broadcastToExecutors } from './broadcast.js';
 import { recordMetric as recordMetricFn } from './telemetry.js';
 import { ContextCache } from './context-cache.js';
 import { handleFetch, handleMessage, handleClose, handleError, type WsCtx } from './websocket.js';
+import { getDB } from '../../lib/env.js';
+import { createLogger } from '../../lib/logger.js';
+
+const log = createLogger('TeamDO');
 
 export class TeamDO extends DurableObject<Env> {
   sql: SqlStorage;
@@ -245,11 +250,61 @@ export class TeamDO extends DurableObject<Env> {
   }
 
   // Evict stale members and prune old sessions -- at most once per minute.
+  // Three write-through paths feed DatabaseDO.updateUserMetrics so lifetime
+  // percentile ranks stay complete:
+  //   1. Clean session end (activity.ts route handler)
+  //   2. Orphan close (this sweep — for MCP crashes / hard Ctrl+C)
+  //   3. Historical backfill (this sweep — self-heals pre-fix drift and any
+  //      future rollup-path bug that leaves user_metrics holes)
+  // Without these, getUserGlobalRank returns rank:null and every percentile
+  // widget silently reads zeros.
   #maybeCleanup(): void {
     const now = Date.now();
     if (now - this.#lastCleanup < CLEANUP_INTERVAL_MS) return;
     this.#lastCleanup = now;
-    runCleanup(this.sql, this.#getAllConnectedMemberIds(), this.#transact);
+    const orphans = runCleanup(this.sql, this.#getAllConnectedMemberIds(), this.#transact);
+    this.#flushUserMetricsBackfill(orphans);
+  }
+
+  async #flushUserMetricsBackfill(orphans: OrphanSummary[]): Promise<void> {
+    const db = getDB(this.env);
+
+    // Path 2: new orphans just closed by the sweep.
+    for (const { handle, summary } of orphans) {
+      db.updateUserMetrics(handle, summary).catch((err: unknown) => {
+        log.warn('updateUserMetrics failed for orphaned session', {
+          handle,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
+    }
+
+    // Path 3: self-healing backfill for handles that have closed sessions but
+    // no user_metrics row. One RPC to check existence, then per-session emits
+    // for the missing handles only. Idempotent — a handle that already has a
+    // row is skipped, so re-running across sweeps converges at zero work.
+    try {
+      const candidates = this.sql
+        .exec(`SELECT DISTINCT handle FROM sessions WHERE ended_at IS NOT NULL AND handle != ''`)
+        .toArray() as Array<{ handle: string }>;
+      if (candidates.length === 0) return;
+
+      const existing = await db.existingMetricsHandles(candidates.map((r) => r.handle));
+      const existingSet = new Set(existing);
+      const backfills = collectHandleBackfills(this.sql, existingSet);
+      for (const { handle, summary } of backfills) {
+        db.updateUserMetrics(handle, summary).catch((err: unknown) => {
+          log.warn('updateUserMetrics backfill failed', {
+            handle,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
+      }
+    } catch (err) {
+      log.warn('user_metrics backfill sweep failed', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   #recordMetric(metric: string): void {
@@ -763,6 +818,10 @@ export class TeamDO extends DurableObject<Env> {
     return this.#withMember(agentId, ownerId, (resolved) => {
       const result = searchMemoriesFn(this.sql, { query, tags, categories, limit, ...filters });
       this.#recordMetric(METRIC_KEYS.MEMORIES_SEARCHED);
+      // Bump active_min on memory searches too. An agent doing pure research
+      // (grep memory, read, grep memory, read) would otherwise register zero
+      // active time even though it's working.
+      bumpActiveTime(this.sql, resolved);
       // Increment per-session memory search counter
       this.sql.exec(
         `UPDATE sessions SET memories_searched = memories_searched + 1 WHERE agent_id = ? AND ended_at IS NULL`,

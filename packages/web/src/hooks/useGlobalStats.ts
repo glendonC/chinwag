@@ -21,6 +21,9 @@ export interface GlobalAverages {
   focus_hours: number;
   total_edits: number;
   total_sessions: number;
+  total_lines_added: number;
+  total_tokens: number;
+  total_memories: number;
 }
 
 export interface ToolEffectiveness {
@@ -79,6 +82,9 @@ const EMPTY_AVERAGES: GlobalAverages = {
   focus_hours: 0,
   total_edits: 0,
   total_sessions: 0,
+  total_lines_added: 0,
+  total_tokens: 0,
+  total_memories: 0,
 };
 
 const GLOBAL_STATS_POLL_MS = 60_000;
@@ -142,6 +148,9 @@ export function useGlobalStats(): GlobalStats {
               focus_hours: avg.focus_hours || 0,
               total_edits: avg.total_edits || 0,
               total_sessions: avg.total_sessions || 0,
+              total_lines_added: avg.total_lines_added || 0,
+              total_tokens: avg.total_tokens || 0,
+              total_memories: avg.total_memories || 0,
             },
             toolEffectiveness: parseArray<ToolEffectiveness>(data.toolEffectiveness),
             modelEffectiveness: parseArray<ModelEffectiveness>(data.modelEffectiveness),

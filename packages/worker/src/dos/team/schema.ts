@@ -807,6 +807,20 @@ const migrations: Migration[] = [
       );
     },
   },
+  {
+    name: '026_session_active_time',
+    up(sql) {
+      // Active-time tracking so the Focus axis stops being a proxy for
+      // "MCP process stayed alive." Every activity path (recordEdit,
+      // recordToolCalls, memory ops) bumps `active_min` by the elapsed
+      // gap since `last_active_at`, capped at ACTIVE_GAP_THRESHOLD_S.
+      // Gaps larger than the threshold don't roll in — those are idle
+      // minutes where the agent was open but no work happened. The
+      // resulting `active_min` is what feeds Focus in rank.ts.
+      addColumnIfMissing(sql, 'sessions', 'active_min REAL DEFAULT 0');
+      addColumnIfMissing(sql, 'sessions', 'last_active_at TEXT');
+    },
+  },
 ];
 
 export function ensureSchema(

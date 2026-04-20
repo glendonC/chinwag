@@ -1,7 +1,7 @@
 // Team membership routes — join, leave, heartbeat, context.
 
 import { checkContent } from '../../moderation.js';
-import { rpc } from '../../lib/env.js';
+import { getLobby, rpc } from '../../lib/env.js';
 import { json } from '../../lib/http.js';
 import { teamRoute, doResult } from '../../lib/middleware.js';
 import { teamErrorStatus } from '../../lib/request-utils.js';
@@ -106,7 +106,15 @@ export const handleTeamContext = teamRoute(async ({ user, teamId, db, agentId, t
   return json(result);
 });
 
-export const handleTeamHeartbeat = teamRoute(async ({ agentId, team, user }) => {
+export const handleTeamHeartbeat = teamRoute(async ({ request, env, agentId, team, user }) => {
+  // Also populate global presence so CLI/MCP sessions — not just web dashboard
+  // viewers — show up in /stats (online count + countries map). Country comes
+  // from Cloudflare's edge geolocation, same source as /presence/heartbeat.
+  // Fire-and-forget: a lobby write failure must not break the team heartbeat.
+  const country = request.headers.get('CF-IPCountry') || null;
+  getLobby(env)
+    .heartbeat(user.handle, country)
+    .catch(() => {});
   return doResult(team.heartbeat(agentId, user.id), 'heartbeat');
 });
 

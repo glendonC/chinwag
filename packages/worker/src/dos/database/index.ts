@@ -278,6 +278,22 @@ export class DatabaseDO extends DurableObject<Env> {
     return getUserGlobalRankFn(this.sql, handle);
   }
 
+  /**
+   * Return the subset of `handles` that already have a user_metrics row.
+   * Used by the TeamDO cleanup sweep to figure out which users still need
+   * a backfill from historical closed sessions (pre-orphan-fix drift).
+   * Cheap batched read: one SQL call regardless of input size.
+   */
+  async existingMetricsHandles(handles: string[]): Promise<string[]> {
+    this.#ensureSchema();
+    if (handles.length === 0) return [];
+    const placeholders = handles.map(() => '?').join(',');
+    const rows = this.sql
+      .exec(`SELECT handle FROM user_metrics WHERE handle IN (${placeholders})`, ...handles)
+      .toArray() as Array<{ handle: string }>;
+    return rows.map((r) => r.handle);
+  }
+
   // -- Tool evaluations (logic in evaluations.ts) --
 
   async saveEvaluation(evaluation: Record<string, unknown>): Promise<{ ok: true }> {

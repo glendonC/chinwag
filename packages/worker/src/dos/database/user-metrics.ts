@@ -29,6 +29,12 @@ export function updateUserMetrics(
   const memoriesSearched = Number(summary.memories_searched) || 0;
   const hostTool = (summary.host_tool as string) || null;
   const agentModel = (summary.agent_model as string) || null;
+  // Defensible-rank-axes rollups. Missing on summaries from pre-008 sessions
+  // or paths that don't compute them; default to 0 so the UPSERT still runs
+  // and historical rows converge without special casing.
+  const toolCalls = Number(summary.tool_call_count) || 0;
+  const erroredToolCalls = Number(summary.errored_tool_call_count) || 0;
+  const activeMin = Number(summary.active_min) || 0;
 
   // Compute first-edit latency in seconds (if first_edit_at exists)
   let firstEditS = 0;
@@ -55,8 +61,9 @@ export function updateUserMetrics(
       total_edits, total_lines_added, total_lines_removed, total_duration_min,
       total_input_tokens, total_output_tokens, total_cache_read_tokens, total_cache_creation_tokens,
       total_stuck, total_memories_saved, total_memories_searched,
-      total_first_edit_s, sessions_with_first_edit)
-    VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      total_first_edit_s, sessions_with_first_edit,
+      total_tool_calls, total_errored_tool_calls, total_active_min)
+    VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(handle) DO UPDATE SET
       total_sessions = total_sessions + 1,
       completed_sessions = completed_sessions + excluded.completed_sessions,
@@ -75,6 +82,9 @@ export function updateUserMetrics(
       total_memories_searched = total_memories_searched + excluded.total_memories_searched,
       total_first_edit_s = total_first_edit_s + excluded.total_first_edit_s,
       sessions_with_first_edit = sessions_with_first_edit + excluded.sessions_with_first_edit,
+      total_tool_calls = total_tool_calls + excluded.total_tool_calls,
+      total_errored_tool_calls = total_errored_tool_calls + excluded.total_errored_tool_calls,
+      total_active_min = total_active_min + excluded.total_active_min,
       updated_at = datetime('now')`,
     handle,
     completed,
@@ -93,6 +103,9 @@ export function updateUserMetrics(
     memoriesSearched,
     firstEditS,
     hasFirstEdit,
+    toolCalls,
+    erroredToolCalls,
+    activeMin,
   );
 
   if (hostTool && hostTool !== 'unknown') {
