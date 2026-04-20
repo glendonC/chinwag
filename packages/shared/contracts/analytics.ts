@@ -370,11 +370,22 @@ export const outcomeTagCountSchema = z.object({
 });
 export type OutcomeTagCount = z.infer<typeof outcomeTagCountSchema>;
 
+export const toolHandoffRecentFileSchema = z.object({
+  file_path: z.string(),
+  last_transition_at: z.string(),
+  a_edits: z.number(),
+  b_edits: z.number(),
+  completed: z.boolean(),
+});
+export type ToolHandoffRecentFile = z.infer<typeof toolHandoffRecentFileSchema>;
+
 export const toolHandoffSchema = z.object({
   from_tool: z.string(),
   to_tool: z.string(),
   file_count: z.number(),
   handoff_completion_rate: z.number(),
+  avg_gap_minutes: z.number().default(0),
+  recent_files: z.array(toolHandoffRecentFileSchema).default([]),
 });
 export type ToolHandoff = z.infer<typeof toolHandoffSchema>;
 

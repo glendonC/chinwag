@@ -3,8 +3,9 @@
 // file: a big timeline strip, a tool-share breakdown, and a per-edit log
 // with outcome, duration, conflict, and lock information.
 //
-// Routing: opened via ?file=<path> from SharedFileStream. Renders into the
-// shared detailPanel slot in ToolsView alongside StackToolDetail.
+// Routing: opened via ?file=<path> from the PairDetail panel. Renders into
+// the shared detailPanel slot in ToolsView alongside StackToolDetail and
+// PairDetail.
 
 import { type CSSProperties } from 'react';
 import { getToolMeta, normalizeToolId } from '../../lib/toolMeta.js';
@@ -25,10 +26,10 @@ export default function SharedFileDetail({ filePath, onBack }: Props) {
   if (!file) {
     return (
       <div className={styles.detail}>
-        <BackLink label="Shared files" onClick={onBack} />
+        <BackLink label="Tools" onClick={onBack} />
         <div className={styles.notFound}>
-          That file isn&apos;t in the current shared-file view. The link may be stale — try going
-          back to the Tools tab.
+          That file isn&apos;t in the current handoff view. The link may be stale — try going back
+          to the Tools tab.
         </div>
       </div>
     );
@@ -55,7 +56,7 @@ export default function SharedFileDetail({ filePath, onBack }: Props) {
   return (
     <div className={styles.detail}>
       <header className={styles.header}>
-        <BackLink label="Shared files" onClick={onBack} />
+        <BackLink label="Tools" onClick={onBack} />
         <div className={styles.titleBlock}>
           <span className={styles.parentPath}>{parentPath}/</span>
           <h1 className={styles.title}>{fileName}</h1>

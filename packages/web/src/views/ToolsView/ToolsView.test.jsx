@@ -223,65 +223,6 @@ describe('ToolsView', () => {
     unmount();
   });
 
-  it('shows footer link to browse all supported tools', async () => {
-    const ToolsView = await loadToolsView({
-      rows: [
-        {
-          toolId: 'cursor',
-          sessions: 1,
-          completed: 1,
-          abandoned: 0,
-          failed: 0,
-          completionRate: 100,
-          avgFirstEditMin: null,
-          inputTokens: 0,
-          outputTokens: 0,
-          reporting: 'reporting',
-          sparkline: [1],
-        },
-      ],
-    });
-    const { container, unmount } = renderComponent(ToolsView, {});
-
-    expect(container.textContent).toContain('Browse directory');
-
-    unmount();
-  });
-
-  it('clicking the footer link navigates to the directory route', async () => {
-    const ToolsView = await loadToolsView({
-      rows: [
-        {
-          toolId: 'cursor',
-          sessions: 1,
-          completed: 1,
-          abandoned: 0,
-          failed: 0,
-          completionRate: 100,
-          avgFirstEditMin: null,
-          inputTokens: 0,
-          outputTokens: 0,
-          reporting: 'reporting',
-          sparkline: [1],
-        },
-      ],
-    });
-    const { container, unmount } = renderComponent(ToolsView, {});
-
-    const footerBtn = [...container.querySelectorAll('button')].find((b) =>
-      b.textContent.includes('Browse directory'),
-    );
-    expect(footerBtn).toBeDefined();
-
-    act(() => {
-      footerBtn.click();
-    });
-
-    expect(navigateSpy).toHaveBeenCalledWith('integrations');
-
-    unmount();
-  });
-
   it('renders sortable column headers', async () => {
     const ToolsView = await loadToolsView();
     const { container, unmount } = renderComponent(ToolsView, {});

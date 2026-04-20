@@ -9,7 +9,8 @@
 // the shared-file stream section.
 
 import type { ToolCallCategory } from '@chinwag/shared/tool-call-categories.js';
-import type { ToolWorkTypeBreakdown } from '../../lib/apiSchemas.js';
+import type { ToolDailyTrend, ToolHandoff, ToolWorkTypeBreakdown } from '../../lib/apiSchemas.js';
+import { normalizeToolId } from '../../lib/toolMeta.js';
 
 export const PREVIEW_TOOL_WORK_TYPE: ToolWorkTypeBreakdown[] = [
   // Claude Code — frontend-heavy, some backend, some styling
@@ -588,35 +589,186 @@ export const PREVIEW_SHARED_FILES: SharedFile[] = [
   },
 ];
 
-// ── Stack adoption timeline ──
-// When each tool first reported a session to chinwag.
-export interface AdoptionEntry {
-  toolId: string;
-  adoptedOn: string;
-  firstSessionSummary: string;
-  sessionsSince: number;
+// ── Tool handoff pairs ──
+// Computed deterministically from PREVIEW_SHARED_FILES using the same
+// 24h-adjacency rule as the server query. Any change to the file mock
+// automatically propagates — there are no hand-written numbers here.
+
+const HANDOFF_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+interface TransitionSample {
+  fromTool: string;
+  toTool: string;
+  file: string;
+  gapMs: number;
+  bTimestamp: string;
+  bOutcome: FileEditOutcome;
+  bSessionId: string;
 }
 
-export const PREVIEW_ADOPTION: AdoptionEntry[] = [
-  {
-    toolId: 'claude-code',
-    adoptedOn: '2025-11-04',
-    firstSessionSummary: 'Initial setup + feature scaffold',
-    sessionsSince: 129,
-  },
-  {
-    toolId: 'cursor',
-    adoptedOn: '2026-01-18',
-    firstSessionSummary: 'Bugfix sprint on payments',
-    sessionsSince: 74,
-  },
-  {
-    toolId: 'codex',
-    adoptedOn: '2026-03-22',
-    firstSessionSummary: 'Refactor pass in worker/',
-    sessionsSince: 31,
-  },
-];
+function collectTransitions(files: SharedFile[]): TransitionSample[] {
+  const out: TransitionSample[] = [];
+  for (const f of files) {
+    const edits = [...f.edits].sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+    );
+    for (let i = 0; i < edits.length; i++) {
+      for (let j = i + 1; j < edits.length; j++) {
+        const a = edits[i];
+        const b = edits[j];
+        if (normalizeToolId(a.tool) === normalizeToolId(b.tool)) continue;
+        const gap = new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+        if (gap <= 0 || gap > HANDOFF_WINDOW_MS) continue;
+        out.push({
+          fromTool: normalizeToolId(a.tool),
+          toTool: normalizeToolId(b.tool),
+          file: f.filePath,
+          gapMs: gap,
+          bTimestamp: b.timestamp,
+          bOutcome: b.outcome,
+          bSessionId: b.sessionId,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+function derivePreviewHandoffs(files: SharedFile[]): ToolHandoff[] {
+  const transitions = collectTransitions(files);
+  const byPair = new Map<string, TransitionSample[]>();
+  for (const t of transitions) {
+    const key = `${t.fromTool}:${t.toTool}`;
+    const list = byPair.get(key) ?? [];
+    list.push(t);
+    byPair.set(key, list);
+  }
+
+  const pairs: ToolHandoff[] = [];
+  for (const [key, list] of byPair.entries()) {
+    const [fromTool, toTool] = key.split(':');
+    const distinctFiles = new Set(list.map((t) => t.file));
+    const distinctSessions = new Set(list.map((t) => t.bSessionId));
+    const completedSessions = new Set(
+      list.filter((t) => t.bOutcome === 'completed').map((t) => t.bSessionId),
+    );
+    const avgGapMinutes =
+      list.reduce((sum, t) => sum + t.gapMs / 60000, 0) / Math.max(list.length, 1);
+
+    // Per-file rollup, newest first, capped at 20.
+    const perFile = new Map<
+      string,
+      {
+        file_path: string;
+        last_transition_at: string;
+        a_edits: number;
+        b_edits: number;
+        completed: boolean;
+      }
+    >();
+    for (const t of list) {
+      const existing = perFile.get(t.file) ?? {
+        file_path: t.file,
+        last_transition_at: t.bTimestamp,
+        a_edits: 0,
+        b_edits: 0,
+        completed: false,
+      };
+      if (t.bTimestamp > existing.last_transition_at) {
+        existing.last_transition_at = t.bTimestamp;
+      }
+      if (t.bOutcome === 'completed') existing.completed = true;
+      perFile.set(t.file, existing);
+    }
+    // Count a_edits / b_edits from the original edit list.
+    const touchedFiles = new Set(list.map((t) => t.file));
+    for (const f of files) {
+      if (!touchedFiles.has(f.filePath)) continue;
+      const entry = perFile.get(f.filePath);
+      if (!entry) continue;
+      for (const edit of f.edits) {
+        const norm = normalizeToolId(edit.tool);
+        if (norm === fromTool) entry.a_edits++;
+        else if (norm === toTool) entry.b_edits++;
+      }
+    }
+    const recent = [...perFile.values()]
+      .sort((a, b) => b.last_transition_at.localeCompare(a.last_transition_at))
+      .slice(0, 20);
+
+    pairs.push({
+      from_tool: fromTool,
+      to_tool: toTool,
+      file_count: distinctFiles.size,
+      handoff_completion_rate:
+        Math.round((completedSessions.size / distinctSessions.size) * 1000) / 10,
+      avg_gap_minutes: Math.round(avgGapMinutes),
+      recent_files: recent,
+    });
+  }
+
+  return pairs.sort((a, b) => b.file_count - a.file_count);
+}
+
+export const PREVIEW_TOOL_HANDOFFS: ToolHandoff[] = derivePreviewHandoffs(PREVIEW_SHARED_FILES);
+
+// ── Stack evolution ──
+// Synthesized 30-day daily session curve per tool, anchored to today so
+// the preview always aligns with the chart's rolling window. Tells a
+// shape-story: Claude Code is the steady workhorse, Cursor is a medium
+// secondary, Codex ramps up partway through the window. No random — the
+// curves are deterministic arrays so preview renders identically on
+// every mount.
+
+const PREVIEW_EVOLUTION_DAYS = 30;
+
+// Per-tool fixed 30-day arrays, indexed from oldest (idx 0) → today (idx 29).
+// Curves stay loose-realistic: weekend dips, occasional zero-days, Codex
+// entering the stack partway through.
+const PREVIEW_EVOLUTION_CURVE: Record<string, number[]> = {
+  'claude-code': [
+    4, 5, 3, 0, 2, 6, 5, 4, 7, 3, 5, 6, 2, 0, 4, 5, 8, 6, 3, 5, 4, 2, 6, 7, 5, 3, 4, 6, 5, 4,
+  ],
+  cursor: [
+    1, 2, 0, 0, 1, 3, 2, 1, 2, 1, 0, 2, 3, 0, 1, 2, 2, 1, 0, 1, 3, 2, 1, 2, 1, 1, 2, 3, 1, 2,
+  ],
+  codex: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 2, 1, 0, 2, 1, 2, 1, 3, 2, 1, 2, 2, 1, 2],
+};
+
+function evolutionDayRange(days: number): string[] {
+  const out: string[] = [];
+  const now = new Date();
+  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(end);
+    d.setUTCDate(d.getUTCDate() - i);
+    out.push(d.toISOString().slice(0, 10));
+  }
+  return out;
+}
+
+function derivePreviewToolDaily(): ToolDailyTrend[] {
+  const days = evolutionDayRange(PREVIEW_EVOLUTION_DAYS);
+  const out: ToolDailyTrend[] = [];
+  for (const [toolId, curve] of Object.entries(PREVIEW_EVOLUTION_CURVE)) {
+    for (let i = 0; i < days.length; i++) {
+      const sessions = curve[i] ?? 0;
+      if (sessions <= 0) continue;
+      out.push({
+        host_tool: toolId,
+        day: days[i],
+        sessions,
+        edits: sessions * 8,
+        lines_added: sessions * 36,
+        lines_removed: sessions * 14,
+        avg_duration_min: 22,
+      });
+    }
+  }
+  return out;
+}
+
+export const PREVIEW_TOOL_DAILY: ToolDailyTrend[] = derivePreviewToolDaily();
 
 // ── Tool × Model effectiveness ──
 // The join of host_tool and agent_model. DATA_MAP Tier 1 insight.
@@ -640,38 +792,6 @@ export const PREVIEW_TOOL_MODEL: ToolModelCell[] = [
   { toolId: 'codex', model: 'claude-sonnet-4-5', sessions: 4, completionRate: 50 },
   { toolId: 'codex', model: 'claude-opus-4-6', sessions: 2, completionRate: 50 },
   { toolId: 'codex', model: 'gpt-5.1', sessions: 25, completionRate: 72 },
-];
-
-// ── Stack concurrency (when your stack overlaps) ──
-// Per-tool 24-hour session distribution. The StackConcurrency component
-// computes, from this, which hours had 2+ tools active simultaneously —
-// the cross-tool coordination window that only a vendor-neutral observer
-// can see.
-export interface ToolHourlyEntry {
-  toolId: string;
-  hours: number[]; // length 24, hour 0 = midnight local
-}
-
-// Shapes chosen to produce a clear narrative:
-//   - Early morning (6–8): Codex warm-up refactors, Claude joins at 7.
-//   - Core morning (9–11): Claude alone, focused feature work.
-//   - Afternoon (12–3): all three tools overlap — the peak window.
-//   - Evening (6–10): Cursor alone for quick fixes, Codex at 10 PM.
-// Peak = 3 tools concurrent from 1–4 PM, which is what the header stat
-// and the peak annotation both key off.
-export const PREVIEW_STACK_CONCURRENCY: ToolHourlyEntry[] = [
-  {
-    toolId: 'claude-code',
-    hours: [0, 0, 0, 0, 0, 0, 0, 2, 4, 8, 10, 12, 8, 10, 12, 9, 6, 3, 1, 0, 0, 0, 0, 0],
-  },
-  {
-    toolId: 'cursor',
-    hours: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 4, 6, 5, 4, 3, 5, 7, 8, 5, 2, 0],
-  },
-  {
-    toolId: 'codex',
-    hours: [0, 0, 0, 0, 0, 0, 2, 3, 2, 0, 0, 0, 0, 2, 3, 2, 0, 0, 0, 0, 0, 0, 1, 0],
-  },
 ];
 
 // ── Drill-in: internal tool usage ──

@@ -244,6 +244,9 @@ interface ToolHandoffBucket {
   file_count: number;
   completed: number;
   total: number;
+  gap_minutes_sum: number; // file_count-weighted sum for averaging
+  gap_weight: number;
+  recent_files: ToolHandoff['recent_files'];
 }
 
 export type ToolHandoffsAcc = Map<string, ToolHandoffBucket>;
@@ -255,10 +258,24 @@ export function createToolHandoffsAcc(): ToolHandoffsAcc {
 export function mergeToolHandoffs(acc: ToolHandoffsAcc, team: TeamResult): void {
   for (const th of team.tool_handoffs ?? []) {
     const key = `${th.from_tool}:${th.to_tool}`;
-    const existing = acc.get(key) ?? { file_count: 0, completed: 0, total: 0 };
+    const existing = acc.get(key) ?? {
+      file_count: 0,
+      completed: 0,
+      total: 0,
+      gap_minutes_sum: 0,
+      gap_weight: 0,
+      recent_files: [],
+    };
     existing.file_count += th.file_count;
     existing.total += th.file_count;
     existing.completed += Math.round((th.handoff_completion_rate / 100) * th.file_count);
+    if (th.avg_gap_minutes > 0 && th.file_count > 0) {
+      existing.gap_minutes_sum += th.avg_gap_minutes * th.file_count;
+      existing.gap_weight += th.file_count;
+    }
+    if (th.recent_files && th.recent_files.length > 0) {
+      existing.recent_files.push(...th.recent_files);
+    }
     acc.set(key, existing);
   }
 }
@@ -269,11 +286,26 @@ export function projectToolHandoffs(acc: ToolHandoffsAcc): ToolHandoff[] {
     .slice(0, 20)
     .map(([key, v]) => {
       const sep = key.indexOf(':');
+      // Sort merged files newest-first, dedupe by path keeping freshest,
+      // cap at 20. Prevents cross-team duplicates from starving real entries.
+      const sortedFiles = [...v.recent_files].sort((a, b) =>
+        b.last_transition_at.localeCompare(a.last_transition_at),
+      );
+      const seen = new Set<string>();
+      const dedupedFiles: ToolHandoff['recent_files'] = [];
+      for (const f of sortedFiles) {
+        if (seen.has(f.file_path)) continue;
+        seen.add(f.file_path);
+        dedupedFiles.push(f);
+        if (dedupedFiles.length >= 20) break;
+      }
       return {
         from_tool: key.slice(0, sep),
         to_tool: key.slice(sep + 1),
         file_count: v.file_count,
         handoff_completion_rate: rate(v.completed, v.total),
+        avg_gap_minutes: v.gap_weight > 0 ? Math.round(v.gap_minutes_sum / v.gap_weight) : 0,
+        recent_files: dedupedFiles,
       };
     });
 }

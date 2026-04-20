@@ -1,0 +1,312 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: fadeSlideIn 0.3s var(--motion) both;
+}
+
+/* ── Header ── */
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 72ch;
+}
+
+.eyebrowRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+  color: var(--soft);
+}
+
+.previewBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 1.6rem;
+  font-weight: 300;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+.subtitle {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.empty {
+  padding: 24px 0;
+  font-size: var(--text-sm);
+  color: var(--soft);
+  line-height: 1.6;
+  max-width: 60ch;
+}
+
+/* ── Big stat card ── */
+
+.stat {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 2px 0 0;
+  flex-wrap: wrap;
+}
+
+.statValue {
+  font-family: var(--display);
+  font-size: 2.8rem;
+  font-weight: 200;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.statLabel {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  max-width: 32ch;
+  line-height: 1.4;
+}
+
+/* ── Strip ── */
+
+.strip {
+  display: grid;
+  grid-template-columns: repeat(var(--n, 1), 1fr);
+  gap: 6px;
+  align-items: end;
+  height: 128px;
+  padding-bottom: 2px;
+}
+
+.column {
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.14s ease;
+  border-radius: var(--radius-2xs);
+}
+
+.column:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.columnDim {
+  opacity: 0.35;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  transition: height 0.24s var(--motion);
+}
+
+.segment {
+  flex: 1;
+  width: 100%;
+  min-height: 4px;
+  border-radius: 1.5px;
+  opacity: 0.82;
+  transition: opacity 0.14s ease;
+}
+
+.column:hover .segment,
+.column:focus-visible .segment {
+  opacity: 1;
+}
+
+/* ── Axis (source → dest icon pairs under each column) ── */
+
+.axis {
+  display: grid;
+  grid-template-columns: repeat(var(--n, 1), 1fr);
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.axisCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.axisArrow {
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--soft);
+  line-height: 1;
+}
+
+/* ── Peak callout ── */
+
+.peak {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding-top: 4px;
+  flex-wrap: wrap;
+}
+
+.peakLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+  color: var(--soft);
+}
+
+.peakValue {
+  font-size: var(--text-xs);
+  color: var(--ink);
+}
+
+/* ── Compact list (narrow viewport fallback) ── */
+
+.compactList {
+  display: none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.compactItem {
+  display: block;
+}
+
+.compactButton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 16px;
+  padding: 12px 10px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-2xs);
+  cursor: pointer;
+  font-family: var(--sans);
+  text-align: left;
+  transition: background 0.12s ease;
+}
+
+.compactButton:hover,
+.compactButton:focus-visible {
+  background: var(--hover-bg);
+  outline: none;
+}
+
+.compactButton:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.compactPair {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  letter-spacing: -0.01em;
+  flex-wrap: wrap;
+}
+
+.compactArrow {
+  color: var(--soft);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.compactMeta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.compactCount {
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.compactUnit {
+  color: var(--soft);
+}
+
+.compactGap {
+  color: var(--soft);
+  font-size: 10px;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .strip,
+  .axis,
+  .peak,
+  .stat {
+    display: none;
+  }
+
+  .compactList {
+    display: flex;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section,
+  .stack {
+    animation: none;
+    transition: none;
+  }
+}

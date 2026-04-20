@@ -330,6 +330,7 @@ const outcomeTagCountSchema = baseOutcomeTagCountSchema.extend({
 const toolHandoffSchema = baseToolHandoffSchema.extend({
   file_count: z.number().default(0),
   handoff_completion_rate: z.number().default(0),
+  avg_gap_minutes: z.number().default(0),
 });
 
 const periodMetricsSchema = basePeriodMetricsSchema.extend({
@@ -580,6 +581,7 @@ export type PromptEfficiencyTrend = z.infer<typeof promptEfficiencyTrendSchema>;
 export type HourlyEffectiveness = z.infer<typeof hourlyEffectivenessSchema>;
 export type OutcomeTagCount = z.infer<typeof outcomeTagCountSchema>;
 export type ToolHandoff = z.infer<typeof toolHandoffSchema>;
+export type ToolHandoffRecentFile = ToolHandoff['recent_files'][number];
 export type PeriodMetrics = z.infer<typeof periodMetricsSchema>;
 export type PeriodComparison = z.infer<typeof periodComparisonSchema>;
 export type TokenModelBreakdown = z.infer<typeof tokenModelBreakdownSchema>;

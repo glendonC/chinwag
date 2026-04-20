@@ -112,15 +112,16 @@ export function queryOutcomeTags(sql: SqlStorage, days: number): OutcomeTagCount
 
 export function queryToolHandoffs(sql: SqlStorage, days: number): ToolHandoff[] {
   try {
-    // Find files touched by different tools within 24h windows
-    const rows = sql
+    // Pair aggregates: files, completion, typical gap between A's edit and B's pickup.
+    const pairRows = sql
       .exec(
         `SELECT
            a.host_tool AS from_tool,
            b.host_tool AS to_tool,
            COUNT(DISTINCT a.file_path) AS file_count,
            ROUND(CAST(SUM(CASE WHEN s.outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
-             / NULLIF(COUNT(DISTINCT s.id), 0) * 100, 1) AS handoff_completion_rate
+             / NULLIF(COUNT(DISTINCT s.id), 0) * 100, 1) AS handoff_completion_rate,
+           ROUND(AVG((julianday(b.created_at) - julianday(a.created_at)) * 24 * 60), 0) AS avg_gap_minutes
          FROM edits a
          JOIN edits b ON a.file_path = b.file_path
            AND b.created_at > a.created_at
@@ -136,15 +137,79 @@ export function queryToolHandoffs(sql: SqlStorage, days: number): ToolHandoff[] 
       )
       .toArray();
 
-    return rows.map((r) => {
+    if (pairRows.length === 0) return [];
+
+    const pairs = pairRows.map((r) => {
       const row = r as Record<string, unknown>;
       return {
         from_tool: row.from_tool as string,
         to_tool: row.to_tool as string,
         file_count: (row.file_count as number) || 0,
         handoff_completion_rate: (row.handoff_completion_rate as number) || 0,
-      };
+        avg_gap_minutes: (row.avg_gap_minutes as number) || 0,
+        recent_files: [] as ToolHandoff['recent_files'],
+      } satisfies ToolHandoff;
     });
+
+    // Per-pair recent file samples, capped at 20 per pair. Filtered to the
+    // top-10 pairs so payload stays bounded.
+    const pairKeys = new Set(pairs.map((p) => `${p.from_tool}:${p.to_tool}`));
+    const fileRows = sql
+      .exec(
+        `WITH transitions AS (
+           SELECT
+             a.host_tool AS from_tool,
+             b.host_tool AS to_tool,
+             a.file_path,
+             MAX(b.created_at) AS last_transition_at,
+             COUNT(DISTINCT a.id) AS a_edits,
+             COUNT(DISTINCT b.id) AS b_edits,
+             MAX(CASE WHEN s.outcome = 'completed' THEN 1 ELSE 0 END) AS completed
+           FROM edits a
+           JOIN edits b ON a.file_path = b.file_path
+             AND b.created_at > a.created_at
+             AND b.created_at < datetime(a.created_at, '+1 day')
+             AND a.host_tool != b.host_tool
+           JOIN sessions s ON s.id = b.session_id
+           WHERE a.created_at > datetime('now', '-' || ? || ' days')
+           GROUP BY a.host_tool, b.host_tool, a.file_path
+         ),
+         ranked AS (
+           SELECT
+             *,
+             ROW_NUMBER() OVER (
+               PARTITION BY from_tool, to_tool ORDER BY last_transition_at DESC
+             ) AS rn
+           FROM transitions
+         )
+         SELECT from_tool, to_tool, file_path, last_transition_at, a_edits, b_edits, completed
+         FROM ranked
+         WHERE rn <= 20`,
+        days,
+      )
+      .toArray();
+
+    const byPair = new Map<string, ToolHandoff['recent_files']>();
+    for (const r of fileRows) {
+      const row = r as Record<string, unknown>;
+      const key = `${row.from_tool as string}:${row.to_tool as string}`;
+      if (!pairKeys.has(key)) continue;
+      const list = byPair.get(key) ?? [];
+      list.push({
+        file_path: row.file_path as string,
+        last_transition_at: row.last_transition_at as string,
+        a_edits: (row.a_edits as number) || 0,
+        b_edits: (row.b_edits as number) || 0,
+        completed: !!row.completed,
+      });
+      byPair.set(key, list);
+    }
+
+    for (const p of pairs) {
+      p.recent_files = byPair.get(`${p.from_tool}:${p.to_tool}`) ?? [];
+    }
+
+    return pairs;
   } catch (err) {
     log.warn(`toolHandoffs query failed: ${err}`);
     return [];

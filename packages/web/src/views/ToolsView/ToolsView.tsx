@@ -13,10 +13,10 @@ import ViewHeader from '../../components/ViewHeader/ViewHeader.jsx';
 import { SkeletonRows } from '../../components/Skeleton/Skeleton.jsx';
 import StackToolDetail from './StackToolDetail.js';
 import Sparkline from './Sparkline.js';
-import StackAdoptionTimeline from './StackAdoptionTimeline.js';
+import StackEvolution from './StackEvolution.js';
 import StackWorkTypeMatrix from './StackWorkTypeMatrix.js';
-import StackConcurrency from './StackConcurrency.js';
-import SharedFileStream from './SharedFileStream.js';
+import StackHandoffs from './StackHandoffs.js';
+import PairDetail from './PairDetail.js';
 import SharedFileDetail from './SharedFileDetail.js';
 import CompareTools from './CompareTools.js';
 import { useScoredStackData, type ScoredToolRow } from './useScoredStackData.js';
@@ -51,6 +51,7 @@ function compareRows(a: ScoredToolRow, b: ScoredToolRow, key: StackSortKey): num
 export default function ToolsView() {
   const stackToolParam = useQueryParam('stack');
   const fileParam = useQueryParam('file');
+  const pairParam = useQueryParam('pair');
   const { rows: scoredRows, getDrillIn, isLoading, analytics } = useScoredStackData(30);
   const { arcs, uniqueTools, toolShare } = useToolsViewData();
 
@@ -65,34 +66,52 @@ export default function ToolsView() {
     return getDrillIn(stackToolParam);
   }, [stackToolParam, getDrillIn]);
 
-  // Stack and file detail panels are mutually exclusive — opening one
-  // clears the other so the URL always reflects a single active drill.
+  const pairDrill = useMemo(() => {
+    if (!pairParam) return null;
+    const idx = pairParam.indexOf(':');
+    if (idx <= 0) return null;
+    return { from: pairParam.slice(0, idx), to: pairParam.slice(idx + 1) };
+  }, [pairParam]);
+
+  // Stack, pair, and file detail panels are mutually exclusive — opening
+  // one clears the others so the URL always reflects a single active drill.
   const openStackTool = useCallback((toolId: string | null) => {
-    if (toolId) setQueryParam('file', null);
+    if (toolId) {
+      setQueryParam('file', null);
+      setQueryParam('pair', null);
+    }
     setQueryParam('stack', toolId);
   }, []);
 
   const openFile = useCallback((filePath: string | null) => {
-    if (filePath) setQueryParam('stack', null);
+    if (filePath) {
+      setQueryParam('stack', null);
+      setQueryParam('pair', null);
+    }
     setQueryParam('file', filePath);
+  }, []);
+
+  const openPair = useCallback((fromToolId: string | null, toToolId?: string) => {
+    if (fromToolId && toToolId) {
+      setQueryParam('stack', null);
+      setQueryParam('file', null);
+      setQueryParam('pair', `${fromToolId}:${toToolId}`);
+    } else {
+      setQueryParam('pair', null);
+    }
   }, []);
 
   const pageRef = useRef<HTMLDivElement>(null);
   const [hoveredTool, setHoveredTool] = useState<string | null>(null);
-  const shifted = !!stackDrill || !!fileParam;
+  const shifted = !!stackDrill || !!fileParam || !!pairDrill;
 
-  // Scroll to top when entering/leaving detail
+  // Scroll to top whenever the active drill-in changes (list → detail,
+  // detail → list, or between detail panels). The dashboard uses
+  // document-level scroll (App.module.css: min-height:100vh + no nested
+  // overflow), so target window, not a parent container.
   useEffect(() => {
-    let el = pageRef.current?.parentElement;
-    while (el) {
-      const { overflowY } = getComputedStyle(el);
-      if (overflowY === 'auto' || overflowY === 'scroll') {
-        el.scrollTop = 0;
-        break;
-      }
-      el = el.parentElement;
-    }
-  }, [shifted]);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [stackToolParam, fileParam, pairParam]);
 
   // Escape closes whichever drill-in is open.
   useEffect(() => {
@@ -100,11 +119,12 @@ export default function ToolsView() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (stackDrill) openStackTool(null);
+      else if (pairDrill) openPair(null);
       else if (fileParam) openFile(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [shifted, stackDrill, fileParam, openStackTool, openFile]);
+  }, [shifted, stackDrill, pairDrill, fileParam, openStackTool, openPair, openFile]);
 
   if (isLoading && scoredRows.length === 0) {
     return (
@@ -372,13 +392,15 @@ export default function ToolsView() {
 
           {scoredRows.length > 0 && (
             <div className={styles.followUpSections}>
-              <StackAdoptionTimeline />
+              <StackEvolution daily={analytics.tool_daily} rangeDays={30} />
               <StackWorkTypeMatrix
                 breakdown={analytics.tool_work_type}
                 onToolClick={openStackTool}
               />
-              <SharedFileStream onFileClick={(path) => openFile(path)} />
-              <StackConcurrency />
+              <StackHandoffs
+                breakdown={analytics.tool_handoffs}
+                onPairClick={(from, to) => openPair(from, to)}
+              />
             </div>
           )}
         </div>
@@ -386,6 +408,14 @@ export default function ToolsView() {
         <div className={styles.detailPanel}>
           {stackDrill ? (
             <StackToolDetail drill={stackDrill} rangeDays={30} onBack={() => openStackTool(null)} />
+          ) : pairDrill ? (
+            <PairDetail
+              fromToolId={pairDrill.from}
+              toToolId={pairDrill.to}
+              handoffs={analytics.tool_handoffs}
+              onBack={() => openPair(null)}
+              onFileClick={(path) => openFile(path)}
+            />
           ) : fileParam ? (
             <SharedFileDetail filePath={fileParam} onBack={() => openFile(null)} />
           ) : null}

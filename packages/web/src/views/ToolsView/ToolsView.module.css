@@ -8,6 +8,7 @@
 .track {
   display: flex;
   width: 200%;
+  align-items: flex-start;
   transition: transform var(--motion-slow) var(--motion);
 }
 
@@ -28,9 +29,15 @@
   margin-top: 56px;
 }
 
+/* When a detail panel is open the list panel is off-screen AND its height
+   is collapsed so the document scroll height matches the detail's
+   intrinsic content. Without this, short detail panels leave a long
+   blank scroll tail from the list panel below the fold. */
 .trackShifted .listPanel {
   opacity: 0.3;
   pointer-events: none;
+  max-height: 0;
+  overflow: hidden;
 }
 
 .detailPanel {
