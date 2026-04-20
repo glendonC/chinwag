@@ -1,0 +1,26 @@
+# Dependabot keeps GitHub Actions versions fresh across
+# .github/workflows/* and .github/actions/*. Weekly non-breaking
+# updates land as one grouped PR; major bumps open separately so
+# they get case-by-case review. npm updates are intentionally not
+# enabled here — different noise/safety tradeoff, revisit when PR
+# CI is stable enough that we trust autoupdates on dependencies
+# that actually ship to production.
+
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: tuesday
+      time: '04:00'
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    groups:
+      actions-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: 'chore(ci)'
