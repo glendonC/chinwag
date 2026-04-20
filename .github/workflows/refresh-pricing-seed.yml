@@ -1,0 +1,94 @@
+name: Refresh pricing seed
+
+# Weekly regeneration of packages/worker/src/lib/pricing-seed.json from
+# LiteLLM. Keeps the bundled seed within ~7 days of reality so fresh
+# deploys don't serve stale prices during the 0-6h window before the
+# runtime refresh cron populates model_prices. Refresh contract and
+# failure semantics live in packages/worker/scripts/fetch-pricing-seed.ts.
+
+on:
+  schedule:
+    # Monday 04:00 UTC. Well before EU workday so a PR is waiting when
+    # folks come online and has the week for review.
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: refresh-pricing-seed
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    name: Regenerate and open PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      # Script exits 0 on network failure (preserves existing seed) and
+      # exits 1 on schema/canary/min-model validation failure. A non-zero
+      # exit here fails the workflow loudly — intentional signal that
+      # LiteLLM shape drifted and a human should look.
+      - name: Regenerate seed
+        run: npm run build:pricing-seed --workspace=packages/worker
+
+      # The script always rewrites _fetchedAt on success, so a raw git
+      # diff would trigger a PR every week even when upstream didn't
+      # move. Gate on the upstream blob SHA instead so we only PR real
+      # changes.
+      - name: Detect real upstream change
+        id: changed
+        run: |
+          set -euo pipefail
+          SEED=packages/worker/src/lib/pricing-seed.json
+          OLD_SHA=$(git show "HEAD:$SEED" | jq -r '._sha')
+          OLD_COUNT=$(git show "HEAD:$SEED" | jq -r '._models_count')
+          NEW_SHA=$(jq -r '._sha' "$SEED")
+          NEW_COUNT=$(jq -r '._models_count' "$SEED")
+          if [ "$OLD_SHA" = "$NEW_SHA" ]; then
+            git checkout -- "$SEED"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No upstream change (sha=$OLD_SHA)"
+          else
+            {
+              echo "changed=true"
+              echo "old_sha=${OLD_SHA:0:12}"
+              echo "new_sha=${NEW_SHA:0:12}"
+              echo "old_count=$OLD_COUNT"
+              echo "new_count=$NEW_COUNT"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open refresh PR
+        if: steps.changed.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/pricing-seed-refresh
+          delete-branch: true
+          add-paths: packages/worker/src/lib/pricing-seed.json
+          commit-message: "chore(worker): refresh pricing seed (${{ steps.changed.outputs.new_count }} models)"
+          title: "chore(worker): refresh pricing seed (${{ steps.changed.outputs.new_count }} models)"
+          body: |
+            Weekly auto-refresh of `packages/worker/src/lib/pricing-seed.json` from LiteLLM.
+
+            LiteLLM blob sha `${{ steps.changed.outputs.old_sha }}` → `${{ steps.changed.outputs.new_sha }}`, models ${{ steps.changed.outputs.old_count }} → ${{ steps.changed.outputs.new_count }}.
+
+            Canary models (claude-sonnet-4-5, claude-opus-4-5, claude-opus-4-6, gpt-5, gemini-2.5-pro) and the min-model-count guard passed in the refresh step. Review the JSON diff for:
+
+            - Unexplained drop in model count
+            - Big price swings on models chinwag actually uses
+            - Vendor ownership changes (a model moving providers)
+
+            PRs opened by `GITHUB_TOKEN` do not auto-trigger CI. Close and reopen, or push an empty commit, if you want status checks before merging.
