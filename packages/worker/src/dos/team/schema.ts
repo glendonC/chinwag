@@ -786,6 +786,27 @@ const migrations: Migration[] = [
       );
     },
   },
+  {
+    name: '025_commit_noise_flag',
+    up(sql) {
+      // Commits gain an `is_noise` flag classified at write time. Lockfile
+      // bumps, formatting passes, merge commits, and WIP checkpoints get
+      // recorded with `is_noise = 1` so the audit trail stays intact, but
+      // analytics queries filter them out by default. Without this, a
+      // session whose only "commit" was `chore(deps): bump` shows up in
+      // commit-rate analytics with the same weight as a substantive change,
+      // diluting per-session and per-tool averages.
+      //
+      // Adapted from memorix's `noise-filter.ts` (Apache 2.0). See
+      // `commit-noise.ts` for the classification rules.
+      addColumnIfMissing(sql, 'commits', 'is_noise INTEGER DEFAULT 0');
+      // Partial index keeps the analytics fast path (`WHERE is_noise = 0`)
+      // cheap on tables where most commits are substantive.
+      sql.exec(
+        'CREATE INDEX IF NOT EXISTS idx_commits_substantive ON commits(created_at) WHERE is_noise = 0',
+      );
+    },
+  },
 ];
 
 export function ensureSchema(

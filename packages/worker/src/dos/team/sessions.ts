@@ -7,6 +7,7 @@ import { createLogger } from '../../lib/logger.js';
 import { safeParse } from '../../lib/safe-parse.js';
 import { normalizeRuntimeMetadata, normalizeModelName } from './runtime.js';
 import { classifyWorkType } from './analytics/outcomes.js';
+import { isNoiseCommit } from './commit-noise.js';
 import { HEARTBEAT_STALE_WINDOW_S, ACTIVITY_MAX_FILES, METRIC_KEYS } from '../../lib/constants.js';
 import { sqlChanges, withTransaction } from '../../lib/validation.js';
 
@@ -564,15 +565,31 @@ export function recordCommits(
 
   const capped = commits.slice(0, MAX_COMMITS_BATCH);
   let recorded = 0;
+  let recordedSubstantive = 0;
   for (const commit of capped) {
     if (typeof commit.sha !== 'string' || !commit.sha) continue;
     const sha = commit.sha.slice(0, MAX_SHA_LENGTH).toLowerCase();
     if (!/^[0-9a-f]{7,40}$/.test(sha)) continue;
 
+    const filesChanged = Math.max(0, Number(commit.files_changed) || 0);
+    const linesAdded = Math.max(0, Number(commit.lines_added) || 0);
+    const linesRemoved = Math.max(0, Number(commit.lines_removed) || 0);
+    const messagePreview = commit.message
+      ? String(commit.message).slice(0, MAX_MESSAGE_PREVIEW_LENGTH)
+      : null;
+    const isNoise = isNoiseCommit({
+      message: messagePreview,
+      files_changed: filesChanged,
+      lines_added: linesAdded,
+      lines_removed: linesRemoved,
+    })
+      ? 1
+      : 0;
+
     // INSERT OR IGNORE: idempotent on (session_id, sha) unique constraint
     sql.exec(
-      `INSERT OR IGNORE INTO commits (id, session_id, agent_id, handle, host_tool, sha, branch, message_preview, files_changed, lines_added, lines_removed, committed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, datetime('now')))`,
+      `INSERT OR IGNORE INTO commits (id, session_id, agent_id, handle, host_tool, sha, branch, message_preview, files_changed, lines_added, lines_removed, committed_at, is_noise)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, datetime('now')), ?)`,
       crypto.randomUUID(),
       resolvedSessionId,
       resolvedAgentId,
@@ -580,21 +597,27 @@ export function recordCommits(
       resolvedHostTool,
       sha,
       commit.branch ? String(commit.branch).slice(0, MAX_BRANCH_LENGTH) : null,
-      commit.message ? String(commit.message).slice(0, MAX_MESSAGE_PREVIEW_LENGTH) : null,
-      Math.max(0, Number(commit.files_changed) || 0),
-      Math.max(0, Number(commit.lines_added) || 0),
-      Math.max(0, Number(commit.lines_removed) || 0),
+      messagePreview,
+      filesChanged,
+      linesAdded,
+      linesRemoved,
       commit.committed_at || null,
+      isNoise,
     );
 
-    if (sqlChanges(sql) > 0) recorded++;
+    if (sqlChanges(sql) > 0) {
+      recorded++;
+      if (!isNoise) recordedSubstantive++;
+    }
   }
 
-  // Update session counters
-  if (recorded > 0) {
+  // Session counters track substantive commits only. Noise commits stay
+  // in the audit trail but don't inflate per-session aggregates or push
+  // first_commit_at earlier than the first real change.
+  if (recordedSubstantive > 0) {
     sql.exec(
       `UPDATE sessions SET commit_count = commit_count + ?, first_commit_at = COALESCE(first_commit_at, datetime('now')) WHERE id = ? AND agent_id = ?`,
-      recorded,
+      recordedSubstantive,
       resolvedSessionId,
       resolvedAgentId,
     );

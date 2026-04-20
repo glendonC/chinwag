@@ -24,14 +24,17 @@ export function queryCommitStats(sql: SqlStorage, days: number): CommitStats {
   };
 
   try {
-    // Totals
+    // Totals — substantive commits only. Noise (dep bumps, formatting, WIP
+    // checkpoints, merges) stays in the table for audit but is excluded from
+    // analytics so per-session and per-tool averages aren't diluted.
     const totalsRows = sql
       .exec(
         `SELECT
            COUNT(*) AS total_commits,
            COUNT(DISTINCT session_id) AS sessions_with_commits
          FROM commits
-         WHERE created_at > datetime('now', '-' || ? || ' days')`,
+         WHERE created_at > datetime('now', '-' || ? || ' days')
+           AND is_noise = 0`,
         days,
       )
       .toArray();
@@ -75,6 +78,7 @@ export function queryCommitStats(sql: SqlStorage, days: number): CommitStats {
          FROM commits
          WHERE created_at > datetime('now', '-' || ? || ' days')
            AND host_tool IS NOT NULL AND host_tool != 'unknown'
+           AND is_noise = 0
          GROUP BY host_tool
          ORDER BY commits DESC`,
         days,
@@ -90,12 +94,13 @@ export function queryCommitStats(sql: SqlStorage, days: number): CommitStats {
       };
     });
 
-    // Daily commits
+    // Daily commits — substantive only.
     const dailyRows = sql
       .exec(
         `SELECT date(committed_at) AS day, COUNT(*) AS commits
          FROM commits
          WHERE created_at > datetime('now', '-' || ? || ' days')
+           AND is_noise = 0
          GROUP BY day
          ORDER BY day ASC`,
         days,
