@@ -120,8 +120,6 @@ export const MOCK_RUNS: MockRun[] = [
     status: 'running',
     path: 'primary',
     startedAt: minutesAgo(3),
-    currentPhase: 'Reading the repo file tree',
-    progress: 0.42,
   },
   {
     id: 'run-te-001',

@@ -25,10 +25,6 @@ export interface MockRun {
   durationMs?: number;
   findingsCount?: number;
   criticalCount?: number;
-  /** Present while status === 'running' */
-  currentPhase?: string;
-  /** 0-1, present while status === 'running' */
-  progress?: number;
 }
 
 export type CitationType = 'session' | 'file' | 'tool_call' | 'memory' | 'conflict' | 'metric';

@@ -1,19 +1,25 @@
-// Live + completed run view. Same route serves both states — the content
-// is driven by status. Mounted inside ReportsView when the `run` query
-// param is present. `live-<reportId>-<ts>` ids trigger a fresh simulated
-// run; real ids are looked up in the mock data.
+// Completed / queued / failed run view. Mounted inside ReportsView
+// when the `run` query param is present. Running state is handled by
+// ReportDetailView in-place — there's no dedicated live-run view.
 
-import { useMemo, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import clsx from 'clsx';
 import BackLink from '../../components/BackLink/BackLink.js';
 import { agentGradient } from '../../lib/agentGradient.js';
 import { REPORT_CATALOG, reportHex, type ReportDef } from './report-catalog.js';
 import { getRun } from './mock-runs.js';
 import { getCompletedReportFor, getCompletedReport } from './mock-findings.js';
-import { useFakeRunProgress, getEstimatedTotalMs } from './useFakeRunProgress.js';
-import { pathShortLabel } from './reports-path.js';
-import type { Finding, CompletedReport, FindingAction, RunPath } from './types.js';
+import type { Finding, CompletedReport } from './types.js';
 import styles from './ReportRunView.module.css';
+
+type RunTab = 'findings' | 'steps' | 'sources';
+const RUN_TABS: readonly RunTab[] = ['findings', 'steps', 'sources'] as const;
+
+const TAB_LABELS: Record<RunTab, string> = {
+  findings: 'Findings',
+  steps: 'Steps',
+  sources: 'Sources',
+};
 
 interface Props {
   runId: string;
@@ -21,23 +27,6 @@ interface Props {
 }
 
 // ── helpers ──
-
-function formatElapsed(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  const mins = Math.floor(seconds / 60);
-  const remSec = seconds % 60;
-  return `${mins}m ${remSec.toString().padStart(2, '0')}s`;
-}
-
-function parseLiveRunId(runId: string): { isLive: true; reportId: string } | { isLive: false } {
-  if (!runId.startsWith('live-')) return { isLive: false };
-  const withoutPrefix = runId.slice('live-'.length);
-  const lastDash = withoutPrefix.lastIndexOf('-');
-  if (lastDash === -1) return { isLive: false };
-  const reportId = withoutPrefix.slice(0, lastDash);
-  return { isLive: true, reportId };
-}
 
 function findReport(reportId: string): ReportDef | undefined {
   return REPORT_CATALOG.find((r) => r.id === reportId);
@@ -65,18 +54,7 @@ function severityClass(s: Finding['severity']): string {
   }
 }
 
-function actionClass(category: FindingAction['category']): string {
-  switch (category) {
-    case 'state':
-      return styles.actionState;
-    case 'export':
-      return styles.actionExport;
-    case 'spawn':
-      return styles.actionSpawn;
-  }
-}
-
-function actionIcon(category: FindingAction['category']): ReactNode {
+function actionIcon(category: Finding['actions'][number]['category']): ReactNode {
   if (category === 'state') {
     return (
       <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
@@ -138,15 +116,8 @@ function citationTypeLabel(type: string): string {
 // ── Finding card ──
 
 function FindingCard({ finding }: { finding: Finding }): ReactNode {
-  const severityClassName =
-    finding.severity === 'critical'
-      ? styles.findingCritical
-      : finding.severity === 'warning'
-        ? styles.findingWarning
-        : styles.findingInfo;
-
   return (
-    <article className={clsx(styles.finding, severityClassName)}>
+    <article className={styles.finding}>
       <header className={styles.findingHeader}>
         <span className={clsx(styles.severityChip, severityClass(finding.severity))}>
           {severityLabel(finding.severity)}
@@ -159,9 +130,7 @@ function FindingCard({ finding }: { finding: Finding }): ReactNode {
       <ul className={styles.citationList}>
         {finding.citations.map((c, i) => (
           <li key={i} className={styles.citation}>
-            <span className={clsx(styles.citationType, styles[`cite_${c.type}`])}>
-              {citationTypeLabel(c.type)}
-            </span>
+            <span className={styles.citationType}>{citationTypeLabel(c.type)}</span>
             <span className={styles.citationLabel}>{c.label}</span>
             {c.detail && <span className={styles.citationDetail}>{c.detail}</span>}
           </li>
@@ -173,7 +142,7 @@ function FindingCard({ finding }: { finding: Finding }): ReactNode {
           <button
             key={a.id}
             type="button"
-            className={clsx(styles.action, actionClass(a.category))}
+            className={styles.action}
             onClick={() => {
               /* no-op at skeleton stage */
             }}
@@ -187,17 +156,98 @@ function FindingCard({ finding }: { finding: Finding }): ReactNode {
   );
 }
 
+// ── Tab nav ──
+
+function TabNav({
+  active,
+  onChange,
+}: {
+  active: RunTab;
+  onChange: (t: RunTab) => void;
+}): ReactNode {
+  return (
+    <div className={styles.tabNav} role="tablist">
+      {RUN_TABS.map((id) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          aria-selected={active === id}
+          className={clsx(styles.tabButton, active === id && styles.tabActive)}
+          onClick={() => onChange(id)}
+        >
+          {TAB_LABELS[id]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Tab bodies ──
+
+function FindingsTab({ findings }: { findings: Finding[] }): ReactNode {
+  return (
+    <div className={styles.findingsList}>
+      {findings.map((f) => (
+        <FindingCard key={f.id} finding={f} />
+      ))}
+    </div>
+  );
+}
+
+function StepsTab({ stages }: { stages: string[] }): ReactNode {
+  return (
+    <ol className={styles.stepsList}>
+      {stages.map((stage) => (
+        <li key={stage} className={styles.step}>
+          <span className={styles.stepCheck} aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path
+                d="M2.5 6.5l2.5 2.5 4.5-5"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+          <span className={styles.stepName}>{stage.replace(/-/g, ' ')}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function SourcesTab({ stats }: { stats: CompletedReport['stats'] }): ReactNode {
+  return (
+    <div className={styles.statsRow}>
+      <div className={styles.statsItem}>
+        <span className={styles.statsLabel}>Sessions read</span>
+        <span className={styles.statsValue}>{stats.sessionsRead}</span>
+      </div>
+      <div className={styles.statsItem}>
+        <span className={styles.statsLabel}>Files read</span>
+        <span className={styles.statsValue}>{stats.filesRead}</span>
+      </div>
+      <div className={styles.statsItem}>
+        <span className={styles.statsLabel}>Tokens</span>
+        <span className={styles.statsValue}>{(stats.tokensUsed / 1000).toFixed(0)}K</span>
+      </div>
+      <div className={styles.statsItem}>
+        <span className={styles.statsLabel}>Cost</span>
+        <span className={styles.statsValue}>${stats.estimatedCost.toFixed(2)}</span>
+      </div>
+    </div>
+  );
+}
+
 function RunHeader({
   report,
-  statusLabel,
-  statusDetail,
-  path,
+  statusLine,
   onBack,
 }: {
   report: ReportDef;
-  statusLabel: string;
-  statusDetail: string;
-  path: RunPath;
+  statusLine: string;
   onBack: () => void;
 }): ReactNode {
   const hex = reportHex(report);
@@ -212,82 +262,9 @@ function RunHeader({
       }
     >
       <BackLink label="Reports" onClick={onBack} />
-      <div className={styles.headerMain}>
-        <div className={styles.headerCopy}>
-          <span className={styles.headerEyebrow}>{report.category}</span>
-          <h1 className={styles.headerTitle}>{report.name}</h1>
-          <p className={styles.headerTagline}>{report.tagline}</p>
-        </div>
-        <div className={styles.headerStatus}>
-          <span className={styles.headerStatusLabel}>{statusLabel}</span>
-          <span className={styles.headerStatusDetail}>{statusDetail}</span>
-          <span className={styles.headerStatusPath}>via {pathShortLabel(path)}</span>
-        </div>
-      </div>
+      <h1 className={styles.headerTitle}>{report.name}</h1>
+      <p className={styles.headerStatusLine}>{statusLine}</p>
     </header>
-  );
-}
-
-// ── Live body (running state) ──
-
-function LiveBody({ report, onBack }: { report: ReportDef; onBack: () => void }): ReactNode {
-  const { phaseLabel, progress, elapsedMs, findings, isComplete } = useFakeRunProgress(
-    report.id,
-    true,
-  );
-  const estTotal = getEstimatedTotalMs();
-
-  if (isComplete) {
-    const completed = getCompletedReportFor(report.id);
-    if (completed) {
-      return <CompletedBody report={report} completed={completed} onBack={onBack} />;
-    }
-  }
-
-  return (
-    <div className={styles.run}>
-      <RunHeader
-        report={report}
-        statusLabel="Running"
-        statusDetail={`${formatElapsed(elapsedMs)} · ~${formatElapsed(estTotal - elapsedMs)} left`}
-        path="primary"
-        onBack={onBack}
-      />
-
-      <div className={styles.progressBlock}>
-        <div className={styles.progressTrack}>
-          <div className={styles.progressFill} style={{ width: `${progress * 100}%` }} />
-        </div>
-        <span className={styles.phaseLabel}>{phaseLabel}…</span>
-      </div>
-
-      <section className={styles.body}>
-        {findings.length === 0 ? (
-          <div className={styles.awaiting}>
-            <span className={styles.awaitingDot} aria-hidden="true" />
-            <span className={styles.awaitingText}>Waiting for the first finding…</span>
-          </div>
-        ) : (
-          <div className={styles.findingsStream}>
-            <div className={styles.sectionHead}>
-              <h2 className={styles.sectionTitle}>Findings so far</h2>
-              <span className={styles.sectionCount}>{findings.length}</span>
-            </div>
-            <div className={styles.findingsList}>
-              {findings.map((f) => (
-                <FindingCard key={f.id} finding={f} />
-              ))}
-            </div>
-          </div>
-        )}
-      </section>
-
-      <footer className={styles.footer}>
-        <button type="button" className={styles.cancelBtn} onClick={onBack}>
-          Cancel run
-        </button>
-      </footer>
-    </div>
   );
 }
 
@@ -303,8 +280,12 @@ function CompletedBody({
   onBack: () => void;
 }): ReactNode {
   const critCount = completed.findings.filter((f) => f.severity === 'critical').length;
-  const statusDetail = `${completed.findings.length} findings${critCount ? ` · ${critCount} critical` : ''}`;
+  const parts = [`complete`, `${completed.findings.length} findings`];
+  if (critCount > 0) parts.push(`${critCount} critical`);
+  const statusLine = parts.join(' · ');
   const hex = reportHex(report);
+
+  const [activeTab, setActiveTab] = useState<RunTab>('findings');
 
   return (
     <div
@@ -315,70 +296,15 @@ function CompletedBody({
         } as React.CSSProperties
       }
     >
-      <RunHeader
-        report={report}
-        statusLabel="Complete"
-        statusDetail={statusDetail}
-        path={completed.stats.path}
-        onBack={onBack}
-      />
+      <RunHeader report={report} statusLine={statusLine} onBack={onBack} />
 
-      <section className={styles.summaryBlock}>
-        <span className={styles.summaryLabel}>Summary</span>
-        <p className={styles.summaryText}>{completed.summary}</p>
-      </section>
+      <TabNav active={activeTab} onChange={setActiveTab} />
 
       <section className={styles.body}>
-        <div className={styles.findingsStream}>
-          <div className={styles.sectionHead}>
-            <h2 className={styles.sectionTitle}>Findings</h2>
-            <span className={styles.sectionCount}>{completed.findings.length}</span>
-          </div>
-          <div className={styles.findingsList}>
-            {completed.findings.map((f) => (
-              <FindingCard key={f.id} finding={f} />
-            ))}
-          </div>
-        </div>
+        {activeTab === 'findings' && <FindingsTab findings={completed.findings} />}
+        {activeTab === 'steps' && <StepsTab stages={report.stages} />}
+        {activeTab === 'sources' && <SourcesTab stats={completed.stats} />}
       </section>
-
-      <section className={styles.coverageBlock}>
-        <div className={styles.sectionHead}>
-          <h2 className={styles.sectionTitle}>What this report read</h2>
-        </div>
-        <div className={styles.statsRow}>
-          <div className={styles.statsItem}>
-            <span className={styles.statsLabel}>Sessions read</span>
-            <span className={styles.statsValue}>{completed.stats.sessionsRead}</span>
-          </div>
-          <div className={styles.statsItem}>
-            <span className={styles.statsLabel}>Files read</span>
-            <span className={styles.statsValue}>{completed.stats.filesRead}</span>
-          </div>
-          <div className={styles.statsItem}>
-            <span className={styles.statsLabel}>Tokens</span>
-            <span className={styles.statsValue}>
-              {(completed.stats.tokensUsed / 1000).toFixed(0)}K
-            </span>
-          </div>
-          <div className={styles.statsItem}>
-            <span className={styles.statsLabel}>Cost</span>
-            <span className={styles.statsValue}>${completed.stats.estimatedCost.toFixed(2)}</span>
-          </div>
-        </div>
-      </section>
-
-      <footer className={styles.footer}>
-        <button type="button" className={styles.footerBtn}>
-          Download report
-        </button>
-        <button type="button" className={styles.footerBtn}>
-          Share
-        </button>
-        <button type="button" className={styles.footerBtnPrimary} onClick={onBack}>
-          Re-run
-        </button>
-      </footer>
     </div>
   );
 }
@@ -402,21 +328,15 @@ function NotFound({ onBack }: { onBack: () => void }): ReactNode {
 // ── Main ──
 
 export default function ReportRunView({ runId, onBack }: Props): ReactNode {
-  const parsed = useMemo(() => parseLiveRunId(runId), [runId]);
-
-  if (parsed.isLive) {
-    const report = findReport(parsed.reportId);
-    if (!report) return <NotFound onBack={onBack} />;
-    return <LiveBody key={runId} report={report} onBack={onBack} />;
-  }
-
   const run = getRun(runId);
   if (!run) return <NotFound onBack={onBack} />;
   const report = findReport(run.reportId);
   if (!report) return <NotFound onBack={onBack} />;
 
   if (run.status === 'running') {
-    return <LiveBody key={runId} report={report} onBack={onBack} />;
+    // Running runs are surfaced inline on the detail view now; bounce
+    // to the detail page instead of rendering a dedicated view.
+    return <NotFound onBack={onBack} />;
   }
 
   if (run.status === 'queued') {
@@ -424,9 +344,7 @@ export default function ReportRunView({ runId, onBack }: Props): ReactNode {
       <div className={styles.run}>
         <RunHeader
           report={report}
-          statusLabel="Queued"
-          statusDetail="Waiting for your CLI to come online"
-          path={run.path}
+          statusLine="queued · waiting for your cli to come online"
           onBack={onBack}
         />
         <div className={styles.queuedBody}>
@@ -442,13 +360,7 @@ export default function ReportRunView({ runId, onBack }: Props): ReactNode {
   if (run.status === 'failed') {
     return (
       <div className={styles.run}>
-        <RunHeader
-          report={report}
-          statusLabel="Failed"
-          statusDetail="Run did not complete"
-          path={run.path}
-          onBack={onBack}
-        />
+        <RunHeader report={report} statusLine="failed · run did not complete" onBack={onBack} />
         <div className={styles.failedBody}>
           <p>This run failed early. No findings were produced.</p>
           <button type="button" className={styles.footerBtnPrimary} onClick={onBack}>

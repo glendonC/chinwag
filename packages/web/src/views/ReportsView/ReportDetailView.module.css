@@ -35,9 +35,58 @@
   max-width: 20ch;
 }
 
-.launchRow {
+.actionRow {
   display: flex;
   align-items: center;
+}
+
+/* ── Running group ──
+   Two-squircle mirror of LaunchLink. Both squircles share the same
+   colored treatment; only the right one is clickable (cancels the run).
+   Layout rhythm (gap, height, radius, type) matches LaunchLink so the
+   button-to-running transition is a label swap, not a shape change. */
+
+.runningGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.runningLabel,
+.cancelButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 12px;
+  background: var(--report-color);
+  color: #fff;
+  border-radius: var(--radius-md);
+  font-family: var(--mono);
+  font-size: var(--text-10);
+  font-weight: 500;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.runningLabel {
+  font-variant-numeric: tabular-nums;
+}
+
+.cancelButton {
+  border: none;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.cancelButton:hover,
+.cancelButton:focus-visible {
+  filter: brightness(1.08);
+}
+
+.cancelButton:focus-visible {
+  outline: none;
 }
 
 /* ── Section (label + content) ──

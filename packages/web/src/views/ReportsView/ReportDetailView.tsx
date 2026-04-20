@@ -1,14 +1,18 @@
 // Report home page — opened when ?report=<id> is in the URL.
 //
 // Structured data only: runs table (date, status, findings, duration)
-// and data-source chips. No prose, no pull quote, no description.
+// and data-source chips. Launch button transforms into an in-place
+// running pill when an active run exists for this report — no
+// dedicated live-run page.
 
 import { type CSSProperties, type ReactNode } from 'react';
 import BackLink from '../../components/BackLink/BackLink.js';
 import LaunchLink from '../../components/LaunchLink/LaunchLink.js';
 import { setQueryParam } from '../../lib/router.js';
+import { useActiveRun, reportRunsActions } from '../../lib/stores/reportRuns.js';
 import { REPORT_CATALOG, reportHex, type ReportDef } from './report-catalog.js';
 import { getRunsForReport } from './mock-runs.js';
+import { useElapsed } from './useElapsed.js';
 import type { MockRun } from './types.js';
 import styles from './ReportDetailView.module.css';
 
@@ -58,13 +62,43 @@ function findingsCell(run: MockRun): string {
     const n = run.findingsCount ?? 0;
     return `${n} finding${n === 1 ? '' : 's'}`;
   }
-  if (run.status === 'running' && run.currentPhase) return run.currentPhase.toLowerCase();
   return '—';
 }
 
 function durationCell(run: MockRun): string {
   if (run.status === 'complete' && run.durationMs) return formatDuration(run.durationMs);
   return '—';
+}
+
+// ── Running group ──
+//
+// Two-squircle mirror of LaunchLink: left pill shows "running {N}s",
+// right pill is the cancel button. Same height, same report-color, same
+// rhythm as the launch state — only the labels differ.
+
+function RunningGroup({
+  startedAt,
+  onCancel,
+}: {
+  startedAt: number;
+  onCancel: () => void;
+}): ReactNode {
+  const elapsedMs = useElapsed(startedAt);
+  return (
+    <div className={styles.runningGroup}>
+      <span className={styles.runningLabel} aria-live="polite">
+        Running {formatDuration(elapsedMs)}
+      </span>
+      <button
+        type="button"
+        className={styles.cancelButton}
+        onClick={onCancel}
+        aria-label="Cancel run"
+      >
+        Cancel
+      </button>
+    </div>
+  );
 }
 
 // ── Not-found body ──
@@ -85,6 +119,7 @@ function NotFound({ onBack }: { onBack: () => void }): ReactNode {
 
 export default function ReportDetailView({ reportId, onBack }: Props): ReactNode {
   const report: ReportDef | undefined = REPORT_CATALOG.find((r) => r.id === reportId);
+  const activeRun = useActiveRun(reportId);
 
   if (!report) return <NotFound onBack={onBack} />;
 
@@ -94,7 +129,11 @@ export default function ReportDetailView({ reportId, onBack }: Props): ReactNode
   const hiddenCount = Math.max(0, runs.length - visibleRuns.length);
 
   const handleLaunch = (): void => {
-    setQueryParam('run', `live-${report.id}-${Date.now()}`);
+    reportRunsActions.launch(report.id);
+  };
+
+  const handleCancel = (): void => {
+    reportRunsActions.cancel(report.id);
   };
 
   const handleSelectRun = (runId: string): void => {
@@ -114,8 +153,12 @@ export default function ReportDetailView({ reportId, onBack }: Props): ReactNode
 
       <h1 className={styles.headerTitle}>{report.name}</h1>
 
-      <div className={styles.launchRow}>
-        <LaunchLink onClick={handleLaunch} />
+      <div className={styles.actionRow}>
+        {activeRun ? (
+          <RunningGroup startedAt={activeRun.startedAt} onCancel={handleCancel} />
+        ) : (
+          <LaunchLink onClick={handleLaunch} />
+        )}
       </div>
 
       <section className={styles.section}>

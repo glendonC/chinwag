@@ -14,6 +14,7 @@ import { useTeamStore } from '../../lib/stores/teams.js';
 import { useQueryParam, setQueryParam } from '../../lib/router.js';
 import { agentGradient } from '../../lib/agentGradient.js';
 import { projectGradient } from '../../lib/projectGradient.js';
+import { reportRunsActions } from '../../lib/stores/reportRuns.js';
 import { REPORT_CATALOG, reportHex, type ReportDef } from './report-catalog.js';
 import { ReportMark } from './ReportMark.js';
 import { getLatestRun, getRunsForReport } from './mock-runs.js';
@@ -242,7 +243,8 @@ function CatalogView(): ReactNode {
         setQueryParam('report', hoveredId);
         e.preventDefault();
       } else if (e.key === 'l' || e.key === 'L') {
-        setQueryParam('run', `live-${hoveredId}-${Date.now()}`);
+        reportRunsActions.launch(hoveredId);
+        setQueryParam('report', hoveredId);
         e.preventDefault();
       } else if (e.key === 'd' || e.key === 'D') {
         setIsExpanded((prev) => !prev);
