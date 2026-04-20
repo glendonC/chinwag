@@ -16,7 +16,10 @@
  */
 .liveTable {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto 56px;
+  /* Member | Tool | Project | Session | View. Member absorbs all leftover
+   * space so the right-hand metadata cluster stays tight against the edge.
+   * Session is a narrow mono column; View is a fixed-width pill. */
+  grid-template-columns: minmax(0, 1fr) auto auto auto 56px;
   column-gap: var(--space-md);
   row-gap: 0;
   /* Keep rows content-sized. Without this, the grid's default align-content
@@ -164,6 +167,228 @@
 
 @media (prefers-reduced-motion: reduce) {
   .liveTableRow {
+    animation: none !important;
+  }
+}
+
+/* ── Conflicts / files-in-play table ────────────────────────────────
+ *
+ * 4-column subgrid shared by live-conflicts and files-in-play:
+ *   File        | Status             | Duration | Editors
+ *   router.ts   | claimed            | 18m      | ada nova orion +3
+ *   memory.ts   | mismatch @ada      | 8m       | nova orion
+ *   setup.js    | unclaimed          | —        | ada nova orion +3
+ *
+ * Dense table, same chrome as live-agents but different columns. Sibling
+ * widgets share visual vocabulary; the data differs (file-axis vs agent-
+ * axis) and the reader tells them apart by content, not by layout. */
+.conflictTable {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  column-gap: var(--space-lg);
+  row-gap: 0;
+  align-content: start;
+  flex: 1;
+  min-height: 0;
+}
+
+.conflictTableHeader,
+.conflictTableRow {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+  margin: 0 -14px;
+}
+
+.conflictTableHeader {
+  padding: 0 14px 10px;
+  font-family: var(--mono);
+  font-size: var(--text-10);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-table);
+  color: var(--soft);
+}
+
+.conflictTableBody {
+  display: contents;
+}
+
+/* SectionOverflow wrapper: spans the full row so the "+N more files" link
+ * lines up under the first column, not inside the last subgrid track. Only
+ * files-in-play uses this — live-conflicts renders every conflict. */
+.conflictTableOverflow {
+  grid-column: 1 / -1;
+  margin: 0 -14px;
+}
+
+.conflictTableRow {
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
+  transition: background 0.12s ease;
+  /* Button reset so the row works identically whether rendered as a div or
+   * a button — strips default button chrome but keeps grid subgrid. */
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+}
+
+button.conflictTableRow {
+  cursor: pointer;
+}
+
+.conflictTableRow:hover {
+  background: var(--hover-bg);
+}
+
+.conflictTableRow:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── File cell ──────────────────────────────────────────────────
+ *
+ * Manrope (sans) 500 so the filename reads as row identity — matching
+ * `.liveAgentName` in the live-agents widget. Parent dir is always
+ * rendered when present (root-level files have none), mono-soft so it
+ * reads as context, not a second name. */
+.conflictFileCell {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.conflictFileName {
+  font-size: var(--text-sm);
+  color: var(--ink);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.conflictFileParent {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* ── Status cell ─────────────────────────────────────────────────
+ *
+ * Pure state word — never a handle. Handles live in the Editors column,
+ * and crossing that boundary (as a previous `mismatch @handle` pattern
+ * did) created column-role confusion.
+ *
+ *   claimed    — lock exists and the holder is one of the editors.
+ *   unclaimed  — no lock. Explicit word because an uncoordinated
+ *                conflict is itself a signal.
+ *   mismatch   — lock exists but the holder isn't editing. Warn-tinted
+ *                so the reader sees "something's wrong here"; drill-in
+ *                names the orphan claim holder. */
+.conflictStatusCell {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.conflictStatusClaimed {
+  color: var(--muted);
+}
+
+.conflictStatusUnclaimed {
+  color: var(--muted);
+}
+
+.conflictStatusMismatch {
+  color: var(--warn);
+  font-weight: 500;
+}
+
+/* Solo + unclaimed: no coordination signal worth surfacing. Em-dash
+ * keeps the column aligned without rendering the word "unclaimed"
+ * on every single-editor row where it carries no information. */
+.conflictStatusNone {
+  color: var(--soft);
+}
+
+/* ── Duration cell ──────────────────────────────────────────────
+ *
+ * Claim age (how long the lock has been held). Mono, right-aligned so
+ * durations stack as a scannable digit column. `—` when no claim. This
+ * is the CLAIM's age, not the conflict's age — the widget doesn't track
+ * when a conflict started; claim-age is the coordination signal (stale
+ * claim = likely abandoned). */
+.conflictDurationHeader {
+  text-align: right;
+}
+
+.conflictDurationCell {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-align: right;
+  justify-self: end;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.conflictDurationValue {
+  color: var(--muted);
+}
+
+.conflictDurationNone {
+  color: var(--soft);
+}
+
+/* ── Editors cell ───────────────────────────────────────────────
+ *
+ * Up to 3 tool-colored handles + `+N` overflow. Severity reads as Manrope
+ * weight on the cell (inherits to handles): 2 editors → 400, 3 → 500,
+ * 4+ → 600. Cell font-weight is set inline per row. */
+.conflictEditorsCell {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: var(--text-sm);
+  letter-spacing: -0.01em;
+  min-width: 0;
+}
+
+.conflictEditorHandle {
+  white-space: nowrap;
+  /* color set inline per tool; font-weight inherited from the cell */
+}
+
+/* Stale editor: heartbeat is cooling (>30s since last activity update).
+ * Half-opacity fade preserves the tool color but signals "this one may
+ * be idle", distinguishing a hot collision from one where a participant
+ * already wandered off. Hot and stale at the same weight would overstate
+ * severity. */
+.conflictEditorHandleStale {
+  opacity: 0.5;
+}
+
+.conflictEditorsOverflow {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conflictTableRow {
     animation: none !important;
   }
 }

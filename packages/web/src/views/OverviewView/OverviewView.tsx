@@ -67,7 +67,6 @@ import { useProjectFilter } from './useProjectFilter.js';
 import { getWidget } from '../../widgets/widget-catalog.js';
 import { WidgetRenderer } from '../../widgets/WidgetRenderer.js';
 import { WidgetCatalog } from '../../widgets/WidgetCatalog.js';
-import { DEMO_LIVE_AGENTS, DEMO_LOCKS } from '../../widgets/demo-live-data.js';
 import type { Lock } from '../../lib/apiSchemas.js';
 
 import styles from './OverviewView.module.css';
@@ -202,13 +201,9 @@ const SINGLE_PROJECT_HINT_KEY = 'chinwag:single-project-hint-dismissed';
 
 // Module-level stable reference for the Live widgets' `locks` prop. Inline
 // `[]` rebuilds the array every render and defeats the memo on
-// WidgetRenderer (shallow compare sees a new reference). In dev we seed
-// the shared DEMO_LOCKS so the claimed pill + claimed-files widgets have
-// something to render without a live session; in prod we pass an empty
-// array. Either way the reference is stable per module load.
-// DEMO: remove the dev branch + the demo-live-data import when the Live
-// widget UIUX refinement is finished.
-const OVERVIEW_LOCKS: Lock[] = import.meta.env.DEV ? DEMO_LOCKS : [];
+// WidgetRenderer (shallow compare sees a new reference). The empty array
+// here keeps the reference stable per module load.
+const OVERVIEW_LOCKS: Lock[] = [];
 
 // ── Main Component ────────────────────────────────
 
@@ -245,17 +240,7 @@ export default function OverviewView() {
   const hasKnownProjects = knownTeamCount > 0 || summaries.length > 0;
   const failedLabel = failedTeams.length > 0 ? summarizeNames(failedTeams) : '';
 
-  const { liveAgents: rawLiveAgents, sortedSummaries } = useOverviewData(summaries);
-
-  // DEMO: dev-only hydration for the Live widgets (live-agents,
-  // live-conflicts, files-in-play). Append synthetic agents so we can
-  // refine the visuals without a live session. Tree-shaken from prod via
-  // import.meta.env.DEV. Remove this merge + the demo-live-data import
-  // when the widget UIUX refinement is done.
-  const liveAgents = useMemo(
-    () => (import.meta.env.DEV ? [...rawLiveAgents, ...DEMO_LIVE_AGENTS] : rawLiveAgents),
-    [rawLiveAgents],
-  );
+  const { liveAgents, sortedSummaries } = useOverviewData(summaries);
 
   // Live Now full-page view. Query-param driven so the URL deep-links and
   // the back/forward buttons work. The value, when present, doubles as a
