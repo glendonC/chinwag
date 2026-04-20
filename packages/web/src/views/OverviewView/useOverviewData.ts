@@ -16,6 +16,7 @@ interface TeamSummary {
     files: string[];
     summary: string | null;
     session_minutes: number | null;
+    seconds_since_update: number | null;
   }>;
   hosts_configured?: Array<{ host_tool?: string; joins: number }>;
   [key: string]: unknown;

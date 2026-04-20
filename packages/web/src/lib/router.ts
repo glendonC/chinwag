@@ -90,9 +90,16 @@ export function useRoute(): Route {
 
 /** Set or remove a query parameter, pushing a history entry. */
 export function setQueryParam(key: string, value: string | null): void {
+  setQueryParams({ [key]: value });
+}
+
+/** Set multiple query params in a single history entry. */
+export function setQueryParams(params: Record<string, string | null>): void {
   const url = new URL(window.location.href);
-  if (value === null) url.searchParams.delete(key);
-  else url.searchParams.set(key, value);
+  for (const [key, value] of Object.entries(params)) {
+    if (value === null) url.searchParams.delete(key);
+    else url.searchParams.set(key, value);
+  }
   const next = url.pathname + url.search;
   if (window.location.pathname + window.location.search !== next) {
     window.history.pushState(null, '', next);

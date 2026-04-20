@@ -9,6 +9,8 @@ export interface LiveAgent {
   files: string[];
   summary: string | null;
   session_minutes: number | null;
+  /** Seconds since the member's last heartbeat. 0–60 for any live agent. */
+  seconds_since_update: number | null;
   teamName: string;
   teamId: string;
 }

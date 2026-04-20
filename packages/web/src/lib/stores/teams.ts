@@ -131,11 +131,6 @@ export const teamActions = {
   ensureJoined: (id: string): Promise<void> => teamStore.getState().ensureJoined(id),
   subscribe: teamStore.subscribe,
 
-  /** Inject demo teams (for ?demo=1 visual testing). */
-  setDemoTeams(teams: Team[], activeTeamId: string): void {
-    teamStore.setState({ teams, activeTeamId, teamsError: null });
-  },
-
   async updateMemory(teamId: string, id: string, text?: string, tags?: string[]): Promise<void> {
     const { token } = authActions.getState();
     const body: Record<string, unknown> = { id };

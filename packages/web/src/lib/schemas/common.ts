@@ -44,8 +44,8 @@ export const modelMetricSchema = baseModelMetricSchema.extend({
 });
 
 // memberSchema: web uses fewer fields than shared teamMemberSchema (no tool,
-// framework, seconds_since_update, minutes_since_update, signal_tier) and
-// adds color. Keep hand-written definition; verify key fields via type check.
+// framework, minutes_since_update, signal_tier) and adds color. Keep
+// hand-written definition; verify key fields via type check.
 export const memberSchema = z.object({
   agent_id: z.string(),
   handle: z.string(),
@@ -64,6 +64,7 @@ export const memberSchema = z.object({
     .optional(),
   color: z.string().nullable().optional(),
   session_minutes: z.number().nullable().optional(),
+  seconds_since_update: z.number().nullable().optional(),
 });
 
 // Type-level check: verify key fields stay aligned with shared contract
@@ -222,6 +223,7 @@ const activeMemberSchema = z.object({
   files: z.array(z.string()).default([]),
   summary: z.string().nullable().default(null),
   session_minutes: z.number().nullable().default(null),
+  seconds_since_update: z.number().nullable().default(null),
 });
 
 export type ActiveMember = z.infer<typeof activeMemberSchema>;

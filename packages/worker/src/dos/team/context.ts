@@ -303,20 +303,29 @@ export function queryTeamSummary(sql: SqlStorage): TeamSummary & TelemetryBreakd
     .toArray();
 
   // Active member details for the overview agents panel.
-  // Exclude phantom members (CLI/web joins with no real tool identity).
-  // ORDER BY last_heartbeat DESC so the LIMIT 20 truncation is deterministic:
-  // the 20 shown are always the 20 most-recently-alive, not an arbitrary subset.
+  // Phantom filter: a row is phantom when BOTH the stored host_tool is
+  // missing/unknown AND the agent_id prefix is missing/unknown. Rows where
+  // detection failed but the agent_id prefix is meaningful (e.g.
+  // 'claude-code:abc:def' with host_tool='unknown') used to be dropped here,
+  // which hid legitimate CC instances whose MCP handshake hadn't populated
+  // host_tool by join time. The mapper below recovers host_tool from the
+  // agent_id prefix in that case. ORDER BY last_heartbeat DESC so the
+  // LIMIT 20 truncation is deterministic.
   const activeMembers = sql
     .exec(
       `SELECT m.agent_id, m.handle, m.host_tool, m.agent_surface,
               a.files, a.summary,
-              ROUND((julianday('now') - julianday(s.started_at)) * 24 * 60) as session_minutes
+              ROUND((julianday('now') - julianday(s.started_at)) * 24 * 60) as session_minutes,
+              ROUND((julianday('now') - julianday(m.last_heartbeat)) * 86400) as seconds_since_update
        FROM members m
        LEFT JOIN activities a ON a.agent_id = m.agent_id
        LEFT JOIN sessions s ON s.agent_id = m.agent_id AND s.ended_at IS NULL
        WHERE m.last_heartbeat > datetime('now', '-' || ? || ' seconds')
-         AND m.host_tool IS NOT NULL
-         AND m.host_tool != 'unknown'
+         AND (
+           (m.host_tool IS NOT NULL AND m.host_tool != 'unknown')
+           OR (instr(m.agent_id, ':') > 0
+               AND substr(m.agent_id, 1, instr(m.agent_id, ':') - 1) != 'unknown')
+         )
        ORDER BY m.last_heartbeat DESC
        LIMIT 20`,
       HEARTBEAT_ACTIVE_WINDOW_S,
@@ -325,10 +334,13 @@ export function queryTeamSummary(sql: SqlStorage): TeamSummary & TelemetryBreakd
 
   const active_members: ActiveMemberSummary[] = activeMembers.map((row) => {
     const r = row as Record<string, unknown>;
+    const storedTool = r.host_tool as string | null;
+    const inferredTool = inferHostToolFromAgentId(r.agent_id as string);
+    const hostTool = storedTool && storedTool !== 'unknown' ? storedTool : inferredTool;
     return {
       agent_id: r.agent_id as string,
       handle: (r.handle as string) || 'unknown',
-      host_tool: (r.host_tool as string) || inferHostToolFromAgentId(r.agent_id as string),
+      host_tool: hostTool,
       agent_surface: (r.agent_surface as string) || null,
       files: safeParse(
         (r.files as string) || '[]',
@@ -338,6 +350,8 @@ export function queryTeamSummary(sql: SqlStorage): TeamSummary & TelemetryBreakd
       ),
       summary: (r.summary as string) || null,
       session_minutes: r.session_minutes != null ? (r.session_minutes as number) : null,
+      seconds_since_update:
+        r.seconds_since_update != null ? (r.seconds_since_update as number) : null,
     };
   });
 

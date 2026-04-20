@@ -12,7 +12,7 @@ export interface FileGroup {
 export function groupFilesByTeam(liveAgents: LiveAgent[]): FileGroup[] {
   const map = new Map<string, FileGroup>();
   for (const agent of liveAgents) {
-    for (const file of agent.files) {
+    for (const file of agent.files ?? []) {
       const key = `${agent.teamId}\u0000${file}`;
       const existing = map.get(key);
       if (existing) {

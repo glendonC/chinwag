@@ -351,19 +351,6 @@ export function forceRefresh(): void {
   requestRefresh();
 }
 
-/** Inject demo data directly into the polling store (for ?demo=1 visual testing). */
-export function injectDemoData(teamId: string, context: TeamContext): void {
-  pollingStore.setState({
-    contextData: context,
-    contextStatus: 'ready',
-    contextTeamId: teamId,
-    pollError: null,
-    pollErrorData: null,
-    lastUpdate: new Date(),
-    consecutiveFailures: 0,
-  });
-}
-
 /** React hook — use inside components */
 export function usePollingStore<T>(selector: (state: PollingState) => T): T {
   return useStore(pollingStore, selector);
