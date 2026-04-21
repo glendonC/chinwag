@@ -84,11 +84,11 @@ export function queryPeriodComparison(sql: SqlStorage, days: number): PeriodComp
         memory_hit_rate: memoryHitRate,
         edit_velocity: totalHours > 0 ? Math.round((totalEdits / totalHours) * 10) / 10 : 0,
         total_sessions: total,
-        // Cost fields are structural placeholders — nothing in production
-        // invokes enrichPeriodComparisonCost (only unit tests do), and no
-        // widget reads these fields today. If a period-over-period cost
-        // delta lands, wire a window-token-aggregate query + call
-        // enrichPeriodComparisonCost here before shipping the consumer.
+        // Cost fields are populated downstream by enrichPeriodComparisonCost
+        // in dos/team/index.ts (getAnalytics + getAnalyticsForOwner), which
+        // prices the current + previous window aggregates against today's
+        // pricing snapshot. Null here is the pre-enrichment placeholder —
+        // any code path that skips enrichment will see em-dashes in the UI.
         total_estimated_cost_usd: null,
         total_edits_in_token_sessions: 0,
         cost_per_edit: null,
