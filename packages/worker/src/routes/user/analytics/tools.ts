@@ -60,6 +60,7 @@ interface ToolCompBucket {
   total_edits: number;
   total_lines_added: number;
   total_lines_removed: number;
+  total_session_hours: number;
 }
 
 export type ToolCompAcc = Map<string, ToolCompBucket>;
@@ -80,6 +81,7 @@ export function mergeToolComp(acc: ToolCompAcc, team: TeamResult): void {
       total_edits: 0,
       total_lines_added: 0,
       total_lines_removed: 0,
+      total_session_hours: 0,
     };
     existing.sessions += tc.sessions;
     existing.completed += tc.completed;
@@ -90,6 +92,7 @@ export function mergeToolComp(acc: ToolCompAcc, team: TeamResult): void {
     existing.total_edits += tc.total_edits;
     existing.total_lines_added += tc.total_lines_added;
     existing.total_lines_removed += tc.total_lines_removed;
+    existing.total_session_hours += tc.total_session_hours;
     acc.set(tc.host_tool, existing);
   }
 }
@@ -108,6 +111,7 @@ export function projectToolComp(acc: ToolCompAcc): ToolComparison[] {
       total_edits: v.total_edits,
       total_lines_added: v.total_lines_added,
       total_lines_removed: v.total_lines_removed,
+      total_session_hours: Math.round(v.total_session_hours * 100) / 100,
     }));
 }
 

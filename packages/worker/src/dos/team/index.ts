@@ -127,7 +127,11 @@ import {
   getPendingCommands as getPendingCommandsFn,
 } from './commands.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
-import { enrichAnalyticsWithPricing } from '../../lib/pricing-enrich.js';
+import {
+  enrichAnalyticsWithPricing,
+  enrichDailyTrendsWithPricing,
+} from '../../lib/pricing-enrich.js';
+import { queryDailyTokenUsage } from './analytics/tokens.js';
 import {
   CONTEXT_CACHE_TTL_MS,
   CLEANUP_INTERVAL_MS,
@@ -642,16 +646,26 @@ export class TeamDO extends DurableObject<Env> {
     days: number,
     ownerId: string | null = null,
     extended = false,
+    tzOffsetMinutes: number = 0,
   ): Promise<
     ReturnType<typeof getAnalyticsFn> | ReturnType<typeof getExtendedAnalyticsFn> | DOError
   > {
     const raw = this.#withMember(agentId, ownerId, () =>
-      extended ? getExtendedAnalyticsFn(this.sql, days) : getAnalyticsFn(this.sql, days),
+      extended
+        ? getExtendedAnalyticsFn(this.sql, days, tzOffsetMinutes)
+        : getAnalyticsFn(this.sql, days, tzOffsetMinutes),
     );
     if (isDOError(raw)) return raw;
     // Enrich token_usage with cost from the isolate pricing cache. This hits
     // DatabaseDO at most once per TTL window (5 min) rather than per request.
-    return enrichAnalyticsWithPricing(raw, this.env);
+    const enriched = await enrichAnalyticsWithPricing(raw, this.env);
+    // Per-day cost on daily_trends: same pricing snapshot, one extra SQL
+    // aggregate. Fills the Trend widget's cost and cost-per-edit lines with
+    // honest per-day numbers instead of the "daily cost not captured"
+    // placeholder. Reliability gates mirror the period total.
+    const dailyTokens = queryDailyTokenUsage(this.sql, days, tzOffsetMinutes);
+    await enrichDailyTrendsWithPricing(enriched.daily_trends, dailyTokens, this.env);
+    return enriched;
   }
 
   async enrichModel(
@@ -1161,11 +1175,12 @@ export class TeamDO extends DurableObject<Env> {
     ownerId: string,
     fromDate: string,
     toDate: string,
+    filters?: { hostTool?: string; handle?: string },
   ): Promise<
     { ok: true; sessions: SessionRecord[]; truncated: boolean; total_sessions: number } | DOError
   > {
     return this.#withOwner(ownerId, () => {
-      const result = getSessionsInRangeFn(this.sql, fromDate, toDate);
+      const result = getSessionsInRangeFn(this.sql, fromDate, toDate, filters);
       return { ok: true as const, ...result };
     });
   }
@@ -1175,10 +1190,16 @@ export class TeamDO extends DurableObject<Env> {
   async getAnalyticsForOwner(
     ownerId: string,
     days: number,
+    tzOffsetMinutes: number = 0,
   ): Promise<ReturnType<typeof getExtendedAnalyticsFn> | DOError> {
-    const gate = this.#withOwner(ownerId, () => getExtendedAnalyticsFn(this.sql, days));
+    const gate = this.#withOwner(ownerId, () =>
+      getExtendedAnalyticsFn(this.sql, days, tzOffsetMinutes),
+    );
     if (isDOError(gate)) return gate;
-    return enrichAnalyticsWithPricing(gate, this.env);
+    const enriched = await enrichAnalyticsWithPricing(gate, this.env);
+    const dailyTokens = queryDailyTokenUsage(this.sql, days, tzOffsetMinutes);
+    await enrichDailyTrendsWithPricing(enriched.daily_trends, dailyTokens, this.env);
+    return enriched;
   }
 
   // -- Summary (lightweight, for cross-project dashboard) --

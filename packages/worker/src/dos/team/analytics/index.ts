@@ -63,7 +63,7 @@ import {
   queryFirstEditStats,
   queryScopeComplexity,
 } from './sessions.js';
-import { queryMemberAnalytics } from './team.js';
+import { queryMemberAnalytics, queryMemberDailyLines } from './team.js';
 import { queryMemoryUsage, queryMemoryOutcomeCorrelation, queryTopMemories } from './memory.js';
 import { queryConversationEditCorrelation } from './conversations.js';
 import { queryTokenUsage } from './tokens.js';
@@ -83,8 +83,9 @@ export { classifyWorkType } from './outcomes.js';
 export function getExtendedAnalytics(
   sql: SqlStorage,
   days: number,
+  tzOffsetMinutes: number = 0,
 ): Omit<UserAnalytics, 'teams_included' | 'degraded'> {
-  const base = getAnalytics(sql, days);
+  const base = getAnalytics(sql, days, tzOffsetMinutes);
   return {
     ...base,
 
@@ -94,10 +95,10 @@ export function getExtendedAnalytics(
     file_heatmap: queryFileHeatmapEnhanced(sql, days),
 
     // ── Activity ───────────────────────────────────────────────────────
-    hourly_distribution: queryHourlyDistribution(sql, days),
-    tool_daily: queryToolDaily(sql, days),
+    hourly_distribution: queryHourlyDistribution(sql, days, tzOffsetMinutes),
+    tool_daily: queryToolDaily(sql, days, tzOffsetMinutes),
     duration_distribution: queryDurationDistribution(sql, days),
-    edit_velocity: queryEditVelocity(sql, days),
+    edit_velocity: queryEditVelocity(sql, days, tzOffsetMinutes),
 
     // ── Outcomes ───────────────────────────────────────────────────────
     model_outcomes: queryModelPerformance(sql, days),
@@ -126,6 +127,11 @@ export function getExtendedAnalytics(
 
     // ── Team ───────────────────────────────────────────────────────────
     member_analytics: queryMemberAnalytics(sql, days),
+    member_daily_lines: queryMemberDailyLines(sql, days),
+    // per_project_lines and per_project_velocity are cross-project by
+    // construction; assembled at the user route from each team's totals
+    // tagged with team_id/team_name. Empty here.
+    per_project_lines: [],
 
     // ── Memory ─────────────────────────────────────────────────────────
     memory_usage: queryMemoryUsage(sql, days),
@@ -137,16 +143,20 @@ export function getExtendedAnalytics(
 
     // ── Tokens, tool calls, commits ────────────────────────────────────
     token_usage: queryTokenUsage(sql, days),
-    tool_call_stats: queryToolCallStats(sql, days),
-    commit_stats: queryCommitStats(sql, days),
+    tool_call_stats: queryToolCallStats(sql, days, tzOffsetMinutes),
+    commit_stats: queryCommitStats(sql, days, tzOffsetMinutes),
 
     // ── Period comparison ──────────────────────────────────────────────
     period_comparison: queryPeriodComparison(sql, days),
 
     // ── Extended / derived ─────────────────────────────────────────────
-    prompt_efficiency: queryPromptEfficiency(sql, days),
-    hourly_effectiveness: queryHourlyEffectiveness(sql, days),
+    prompt_efficiency: queryPromptEfficiency(sql, days, tzOffsetMinutes),
+    hourly_effectiveness: queryHourlyEffectiveness(sql, days, tzOffsetMinutes),
     outcome_tags: queryOutcomeTags(sql, days),
     tool_handoffs: queryToolHandoffs(sql, days),
+
+    // per_project_velocity is a cross-project rollup; it's assembled at
+    // the user route from each team's tool_comparison, not here.
+    per_project_velocity: [],
   };
 }

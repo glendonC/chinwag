@@ -225,7 +225,13 @@ export function queryToolComparison(sql: SqlStorage, days: number): ToolComparis
            ), 1) AS avg_duration_min,
            COALESCE(SUM(edit_count), 0) AS total_edits,
            COALESCE(SUM(lines_added), 0) AS total_lines_added,
-           COALESCE(SUM(lines_removed), 0) AS total_lines_removed
+           COALESCE(SUM(lines_removed), 0) AS total_lines_removed,
+           COALESCE(SUM(
+             CASE WHEN ended_at IS NOT NULL
+               THEN ROUND((julianday(ended_at) - julianday(started_at)) * 24, 2)
+               ELSE 0
+             END
+           ), 0) AS total_session_hours
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
            AND host_tool IS NOT NULL AND host_tool != 'unknown'
@@ -248,6 +254,7 @@ export function queryToolComparison(sql: SqlStorage, days: number): ToolComparis
         total_edits: (row.total_edits as number) || 0,
         total_lines_added: (row.total_lines_added as number) || 0,
         total_lines_removed: (row.total_lines_removed as number) || 0,
+        total_session_hours: (row.total_session_hours as number) || 0,
       };
     });
   } catch (err) {

@@ -430,20 +430,38 @@ export interface SessionsInRangeResult {
   total_sessions: number;
 }
 
+export interface SessionsInRangeFilters {
+  /** Narrow to a single host tool (canonical id, not display label). */
+  hostTool?: string;
+  /** Narrow to a single teammate handle. */
+  handle?: string;
+}
+
 const SESSION_RANGE_LIMIT = 2000;
 
 export function getSessionsInRange(
   sql: SqlStorage,
   fromDate: string,
   toDate: string,
+  filters: SessionsInRangeFilters = {},
 ): SessionsInRangeResult {
+  // Filters are pushed into the WHERE so the DO doesn't materialize 2000
+  // rows just for the route to throw most away. Both COUNT and SELECT share
+  // the same predicate so truncated/total_sessions reconcile with the list.
+  const predicates: string[] = [`started_at >= ?`, `started_at < datetime(?, '+1 day')`];
+  const bindings: Array<string | number> = [fromDate, toDate];
+  if (filters.hostTool) {
+    predicates.push(`host_tool = ?`);
+    bindings.push(filters.hostTool);
+  }
+  if (filters.handle) {
+    predicates.push(`handle = ?`);
+    bindings.push(filters.handle);
+  }
+  const whereClause = predicates.join(' AND ');
+
   const countRow = sql
-    .exec(
-      `SELECT COUNT(*) AS cnt FROM sessions
-       WHERE started_at >= ? AND started_at < datetime(?, '+1 day')`,
-      fromDate,
-      toDate,
-    )
+    .exec(`SELECT COUNT(*) AS cnt FROM sessions WHERE ${whereClause}`, ...bindings)
     .toArray();
   const totalSessions = ((countRow[0] as Record<string, unknown>)?.cnt as number) ?? 0;
 
@@ -457,11 +475,10 @@ export function getSessionsInRange(
               commit_count, first_commit_at,
               ROUND((julianday(COALESCE(ended_at, datetime('now'))) - julianday(started_at)) * 24 * 60) as duration_minutes
        FROM sessions
-       WHERE started_at >= ? AND started_at < datetime(?, '+1 day')
+       WHERE ${whereClause}
        ORDER BY started_at ASC
        LIMIT ?`,
-      fromDate,
-      toDate,
+      ...bindings,
       SESSION_RANGE_LIMIT,
     )
     .toArray();

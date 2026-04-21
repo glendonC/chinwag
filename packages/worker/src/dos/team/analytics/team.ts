@@ -1,7 +1,7 @@
 // Team analytics: member-level analytics.
 
 import { createLogger } from '../../../lib/logger.js';
-import type { MemberAnalytics } from '@chinwag/shared/contracts/analytics.js';
+import type { MemberAnalytics, MemberDailyLineTrend } from '@chinwag/shared/contracts/analytics.js';
 
 const log = createLogger('TeamDO.analytics');
 
@@ -23,7 +23,13 @@ export function queryMemberAnalytics(sql: SqlStorage, days: number): MemberAnaly
            COALESCE(SUM(edit_count), 0) AS total_edits,
            COALESCE(SUM(lines_added), 0) AS total_lines_added,
            COALESCE(SUM(lines_removed), 0) AS total_lines_removed,
-           COALESCE(SUM(commit_count), 0) AS total_commits
+           COALESCE(SUM(commit_count), 0) AS total_commits,
+           COALESCE(SUM(
+             CASE WHEN ended_at IS NOT NULL
+               THEN ROUND((julianday(ended_at) - julianday(started_at)) * 24, 2)
+               ELSE 0
+             END
+           ), 0) AS total_session_hours
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
          GROUP BY handle
@@ -69,10 +75,69 @@ export function queryMemberAnalytics(sql: SqlStorage, days: number): MemberAnaly
         total_lines_removed: (row.total_lines_removed as number) || 0,
         total_commits: (row.total_commits as number) || 0,
         primary_tool: primaryTools.get(handle) || null,
+        total_session_hours: (row.total_session_hours as number) || 0,
       };
     });
   } catch (err) {
     log.warn(`memberAnalytics query failed: ${err}`);
+    return [];
+  }
+}
+
+// Per-teammate daily timeline. Scoped to the same top-50 handles as
+// queryMemberAnalytics (ranked by total edits in the window) so the two
+// fields agree on which handles exist. Uses the recursive-CTE spine +
+// CROSS JOIN pattern from queryToolDaily for dense day axes — each
+// handle's sparkline stays legible when they worked on non-contiguous days.
+export function queryMemberDailyLines(sql: SqlStorage, days: number): MemberDailyLineTrend[] {
+  try {
+    const rows = sql
+      .exec(
+        `WITH RECURSIVE spine(day) AS (
+           SELECT date('now', '-' || ? || ' days')
+           UNION ALL
+           SELECT date(day, '+1 day') FROM spine WHERE day < date('now')
+         ),
+         top_handles AS (
+           SELECT handle FROM sessions
+           WHERE started_at >= date('now', '-' || ? || ' days')
+             AND handle IS NOT NULL
+           GROUP BY handle
+           ORDER BY COALESCE(SUM(edit_count), 0) DESC
+           LIMIT 50
+         )
+         SELECT top_handles.handle AS handle,
+                spine.day AS day,
+                COUNT(s.id) AS sessions,
+                COALESCE(SUM(s.edit_count), 0) AS edits,
+                COALESCE(SUM(s.lines_added), 0) AS lines_added,
+                COALESCE(SUM(s.lines_removed), 0) AS lines_removed
+         FROM spine
+         CROSS JOIN top_handles
+         LEFT JOIN sessions s ON s.handle = top_handles.handle
+           AND date(s.started_at) = spine.day
+           AND s.started_at >= date('now', '-' || ? || ' days')
+         GROUP BY top_handles.handle, spine.day
+         ORDER BY spine.day ASC, top_handles.handle ASC`,
+        days,
+        days,
+        days,
+      )
+      .toArray();
+
+    return rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      return {
+        handle: row.handle as string,
+        day: row.day as string,
+        sessions: (row.sessions as number) || 0,
+        edits: (row.edits as number) || 0,
+        lines_added: (row.lines_added as number) || 0,
+        lines_removed: (row.lines_removed as number) || 0,
+      };
+    });
+  } catch (err) {
+    log.warn(`memberDailyLines query failed: ${err}`);
     return [];
   }
 }

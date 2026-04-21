@@ -21,6 +21,7 @@ interface MemberBucket {
   total_lines_added: number;
   total_lines_removed: number;
   total_commits: number;
+  total_session_hours: number;
   tools: Map<string, number>;
 }
 
@@ -43,6 +44,7 @@ export function merge(acc: MemberAcc, team: TeamResult): void {
       total_lines_added: 0,
       total_lines_removed: 0,
       total_commits: 0,
+      total_session_hours: 0,
       tools: new Map<string, number>(),
     };
     existing.sessions += ma.sessions;
@@ -55,6 +57,7 @@ export function merge(acc: MemberAcc, team: TeamResult): void {
     existing.total_lines_added += ma.total_lines_added;
     existing.total_lines_removed += ma.total_lines_removed;
     existing.total_commits += ma.total_commits ?? 0;
+    existing.total_session_hours += ma.total_session_hours;
     if (ma.primary_tool) {
       existing.tools.set(ma.primary_tool, (existing.tools.get(ma.primary_tool) ?? 0) + ma.sessions);
     }
@@ -88,6 +91,7 @@ export function project(acc: MemberAcc): MemberAnalytics[] {
         total_lines_removed: v.total_lines_removed,
         total_commits: v.total_commits,
         primary_tool: primaryTool,
+        total_session_hours: Math.round(v.total_session_hours * 100) / 100,
       };
     });
 }

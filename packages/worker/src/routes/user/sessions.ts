@@ -19,10 +19,24 @@ function todayStr(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// Filter param shapes. Handles are alnum + underscore per the registration
+// rules; host_tool ids are alnum + hyphen. Both cap at 64 so we never bind
+// oversized strings into DO SQL. Anything outside the whitelist silently
+// drops the filter rather than 400ing — this cross-team list route treats
+// unknown inputs as "no filter."
+const HANDLE_RE = /^[A-Za-z0-9_]{1,64}$/;
+const HOST_TOOL_RE = /^[A-Za-z0-9_-]{1,64}$/;
+
 export const handleUserSessions = authedRoute(async ({ request, user, env }) => {
   const url = new URL(request.url);
   const from = url.searchParams.get('from') || todayStr();
   const to = url.searchParams.get('to') || todayStr();
+
+  const hostToolParam = url.searchParams.get('host_tool');
+  const handleParam = url.searchParams.get('handle');
+  const filters: { hostTool?: string; handle?: string } = {};
+  if (hostToolParam && HOST_TOOL_RE.test(hostToolParam)) filters.hostTool = hostToolParam;
+  if (handleParam && HANDLE_RE.test(handleParam)) filters.handle = handleParam;
 
   const db = getDB(env);
   const teamsResult = rpc(await db.getUserTeams(user.id));
@@ -43,7 +57,7 @@ export const handleUserSessions = authedRoute(async ({ request, user, env }) => 
       try {
         const result = rpc(
           await withTimeout(
-            team.getSessionsInRange(user.id, from, to) as unknown as Promise<
+            team.getSessionsInRange(user.id, from, to, filters) as unknown as Promise<
               Record<string, unknown>
             >,
             DO_CALL_TIMEOUT_MS,

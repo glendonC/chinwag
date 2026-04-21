@@ -475,6 +475,9 @@ export function createDemoAnalytics(): UserAnalytics {
         memory_hit_rate: 48 / 67,
         edit_velocity: 2.8,
         total_sessions: totalSessions,
+        total_estimated_cost_usd: 18.42,
+        total_edits_in_token_sessions: Math.round(totalEdits * 0.72),
+        cost_per_edit: 0.006,
       },
       previous: {
         completion_rate: 0.64,
@@ -483,6 +486,9 @@ export function createDemoAnalytics(): UserAnalytics {
         memory_hit_rate: 0.58,
         edit_velocity: 2.4,
         total_sessions: prevSessions,
+        total_estimated_cost_usd: 15.08,
+        total_edits_in_token_sessions: Math.round(totalEdits * 0.62),
+        cost_per_edit: 0.0068,
       },
     },
     token_usage: {
