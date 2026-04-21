@@ -430,6 +430,7 @@ export default function OverviewView() {
   // hooks (analytics, conversationData, liveAgents, sortedSummaries)
   // memoize their outputs. OVERVIEW_LOCKS is shared at module scope for
   // the same reason — `[]` literal would re-bust memo every render.
+  const truncated = dashboardData?.truncated ?? false;
   const renderWidget = useCallback(
     (id: string) => (
       <WidgetRenderer
@@ -439,10 +440,11 @@ export default function OverviewView() {
         summaries={sortedSummaries as Array<Record<string, unknown>>}
         liveAgents={liveAgents}
         locks={OVERVIEW_LOCKS}
+        truncated={truncated}
         selectTeam={selectTeam}
       />
     ),
-    [analytics, conversationData, sortedSummaries, liveAgents, selectTeam],
+    [analytics, conversationData, sortedSummaries, liveAgents, truncated, selectTeam],
   );
 
   // Cmd/Ctrl-Z to undo layout changes (drag, resize, add, remove, reset).
@@ -586,8 +588,16 @@ export default function OverviewView() {
     );
   }
 
-  // Active widgets with valid definitions
-  const activeSlots = slots.filter((s) => getWidget(s.id));
+  // Active widgets with valid definitions. `projects` is gated to N ≥ 2
+  // projects: at N = 1 the entire Overview already aggregates that single
+  // team, so a one-row project list would duplicate on-screen data. First
+  // use of data-driven default-layout filtering; extract to a shared helper
+  // if this pattern picks up more widgets.
+  const activeSlots = slots.filter((s) => {
+    if (!getWidget(s.id)) return false;
+    if (s.id === 'projects' && summaries.length < 2) return false;
+    return true;
+  });
 
   return (
     <DndContext

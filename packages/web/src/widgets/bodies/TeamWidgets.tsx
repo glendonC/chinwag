@@ -76,7 +76,7 @@ function ProjectsWidget({ summaries, liveAgents, selectTeam }: WidgetBodyProps) 
                 </span>
               )}
               {sessions24 > 0 && (
-                <span className={styles.projectStat}>{sessions24} sessions today</span>
+                <span className={styles.projectStat}>{sessions24} sessions (24h)</span>
               )}
               {conflictCount > 0 && (
                 <span className={styles.projectStat} style={{ color: 'var(--warn)' }}>

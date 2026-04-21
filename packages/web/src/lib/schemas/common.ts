@@ -215,34 +215,28 @@ export type TeamContext = z.infer<typeof teamContextSchema>;
 
 // ── Dashboard summary response ──────────────────────
 
-const activeMemberSchema = z.object({
-  agent_id: z.string(),
-  handle: z.string().default('unknown'),
-  host_tool: z.string().default('unknown'),
-  agent_surface: z.string().nullable().default(null),
-  files: z.array(z.string()).default([]),
-  summary: z.string().nullable().default(null),
-  session_minutes: z.number().nullable().default(null),
-  seconds_since_update: z.number().nullable().default(null),
-});
-
-export type ActiveMember = z.infer<typeof activeMemberSchema>;
-
-const teamSummarySchema = z.object({
-  team_id: z.string(),
-  team_name: z.string().optional(),
-  active_agents: z.number().default(0),
-  memory_count: z.number().default(0),
-  conflict_count: z.number().default(0),
-  total_members: z.number().default(0),
-  live_sessions: z.number().default(0),
-  recent_sessions_24h: z.number().default(0),
-  active_members: z.array(activeMemberSchema).default([]),
-  hosts_configured: z.array(hostMetricSchema).default([]),
-  surfaces_seen: z.array(surfaceMetricSchema).default([]),
-  models_seen: z.array(modelMetricSchema).default([]),
-  usage: z.record(z.number()).default({}),
-});
+// Mirrors @chinwag/shared/contracts/dashboard.ts optional fields so server
+// omission stays observable (undefined) instead of silently coerced to 0.
+// Passthrough preserves `active_members` — a web-only presentation payload
+// (heartbeat presence with phantom filtering + LIMIT 20) that doesn't belong
+// in the shared MCP/CLI contract. Consumers type access via their own
+// local interface (see useOverviewData.ts).
+const teamSummarySchema = z
+  .object({
+    team_id: z.string(),
+    team_name: z.string().optional(),
+    active_agents: z.number().default(0),
+    memory_count: z.number().default(0),
+    conflict_count: z.number().optional(),
+    total_members: z.number().optional(),
+    live_sessions: z.number().optional(),
+    recent_sessions_24h: z.number().optional(),
+    hosts_configured: z.array(hostMetricSchema).default([]),
+    surfaces_seen: z.array(surfaceMetricSchema).default([]),
+    models_seen: z.array(modelMetricSchema).default([]),
+    usage: z.record(z.number()).default({}),
+  })
+  .passthrough();
 
 export type TeamSummary = z.infer<typeof teamSummarySchema>;
 

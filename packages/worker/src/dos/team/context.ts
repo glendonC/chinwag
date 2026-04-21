@@ -355,9 +355,25 @@ export function queryTeamSummary(sql: SqlStorage): TeamSummary & TelemetryBreakd
     };
   });
 
+  const activeAgentsCount = ((active[0] as Record<string, unknown>)?.c as number) || 0;
+
+  // Canary for PR2 (web): the dashboard widget currently derives its "N live"
+  // label by filtering active_members.length (phantom-filtered, LIMIT 20).
+  // active_agents is a raw COUNT without those filters. They diverge when
+  // phantom rows exist. Before the widget switches to binding active_agents
+  // directly, collect 48h of production signal on how often divergence fires.
+  // active_members.length < 20 avoids false positives from LIMIT truncation.
+  if (activeAgentsCount > active_members.length && active_members.length < 20) {
+    log.warn('phantom agents present in team summary', {
+      active_agents: activeAgentsCount,
+      active_members_length: active_members.length,
+      delta: activeAgentsCount - active_members.length,
+    });
+  }
+
   return {
     ok: true,
-    active_agents: ((active[0] as Record<string, unknown>)?.c as number) || 0,
+    active_agents: activeAgentsCount,
     total_members: ((total[0] as Record<string, unknown>)?.c as number) || 0,
     conflict_count: conflictCount,
     memory_count: ((memoriesCount[0] as Record<string, unknown>)?.c as number) || 0,

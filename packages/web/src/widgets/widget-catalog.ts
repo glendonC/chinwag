@@ -552,7 +552,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   {
     id: 'projects',
     name: 'projects',
-    description: 'Your connected projects',
+    description: 'Recent activity and tool mix across your projects',
     category: 'usage',
     scope: 'overview',
     viz: 'project-list',

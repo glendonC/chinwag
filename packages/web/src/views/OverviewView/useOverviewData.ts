@@ -71,7 +71,13 @@ export function useOverviewData(summaries: TeamSummary[]): UseOverviewDataReturn
       const bIdle = bAgents === 0 && bSessions === 0;
       if (aIdle !== bIdle) return aIdle ? 1 : -1;
       if (aAgents !== bAgents) return bAgents - aAgents;
-      return bSessions - aSessions;
+      if (aSessions !== bSessions) return bSessions - aSessions;
+      // Deterministic tiebreaker: without this, all-idle project lists
+      // reshuffle between polls because JS sort stability can't rescue a
+      // 0-vs-0 score collapse.
+      const aName = (a.team_name || a.team_id || '').toLowerCase();
+      const bName = (b.team_name || b.team_id || '').toLowerCase();
+      return aName.localeCompare(bName);
     });
   }, [summaries]);
 
