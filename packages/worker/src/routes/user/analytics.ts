@@ -30,6 +30,8 @@ import * as codebase from './analytics/codebase.js';
 import * as activity from './analytics/activity.js';
 import * as sessions from './analytics/sessions.js';
 import * as members from './analytics/members.js';
+import * as memberDailyLines from './analytics/member-daily-lines.js';
+import * as perProjectLines from './analytics/per-project-lines.js';
 import * as projects from './analytics/projects.js';
 import * as period from './analytics/period.js';
 import * as toolCalls from './analytics/tool-calls.js';
@@ -144,6 +146,8 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
   const workTypeAcc = sessions.createWorkTypeAcc();
 
   const memberAcc = members.createAcc();
+  const memberDailyLinesAcc = memberDailyLines.createAcc();
+  const perProjectLinesAcc = perProjectLines.createAcc();
   const projectsAcc = projects.createAcc();
   const periodComparisonAcc = period.createAcc();
 
@@ -224,6 +228,8 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
     sessions.mergeWorkType(workTypeAcc, team, teamIndex);
 
     members.merge(memberAcc, team);
+    memberDailyLines.merge(memberDailyLinesAcc, team);
+    perProjectLines.merge(perProjectLinesAcc, team, teamEntry);
     projects.merge(projectsAcc, team, teamEntry);
     period.merge(periodComparisonAcc, team);
 
@@ -267,6 +273,8 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
       duration_distribution: sessions.projectDuration(durationAcc),
       concurrent_edits: sessions.projectConcurrent(concurrentAcc),
       member_analytics: members.project(memberAcc),
+      member_daily_lines: memberDailyLines.project(memberDailyLinesAcc),
+      per_project_lines: perProjectLines.project(perProjectLinesAcc),
       retry_patterns: sessions.projectRetry(retryAcc),
       conflict_correlation: outcomes.projectConflict(conflictAcc),
       edit_velocity: sessions.projectVelocity(velocityAcc),

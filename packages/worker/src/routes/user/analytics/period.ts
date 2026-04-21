@@ -77,6 +77,12 @@ export function project(acc: PeriodComparisonAcc): PeriodComparison {
       memory_hit_rate: cs > 0 ? round1(acc.current.memory_hit_sum / cs) : 0,
       edit_velocity: cs > 0 ? round1(acc.current.velocity_sum / cs) : 0,
       total_sessions: cs,
+      // Cost fields nulled out at the cross-team merge site — the pricing
+      // enrichment step (enrichPeriodComparisonCost) runs downstream with
+      // the merged token aggregate and overwrites these with real values.
+      total_estimated_cost_usd: null,
+      total_edits_in_token_sessions: 0,
+      cost_per_edit: null,
     },
     previous:
       acc.previous.count > 0
@@ -87,6 +93,9 @@ export function project(acc: PeriodComparisonAcc): PeriodComparison {
             memory_hit_rate: ps > 0 ? round1(acc.previous.memory_hit_sum / ps) : 0,
             edit_velocity: ps > 0 ? round1(acc.previous.velocity_sum / ps) : 0,
             total_sessions: ps,
+            total_estimated_cost_usd: null,
+            total_edits_in_token_sessions: 0,
+            cost_per_edit: null,
           }
         : null,
   };
