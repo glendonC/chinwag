@@ -11,7 +11,11 @@ import type {
 
 const log = createLogger('TeamDO.analytics');
 
-export function queryToolCallStats(sql: SqlStorage, days: number): ToolCallStats {
+export function queryToolCallStats(
+  sql: SqlStorage,
+  days: number,
+  tzOffsetMinutes: number = 0,
+): ToolCallStats {
   const empty: ToolCallStats = {
     total_calls: 0,
     total_errors: 0,
@@ -119,16 +123,17 @@ export function queryToolCallStats(sql: SqlStorage, days: number): ToolCallStats
       };
     });
 
-    // Hourly activity
+    // Hourly activity, bucketed in the caller's local TZ.
     const hourlyRows = sql
       .exec(
-        `SELECT CAST(strftime('%H', called_at) AS INTEGER) AS hour,
+        `SELECT CAST(strftime('%H', datetime(called_at, ? || ' minutes')) AS INTEGER) AS hour,
                 COUNT(*) AS calls,
                 COALESCE(SUM(is_error), 0) AS errors
          FROM tool_calls
          WHERE called_at > datetime('now', '-' || ? || ' days')
          GROUP BY hour
          ORDER BY hour`,
+        tzOffsetMinutes,
         days,
       )
       .toArray();

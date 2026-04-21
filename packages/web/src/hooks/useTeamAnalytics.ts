@@ -40,9 +40,14 @@ export function useTeamAnalytics(teamId: string | null, days = 30): UseTeamAnaly
       setError(null);
       try {
         const token = authActions.getState().token;
-        const raw = await api('GET', `/teams/${teamId}/analytics?days=${days}`, null, token, {
-          signal: controller.signal,
-        });
+        const tzOffsetMinutes = -new Date().getTimezoneOffset();
+        const raw = await api(
+          'GET',
+          `/teams/${teamId}/analytics?days=${days}&tz_offset_minutes=${tzOffsetMinutes}`,
+          null,
+          token,
+          { signal: controller.signal },
+        );
         if (cancelled) return;
         const parsed = validateResponse(teamAnalyticsSchema, raw, 'analytics', {
           fallback: createEmptyAnalytics,

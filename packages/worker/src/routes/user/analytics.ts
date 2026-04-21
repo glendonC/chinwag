@@ -30,15 +30,30 @@ import * as codebase from './analytics/codebase.js';
 import * as activity from './analytics/activity.js';
 import * as sessions from './analytics/sessions.js';
 import * as members from './analytics/members.js';
+import * as projects from './analytics/projects.js';
 import * as period from './analytics/period.js';
 import * as toolCalls from './analytics/tool-calls.js';
 
 const log = createLogger('routes.user.teams');
 
+// ± 14 hours covers every real-world IANA offset (Samoa is +13, Kiribati is
+// +14, American Samoa is -11). Reject anything outside the range so a garbage
+// bind value can't be smuggled into the SQL modifier.
+const TZ_OFFSET_MIN = -14 * 60;
+const TZ_OFFSET_MAX = 14 * 60;
+
+function parseTzOffset(raw: string | null): number {
+  if (!raw) return 0;
+  const n = parseInt(raw, 10);
+  if (isNaN(n)) return 0;
+  return Math.max(TZ_OFFSET_MIN, Math.min(n, TZ_OFFSET_MAX));
+}
+
 export const handleUserAnalytics = authedRoute(async ({ request, user, env }) => {
   const url = new URL(request.url);
   const parsed = parseInt(url.searchParams.get('days') || '30', 10);
   const days = Math.max(1, Math.min(isNaN(parsed) ? 30 : parsed, ANALYTICS_MAX_DAYS));
+  const tzOffsetMinutes = parseTzOffset(url.searchParams.get('tz_offset_minutes'));
 
   // Optional project filter: comma-separated team IDs.
   const teamIdsParam = url.searchParams.get('team_ids');
@@ -70,7 +85,11 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
       try {
         return rpc(
           await withTimeout(
-            team.getAnalyticsForOwner(user.id, effectiveDays) as unknown as Promise<TeamResult>,
+            team.getAnalyticsForOwner(
+              user.id,
+              effectiveDays,
+              tzOffsetMinutes,
+            ) as unknown as Promise<TeamResult>,
             DO_CALL_TIMEOUT_MS,
           ),
         );
@@ -124,6 +143,7 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
   const workTypeAcc = sessions.createWorkTypeAcc();
 
   const memberAcc = members.createAcc();
+  const projectsAcc = projects.createAcc();
   const periodComparisonAcc = period.createAcc();
 
   const convEditAcc = conversations.createConvEditAcc();
@@ -138,8 +158,12 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
   let included = 0;
   let failed = 0;
 
-  // Iterate team results and fold each into every accumulator.
-  for (const r of results) {
+  // Iterate team results and fold each into every accumulator. Indexed
+  // loop so per-project merges can correlate `results[i]` with the
+  // team_id / team_name metadata at `capped[i]`.
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    const teamEntry = capped[i];
     if (r.status === 'rejected') {
       failed++;
       continue;
@@ -191,6 +215,7 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
     sessions.mergeWorkType(workTypeAcc, team, teamIndex);
 
     members.merge(memberAcc, team);
+    projects.merge(projectsAcc, team, teamEntry);
     period.merge(periodComparisonAcc, team);
 
     conversations.mergeConvEdit(convEditAcc, team);
@@ -235,6 +260,7 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
       retry_patterns: sessions.projectRetry(retryAcc),
       conflict_correlation: outcomes.projectConflict(conflictAcc),
       edit_velocity: sessions.projectVelocity(velocityAcc),
+      per_project_velocity: projects.project(projectsAcc),
       memory_usage: conversations.projectMemoryUsage(memoryUsageAcc),
       work_type_outcomes: outcomes.projectWorkTypeOutcomes(workTypeOutcomesAcc),
       conversation_edit_correlation: conversations.projectConvEdit(convEditAcc),

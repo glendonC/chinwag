@@ -10,23 +10,37 @@ import type {
 
 const log = createLogger('TeamDO.analytics');
 
-export function queryPromptEfficiency(sql: SqlStorage, days: number): PromptEfficiencyTrend[] {
+export function queryPromptEfficiency(
+  sql: SqlStorage,
+  days: number,
+  tzOffsetMinutes: number = 0,
+): PromptEfficiencyTrend[] {
+  // Local-TZ spine consistent with the rest of the trend family.
   try {
     const rows = sql
       .exec(
-        `SELECT
-           date(ce.created_at) AS day,
-           ROUND(
-             CAST(SUM(CASE WHEN ce.role = 'user' THEN 1 ELSE 0 END) AS REAL)
-             / NULLIF(SUM(s.edit_count), 0),
-           1) AS avg_turns_per_edit,
-           COUNT(DISTINCT s.id) AS sessions
-         FROM conversation_events ce
-         JOIN sessions s ON s.id = ce.session_id
-         WHERE ce.created_at > datetime('now', '-' || ? || ' days')
+        `WITH RECURSIVE spine(day) AS (
+           SELECT date('now', ? || ' minutes', '-' || ? || ' days')
+           UNION ALL
+           SELECT date(day, '+1 day') FROM spine WHERE day < date('now', ? || ' minutes')
+         )
+         SELECT spine.day AS day,
+                COALESCE(ROUND(
+                  CAST(SUM(CASE WHEN ce.role = 'user' THEN 1 ELSE 0 END) AS REAL)
+                  / NULLIF(SUM(s.edit_count), 0),
+                1), 0) AS avg_turns_per_edit,
+                COUNT(DISTINCT s.id) AS sessions
+         FROM spine
+         LEFT JOIN conversation_events ce ON date(datetime(ce.created_at, ? || ' minutes')) = spine.day
+           AND ce.created_at >= date('now', '-' || ? || ' days', '-1 day')
+         LEFT JOIN sessions s ON s.id = ce.session_id
            AND s.edit_count > 0
-         GROUP BY date(ce.created_at)
-         ORDER BY day ASC`,
+         GROUP BY spine.day
+         ORDER BY spine.day ASC`,
+        tzOffsetMinutes,
+        days,
+        tzOffsetMinutes,
+        tzOffsetMinutes,
         days,
       )
       .toArray();
@@ -45,12 +59,18 @@ export function queryPromptEfficiency(sql: SqlStorage, days: number): PromptEffi
   }
 }
 
-export function queryHourlyEffectiveness(sql: SqlStorage, days: number): HourlyEffectiveness[] {
+export function queryHourlyEffectiveness(
+  sql: SqlStorage,
+  days: number,
+  tzOffsetMinutes: number = 0,
+): HourlyEffectiveness[] {
+  // Hour-of-day is local to the caller. With tzOffsetMinutes=0 the buckets
+  // are UTC hours; with a signed offset they reflect the user's local hours.
   try {
     const rows = sql
       .exec(
         `SELECT
-           CAST(strftime('%H', started_at) AS INTEGER) AS hour,
+           CAST(strftime('%H', datetime(started_at, ? || ' minutes')) AS INTEGER) AS hour,
            COUNT(*) AS sessions,
            ROUND(CAST(SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
              / NULLIF(COUNT(*), 0) * 100, 1) AS completion_rate,
@@ -59,6 +79,7 @@ export function queryHourlyEffectiveness(sql: SqlStorage, days: number): HourlyE
          WHERE started_at > datetime('now', '-' || ? || ' days')
          GROUP BY hour
          ORDER BY hour`,
+        tzOffsetMinutes,
         days,
       )
       .toArray();

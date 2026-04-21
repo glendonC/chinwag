@@ -40,7 +40,13 @@ export function useUserAnalytics(
       setError(null);
       try {
         const token = authActions.getState().token;
-        let url = `/me/analytics?days=${days}`;
+        // Date.prototype.getTimezoneOffset returns minutes WEST of UTC, i.e.
+        // PST is +480. The worker's SQL modifier expects the SIGNED offset
+        // FROM UTC (PST = -480), so we negate. DST is handled by recomputing
+        // per request. Older workers that don't read the param default to
+        // UTC — same behavior as before.
+        const tzOffsetMinutes = -new Date().getTimezoneOffset();
+        let url = `/me/analytics?days=${days}&tz_offset_minutes=${tzOffsetMinutes}`;
         if (teamKey) url += `&team_ids=${teamKey}`;
         const raw = await api('GET', url, null, token, {
           signal: controller.signal,

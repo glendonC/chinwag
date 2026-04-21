@@ -15,18 +15,46 @@ const log = createLogger('TeamDO.analytics');
 export const HEATMAP_LIMIT = 50;
 export const ANALYTICS_MAX_DAYS = 90;
 
-export function getAnalytics(sql: SqlStorage, days: number): TeamAnalytics {
+export function getAnalytics(
+  sql: SqlStorage,
+  days: number,
+  tzOffsetMinutes: number = 0,
+): TeamAnalytics {
   const periodDays = Math.max(1, Math.min(days, ANALYTICS_MAX_DAYS));
 
   return {
     ok: true,
     period_days: periodDays,
     file_heatmap: queryFileHeatmap(sql, periodDays),
-    daily_trends: queryDailyTrends(sql, periodDays),
+    daily_trends: queryDailyTrends(sql, periodDays, tzOffsetMinutes),
     tool_distribution: queryToolDistribution(sql, periodDays),
     outcome_distribution: queryOutcomeDistribution(sql, periodDays),
     daily_metrics: queryDailyMetrics(sql, periodDays),
+    files_touched_total: queryFilesTouchedTotal(sql, periodDays),
   };
+}
+
+// Uncapped count of distinct files edited in the period. Reads from the
+// `edits` table (one row per edit event) so neither the HEATMAP_LIMIT=50
+// list cap nor the ACTIVITY_MAX_FILES=50 per-session JSON cap apply. The
+// ranked file_heatmap list and this scalar answer different questions and
+// are computed from different sources on purpose.
+export function queryFilesTouchedTotal(sql: SqlStorage, days: number): number {
+  try {
+    const rows = sql
+      .exec(
+        `SELECT COUNT(DISTINCT file_path) AS total
+         FROM edits
+         WHERE created_at > datetime('now', '-' || ? || ' days')`,
+        days,
+      )
+      .toArray();
+    const row = rows[0] as Record<string, unknown> | undefined;
+    return (row?.total as number) ?? 0;
+  } catch (err) {
+    log.warn(`filesTouchedTotal query failed: ${err}`);
+    return 0;
+  }
 }
 
 export function queryFileHeatmap(sql: SqlStorage, days: number): FileHeatmapEntry[] {
@@ -58,25 +86,45 @@ export function queryFileHeatmap(sql: SqlStorage, days: number): FileHeatmapEntr
   }
 }
 
-export function queryDailyTrends(sql: SqlStorage, days: number): DailyTrend[] {
+export function queryDailyTrends(
+  sql: SqlStorage,
+  days: number,
+  tzOffsetMinutes: number = 0,
+): DailyTrend[] {
+  // Spine is generated in the caller's local TZ via the tzOffsetMinutes
+  // modifier. Session timestamps are stored UTC and shifted at match time.
+  // The UTC pre-filter keeps a 1-day buffer so the index on started_at still
+  // prunes the scan regardless of TZ. Every day in the period appears in the
+  // result — days with zero sessions return a row of zeros so the resulting
+  // sparkline can't elide gaps and misrepresent activity density.
   try {
     const rows = sql
       .exec(
-        `SELECT date(started_at) AS day,
-                COUNT(*) AS sessions,
-                COALESCE(SUM(edit_count), 0) AS edits,
-                COALESCE(SUM(lines_added), 0) AS lines_added,
-                COALESCE(SUM(lines_removed), 0) AS lines_removed,
-                ROUND(AVG(
-                  ROUND((julianday(COALESCE(ended_at, datetime('now'))) - julianday(started_at)) * 24 * 60)
-                ), 1) AS avg_duration_min,
-                SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS completed,
-                SUM(CASE WHEN outcome = 'abandoned' THEN 1 ELSE 0 END) AS abandoned,
-                SUM(CASE WHEN outcome = 'failed' THEN 1 ELSE 0 END) AS failed
-         FROM sessions
-         WHERE started_at > datetime('now', '-' || ? || ' days')
-         GROUP BY date(started_at)
-         ORDER BY day ASC`,
+        `WITH RECURSIVE spine(day) AS (
+           SELECT date('now', ? || ' minutes', '-' || ? || ' days')
+           UNION ALL
+           SELECT date(day, '+1 day') FROM spine WHERE day < date('now', ? || ' minutes')
+         )
+         SELECT spine.day AS day,
+                COUNT(s.id) AS sessions,
+                COALESCE(SUM(s.edit_count), 0) AS edits,
+                COALESCE(SUM(s.lines_added), 0) AS lines_added,
+                COALESCE(SUM(s.lines_removed), 0) AS lines_removed,
+                COALESCE(ROUND(AVG(
+                  ROUND((julianday(COALESCE(s.ended_at, datetime('now'))) - julianday(s.started_at)) * 24 * 60)
+                ), 1), 0) AS avg_duration_min,
+                COALESCE(SUM(CASE WHEN s.outcome = 'completed' THEN 1 ELSE 0 END), 0) AS completed,
+                COALESCE(SUM(CASE WHEN s.outcome = 'abandoned' THEN 1 ELSE 0 END), 0) AS abandoned,
+                COALESCE(SUM(CASE WHEN s.outcome = 'failed' THEN 1 ELSE 0 END), 0) AS failed
+         FROM spine
+         LEFT JOIN sessions s ON date(datetime(s.started_at, ? || ' minutes')) = spine.day
+           AND s.started_at >= date('now', '-' || ? || ' days', '-1 day')
+         GROUP BY spine.day
+         ORDER BY spine.day ASC`,
+        tzOffsetMinutes,
+        days,
+        tzOffsetMinutes,
+        tzOffsetMinutes,
         days,
       )
       .toArray();

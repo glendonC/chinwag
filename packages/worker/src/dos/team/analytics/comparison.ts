@@ -1,14 +1,21 @@
 // Period comparison analytics: current vs previous period metrics.
+//
+// Window alignment: `current` spans the last `days` days, `previous` spans the
+// same length immediately before that. We deliberately do NOT clamp to
+// SESSION_RETENTION_DAYS here — the retention cutoff is handled by the data
+// itself (sessions older than 30d are pruned). At `days > 30` the previous
+// window reaches into pruned data, queryPeriodMetrics returns null, and the
+// client hides the delta. That matches the widget's value (sum of
+// daily_trends over the same window) without manufacturing a mismatched
+// shorter delta window.
 
 import { createLogger } from '../../../lib/logger.js';
 import type { PeriodComparison, PeriodMetrics } from '@chinwag/shared/contracts/analytics.js';
 
 const log = createLogger('TeamDO.analytics');
 
-const SESSION_RETENTION_DAYS = 30;
-
 export function queryPeriodComparison(sql: SqlStorage, days: number): PeriodComparison {
-  const effectiveDays = Math.min(days, SESSION_RETENTION_DAYS);
+  const effectiveDays = days;
 
   function queryPeriodMetrics(offsetStart: number, offsetEnd: number): PeriodMetrics | null {
     try {
@@ -77,6 +84,13 @@ export function queryPeriodComparison(sql: SqlStorage, days: number): PeriodComp
         memory_hit_rate: memoryHitRate,
         edit_velocity: totalHours > 0 ? Math.round((totalEdits / totalHours) * 10) / 10 : 0,
         total_sessions: total,
+        // Cost fields are populated by enrichPeriodComparisonCost in the
+        // DO entry points (getAnalytics, getAnalyticsForOwner). Null here
+        // signals "pricing enrichment has not run" to any caller that
+        // skips enrichment — they will see em-dashes in the UI.
+        total_estimated_cost_usd: null,
+        total_edits_in_token_sessions: 0,
+        cost_per_edit: null,
       };
     } catch (err) {
       log.warn(`periodMetrics query failed: ${err}`);
@@ -95,6 +109,9 @@ export function queryPeriodComparison(sql: SqlStorage, days: number): PeriodComp
       memory_hit_rate: 0,
       edit_velocity: 0,
       total_sessions: 0,
+      total_estimated_cost_usd: null,
+      total_edits_in_token_sessions: 0,
+      cost_per_edit: null,
     },
     previous,
   };

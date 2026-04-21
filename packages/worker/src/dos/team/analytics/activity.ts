@@ -10,18 +10,27 @@ import type {
 
 const log = createLogger('TeamDO.analytics');
 
-export function queryHourlyDistribution(sql: SqlStorage, days: number): HourlyBucket[] {
+export function queryHourlyDistribution(
+  sql: SqlStorage,
+  days: number,
+  tzOffsetMinutes: number = 0,
+): HourlyBucket[] {
+  // Hour and day-of-week are extracted from the session's local timestamp.
+  // With tzOffsetMinutes=0 this is UTC; with a negative offset (e.g. PST)
+  // the heatmap reflects when sessions happen in the user's local day.
   try {
     const rows = sql
       .exec(
-        `SELECT CAST(strftime('%H', started_at) AS INTEGER) AS hour,
-                CAST(strftime('%w', started_at) AS INTEGER) AS dow,
+        `SELECT CAST(strftime('%H', datetime(started_at, ? || ' minutes')) AS INTEGER) AS hour,
+                CAST(strftime('%w', datetime(started_at, ? || ' minutes')) AS INTEGER) AS dow,
                 COUNT(*) AS sessions,
                 COALESCE(SUM(edit_count), 0) AS edits
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
          GROUP BY hour, dow
          ORDER BY hour, dow`,
+        tzOffsetMinutes,
+        tzOffsetMinutes,
         days,
       )
       .toArray();
@@ -41,24 +50,47 @@ export function queryHourlyDistribution(sql: SqlStorage, days: number): HourlyBu
   }
 }
 
-export function queryToolDaily(sql: SqlStorage, days: number): ToolDailyTrend[] {
+export function queryToolDaily(
+  sql: SqlStorage,
+  days: number,
+  tzOffsetMinutes: number = 0,
+): ToolDailyTrend[] {
+  // Per-tool zero-fill: cross-join a local-TZ spine with distinct tools so
+  // each tool's sparkline has a dense day axis in the caller's time zone.
   try {
     const rows = sql
       .exec(
-        `SELECT host_tool,
-                date(started_at) AS day,
-                COUNT(*) AS sessions,
-                COALESCE(SUM(edit_count), 0) AS edits,
-                COALESCE(SUM(lines_added), 0) AS lines_added,
-                COALESCE(SUM(lines_removed), 0) AS lines_removed,
-                ROUND(AVG(
-                  ROUND((julianday(COALESCE(ended_at, datetime('now'))) - julianday(started_at)) * 24 * 60)
-                ), 1) AS avg_duration_min
-         FROM sessions
-         WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND host_tool IS NOT NULL AND host_tool != 'unknown'
-         GROUP BY host_tool, day
-         ORDER BY day ASC, host_tool ASC`,
+        `WITH RECURSIVE spine(day) AS (
+           SELECT date('now', ? || ' minutes', '-' || ? || ' days')
+           UNION ALL
+           SELECT date(day, '+1 day') FROM spine WHERE day < date('now', ? || ' minutes')
+         ),
+         tools AS (
+           SELECT DISTINCT host_tool FROM sessions
+           WHERE host_tool IS NOT NULL AND host_tool != 'unknown'
+             AND started_at >= date('now', '-' || ? || ' days', '-1 day')
+         )
+         SELECT tools.host_tool AS host_tool,
+                spine.day AS day,
+                COUNT(s.id) AS sessions,
+                COALESCE(SUM(s.edit_count), 0) AS edits,
+                COALESCE(SUM(s.lines_added), 0) AS lines_added,
+                COALESCE(SUM(s.lines_removed), 0) AS lines_removed,
+                COALESCE(ROUND(AVG(
+                  ROUND((julianday(COALESCE(s.ended_at, datetime('now'))) - julianday(s.started_at)) * 24 * 60)
+                ), 1), 0) AS avg_duration_min
+         FROM spine
+         CROSS JOIN tools
+         LEFT JOIN sessions s ON s.host_tool = tools.host_tool
+           AND date(datetime(s.started_at, ? || ' minutes')) = spine.day
+           AND s.started_at >= date('now', '-' || ? || ' days', '-1 day')
+         GROUP BY tools.host_tool, spine.day
+         ORDER BY spine.day ASC, tools.host_tool ASC`,
+        tzOffsetMinutes,
+        days,
+        tzOffsetMinutes,
+        days,
+        tzOffsetMinutes,
         days,
       )
       .toArray();
@@ -126,22 +158,37 @@ export function queryDurationDistribution(sql: SqlStorage, days: number): Durati
   }
 }
 
-export function queryEditVelocity(sql: SqlStorage, days: number): EditVelocityTrend[] {
+export function queryEditVelocity(
+  sql: SqlStorage,
+  days: number,
+  tzOffsetMinutes: number = 0,
+): EditVelocityTrend[] {
+  // Local-TZ zero-fill spine. Closed sessions only; the `ended_at IS NOT NULL`
+  // predicate stays on the join.
   try {
     const rows = sql
       .exec(
-        `SELECT
-           date(started_at) AS day,
-           COALESCE(SUM(edit_count), 0) AS total_edits,
-           COALESCE(SUM(lines_added + lines_removed), 0) AS total_lines,
-           SUM(
-             ROUND((julianday(COALESCE(ended_at, datetime('now'))) - julianday(started_at)) * 24, 2)
-           ) AS total_hours
-         FROM sessions
-         WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND ended_at IS NOT NULL
-         GROUP BY date(started_at)
-         ORDER BY day ASC`,
+        `WITH RECURSIVE spine(day) AS (
+           SELECT date('now', ? || ' minutes', '-' || ? || ' days')
+           UNION ALL
+           SELECT date(day, '+1 day') FROM spine WHERE day < date('now', ? || ' minutes')
+         )
+         SELECT spine.day AS day,
+                COALESCE(SUM(s.edit_count), 0) AS total_edits,
+                COALESCE(SUM(s.lines_added + s.lines_removed), 0) AS total_lines,
+                COALESCE(SUM(
+                  ROUND((julianday(s.ended_at) - julianday(s.started_at)) * 24, 2)
+                ), 0) AS total_hours
+         FROM spine
+         LEFT JOIN sessions s ON date(datetime(s.started_at, ? || ' minutes')) = spine.day
+           AND s.started_at >= date('now', '-' || ? || ' days', '-1 day')
+           AND s.ended_at IS NOT NULL
+         GROUP BY spine.day
+         ORDER BY spine.day ASC`,
+        tzOffsetMinutes,
+        days,
+        tzOffsetMinutes,
+        tzOffsetMinutes,
         days,
       )
       .toArray();
