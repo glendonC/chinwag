@@ -53,11 +53,18 @@ export const handleTeamActivity = teamJsonRoute(async ({ body, user, env, agentI
 });
 
 export const handleTeamConflicts = teamJsonRoute(async ({ body, agentId, team, user }) => {
-  const { files } = body;
+  const { files, source } = body;
   const fileErr = validateFileArray(files, ACTIVITY_MAX_FILES);
   if (fileErr) return json({ error: fileErr }, 400);
 
-  return doResult(team.checkConflicts(agentId, files as string[], user.id), 'checkConflicts');
+  // Only trust the enum; anything else collapses to advisory so a malformed
+  // client can't inflate the blocked-count metric.
+  const checkSource: 'hook' | 'advisory' = source === 'hook' ? 'hook' : 'advisory';
+
+  return doResult(
+    team.checkConflicts(agentId, files as string[], user.id, checkSource),
+    'checkConflicts',
+  );
 });
 
 export const handleTeamFile = teamJsonRoute(async ({ body, user, db, agentId, team }) => {

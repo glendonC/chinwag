@@ -169,8 +169,6 @@ function queryMessageCounts(
   total_messages: number;
   user_messages: number;
   assistant_messages: number;
-  avg_user_char_count: number;
-  avg_assistant_char_count: number;
 } {
   try {
     const rows = sql
@@ -178,41 +176,24 @@ function queryMessageCounts(
         `SELECT
            COUNT(*) AS total,
            SUM(CASE WHEN role = 'user' THEN 1 ELSE 0 END) AS user_msgs,
-           SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END) AS assistant_msgs,
-           ROUND(AVG(CASE WHEN role = 'user' THEN char_count END), 0) AS avg_user_chars,
-           ROUND(AVG(CASE WHEN role = 'assistant' THEN char_count END), 0) AS avg_assistant_chars
+           SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END) AS assistant_msgs
          FROM conversation_events
          WHERE created_at > datetime('now', '-' || ? || ' days')`,
         days,
       )
       .toArray();
 
-    if (rows.length === 0)
-      return {
-        total_messages: 0,
-        user_messages: 0,
-        assistant_messages: 0,
-        avg_user_char_count: 0,
-        avg_assistant_char_count: 0,
-      };
+    if (rows.length === 0) return { total_messages: 0, user_messages: 0, assistant_messages: 0 };
 
     const row = rows[0] as Record<string, unknown>;
     return {
       total_messages: (row.total as number) || 0,
       user_messages: (row.user_msgs as number) || 0,
       assistant_messages: (row.assistant_msgs as number) || 0,
-      avg_user_char_count: (row.avg_user_chars as number) || 0,
-      avg_assistant_char_count: (row.avg_assistant_chars as number) || 0,
     };
   } catch (err) {
     log.warn(`messageCounts query failed: ${err}`);
-    return {
-      total_messages: 0,
-      user_messages: 0,
-      assistant_messages: 0,
-      avg_user_char_count: 0,
-      avg_assistant_char_count: 0,
-    };
+    return { total_messages: 0, user_messages: 0, assistant_messages: 0 };
   }
 }
 

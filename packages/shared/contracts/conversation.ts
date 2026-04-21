@@ -75,8 +75,6 @@ export const conversationAnalyticsSchema = z.object({
   total_messages: z.number(),
   user_messages: z.number(),
   assistant_messages: z.number(),
-  avg_user_char_count: z.number(),
-  avg_assistant_char_count: z.number(),
   sentiment_distribution: z.array(sentimentDistributionSchema),
   topic_distribution: z.array(topicDistributionSchema),
   sentiment_outcome_correlation: z.array(sentimentOutcomeCorrelationSchema),

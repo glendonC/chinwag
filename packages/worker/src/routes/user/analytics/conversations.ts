@@ -99,7 +99,6 @@ interface TopMemoryBucket {
   text_preview: string;
   access_count: number;
   last_accessed_at: string | null;
-  created_at: string;
 }
 
 export type TopMemoriesAcc = Map<string, TopMemoryBucket>;
@@ -116,7 +115,6 @@ export function mergeTopMemories(acc: TopMemoriesAcc, team: TeamResult): void {
         text_preview: tm.text_preview,
         access_count: tm.access_count,
         last_accessed_at: tm.last_accessed_at,
-        created_at: tm.created_at,
       });
     } else {
       existing.access_count += tm.access_count;
@@ -133,7 +131,6 @@ export function projectTopMemories(acc: TopMemoriesAcc): MemoryAccessEntry[] {
       text_preview: v.text_preview,
       access_count: v.access_count,
       last_accessed_at: v.last_accessed_at,
-      created_at: v.created_at,
     }));
 }
 

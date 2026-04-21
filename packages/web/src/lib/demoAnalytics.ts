@@ -102,7 +102,6 @@ export function createDemoAnalytics(): UserAnalytics {
       const factor = peak * weekdayBoost;
       return { hour: h, dow, sessions: Math.round(14 * factor), edits: Math.round(320 * factor) };
     }),
-    tool_hourly: [],
     tool_daily: [],
     model_outcomes: [
       {
@@ -272,6 +271,7 @@ export function createDemoAnalytics(): UserAnalytics {
     member_analytics: [],
     retry_patterns: [],
     conflict_correlation: [],
+    conflict_stats: { blocked_period: 4, found_period: 11 },
     edit_velocity: daily_trends.slice(-14).map((d) => ({
       day: d.day,
       edits_per_hour: d.edits / Math.max(1, d.sessions * (d.avg_duration_min / 60)),
@@ -383,28 +383,24 @@ export function createDemoAnalytics(): UserAnalytics {
         text_preview: 'SQLite on Durable Objects has no native vector ops...',
         access_count: 14,
         last_accessed_at: new Date(Date.now() - 30 * 60_000).toISOString(),
-        created_at: new Date(Date.now() - 7 * 24 * 3600_000).toISOString(),
       },
       {
         id: 'mem-3',
         text_preview: 'Every read endpoint must verify the caller has access...',
         access_count: 11,
         last_accessed_at: new Date(Date.now() - 3 * 3600_000).toISOString(),
-        created_at: new Date(Date.now() - 24 * 3600_000).toISOString(),
       },
       {
         id: 'mem-2',
         text_preview: 'All AI moderation uses Llama Guard 3 via env.AI binding...',
         access_count: 9,
         last_accessed_at: new Date(Date.now() - 60 * 60_000).toISOString(),
-        created_at: new Date(Date.now() - 3 * 3600_000).toISOString(),
       },
       {
         id: 'mem-4',
         text_preview: 'Access tokens use 90-day sliding window TTL...',
         access_count: 7,
         last_accessed_at: new Date(Date.now() - 12 * 3600_000).toISOString(),
-        created_at: new Date(Date.now() - 48 * 3600_000).toISOString(),
       },
     ],
     scope_complexity: [

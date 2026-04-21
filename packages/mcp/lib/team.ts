@@ -51,7 +51,16 @@ export interface TeamMemberHandlers {
 /** Activity reporting: status updates, file tracking, conflict checks, context. */
 export interface TeamActivityHandlers {
   updateActivity(teamId: string, files: string[], summary: string): Promise<OkResult>;
-  checkConflicts(teamId: string, files: string[]): Promise<ConflictCheckResult>;
+  /**
+   * @param source 'hook' when called from a PreToolUse-style hook that will block
+   * on non-empty results; 'advisory' (default) for MCP-tool lookups the agent
+   * can ignore. Only hook calls contribute to the CONFLICTS_BLOCKED metric.
+   */
+  checkConflicts(
+    teamId: string,
+    files: string[],
+    source?: 'hook' | 'advisory',
+  ): Promise<ConflictCheckResult>;
   getTeamContext(teamId: string): Promise<TeamContext>;
   reportFile(teamId: string, file: string): Promise<OkResult>;
 }
@@ -232,9 +241,11 @@ export function teamHandlers(client: ApiClient): TeamHandlers {
       return client.put(`/teams/${teamId}/activity`, { files, summary });
     },
 
-    async checkConflicts(teamId, files) {
+    async checkConflicts(teamId, files, source) {
       validateTeam(teamId);
-      return client.post(`/teams/${teamId}/conflicts`, { files });
+      const body: { files: string[]; source?: 'hook' } =
+        source === 'hook' ? { files, source: 'hook' } : { files };
+      return client.post(`/teams/${teamId}/conflicts`, body);
     },
 
     async getTeamContext(teamId) {

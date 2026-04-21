@@ -204,6 +204,35 @@ function ConflictImpactWidget({ analytics }: WidgetBodyProps) {
   );
 }
 
+function ConflictsBlockedWidget({ analytics }: WidgetBodyProps) {
+  const cs = analytics.conflict_stats;
+  const tools = analytics.data_coverage?.tools_reporting ?? [];
+  const note = capabilityCoverageNote(tools, 'hooks');
+  if (cs.blocked_period === 0 && cs.found_period === 0) {
+    return (
+      <>
+        <GhostStatRow labels={['blocked', 'detected']} />
+        <CoverageNote text={note} />
+      </>
+    );
+  }
+  return (
+    <>
+      <div className={shared.statRow}>
+        <div className={shared.statBlock}>
+          <span className={shared.statBlockValue}>{cs.blocked_period}</span>
+          <span className={shared.statBlockLabel}>blocked</span>
+        </div>
+        <div className={shared.statBlock}>
+          <span className={shared.statBlockValue}>{cs.found_period}</span>
+          <span className={shared.statBlockLabel}>detected</span>
+        </div>
+      </div>
+      <CoverageNote text={note} />
+    </>
+  );
+}
+
 function RetryPatternsWidget({ analytics }: WidgetBodyProps) {
   const rp = analytics.retry_patterns;
   if (rp.length === 0) return <SectionEmpty>No retry patterns</SectionEmpty>;
@@ -258,5 +287,6 @@ export const outcomeWidgets: WidgetRegistry = {
   'work-type-outcomes': WorkTypeOutcomesWidget,
   'tool-outcomes': ToolOutcomesWidget,
   'conflict-impact': ConflictImpactWidget,
+  'conflicts-blocked': ConflictsBlockedWidget,
   'retry-patterns': RetryPatternsWidget,
 };

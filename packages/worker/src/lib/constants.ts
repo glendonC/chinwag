@@ -189,6 +189,10 @@ export const METRIC_KEYS = {
   SECRETS_BLOCKED: 'secrets_blocked',
   CONFLICT_CHECKS: 'conflict_checks',
   CONFLICTS_FOUND: 'conflicts_found',
+  // Hook-sourced conflict detection that prevented an edit (PreToolUse block).
+  // Only recorded when the caller passes source='hook'; MCP-tool advisory
+  // checks are not counted here.
+  CONFLICTS_BLOCKED: 'conflicts_blocked',
   COMMANDS_SUBMITTED: 'commands_submitted',
 } as const;
 

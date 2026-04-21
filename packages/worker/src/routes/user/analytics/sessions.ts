@@ -8,6 +8,7 @@
 
 import type {
   ConcurrentEditEntry,
+  ConflictStats,
   DurationBucket,
   EditVelocityTrend,
   FirstEditStats,
@@ -165,6 +166,28 @@ export function projectStuckness(acc: StucknessAcc): StucknessStats {
     stuck_completion_rate: rate(acc.stuck_completed, acc.stuck_total),
     normal_completion_rate: rate(acc.normal_completed, acc.normal_total),
   };
+}
+
+// ── conflict_stats ───────────────────────────────
+
+export interface ConflictStatsAcc {
+  blocked: number;
+  found: number;
+}
+
+export function createConflictStatsAcc(): ConflictStatsAcc {
+  return { blocked: 0, found: 0 };
+}
+
+export function mergeConflictStats(acc: ConflictStatsAcc, team: TeamResult): void {
+  const cs = team.conflict_stats;
+  if (!cs) return;
+  acc.blocked += cs.blocked_period;
+  acc.found += cs.found_period;
+}
+
+export function projectConflictStats(acc: ConflictStatsAcc): ConflictStats {
+  return { blocked_period: acc.blocked, found_period: acc.found };
 }
 
 // ── retry_patterns ───────────────────────────────

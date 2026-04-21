@@ -65,6 +65,7 @@ export function checkConflicts(
   files: string[],
   recordMetric: (metric: string) => void,
   connectedAgentIds: Set<string> = new Set(),
+  source: 'hook' | 'advisory' = 'advisory',
 ): ConflictCheckResult {
   // Active = recent heartbeat OR live WebSocket connection
   const wsAlive = [...connectedAgentIds];
@@ -141,6 +142,10 @@ export function checkConflicts(
   // Record conflicts in active session for the requesting agent
   if (conflicts.length > 0 || lockedFiles.length > 0) {
     recordMetric(METRIC_KEYS.CONFLICTS_FOUND);
+    // Hook-sourced calls that find conflicts always block the edit (the hook
+    // exits non-zero on any issue). Count those separately so the dashboard
+    // can surface prevention, not just detection.
+    if (source === 'hook') recordMetric(METRIC_KEYS.CONFLICTS_BLOCKED);
     sql.exec(
       `UPDATE sessions SET conflicts_hit = conflicts_hit + 1
        WHERE agent_id = ? AND ended_at IS NULL`,

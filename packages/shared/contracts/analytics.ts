@@ -73,15 +73,6 @@ export const hourlyBucketSchema = z.object({
 });
 export type HourlyBucket = z.infer<typeof hourlyBucketSchema>;
 
-export const toolHourlyBucketSchema = z.object({
-  host_tool: z.string(),
-  hour: z.number(),
-  dow: z.number(),
-  sessions: z.number(),
-  edits: z.number(),
-});
-export type ToolHourlyBucket = z.infer<typeof toolHourlyBucketSchema>;
-
 export const toolDailyTrendSchema = z.object({
   host_tool: z.string(),
   day: z.string(),
@@ -210,6 +201,14 @@ export const conflictCorrelationSchema = z.object({
 });
 export type ConflictCorrelation = z.infer<typeof conflictCorrelationSchema>;
 
+export const conflictStatsSchema = z.object({
+  /** Hook-sourced blocks: PreToolUse calls that found conflicts and prevented the edit. */
+  blocked_period: z.number(),
+  /** Every detection in the period, including advisory MCP-tool lookups. */
+  found_period: z.number(),
+});
+export type ConflictStats = z.infer<typeof conflictStatsSchema>;
+
 export const editVelocityTrendSchema = z.object({
   day: z.string(),
   edits_per_hour: z.number(),
@@ -335,7 +334,6 @@ export const memoryAccessEntrySchema = z.object({
   text_preview: z.string(),
   access_count: z.number(),
   last_accessed_at: z.string().nullable(),
-  created_at: z.string(),
 });
 export type MemoryAccessEntry = z.infer<typeof memoryAccessEntrySchema>;
 
@@ -582,7 +580,6 @@ export type DataCoverage = z.infer<typeof dataCoverageSchema>;
 /** Cross-team user analytics — extends base TeamAnalytics with advanced breakdowns. */
 export const userAnalyticsSchema = teamAnalyticsSchema.extend({
   hourly_distribution: z.array(hourlyBucketSchema),
-  tool_hourly: z.array(toolHourlyBucketSchema),
   tool_daily: z.array(toolDailyTrendSchema),
   model_outcomes: z.array(modelOutcomeSchema),
   tool_outcomes: z.array(toolOutcomeSchema),
@@ -596,6 +593,7 @@ export const userAnalyticsSchema = teamAnalyticsSchema.extend({
   member_analytics: z.array(memberAnalyticsSchema),
   retry_patterns: z.array(retryPatternSchema),
   conflict_correlation: z.array(conflictCorrelationSchema),
+  conflict_stats: conflictStatsSchema,
   edit_velocity: z.array(editVelocityTrendSchema),
   memory_usage: memoryUsageStatsSchema,
   work_type_outcomes: z.array(workTypeOutcomeSchema),

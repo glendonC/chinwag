@@ -4,6 +4,7 @@ import { createLogger } from '../../../lib/logger.js';
 import type {
   RetryPattern,
   ConflictCorrelation,
+  ConflictStats,
   StucknessStats,
   FileOverlapStats,
   FirstEditStats,
@@ -94,6 +95,32 @@ export function queryConflictCorrelation(sql: SqlStorage, days: number): Conflic
   } catch (err) {
     log.warn(`conflictCorrelation query failed: ${err}`);
     return [];
+  }
+}
+
+export function queryConflictStats(sql: SqlStorage, days: number): ConflictStats {
+  try {
+    const rows = sql
+      .exec(
+        `SELECT metric, COALESCE(SUM(count), 0) AS cnt
+         FROM daily_metrics
+         WHERE metric IN ('conflicts_blocked', 'conflicts_found')
+           AND date > date('now', '-' || ? || ' days')
+         GROUP BY metric`,
+        days,
+      )
+      .toArray();
+    let blocked = 0;
+    let found = 0;
+    for (const r of rows) {
+      const row = r as Record<string, unknown>;
+      if (row.metric === 'conflicts_blocked') blocked = (row.cnt as number) || 0;
+      if (row.metric === 'conflicts_found') found = (row.cnt as number) || 0;
+    }
+    return { blocked_period: blocked, found_period: found };
+  } catch (err) {
+    log.warn(`conflictStats query failed: ${err}`);
+    return { blocked_period: 0, found_period: 0 };
   }
 }
 

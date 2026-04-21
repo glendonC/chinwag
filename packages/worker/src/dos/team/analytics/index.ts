@@ -33,7 +33,6 @@ import type { UserAnalytics } from '@chinwag/shared/contracts/analytics.js';
 import { getAnalytics } from './core.js';
 import {
   queryHourlyDistribution,
-  queryToolHourly,
   queryToolDaily,
   queryDurationDistribution,
   queryEditVelocity,
@@ -58,6 +57,7 @@ import {
 import {
   queryRetryPatterns,
   queryConflictCorrelation,
+  queryConflictStats,
   queryStuckness,
   queryFileOverlap,
   queryFirstEditStats,
@@ -95,7 +95,6 @@ export function getExtendedAnalytics(
 
     // ── Activity ───────────────────────────────────────────────────────
     hourly_distribution: queryHourlyDistribution(sql, days),
-    tool_hourly: queryToolHourly(sql, days),
     tool_daily: queryToolDaily(sql, days),
     duration_distribution: queryDurationDistribution(sql, days),
     edit_velocity: queryEditVelocity(sql, days),
@@ -119,6 +118,7 @@ export function getExtendedAnalytics(
     // ── Sessions ───────────────────────────────────────────────────────
     retry_patterns: queryRetryPatterns(sql, days),
     conflict_correlation: queryConflictCorrelation(sql, days),
+    conflict_stats: queryConflictStats(sql, days),
     stuckness: queryStuckness(sql, days),
     file_overlap: queryFileOverlap(sql, days),
     first_edit_stats: queryFirstEditStats(sql, days),

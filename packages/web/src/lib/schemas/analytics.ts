@@ -13,7 +13,6 @@ import {
   hourlyBucketSchema as baseHourlyBucketSchema,
   modelOutcomeSchema as baseModelOutcomeSchema,
   toolOutcomeSchema as baseToolOutcomeSchema,
-  toolHourlyBucketSchema as baseToolHourlyBucketSchema,
   toolDailyTrendSchema as baseToolDailyTrendSchema,
   completionSummarySchema as baseCompletionSummarySchema,
   toolComparisonSchema as baseToolComparisonSchema,
@@ -25,6 +24,7 @@ import {
   memberAnalyticsSchema as baseMemberAnalyticsSchema,
   retryPatternSchema as baseRetryPatternSchema,
   conflictCorrelationSchema as baseConflictCorrelationSchema,
+  conflictStatsSchema as baseConflictStatsSchema,
   editVelocityTrendSchema as baseEditVelocityTrendSchema,
   memoryUsageStatsSchema as baseMemoryUsageStatsSchema,
   workTypeOutcomeSchema as baseWorkTypeOutcomeSchema,
@@ -128,11 +128,6 @@ const toolOutcomeSchema = baseToolOutcomeSchema.extend({
   count: z.number().default(0),
 });
 
-const toolHourlyBucketSchema = baseToolHourlyBucketSchema.extend({
-  sessions: z.number().default(0),
-  edits: z.number().default(0),
-});
-
 const toolDailyTrendSchema = baseToolDailyTrendSchema.extend({
   sessions: z.number().default(0),
   edits: z.number().default(0),
@@ -214,6 +209,11 @@ const conflictCorrelationSchema = baseConflictCorrelationSchema.extend({
   sessions: z.number().default(0),
   completed: z.number().default(0),
   completion_rate: z.number().default(0),
+});
+
+const conflictStatsSchema = baseConflictStatsSchema.extend({
+  blocked_period: z.number().default(0),
+  found_period: z.number().default(0),
 });
 
 const editVelocityTrendSchema = baseEditVelocityTrendSchema.extend({
@@ -432,7 +432,6 @@ const dataCoverageSchema = baseDataCoverageSchema.extend({
 
 export const userAnalyticsSchema = teamAnalyticsSchema.extend({
   hourly_distribution: z.array(hourlyBucketSchema).default([]),
-  tool_hourly: z.array(toolHourlyBucketSchema).default([]),
   tool_daily: z.array(toolDailyTrendSchema).default([]),
   model_outcomes: z.array(modelOutcomeSchema).default([]),
   tool_outcomes: z.array(toolOutcomeSchema).default([]),
@@ -454,6 +453,7 @@ export const userAnalyticsSchema = teamAnalyticsSchema.extend({
   member_analytics: z.array(memberAnalyticsSchema).default([]),
   retry_patterns: z.array(retryPatternSchema).default([]),
   conflict_correlation: z.array(conflictCorrelationSchema).default([]),
+  conflict_stats: conflictStatsSchema.default({ blocked_period: 0, found_period: 0 }),
   edit_velocity: z.array(editVelocityTrendSchema).default([]),
   memory_usage: memoryUsageStatsSchema.default({
     total_memories: 0,
@@ -550,7 +550,6 @@ export const userAnalyticsSchema = teamAnalyticsSchema.extend({
 
 export type UserAnalytics = z.infer<typeof userAnalyticsSchema>;
 export type HourlyBucket = z.infer<typeof hourlyBucketSchema>;
-export type ToolHourlyBucket = z.infer<typeof toolHourlyBucketSchema>;
 export type ToolDailyTrend = z.infer<typeof toolDailyTrendSchema>;
 export type ModelOutcome = z.infer<typeof modelOutcomeSchema>;
 export type ToolOutcome = z.infer<typeof toolOutcomeSchema>;
@@ -564,6 +563,7 @@ export type ConcurrentEditEntry = z.infer<typeof concurrentEditEntrySchema>;
 export type MemberAnalytics = z.infer<typeof memberAnalyticsSchema>;
 export type RetryPattern = z.infer<typeof retryPatternSchema>;
 export type ConflictCorrelation = z.infer<typeof conflictCorrelationSchema>;
+export type ConflictStats = z.infer<typeof conflictStatsSchema>;
 export type EditVelocityTrend = z.infer<typeof editVelocityTrendSchema>;
 export type MemoryUsageStats = z.infer<typeof memoryUsageStatsSchema>;
 export type WorkTypeOutcome = z.infer<typeof workTypeOutcomeSchema>;
@@ -598,7 +598,6 @@ export function createEmptyUserAnalytics(): UserAnalytics {
     ...createEmptyAnalytics(),
     period_days: 30,
     hourly_distribution: [],
-    tool_hourly: [],
     tool_daily: [],
     model_outcomes: [],
     tool_outcomes: [],
@@ -620,6 +619,7 @@ export function createEmptyUserAnalytics(): UserAnalytics {
     member_analytics: [],
     retry_patterns: [],
     conflict_correlation: [],
+    conflict_stats: { blocked_period: 0, found_period: 0 },
     edit_velocity: [],
     memory_usage: {
       total_memories: 0,

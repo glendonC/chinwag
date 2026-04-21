@@ -77,21 +77,6 @@ export function useConversationAnalytics(
           merged.assistant_messages += parsed.assistant_messages;
           merged.sessions_with_conversations += parsed.sessions_with_conversations;
 
-          // Weighted average for char counts
-          if (parsed.user_messages > 0) {
-            merged.avg_user_char_count =
-              (merged.avg_user_char_count * (merged.user_messages - parsed.user_messages) +
-                parsed.avg_user_char_count * parsed.user_messages) /
-              merged.user_messages;
-          }
-          if (parsed.assistant_messages > 0) {
-            merged.avg_assistant_char_count =
-              (merged.avg_assistant_char_count *
-                (merged.assistant_messages - parsed.assistant_messages) +
-                parsed.avg_assistant_char_count * parsed.assistant_messages) /
-              merged.assistant_messages;
-          }
-
           // Merge sentiment distribution
           for (const s of parsed.sentiment_distribution) {
             const existing = merged.sentiment_distribution.find((e) => e.sentiment === s.sentiment);
@@ -136,9 +121,6 @@ export function useConversationAnalytics(
           supported_tools: [...allSupported],
           unsupported_tools: [...allUnsupported].filter((t) => !allSupported.has(t)),
         };
-
-        merged.avg_user_char_count = Math.round(merged.avg_user_char_count);
-        merged.avg_assistant_char_count = Math.round(merged.avg_assistant_char_count);
 
         if (!cancelled) setData(merged);
       } catch {

@@ -95,7 +95,6 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
 
   const toolDistAcc = tools.createToolDistAcc();
   const toolCompAcc = tools.createToolCompAcc();
-  const toolHourlyAcc = tools.createToolHourlyAcc();
   const toolDailyAcc = tools.createToolDailyAcc();
   const toolWorkTypeAcc = tools.createToolWorkTypeAcc();
   const toolHandoffsAcc = tools.createToolHandoffsAcc();
@@ -118,6 +117,7 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
   const velocityAcc = sessions.createVelocityAcc();
   const firstEditAcc = sessions.createFirstEditAcc();
   const stucknessAcc = sessions.createStucknessAcc();
+  const conflictStatsAcc = sessions.createConflictStatsAcc();
   const retryAcc = sessions.createRetryAcc();
   const concurrentAcc = sessions.createConcurrentAcc();
   const outcomeTagsAcc = sessions.createOutcomeTagsAcc();
@@ -162,7 +162,6 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
 
     tools.mergeToolDist(toolDistAcc, team);
     tools.mergeToolComp(toolCompAcc, team);
-    tools.mergeToolHourly(toolHourlyAcc, team);
     tools.mergeToolDaily(toolDailyAcc, team);
     tools.mergeToolWorkType(toolWorkTypeAcc, team);
     tools.mergeToolHandoffs(toolHandoffsAcc, team);
@@ -185,6 +184,7 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
     sessions.mergeVelocity(velocityAcc, team);
     sessions.mergeFirstEdit(firstEditAcc, team);
     sessions.mergeStuckness(stucknessAcc, team);
+    sessions.mergeConflictStats(conflictStatsAcc, team);
     sessions.mergeRetry(retryAcc, team);
     sessions.mergeConcurrent(concurrentAcc, team, teamIndex);
     sessions.mergeOutcomeTags(outcomeTagsAcc, team);
@@ -220,7 +220,6 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
       tool_distribution: tools.projectToolDist(toolDistAcc),
       file_heatmap: codebase.projectHeatmap(heatmapAcc),
       hourly_distribution: activity.projectHourly(hourlyAcc),
-      tool_hourly: tools.projectToolHourly(toolHourlyAcc),
       tool_daily: tools.projectToolDaily(toolDailyAcc),
       model_outcomes: outcomes.projectModelOutcomes(modelOutcomesAcc),
       tool_outcomes: outcomes.projectToolOutcomes(toolOutcomesAcc),
@@ -242,6 +241,7 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
       file_rework: codebase.projectFileRework(fileReworkAcc),
       directory_heatmap: codebase.projectDirHeatmap(dirHeatmapAcc),
       stuckness: sessions.projectStuckness(stucknessAcc),
+      conflict_stats: sessions.projectConflictStats(conflictStatsAcc),
       file_overlap: codebase.projectFileOverlap(fileOverlapAcc),
       audit_staleness: codebase.projectAuditStaleness(auditStalenessAcc),
       first_edit_stats: sessions.projectFirstEdit(firstEditAcc),

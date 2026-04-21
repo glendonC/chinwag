@@ -23,7 +23,6 @@ export function buildEmptyAnalyticsResponse(days: number): UserAnalytics {
     outcome_distribution: [],
     daily_metrics: [],
     hourly_distribution: [],
-    tool_hourly: [],
     tool_daily: [],
     model_outcomes: [],
     tool_outcomes: [],
@@ -45,6 +44,7 @@ export function buildEmptyAnalyticsResponse(days: number): UserAnalytics {
     member_analytics: [],
     retry_patterns: [],
     conflict_correlation: [],
+    conflict_stats: { blocked_period: 0, found_period: 0 },
     edit_velocity: [],
     memory_usage: {
       total_memories: 0,

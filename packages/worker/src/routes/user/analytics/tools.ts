@@ -3,16 +3,15 @@
 // rule ("most sessions first"). Kept together so any future tool naming /
 // normalization rule only needs one edit.
 //
-// Owns: tool_distribution, tool_comparison, tool_hourly, tool_daily,
-// tool_work_type, tool_handoffs. It also tracks the active-tool set used
-// by the handler's data_coverage computation.
+// Owns: tool_distribution, tool_comparison, tool_daily, tool_work_type,
+// tool_handoffs. It also tracks the active-tool set used by the handler's
+// data_coverage computation.
 
 import type {
   ToolComparison,
   ToolDailyTrend,
   ToolDistribution,
   ToolHandoff,
-  ToolHourlyBucket,
   ToolWorkTypeBreakdown,
 } from '@chinwag/shared/contracts/analytics.js';
 import type { TeamResult } from './types.js';
@@ -110,40 +109,6 @@ export function projectToolComp(acc: ToolCompAcc): ToolComparison[] {
       total_lines_added: v.total_lines_added,
       total_lines_removed: v.total_lines_removed,
     }));
-}
-
-// ── tool_hourly ──────────────────────────────────
-
-interface ToolHourlyBucketAcc {
-  sessions: number;
-  edits: number;
-}
-
-export type ToolHourlyAcc = Map<string, ToolHourlyBucketAcc>;
-
-export function createToolHourlyAcc(): ToolHourlyAcc {
-  return new Map();
-}
-
-export function mergeToolHourly(acc: ToolHourlyAcc, team: TeamResult): void {
-  for (const th of team.tool_hourly ?? []) {
-    const key = `${th.host_tool}:${th.hour}-${th.dow}`;
-    const existing = acc.get(key) ?? { sessions: 0, edits: 0 };
-    existing.sessions += th.sessions;
-    existing.edits += th.edits;
-    acc.set(key, existing);
-  }
-}
-
-export function projectToolHourly(acc: ToolHourlyAcc): ToolHourlyBucket[] {
-  return [...acc.entries()].map(([key, v]) => {
-    const sep = key.lastIndexOf(':');
-    const timePart = key.slice(sep + 1);
-    const [hourStr, dowStr] = timePart.split('-');
-    const hour = Number(hourStr);
-    const dow = Number(dowStr);
-    return { host_tool: key.slice(0, sep), hour, dow, sessions: v.sessions, edits: v.edits };
-  });
 }
 
 // ── tool_daily ───────────────────────────────────

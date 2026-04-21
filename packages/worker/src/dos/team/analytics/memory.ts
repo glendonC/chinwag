@@ -226,7 +226,7 @@ export function queryTopMemories(sql: SqlStorage, days: number): MemoryAccessEnt
   try {
     const rows = sql
       .exec(
-        `SELECT id, text, access_count, last_accessed_at, created_at
+        `SELECT id, text, access_count, last_accessed_at
          FROM memories
          WHERE merged_into IS NULL AND invalid_at IS NULL
            AND access_count > 0
@@ -245,7 +245,6 @@ export function queryTopMemories(sql: SqlStorage, days: number): MemoryAccessEnt
         text_preview: text.length > 120 ? text.slice(0, 120) + '...' : text,
         access_count: (row.access_count as number) || 0,
         last_accessed_at: (row.last_accessed_at as string) || null,
-        created_at: row.created_at as string,
       };
     });
   } catch (err) {

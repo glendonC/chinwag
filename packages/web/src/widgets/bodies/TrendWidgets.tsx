@@ -10,6 +10,19 @@ function SessionTrendWidget({ analytics }: WidgetBodyProps) {
   return <Sparkline data={data} height={80} />;
 }
 
+function OutcomeTrendWidget({ analytics }: WidgetBodyProps) {
+  // Completion rate per day, in percent. Days with no sessions are skipped
+  // so a zero-session day doesn't drag the line to 0 and swamp the signal.
+  const points = analytics.daily_trends
+    .filter((d) => d.sessions > 0)
+    .map((d) => {
+      const completed = d.completed ?? 0;
+      return Math.round((completed / d.sessions) * 1000) / 10;
+    });
+  if (points.length < 2) return <GhostSparkline />;
+  return <Sparkline data={points} height={80} />;
+}
+
 function EditVelocityWidget({ analytics }: WidgetBodyProps) {
   const data = analytics.edit_velocity.map((d) => d.edits_per_hour);
   if (data.length < 2) return <GhostSparkline />;
@@ -79,6 +92,7 @@ function HourlyEffectivenessWidget({ analytics }: WidgetBodyProps) {
 export const trendWidgets: WidgetRegistry = {
   'session-trend': SessionTrendWidget,
   'edit-velocity': EditVelocityWidget,
+  'outcome-trend': OutcomeTrendWidget,
   'prompt-efficiency': PromptEfficiencyWidget,
   'hourly-effectiveness': HourlyEffectivenessWidget,
 };

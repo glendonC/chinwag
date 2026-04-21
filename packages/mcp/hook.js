@@ -89,7 +89,7 @@ async function checkConflict(team, teamId, input) {
   if (!filePath) process.exit(0);
 
   try {
-    const result = await team.checkConflicts(teamId, [filePath]);
+    const result = await team.checkConflicts(teamId, [filePath], 'hook');
 
     const issues = [];
 

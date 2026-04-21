@@ -483,6 +483,7 @@ export class TeamDO extends DurableObject<Env> {
     agentId: string,
     files: string[],
     ownerId: string | null = null,
+    source: 'hook' | 'advisory' = 'advisory',
   ): Promise<ReturnType<typeof checkConflictsFn> | DOError> {
     return this.#withMember(agentId, ownerId, (resolved) =>
       checkConflictsFn(
@@ -491,6 +492,7 @@ export class TeamDO extends DurableObject<Env> {
         files,
         this.#boundRecordMetric,
         this.#getConnectedAgentIds(),
+        source,
       ),
     );
   }

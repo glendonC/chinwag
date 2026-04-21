@@ -3,7 +3,6 @@
 import { createLogger } from '../../../lib/logger.js';
 import type {
   HourlyBucket,
-  ToolHourlyBucket,
   ToolDailyTrend,
   DurationBucket,
   EditVelocityTrend,
@@ -38,40 +37,6 @@ export function queryHourlyDistribution(sql: SqlStorage, days: number): HourlyBu
     });
   } catch (err) {
     log.warn(`hourlyDistribution query failed: ${err}`);
-    return [];
-  }
-}
-
-export function queryToolHourly(sql: SqlStorage, days: number): ToolHourlyBucket[] {
-  try {
-    const rows = sql
-      .exec(
-        `SELECT host_tool,
-                CAST(strftime('%H', started_at) AS INTEGER) AS hour,
-                CAST(strftime('%w', started_at) AS INTEGER) AS dow,
-                COUNT(*) AS sessions,
-                COALESCE(SUM(edit_count), 0) AS edits
-         FROM sessions
-         WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND host_tool IS NOT NULL AND host_tool != 'unknown'
-         GROUP BY host_tool, hour, dow
-         ORDER BY host_tool, hour, dow`,
-        days,
-      )
-      .toArray();
-
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        host_tool: row.host_tool as string,
-        hour: (row.hour as number) || 0,
-        dow: (row.dow as number) || 0,
-        sessions: (row.sessions as number) || 0,
-        edits: (row.edits as number) || 0,
-      };
-    });
-  } catch (err) {
-    log.warn(`toolHourly query failed: ${err}`);
     return [];
   }
 }
