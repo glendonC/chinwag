@@ -1,5 +1,5 @@
 // Per-project (team) daily line attribution.
-// Unlike sibling modules, this does NOT merge by key — each (team_id, day)
+// Unlike sibling modules, this does NOT merge by key. Each (team_id, day)
 // is unique by construction, so we concat rather than sum. Reuses each
 // team's already-computed `daily_trends` from its getAnalyticsForOwner
 // response, tagged with the team_id/team_name from the caller's user_teams
