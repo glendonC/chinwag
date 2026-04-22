@@ -5,6 +5,8 @@ import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api.js';
 import { authActions } from '../lib/stores/auth.js';
 import { createDemoAnalytics } from '../lib/demoAnalytics.js';
+import { getDemoData } from '../lib/demo/index.js';
+import { useDemoScenario } from './useDemoScenario.js';
 import { type UserAnalytics, userAnalyticsSchema, validateResponse } from '../lib/apiSchemas.js';
 
 interface UseUserAnalyticsReturn {
@@ -18,7 +20,10 @@ export function useUserAnalytics(
   enabled = true,
   teamIds?: string[],
 ): UseUserAnalyticsReturn {
-  const [analytics, setAnalytics] = useState<UserAnalytics>(createDemoAnalytics);
+  const demo = useDemoScenario();
+  const [analytics, setAnalytics] = useState<UserAnalytics>(() =>
+    demo.active ? getDemoData(demo.scenarioId).analytics : createDemoAnalytics(),
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -27,6 +32,14 @@ export function useUserAnalytics(
   const teamKey = teamIds?.slice().sort().join(',') ?? '';
 
   useEffect(() => {
+    // Demo mode: render the scenario fixture and skip the API entirely so
+    // scenario swaps don't get stomped by a late-arriving real response.
+    if (demo.active) {
+      setAnalytics(getDemoData(demo.scenarioId).analytics);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
     if (!enabled) return;
 
     abortRef.current?.abort();
@@ -77,7 +90,7 @@ export function useUserAnalytics(
       cancelled = true;
       controller.abort();
     };
-  }, [days, enabled, teamKey]);
+  }, [days, enabled, teamKey, demo.active, demo.scenarioId]);
 
   return { analytics, isLoading, error };
 }

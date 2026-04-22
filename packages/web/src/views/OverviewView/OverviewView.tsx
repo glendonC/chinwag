@@ -59,6 +59,8 @@ import {
   SkeletonRows,
 } from '../../components/Skeleton/Skeleton.jsx';
 import { useOverviewData } from './useOverviewData.js';
+import { useDemoScenario } from '../../hooks/useDemoScenario.js';
+import { getDemoData } from '../../lib/demo/index.js';
 import LiveNowView from './LiveNowView.js';
 import UsageDetailView from './UsageDetailView.js';
 import { RANGES, type RangeDays, summarizeNames } from './overview-utils.js';
@@ -230,7 +232,18 @@ export default function OverviewView() {
     })),
   );
 
-  const summaries = useMemo(() => dashboardData?.teams ?? [], [dashboardData?.teams]);
+  const demo = useDemoScenario();
+  // In demo mode, substitute the scenario's fixture summaries so the live
+  // widgets, projects widget, and liveAgents derivation all render from the
+  // same source of truth without threading a demo flag through every hook.
+  const summaries = useMemo(() => {
+    if (demo.active) return getDemoData(demo.scenarioId).live.summaries;
+    return dashboardData?.teams ?? [];
+  }, [demo.active, demo.scenarioId, dashboardData?.teams]);
+  const demoLocks = useMemo<Lock[]>(() => {
+    if (!demo.active) return OVERVIEW_LOCKS;
+    return getDemoData(demo.scenarioId).live.locks;
+  }, [demo.active, demo.scenarioId]);
   const failedTeams = useMemo(
     () => dashboardData?.failed_teams ?? pollErrorData?.failed_teams ?? [],
     [dashboardData?.failed_teams, pollErrorData?.failed_teams],
@@ -439,12 +452,12 @@ export default function OverviewView() {
         conversationData={conversationData}
         summaries={sortedSummaries as Array<Record<string, unknown>>}
         liveAgents={liveAgents}
-        locks={OVERVIEW_LOCKS}
+        locks={demoLocks}
         truncated={truncated}
         selectTeam={selectTeam}
       />
     ),
-    [analytics, conversationData, sortedSummaries, liveAgents, truncated, selectTeam],
+    [analytics, conversationData, sortedSummaries, liveAgents, demoLocks, truncated, selectTeam],
   );
 
   // Cmd/Ctrl-Z to undo layout changes (drag, resize, add, remove, reset).
@@ -610,7 +623,7 @@ export default function OverviewView() {
         {liveShifted ? (
           <LiveNowView
             liveAgents={liveAgents}
-            locks={OVERVIEW_LOCKS}
+            locks={demoLocks}
             focusAgentId={focusAgentId}
             initialTab={liveTabParam}
             onBack={closeLive}

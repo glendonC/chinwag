@@ -20,6 +20,7 @@ import ConnectView from './views/ConnectView/ConnectView.js';
 import OverviewView from './views/OverviewView/OverviewView.js';
 import Sidebar from './components/Sidebar/Sidebar.js';
 import Banner from './components/Banner/Banner.js';
+import DemoSwitcher from './components/DemoSwitcher/DemoSwitcher.js';
 import RenderErrorBoundary from './components/RenderErrorBoundary/RenderErrorBoundary.js';
 
 const ProjectView = lazy(() => import('./views/ProjectView/ProjectView.js'));
@@ -282,6 +283,7 @@ export default function App(): ReactNode {
           )}
         </div>
       </div>
+      <DemoSwitcher />
     </div>
   );
 }

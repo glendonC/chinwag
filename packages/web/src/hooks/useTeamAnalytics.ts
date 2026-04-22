@@ -5,6 +5,8 @@ import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api.js';
 import { authActions } from '../lib/stores/auth.js';
 import { createDemoAnalytics } from '../lib/demoAnalytics.js';
+import { getDemoData } from '../lib/demo/index.js';
+import { useDemoScenario } from './useDemoScenario.js';
 import {
   type TeamAnalytics,
   type UserAnalytics,
@@ -85,12 +87,21 @@ export function useTeamExtendedAnalytics(
   days = 30,
   enabled = true,
 ): UseTeamExtendedAnalyticsReturn {
-  const [analytics, setAnalytics] = useState<UserAnalytics>(createDemoAnalytics);
+  const demo = useDemoScenario();
+  const [analytics, setAnalytics] = useState<UserAnalytics>(() =>
+    demo.active ? getDemoData(demo.scenarioId).analytics : createDemoAnalytics(),
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    if (demo.active) {
+      setAnalytics(getDemoData(demo.scenarioId).analytics);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
     if (!teamId || !enabled) return;
 
     abortRef.current?.abort();
@@ -135,7 +146,7 @@ export function useTeamExtendedAnalytics(
       cancelled = true;
       controller.abort();
     };
-  }, [teamId, days, enabled]);
+  }, [teamId, days, enabled, demo.active, demo.scenarioId]);
 
   return { analytics, isLoading, error };
 }

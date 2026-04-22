@@ -5,6 +5,8 @@ import { useState, useEffect, useRef } from 'react';
 import { api } from '../lib/api.js';
 import { authActions } from '../lib/stores/auth.js';
 import { useTeamStore } from '../lib/stores/teams.js';
+import { getDemoData } from '../lib/demo/index.js';
+import { useDemoScenario } from './useDemoScenario.js';
 import {
   type ConversationAnalytics,
   conversationAnalyticsSchema,
@@ -22,7 +24,10 @@ export function useConversationAnalytics(
   enabled = true,
   teamIds?: string[],
 ): UseConversationAnalyticsReturn {
-  const [data, setData] = useState<ConversationAnalytics>(createEmptyConversationAnalytics);
+  const demo = useDemoScenario();
+  const [data, setData] = useState<ConversationAnalytics>(() =>
+    demo.active ? getDemoData(demo.scenarioId).conversation : createEmptyConversationAnalytics(),
+  );
   const [isLoading, setIsLoading] = useState(false);
   const teams = useTeamStore((s) => s.teams);
   const abortRef = useRef<AbortController | null>(null);
@@ -31,6 +36,11 @@ export function useConversationAnalytics(
   const teamKey = teamIds?.slice().sort().join(',') ?? '';
 
   useEffect(() => {
+    if (demo.active) {
+      setData(getDemoData(demo.scenarioId).conversation);
+      setIsLoading(false);
+      return;
+    }
     if (!enabled || teams.length === 0) return;
 
     // Filter to requested subset (or all teams if no filter)
@@ -136,7 +146,7 @@ export function useConversationAnalytics(
       cancelled = true;
       controller.abort();
     };
-  }, [days, enabled, teams, teamKey]);
+  }, [days, enabled, teams, teamKey, demo.active, demo.scenarioId]);
 
   return { data, isLoading };
 }

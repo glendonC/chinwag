@@ -1,0 +1,235 @@
+/* Bottom-right floating switcher. Stays out of the main content flow; no
+   card chrome; hierarchy through font weight + opacity alone. */
+
+.container {
+  position: fixed;
+  bottom: var(--space-lg);
+  right: var(--space-lg);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-sm);
+  font-family: var(--sans);
+  pointer-events: none;
+}
+
+.container > * {
+  pointer-events: auto;
+}
+
+/* Trigger pill: current scenario name, weight 500, full ink. Backdrop
+   inherits the glass surface used by other floating chrome. Border is the
+   faintest possible stroke (soft × 0.5) so the pill reads as a gentle
+   outline, not a button box. */
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 8px 14px;
+  background: var(--surface-glass);
+  border: 1px solid var(--soft);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  transition:
+    border-color 120ms ease,
+    transform 120ms ease;
+}
+
+.trigger:hover {
+  border-color: var(--muted);
+}
+
+.trigger:active {
+  transform: translateY(1px);
+}
+
+.triggerDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-circle);
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
+.triggerLabel {
+  font-weight: 500;
+}
+
+.triggerCaret {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  margin-left: 2px;
+}
+
+/* Panel — floats above the trigger. Glass backdrop; no divider lines,
+   no nested card. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 320px;
+  max-width: 420px;
+  max-height: 420px;
+  overflow-y: auto;
+  background: var(--surface-glass);
+  border: 1px solid var(--soft);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(14px);
+  animation: panelIn 140ms ease-out;
+}
+
+@keyframes panelIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    animation: none;
+  }
+}
+
+.panelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-lg) var(--space-sm) var(--space-lg);
+}
+
+.panelEyebrow {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.exitButton {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--soft);
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.exitButton:hover {
+  color: var(--ink);
+}
+
+/* Scenario list — stack of rows, each a button. No dividers. Weight +
+   opacity give the active row its weight; dot color is accent only when
+   active. */
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 var(--space-sm);
+}
+
+.item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 8px var(--space-lg);
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: var(--soft);
+  font-family: var(--sans);
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+  animation: rowIn 180ms ease-out both;
+  animation-delay: calc(var(--row-index, 0) * 20ms);
+}
+
+@keyframes rowIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item {
+    animation: none;
+  }
+}
+
+.item:hover {
+  background: var(--hover-bg);
+  color: var(--ink);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-circle);
+  background: var(--soft);
+}
+
+.itemActive {
+  color: var(--ink);
+}
+
+.itemActive .dot {
+  background: var(--accent);
+}
+
+.itemActive .itemLabel {
+  font-weight: 500;
+}
+
+.itemBody {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.itemLabel {
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: inherit;
+  letter-spacing: 0.005em;
+}
+
+.itemDescription {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemId {
+  font-family: var(--mono);
+  font-size: var(--text-3xs);
+  color: var(--soft);
+  letter-spacing: 0.02em;
+}
