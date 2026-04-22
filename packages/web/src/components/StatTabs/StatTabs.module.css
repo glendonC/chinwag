@@ -95,6 +95,19 @@
   color: var(--ink);
 }
 
+/* Period-comparison annotation. Small mono caption beneath the value;
+ * the position implies "vs prior period" so text can stay terse. Color
+ * is hinted by the consumer (success / danger / muted). */
+.delta {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.01em;
+  color: var(--soft);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
 /* Live-only accent: reserved for live data by the design language.
  * Historical tabs pass no `tone` so this class is never applied. */
 .accent {

@@ -12,6 +12,12 @@ export interface DetailTabDef<T extends string> {
   label: string;
   /** Large stat value rendered beneath the label. */
   value: ReactNode;
+  /** Period-comparison annotation rendered as a small mono caption
+   *  below the value (e.g. "↑26"). See StatTabDef.delta for the full
+   *  rule on when to populate this field — short version: only on
+   *  period-aggregate KPI tabs, never on live state or categorical
+   *  tabs. */
+  delta?: { text: string; color?: string };
   /** Opt-in accent color for live data. Omit for historical views. */
   tone?: 'accent';
 }

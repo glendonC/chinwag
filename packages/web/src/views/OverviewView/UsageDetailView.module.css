@@ -58,6 +58,19 @@
   }
 }
 
+/* Sessions-flavored top grid: the left hero (SESSION HEALTH) is two
+ * stacked ratio stats — intrinsically narrow — while the right side
+ * (BY TOOL) carries a ring + a 6-row tool table. Equal halves leave a
+ * large horizontal gap mid-row because the left content can't fill its
+ * column. `auto 1fr` sizes left to its natural content and lets the
+ * right column take the remainder, removing the dead space without
+ * forcing artificial typography or hiding tool rows. */
+@media (min-width: 900px) {
+  .topGridSessions {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+
 /* Hero section pins its label and content to the top of the grid row so
  * the tool ring across the gap aligns visually with the hero number. */
 .sectionHero {
@@ -315,6 +328,57 @@
   }
 }
 
+/* ── Single-tool empty state (Edits tool mix) ── */
+
+/* When only one tool is connected, a 100% ring is decorative. Replace
+ * with a compact text treatment that keeps the half populated and still
+ * leads to the Tools tab. */
+.singleTool {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.singleToolHead {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--sans);
+  font-size: var(--text-md);
+  font-weight: 500;
+}
+
+.singleToolValue {
+  font-family: var(--display);
+  font-size: 2.2rem;
+  font-weight: 200;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  line-height: 1;
+}
+
+.singleToolUnit {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+}
+
+.singleToolMeta {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Duration columns — label on top, bar in the middle, values below ──
  *
  * Each column flexes to the bucket's count, so label / bar segment /
@@ -322,6 +386,53 @@
  * continuous because neighboring columns share edges (no gap, only
  * a subtle inner border separator on the segment). Inspired by the
  * FACIAL THIRDS reference pattern. */
+
+/* Lead-in stat above the duration band. Pairs the median-to-first-edit
+ * timing with the wider duration distribution since both answer "how
+ * long did things take" — warmup vs total session length. Sits at the
+ * left edge of the section, baseline-aligned, never centered. */
+.durationLeadIn {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0 0 18px;
+  padding: 0;
+  flex-wrap: wrap;
+}
+
+.durationLeadValue {
+  font-family: var(--display);
+  font-size: 1.5rem;
+  font-weight: 200;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.durationLeadUnit {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  margin-right: 8px;
+}
+
+.durationLeadLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+}
+
+.durationLeadContext {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
 
 .durationCols {
   display: flex;

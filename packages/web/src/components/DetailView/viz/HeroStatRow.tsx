@@ -10,8 +10,10 @@ export interface HeroStatDef {
   unit?: string;
   /** Mono uppercase label beneath the value. */
   label: string;
-  /** Mono context line beneath the label — a concrete ratio or date. */
-  sublabel?: string;
+  /** Mono context line beneath the label — a concrete ratio or date.
+   *  Accepts ReactNode so callers can inline small chips (e.g. period-
+   *  comparison delta arrows) without redesigning the hero. */
+  sublabel?: ReactNode;
   /** Value color token. Defaults to inherited ink. */
   color?: string;
   /** Optional visual sibling rendered to the left of the text column —
@@ -24,16 +26,23 @@ export interface HeroStatDef {
  * label, optional unit, optional sublabel, and optional viz sibling.
  * Rows stagger via `--row-index` so the hero reveals with rhythm rather
  * than all at once.
+ *
+ * `direction` controls flow: 'row' (default) packs stats horizontally
+ * with wrap; 'column' stacks them vertically so each stat takes the
+ * container's full width — useful when the hero column needs to balance
+ * height against a denser neighbor (table or ring) across a topGrid.
  */
 export default function HeroStatRow({
   stats,
+  direction = 'row',
   className,
 }: {
   stats: ReadonlyArray<HeroStatDef>;
+  direction?: 'row' | 'column';
   className?: string;
 }) {
   return (
-    <div className={clsx(styles.row, className)}>
+    <div className={clsx(styles.row, direction === 'column' && styles.rowColumn, className)}>
       {stats.map((s, i) => (
         <div key={s.key} className={styles.stat} style={{ '--row-index': i } as CSSProperties}>
           {s.viz}

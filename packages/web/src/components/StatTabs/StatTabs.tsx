@@ -9,6 +9,18 @@ export interface StatTabDef<T extends string> {
   label: string;
   /** Large stat value rendered beneath the label. */
   value: ReactNode;
+  /** Period-comparison annotation rendered as a small mono caption
+   *  below the value (e.g. "↑26"). Position implies "vs prior period"
+   *  by convention so the text stays terse.
+   *
+   *  Pass this ONLY when the tab's value is a period aggregate AND a
+   *  comparable previous-period value exists. Live-state surfaces
+   *  (LiveNowView) and categorical tabs (ProjectView) intentionally
+   *  omit it — their values aren't period aggregates, so a delta would
+   *  be invented data. UsageDetailView uses an em-dash placeholder for
+   *  KPI tabs whose previous period isn't queryable, so the strip stays
+   *  visually uniform without faking unavailable comparisons. */
+  delta?: { text: string; color?: string };
   /** Opt-in accent color for live data. Omit for historical views. */
   tone?: 'accent' | '';
 }
@@ -75,6 +87,14 @@ export default function StatTabs<T extends string>({
             <span className={clsx(styles.value, t.tone === 'accent' && styles.accent)}>
               {t.value}
             </span>
+            {t.delta && (
+              <span
+                className={styles.delta}
+                style={t.delta.color ? { color: t.delta.color } : undefined}
+              >
+                {t.delta.text}
+              </span>
+            )}
           </button>
         );
       })}

@@ -9,6 +9,16 @@
   gap: 28px 40px;
 }
 
+/* Vertical flow: used when the hero column needs to balance height
+ * against a denser neighbor across a topGrid (e.g. Sessions panel where
+ * BY TOOL on the right is a ring + table). Each stat gets the full
+ * column width and stacks with the row gap rotated to the y-axis. */
+.rowColumn {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 32px;
+}
+
 .stat {
   display: flex;
   flex-direction: row;
