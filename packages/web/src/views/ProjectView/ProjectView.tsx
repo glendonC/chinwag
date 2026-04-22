@@ -1,13 +1,4 @@
-import {
-  useState,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useSyncExternalStore,
-  type CSSProperties,
-} from 'react';
-import clsx from 'clsx';
+import { useState, useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -30,7 +21,7 @@ import { teamActions } from '../../lib/stores/teams.js';
 import { navigate } from '../../lib/router.js';
 import StatusState from '../../components/StatusState/StatusState.jsx';
 import ViewHeader from '../../components/ViewHeader/ViewHeader.jsx';
-import KeyboardHint from '../../components/KeyboardHint/KeyboardHint.jsx';
+import StatTabs from '../../components/StatTabs/StatTabs.js';
 import CustomizeButton from '../../components/CustomizeButton/CustomizeButton.jsx';
 import EditModePill from '../../components/EditModePill/EditModePill.js';
 import RangePills from '../../components/RangePills/RangePills.jsx';
@@ -402,40 +393,14 @@ export default function ProjectView(_props: Props) {
           </button>
         )}
 
-        {/* Tab nav (preserves the big-number aesthetic from the original) */}
+        {/* Tab nav — same StatTabs primitive used by detail-view stat strips */}
         <section className={styles.header}>
-          <div
-            className={styles.statsRow}
-            ref={statsRef}
-            role="tablist"
-            aria-label="Project sections"
-          >
-            {stats.map((s, i) => (
-              <button
-                key={s.id}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === s.id}
-                aria-controls={`panel-${s.id}`}
-                data-tab={s.id}
-                tabIndex={activeTab === s.id ? 0 : -1}
-                className={clsx(styles.statButton, activeTab === s.id && styles.statActive)}
-                style={{ '--stat-index': i } as CSSProperties}
-                onClick={(e) => {
-                  e.currentTarget.focus();
-                  setActiveTab(s.id);
-                }}
-              >
-                <span className={styles.statLabel}>
-                  {s.label}
-                  {activeTab === s.id && <KeyboardHint {...hint} />}
-                </span>
-                <span className={clsx(styles.statValue, s.tone === 'accent' && styles.statAccent)}>
-                  {s.value}
-                </span>
-              </button>
-            ))}
-          </div>
+          <StatTabs
+            tabs={stats}
+            tabControl={{ activeTab, setActiveTab, hint, ref: statsRef }}
+            tablistLabel="Project sections"
+            idPrefix="project"
+          />
         </section>
 
         {/* Customize bar (analytical tabs only) */}
@@ -497,7 +462,7 @@ export default function ProjectView(_props: Props) {
         {/* Tab content */}
         <section className={styles.vizArea}>
           {isAnalytical && (
-            <div className={styles.vizPanel} role="tabpanel" id={`panel-${activeTab}`}>
+            <div className={styles.vizPanel} role="tabpanel" id={`project-panel-${activeTab}`}>
               <div className={styles.gridBleed}>
                 <WidgetGrid
                   slots={activeSlots}
@@ -512,7 +477,7 @@ export default function ProjectView(_props: Props) {
           )}
 
           {activeTab === 'memory' && (
-            <div className={styles.vizPanel} role="tabpanel" id="panel-memory">
+            <div className={styles.vizPanel} role="tabpanel" id="project-panel-memory">
               <ProjectMemoryTab
                 memories={memories}
                 memoryBreakdown={memoryBreakdown}

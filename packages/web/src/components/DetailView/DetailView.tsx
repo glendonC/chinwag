@@ -1,7 +1,8 @@
-import type { CSSProperties, Dispatch, ReactNode, RefObject, SetStateAction } from 'react';
+import type { Dispatch, ReactNode, RefObject, SetStateAction } from 'react';
 import clsx from 'clsx';
 import DetailHeader from '../DetailHeader/DetailHeader.js';
-import KeyboardHint, { type useKeyboardHint } from '../KeyboardHint/KeyboardHint.jsx';
+import { type useKeyboardHint } from '../KeyboardHint/KeyboardHint.jsx';
+import StatTabs from '../StatTabs/StatTabs.js';
 import styles from './DetailView.module.css';
 
 type KeyboardHintState = ReturnType<typeof useKeyboardHint>;
@@ -92,8 +93,7 @@ export default function DetailView<T extends string>({
   panelCompact = false,
   children,
 }: Props<T>) {
-  const { activeTab, setActiveTab, hint, ref } = tabControl;
-  const count = tabs.length;
+  const { activeTab } = tabControl;
 
   return (
     <div className={styles.detail}>
@@ -105,42 +105,12 @@ export default function DetailView<T extends string>({
         actions={actions}
       />
 
-      <div
-        className={styles.tabsRow}
-        ref={ref}
-        role="tablist"
-        aria-label={tablistLabel}
-        data-count={count}
-      >
-        {tabs.map((t, i) => {
-          const isActive = activeTab === t.id;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={isActive}
-              aria-controls={`${idPrefix}-panel-${t.id}`}
-              data-tab={t.id}
-              tabIndex={isActive ? 0 : -1}
-              className={clsx(styles.tabButton, isActive && styles.tabActive)}
-              style={{ '--tab-index': i } as CSSProperties}
-              onClick={(e) => {
-                e.currentTarget.focus();
-                setActiveTab(t.id);
-              }}
-            >
-              <span className={styles.tabLabel}>
-                {t.label}
-                {isActive && <KeyboardHint {...hint} />}
-              </span>
-              <span className={clsx(styles.tabValue, t.tone === 'accent' && styles.tabAccent)}>
-                {t.value}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      <StatTabs
+        tabs={tabs}
+        tabControl={tabControl}
+        tablistLabel={tablistLabel}
+        idPrefix={idPrefix}
+      />
 
       <div
         className={clsx(styles.panel, panelCompact && styles.panelCompact)}
@@ -152,5 +122,3 @@ export default function DetailView<T extends string>({
     </div>
   );
 }
-
-export { styles as detailViewStyles };

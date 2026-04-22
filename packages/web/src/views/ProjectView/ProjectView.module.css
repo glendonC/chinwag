@@ -59,81 +59,10 @@
   opacity: 1;
 }
 
-/* ── Stat tabs ── */
+/* ── Stat tabs (delegated to <StatTabs>) ── */
 
 .header {
   margin-bottom: 38px;
-}
-
-.statsRow {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-xs);
-}
-
-.statButton {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  padding: 0;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-  animation: fadeSlideIn 0.35s var(--motion) both;
-  animation-delay: calc(var(--stat-index, 0) * 60ms);
-  outline: none;
-}
-
-.statLabel {
-  position: relative;
-  display: inline-flex;
-  align-self: flex-start;
-  padding: var(--space-xs) var(--space-sm);
-  margin-left: calc(-1 * var(--space-sm));
-  border-radius: var(--radius-xs);
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  font-weight: 500;
-  color: var(--soft);
-  letter-spacing: var(--tracking-stat);
-  text-transform: uppercase;
-  background: transparent;
-  transition:
-    background var(--motion-fast) ease,
-    color var(--motion-fast) ease;
-}
-
-.statButton:hover .statLabel {
-  background: var(--hover-bg);
-}
-
-.statActive .statLabel {
-  background: var(--accent-bg);
-  color: var(--accent);
-}
-
-.statValue {
-  font-size: 2.25rem;
-  font-weight: 200;
-  letter-spacing: -0.025em;
-  line-height: 1;
-  color: var(--soft);
-  transition: color var(--motion-base) var(--motion);
-  white-space: nowrap;
-}
-
-.statActive .statValue {
-  color: var(--ink);
-}
-
-.statAccent {
-  color: color-mix(in srgb, var(--accent) 40%, var(--soft));
-}
-
-.statActive .statAccent {
-  color: var(--accent);
 }
 
 /* ── Activity visualization ── */
@@ -597,10 +526,6 @@
 }
 
 @media (max-width: 640px) {
-  .statsRow {
-    grid-template-columns: 1fr;
-  }
-
   .summaryGrid {
     grid-template-columns: 1fr;
   }
