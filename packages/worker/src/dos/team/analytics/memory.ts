@@ -10,6 +10,12 @@ import type {
 
 const log = createLogger('TeamDO.analytics');
 
+// Days since last access (or since creation, for never-accessed memories)
+// before a memory counts as stale. Feeds memory-health's `stale` stat.
+// Named constant so the threshold lives in one place — a future stale-list
+// widget or a tunable setting can read from here instead of re-hardcoding.
+const STALE_MEMORY_DAYS = 30;
+
 export function queryMemoryUsage(sql: SqlStorage, days: number): MemoryUsageStats {
   try {
     // Total memories — exclude soft-merged rows so the count reflects what
@@ -20,27 +26,28 @@ export function queryMemoryUsage(sql: SqlStorage, days: number): MemoryUsageStat
       .one() as Record<string, unknown>;
     const total = (totalRow?.cnt as number) || 0;
 
-    // Memories created/updated in period (excluding soft-merged)
+    // Memories created in period (excluding soft-merged)
     const periodRow = sql
       .exec(
         `SELECT
-           SUM(CASE WHEN created_at > datetime('now', '-' || ? || ' days') THEN 1 ELSE 0 END) AS created,
-           SUM(CASE WHEN updated_at > datetime('now', '-' || ? || ' days')
-                      AND updated_at != created_at THEN 1 ELSE 0 END) AS updated
+           SUM(CASE WHEN created_at > datetime('now', '-' || ? || ' days') THEN 1 ELSE 0 END) AS created
          FROM memories
          WHERE merged_into IS NULL AND invalid_at IS NULL`,
-        days,
         days,
       )
       .one() as Record<string, unknown>;
 
-    // Stale memories (not accessed in 30+ days, excluding soft-merged)
+    // Stale memories: last access (or creation, for never-accessed rows) is
+    // older than STALE_MEMORY_DAYS. Excludes soft-merged. Thresholded, not
+    // period-windowed — age is absolute, so this field is 'all-time' scope.
     const staleRow = sql
       .exec(
         `SELECT COUNT(*) AS cnt FROM memories
          WHERE merged_into IS NULL AND invalid_at IS NULL
-           AND ((last_accessed_at IS NULL AND created_at < datetime('now', '-30 days'))
-                OR (last_accessed_at IS NOT NULL AND last_accessed_at < datetime('now', '-30 days')))`,
+           AND ((last_accessed_at IS NULL AND created_at < datetime('now', '-' || ? || ' days'))
+                OR (last_accessed_at IS NOT NULL AND last_accessed_at < datetime('now', '-' || ? || ' days')))`,
+        STALE_MEMORY_DAYS,
+        STALE_MEMORY_DAYS,
       )
       .one() as Record<string, unknown>;
 
@@ -67,26 +74,23 @@ export function queryMemoryUsage(sql: SqlStorage, days: number): MemoryUsageStat
     const searches = (searchRow?.searches as number) || 0;
     const hits = (searchRow?.hits as number) || 0;
 
-    // Lifetime count of soft-merged memories (consolidation history).
-    const mergedRow = sql
-      .exec('SELECT COUNT(*) AS cnt FROM memories WHERE merged_into IS NOT NULL')
-      .one() as Record<string, unknown>;
-
     // Live count of consolidation proposals awaiting review.
     const pendingRow = safeOne(
       sql,
       "SELECT COUNT(*) AS cnt FROM consolidation_proposals WHERE status = 'pending'",
     );
 
-    // Formation observations by recommendation, period-scoped.
+    // Unaddressed formation observations by recommendation (live).
+    // `status = 'observed'` means the auditor flagged it but no reviewer has
+    // acted yet — that is the live review-queue signal the memory-safety
+    // widget surfaces. Age does not gate the queue; a year-old unaddressed
+    // flag still needs a decision.
     const formationRows = safeAll(
       sql,
       `SELECT recommendation, COUNT(*) AS cnt
        FROM formation_observations
        WHERE status = 'observed'
-         AND created_at > datetime('now', '-' || ? || ' days')
        GROUP BY recommendation`,
-      days,
     );
     const formationCounts: FormationRecommendationCounts = {
       keep: 0,
@@ -101,14 +105,16 @@ export function queryMemoryUsage(sql: SqlStorage, days: number): MemoryUsageStat
       }
     }
 
-    // Period-scoped count of secret-detector blocks.
+    // Live count of secret-detector blocks in the last 24h. Fixed window
+    // (not the global date picker) because the memory-safety widget is a
+    // live review surface — a recent block is actionable, an old block is
+    // audit history that lives elsewhere.
     const secretsRow = sql
       .exec(
         `SELECT COALESCE(SUM(count), 0) AS cnt
          FROM daily_metrics
          WHERE metric = 'secrets_blocked'
-           AND date > date('now', '-' || ? || ' days')`,
-        days,
+           AND date > date('now', '-1 day')`,
       )
       .one() as Record<string, unknown>;
 
@@ -118,13 +124,11 @@ export function queryMemoryUsage(sql: SqlStorage, days: number): MemoryUsageStat
       searches_with_results: hits,
       search_hit_rate: searches > 0 ? Math.round((hits / searches) * 1000) / 10 : 0,
       memories_created_period: (periodRow?.created as number) || 0,
-      memories_updated_period: (periodRow?.updated as number) || 0,
       stale_memories: (staleRow?.cnt as number) || 0,
       avg_memory_age_days: (ageRow?.avg_age as number) || 0,
-      merged_memories: (mergedRow?.cnt as number) || 0,
       pending_consolidation_proposals: (pendingRow?.cnt as number) || 0,
       formation_observations_by_recommendation: formationCounts,
-      secrets_blocked_period: (secretsRow?.cnt as number) || 0,
+      secrets_blocked_24h: (secretsRow?.cnt as number) || 0,
     };
   } catch (err) {
     log.warn(`memoryUsage query failed: ${err}`);
@@ -134,13 +138,11 @@ export function queryMemoryUsage(sql: SqlStorage, days: number): MemoryUsageStat
       searches_with_results: 0,
       search_hit_rate: 0,
       memories_created_period: 0,
-      memories_updated_period: 0,
       stale_memories: 0,
       avg_memory_age_days: 0,
-      merged_memories: 0,
       pending_consolidation_proposals: 0,
       formation_observations_by_recommendation: { keep: 0, merge: 0, evolve: 0, discard: 0 },
-      secrets_blocked_period: 0,
+      secrets_blocked_24h: 0,
     };
   }
 }
@@ -174,20 +176,22 @@ export function queryMemoryOutcomeCorrelation(
 ): MemoryOutcomeCorrelation[] {
   try {
     // Three-bucket split:
-    //   hit memory     — at least one search call returned results
-    //   missed search  — searched but every call came back empty
-    //   no search      — did not search memory at all
+    //   hit memory          — at least one search call returned results
+    //   searched, no results — searched but every call came back empty
+    //   no search           — did not search memory at all
     // Bucketing on hits (not raw search count) keeps the correlation honest
     // under hybrid + MMR retrieval: a session that searches and gets noise
     // is materially different from one that searches and finds relevant
     // context. Pre-MMR the two collapsed to 'used memory', which is the
-    // A2 semantic failure this query fixes.
+    // A2 semantic failure this query fixes. Label reads plainly so a
+    // first-time user knows "searched, no results" means the agent looked
+    // but came up empty (not "searched and was wrong").
     const rows = sql
       .exec(
         `SELECT
            CASE
              WHEN memories_search_hits > 0 THEN 'hit memory'
-             WHEN memories_searched > 0 THEN 'missed search'
+             WHEN memories_searched > 0 THEN 'searched, no results'
              ELSE 'no search'
            END AS bucket,
            COUNT(*) AS sessions,
@@ -200,7 +204,7 @@ export function queryMemoryOutcomeCorrelation(
          ORDER BY
            CASE bucket
              WHEN 'hit memory' THEN 0
-             WHEN 'missed search' THEN 1
+             WHEN 'searched, no results' THEN 1
              ELSE 2
            END`,
         days,

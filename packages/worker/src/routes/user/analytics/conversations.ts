@@ -141,17 +141,15 @@ export interface MemoryUsageAcc {
   searches: number;
   searches_with_results: number;
   memories_created_period: number;
-  memories_updated_period: number;
   stale_memories: number;
   age_sum: number;
   age_count: number;
-  merged_memories: number;
   pending_consolidation_proposals: number;
   formation_keep: number;
   formation_merge: number;
   formation_evolve: number;
   formation_discard: number;
-  secrets_blocked_period: number;
+  secrets_blocked_24h: number;
 }
 
 export function createMemoryUsageAcc(): MemoryUsageAcc {
@@ -160,17 +158,15 @@ export function createMemoryUsageAcc(): MemoryUsageAcc {
     searches: 0,
     searches_with_results: 0,
     memories_created_period: 0,
-    memories_updated_period: 0,
     stale_memories: 0,
     age_sum: 0,
     age_count: 0,
-    merged_memories: 0,
     pending_consolidation_proposals: 0,
     formation_keep: 0,
     formation_merge: 0,
     formation_evolve: 0,
     formation_discard: 0,
-    secrets_blocked_period: 0,
+    secrets_blocked_24h: 0,
   };
 }
 
@@ -181,13 +177,11 @@ export function mergeMemoryUsage(acc: MemoryUsageAcc, team: TeamResult): void {
   acc.searches += mu.searches;
   acc.searches_with_results += mu.searches_with_results;
   acc.memories_created_period += mu.memories_created_period;
-  acc.memories_updated_period += mu.memories_updated_period;
   acc.stale_memories += mu.stale_memories;
   if (mu.total_memories > 0) {
     acc.age_sum += mu.avg_memory_age_days * mu.total_memories;
     acc.age_count += mu.total_memories;
   }
-  acc.merged_memories += mu.merged_memories ?? 0;
   acc.pending_consolidation_proposals += mu.pending_consolidation_proposals ?? 0;
   const f = mu.formation_observations_by_recommendation;
   if (f) {
@@ -196,7 +190,7 @@ export function mergeMemoryUsage(acc: MemoryUsageAcc, team: TeamResult): void {
     acc.formation_evolve += f.evolve ?? 0;
     acc.formation_discard += f.discard ?? 0;
   }
-  acc.secrets_blocked_period += mu.secrets_blocked_period ?? 0;
+  acc.secrets_blocked_24h += mu.secrets_blocked_24h ?? 0;
 }
 
 export function projectMemoryUsage(acc: MemoryUsageAcc): MemoryUsageStats {
@@ -206,10 +200,8 @@ export function projectMemoryUsage(acc: MemoryUsageAcc): MemoryUsageStats {
     searches_with_results: acc.searches_with_results,
     search_hit_rate: rate(acc.searches_with_results, acc.searches),
     memories_created_period: acc.memories_created_period,
-    memories_updated_period: acc.memories_updated_period,
     stale_memories: acc.stale_memories,
     avg_memory_age_days: acc.age_count > 0 ? round1(acc.age_sum / acc.age_count) : 0,
-    merged_memories: acc.merged_memories,
     pending_consolidation_proposals: acc.pending_consolidation_proposals,
     formation_observations_by_recommendation: {
       keep: acc.formation_keep,
@@ -217,6 +209,6 @@ export function projectMemoryUsage(acc: MemoryUsageAcc): MemoryUsageStats {
       evolve: acc.formation_evolve,
       discard: acc.formation_discard,
     },
-    secrets_blocked_period: acc.secrets_blocked_period,
+    secrets_blocked_24h: acc.secrets_blocked_24h,
   };
 }
