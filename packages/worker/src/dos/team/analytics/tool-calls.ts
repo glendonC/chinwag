@@ -99,17 +99,20 @@ export function queryToolCallStats(
       };
     });
 
-    // Error patterns — most common tool+error_preview combos
+    // Error patterns — most common tool+error_preview combos, with the
+    // MAX(called_at) so the frontend can render a two-pane view: "most
+    // frequent" and "most recent." A top-N-by-count ordering alone buries
+    // rare-but-recent errors under high-count historical ones.
     const errorRows = sql
       .exec(
-        `SELECT tool, error_preview, COUNT(*) AS count
+        `SELECT tool, error_preview, COUNT(*) AS count, MAX(called_at) AS last_at
          FROM tool_calls
          WHERE called_at > datetime('now', '-' || ? || ' days')
            AND is_error = 1
            AND error_preview IS NOT NULL
          GROUP BY tool, error_preview
          ORDER BY count DESC
-         LIMIT 15`,
+         LIMIT 30`,
         days,
       )
       .toArray();
@@ -120,6 +123,7 @@ export function queryToolCallStats(
         tool: row.tool as string,
         error_preview: row.error_preview as string,
         count: (row.count as number) || 0,
+        last_at: (row.last_at as string) || null,
       };
     });
 

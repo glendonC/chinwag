@@ -3,41 +3,29 @@ import SectionEmpty from '../../components/SectionEmpty/SectionEmpty.js';
 import { Sparkline } from '../charts.js';
 import {
   TOOL_ERROR_RATE_WARN_THRESHOLD,
+  TOOLS_TOP_N_CAP,
   aggregateModels,
+  classifyToolCall,
   formatDuration,
+  getToolDepth,
   workTypeColor,
 } from '../utils.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
+import { navigateToTool } from '../../lib/router.js';
 import { formatRelativeTime } from '../../lib/relativeTime.js';
 import type { TokenUsageStats, UserAnalytics } from '../../lib/apiSchemas.js';
 import shared from '../widget-shared.module.css';
 import styles from './ToolWidgets.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
-import { getDataCapabilities } from '@chinwag/shared/tool-registry.js';
 import {
   GhostBars,
   GhostRows,
   GhostStatRow,
   StatWidget,
   CoverageNote,
+  MoreHidden,
   capabilityCoverageNote,
 } from './shared.js';
-
-/**
- * Tool data depth: 3 = full analytics (cost, conversations, tool calls),
- * 2 = activity analytics (edits, outcomes, patterns),
- * 1 = session analytics (sessions, coordination only).
- */
-function getToolDepth(toolId: string): { level: 1 | 2 | 3; label: string } {
-  const caps = getDataCapabilities(toolId);
-  if (caps.conversationLogs || caps.tokenUsage || caps.toolCallLogs) {
-    return { level: 3, label: 'Full analytics' };
-  }
-  if (caps.hooks || caps.commitTracking) {
-    return { level: 2, label: 'Activity analytics' };
-  }
-  return { level: 1, label: 'Session analytics' };
-}
 
 function ToolDepthBars({ toolId }: { toolId: string }) {
   const { level, label } = getToolDepth(toolId);
@@ -61,20 +49,30 @@ function ToolsWidget({ analytics }: WidgetBodyProps) {
   }
   return (
     <div className={styles.factualGrid}>
-      {tools.map((t) => {
+      {tools.map((t, i) => {
         const meta = getToolMeta(t.host_tool);
         return (
-          <div key={t.host_tool} className={styles.factualItem}>
+          <button
+            key={t.host_tool}
+            type="button"
+            className={styles.factualItem}
+            style={{ '--row-index': i } as CSSProperties}
+            onClick={() => navigateToTool(t.host_tool)}
+            aria-label={`View ${meta.label} details`}
+          >
             {meta.icon ? (
               <span className={styles.toolIcon}>
                 <img src={meta.icon} alt="" />
               </span>
             ) : (
-              <span className={styles.toolIconLetter} style={{ background: meta.color }}>
+              <span
+                className={styles.toolIconLetter}
+                style={{ '--tool-brand': meta.color } as CSSProperties}
+              >
                 {meta.label[0]}
               </span>
             )}
-            <div style={{ flex: 1 }}>
+            <div className={styles.factualBody}>
               <span className={styles.factualLabel}>{meta.label}</span>
               <div className={styles.factualMeta}>
                 <span className={styles.factualMetaValue}>{t.sessions}</span> sessions ·{' '}
@@ -89,7 +87,7 @@ function ToolsWidget({ analytics }: WidgetBodyProps) {
               </div>
             </div>
             <ToolDepthBars toolId={t.host_tool} />
-          </div>
+          </button>
         );
       })}
     </div>
@@ -106,33 +104,59 @@ function ModelsList({ modelOutcomes }: { modelOutcomes: UserAnalytics['model_out
   return (
     <div className={shared.dataList}>
       {models.map((m, i) => (
-        <div key={m.model} className={shared.dataRow} style={{ '--row-index': i } as CSSProperties}>
-          <span className={shared.dataName}>{m.model}</span>
-          <div className={shared.dataMeta}>
-            <span className={shared.dataStat}>
-              <span className={shared.dataStatValue}>{m.total}</span> sessions
-            </span>
-            <span className={shared.dataStat}>
-              <span className={shared.dataStatValue}>{m.edits.toLocaleString()}</span> edits
-            </span>
-            {(m.linesAdded > 0 || m.linesRemoved > 0) && (
+        <div
+          key={m.model}
+          className={styles.modelRow}
+          style={{ '--row-index': i } as CSSProperties}
+        >
+          <div className={styles.modelHead}>
+            <span className={shared.dataName}>{m.model}</span>
+            <div className={shared.dataMeta}>
               <span className={shared.dataStat}>
-                <span className={shared.dataStatValue}>
-                  +{m.linesAdded.toLocaleString()}/-{m.linesRemoved.toLocaleString()}
+                <span className={shared.dataStatValue}>{m.total}</span> sessions
+              </span>
+              <span className={shared.dataStat}>
+                <span className={shared.dataStatValue}>{m.edits.toLocaleString()}</span> edits
+              </span>
+              {m.avgMin > 0 && (
+                <span className={shared.dataStat}>
+                  <span className={shared.dataStatValue}>{m.avgMin.toFixed(1)}m</span> avg
                 </span>
-              </span>
-            )}
-            {m.avgMin > 0 && (
-              <span className={shared.dataStat}>
-                <span className={shared.dataStatValue}>{m.avgMin.toFixed(1)}m</span> avg
-              </span>
-            )}
-            {m.rate > 0 && (
-              <span className={shared.dataStat}>
-                <span className={shared.dataStatValue}>{m.rate}%</span>
-              </span>
-            )}
+              )}
+              {m.rate > 0 && (
+                <span className={shared.dataStat}>
+                  <span className={shared.dataStatValue}>{m.rate}%</span>
+                </span>
+              )}
+            </div>
           </div>
+          {m.byTool.length > 0 && (
+            <div className={styles.modelToolStrip}>
+              {m.byTool.map((t) => {
+                if (t.host_tool === 'unknown') {
+                  return (
+                    <span key="unknown" className={styles.modelToolPill}>
+                      <span className={styles.modelToolDot} />
+                      <span className={styles.modelToolLabel}>unattributed</span>
+                      <span className={styles.modelToolCount}>{t.count}</span>
+                    </span>
+                  );
+                }
+                const meta = getToolMeta(t.host_tool);
+                return (
+                  <span
+                    key={t.host_tool}
+                    className={styles.modelToolPill}
+                    style={{ '--tool-brand': meta.color } as CSSProperties}
+                  >
+                    <span className={styles.modelToolDot} />
+                    <span className={styles.modelToolLabel}>{meta.label}</span>
+                    <span className={styles.modelToolCount}>{t.count}</span>
+                  </span>
+                );
+              })}
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -141,7 +165,17 @@ function ModelsList({ modelOutcomes }: { modelOutcomes: UserAnalytics['model_out
 
 function ToolHandoffsWidget({ analytics }: WidgetBodyProps) {
   const th = analytics.tool_handoffs;
-  if (th.length === 0) return <SectionEmpty>No cross-tool handoffs</SectionEmpty>;
+  if (th.length === 0) {
+    const toolCount = analytics.tool_comparison.length;
+    // One tool connected: the empty state earns its keep by nudging the
+    // user toward the coordination substrate chinwag actually provides.
+    // Two-plus tools connected with zero handoffs is a truthful negative.
+    const message =
+      toolCount <= 1
+        ? 'Add a second tool with `chinwag add <tool>` to see how agents hand off files.'
+        : 'No cross-tool handoffs yet — agents are staying within one tool.';
+    return <SectionEmpty>{message}</SectionEmpty>;
+  }
   return (
     <div className={shared.dataList}>
       {th.slice(0, 10).map((h, i) => (
@@ -164,6 +198,86 @@ function ToolHandoffsWidget({ analytics }: WidgetBodyProps) {
         </div>
       ))}
     </div>
+  );
+}
+
+function ToolOutcomesWidget({ analytics }: WidgetBodyProps) {
+  const to = analytics.tool_outcomes;
+  if (to.length === 0) return <GhostBars count={3} />;
+  const byTool = new Map<string, { completed: number; abandoned: number; failed: number }>();
+  for (const t of to) {
+    const entry = byTool.get(t.host_tool) || { completed: 0, abandoned: 0, failed: 0 };
+    if (t.outcome === 'completed') entry.completed = t.count;
+    else if (t.outcome === 'abandoned') entry.abandoned = t.count;
+    else if (t.outcome === 'failed') entry.failed = t.count;
+    byTool.set(t.host_tool, entry);
+  }
+  const ranked = [...byTool.entries()]
+    .map(([tool, counts]) => ({
+      tool,
+      ...counts,
+      total: counts.completed + counts.abandoned + counts.failed,
+    }))
+    .sort((a, b) => b.total - a.total);
+  // C1: a single tool's outcome breakdown is a stat pretending to be a
+  // chart — the widget's question is "how do my tools compare," which
+  // needs ≥2 tools to answer. Below two, return a truthful empty state
+  // instead of rendering a lone bar.
+  if (ranked.length < 2) {
+    return (
+      <SectionEmpty>Comparison appears once 2+ tools have sessions in this period</SectionEmpty>
+    );
+  }
+  // D3b: cap at TOOLS_TOP_N_CAP so a team on 10+ tools doesn't saturate
+  // the widget with a vertical wall of 3-segment bars. The +N more
+  // disclosure keeps the truncation honest.
+  const tools = ranked.slice(0, TOOLS_TOP_N_CAP);
+  const hiddenCount = ranked.length - tools.length;
+  const maxT = Math.max(...tools.map((t) => t.total), 1);
+  return (
+    <>
+      <div className={shared.metricBars}>
+        {tools.map((t, i) => (
+          <div
+            key={t.tool}
+            className={shared.metricRow}
+            style={{ '--row-index': i } as CSSProperties}
+          >
+            <span className={shared.metricLabel}>{getToolMeta(t.tool).label}</span>
+            <div className={shared.metricBarTrack}>
+              <div
+                className={shared.metricBarFill}
+                style={{
+                  width: `${(t.completed / maxT) * 100}%`,
+                  background: 'var(--success)',
+                  opacity: 'var(--opacity-bar-fill)',
+                }}
+              />
+              <div
+                className={shared.metricBarFill}
+                style={{
+                  width: `${(t.abandoned / maxT) * 100}%`,
+                  background: 'var(--warn)',
+                  opacity: 'var(--opacity-bar-fill)',
+                }}
+              />
+              <div
+                className={shared.metricBarFill}
+                style={{
+                  width: `${(t.failed / maxT) * 100}%`,
+                  background: 'var(--danger)',
+                  opacity: 'var(--opacity-bar-fill)',
+                }}
+              />
+            </div>
+            <span className={shared.metricValue}>
+              {t.completed}/{t.abandoned}/{t.failed}
+            </span>
+          </div>
+        ))}
+      </div>
+      <MoreHidden count={hiddenCount} />
+    </>
   );
 }
 
@@ -216,31 +330,62 @@ function ToolCallFreqWidget({ analytics }: WidgetBodyProps) {
       </>
     );
   }
-  const maxC = Math.max(...freq.map((f) => f.calls), 1);
+  // Lane split: built-in primitives dominate top-N if left undivided, hiding
+  // the MCP/custom tail that's actually the substrate-unique signal. Each
+  // lane normalizes its own maxC so bars read against the lane's peak, not
+  // an Edit-count that dwarfs every MCP tool.
+  const builtinAll = freq.filter((f) => classifyToolCall(f.tool) === 'builtin');
+  const customAll = freq.filter((f) => classifyToolCall(f.tool) === 'custom');
+  const builtin = builtinAll.slice(0, TOOLS_TOP_N_CAP);
+  const custom = customAll.slice(0, TOOLS_TOP_N_CAP);
+  const builtinHidden = builtinAll.length - builtin.length;
+  const customHidden = customAll.length - custom.length;
+
+  const renderRow = (f: (typeof freq)[number], i: number, maxC: number) => (
+    <div key={f.tool} className={shared.metricRow} style={{ '--row-index': i } as CSSProperties}>
+      <span className={shared.metricLabel}>{f.tool}</span>
+      <div className={shared.metricBarTrack}>
+        <div
+          className={shared.metricBarFill}
+          style={{
+            width: `${(f.calls / maxC) * 100}%`,
+            background: f.error_rate > TOOL_ERROR_RATE_WARN_THRESHOLD ? 'var(--warn)' : undefined,
+          }}
+        />
+      </div>
+      <span className={shared.metricValue}>
+        {f.calls}
+        {f.errors > 0 ? ` · ${f.error_rate}% err` : ''}
+        {f.avg_duration_ms > 0 ? ` · ${formatDuration(f.avg_duration_ms)}` : ''}
+      </span>
+    </div>
+  );
+
+  const builtinMax = Math.max(...builtin.map((f) => f.calls), 1);
+  const customMax = Math.max(...custom.map((f) => f.calls), 1);
+
   return (
     <>
-      <div className={shared.metricBars}>
-        {freq.slice(0, 15).map((f) => (
-          <div key={f.tool} className={shared.metricRow}>
-            <span className={shared.metricLabel}>{f.tool}</span>
-            <div className={shared.metricBarTrack}>
-              <div
-                className={shared.metricBarFill}
-                style={{
-                  width: `${(f.calls / maxC) * 100}%`,
-                  background:
-                    f.error_rate > TOOL_ERROR_RATE_WARN_THRESHOLD ? 'var(--warn)' : undefined,
-                }}
-              />
-            </div>
-            <span className={shared.metricValue}>
-              {f.calls}
-              {f.errors > 0 ? ` · ${f.error_rate}% err` : ''}
-              {f.avg_duration_ms > 0 ? ` · ${formatDuration(f.avg_duration_ms)}` : ''}
-            </span>
+      {builtin.length > 0 && (
+        <>
+          <span className={styles.sectionSublabel}>Built-in</span>
+          <div className={shared.metricBars}>
+            {builtin.map((f, i) => renderRow(f, i, builtinMax))}
+            {builtinHidden > 0 && <MoreHidden count={builtinHidden} />}
           </div>
-        ))}
-      </div>
+        </>
+      )}
+      {custom.length > 0 && (
+        <>
+          <span className={styles.sectionSublabel} style={{ marginTop: 16 }}>
+            MCP &amp; custom
+          </span>
+          <div className={shared.metricBars}>
+            {custom.map((f, i) => renderRow(f, i, customMax))}
+            {customHidden > 0 && <MoreHidden count={customHidden} />}
+          </div>
+        </>
+      )}
       <CoverageNote text={note} />
     </>
   );
@@ -258,30 +403,52 @@ function ToolCallErrorsWidget({ analytics }: WidgetBodyProps) {
       </>
     );
   }
+  // Two-pane split: top-5 by frequency and top-5 by recency. A frequency-only
+  // sort buries rare-but-recent errors; a recency-only sort misses systemic
+  // issues. Showing both keeps the rare-and-the-common both legible. De-dupe
+  // across panes so the same row doesn't appear twice.
+  const PANE_CAP = 5;
+  const byCount = [...errs].sort((a, b) => b.count - a.count).slice(0, PANE_CAP);
+  const byCountKeys = new Set(byCount.map((e) => `${e.tool}|${e.error_preview}`));
+  const byRecent = [...errs]
+    .filter((e) => e.last_at != null)
+    .sort((a, b) => (a.last_at! < b.last_at! ? 1 : -1))
+    .filter((e) => !byCountKeys.has(`${e.tool}|${e.error_preview}`))
+    .slice(0, PANE_CAP);
+
+  const renderRow = (e: (typeof errs)[number], i: number, showRecency: boolean) => (
+    <div
+      key={`${e.tool}-${e.error_preview}-${i}`}
+      className={shared.dataRow}
+      style={{ '--row-index': i } as CSSProperties}
+    >
+      <span className={shared.dataName}>{e.tool}</span>
+      <div className={shared.dataMeta}>
+        <span className={shared.dataStat} style={{ color: 'var(--danger)' }}>
+          <span className={shared.dataStatValue}>{e.count}x</span>
+        </span>
+        {showRecency && e.last_at && (
+          <span className={shared.dataStat}>{formatRelativeTime(e.last_at)}</span>
+        )}
+        <span className={shared.dataStat} style={{ opacity: 0.7, fontSize: 'var(--text-2xs)' }}>
+          {e.error_preview.slice(0, 80)}
+        </span>
+      </div>
+    </div>
+  );
+
   return (
     <>
-      <div className={shared.dataList}>
-        {errs.slice(0, 10).map((e, i) => (
-          <div
-            key={`${e.tool}-${i}`}
-            className={shared.dataRow}
-            style={{ '--row-index': i } as CSSProperties}
-          >
-            <span className={shared.dataName}>{e.tool}</span>
-            <div className={shared.dataMeta}>
-              <span className={shared.dataStat} style={{ color: 'var(--danger)' }}>
-                <span className={shared.dataStatValue}>{e.count}x</span>
-              </span>
-              <span
-                className={shared.dataStat}
-                style={{ opacity: 0.7, fontSize: 'var(--text-2xs)' }}
-              >
-                {e.error_preview.slice(0, 80)}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
+      <span className={styles.sectionSublabel}>Most frequent</span>
+      <div className={shared.dataList}>{byCount.map((e, i) => renderRow(e, i, true))}</div>
+      {byRecent.length > 0 && (
+        <>
+          <span className={styles.sectionSublabel} style={{ marginTop: 16 }}>
+            Most recent
+          </span>
+          <div className={shared.dataList}>{byRecent.map((e, i) => renderRow(e, i, true))}</div>
+        </>
+      )}
       <CoverageNote text={note} />
     </>
   );
@@ -336,11 +503,13 @@ function TokenDetailWidget({ analytics }: WidgetBodyProps) {
             <span className={shared.dataStat}>
               <span className={shared.dataStatValue}>{m.sessions}</span> sessions
             </span>
-            {m.estimated_cost_usd != null && m.estimated_cost_usd > 0 && (
-              <span className={shared.dataStat}>
-                <span className={shared.dataStatValue}>${m.estimated_cost_usd.toFixed(2)}</span>
+            <span className={shared.dataStat}>
+              <span className={shared.dataStatValue}>
+                {m.estimated_cost_usd != null && m.estimated_cost_usd > 0
+                  ? `$${m.estimated_cost_usd.toFixed(2)}`
+                  : '—'}
               </span>
-            )}
+            </span>
           </div>
         </div>
       ))}
@@ -397,26 +566,39 @@ function ToolDailyWidget({ analytics }: WidgetBodyProps) {
       data: [...v.series.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, n]) => n),
     }))
     .filter((t) => t.sessions > 0)
-    .sort((a, b) => b.sessions - a.sessions)
-    .slice(0, 5);
+    .sort((a, b) => b.sessions - a.sessions);
   if (tools.length === 0) return <GhostBars count={3} />;
+  // Small-multiples grid: every tool gets a thumbnail sparkline. No top-N
+  // truncation — the grid auto-fills, so 10+ tools tile naturally rather
+  // than being silently hidden.
   return (
-    <div className={shared.metricBars}>
-      {tools.map((t) => {
+    <div className={styles.sparkGrid}>
+      {tools.map((t, i) => {
         const meta = getToolMeta(t.tool);
         return (
-          <div key={t.tool} className={shared.metricRow}>
-            <span className={shared.metricLabel} title={meta.label}>
-              {meta.label}
-            </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            key={t.tool}
+            className={styles.sparkCell}
+            style={
+              {
+                '--row-index': i,
+                '--tool-brand': meta.color,
+              } as CSSProperties
+            }
+          >
+            <div className={styles.sparkHead}>
+              <span className={styles.sparkLabel} title={meta.label}>
+                {meta.label}
+              </span>
+              <span className={styles.sparkCount}>{t.sessions}</span>
+            </div>
+            <div className={styles.sparkBody}>
               {t.data.length >= 2 ? (
-                <Sparkline data={t.data} height={32} color={meta.color} />
+                <Sparkline data={t.data} height={28} color={meta.color} />
               ) : (
-                <span style={{ opacity: 0.4, fontSize: 'var(--text-2xs)' }}>—</span>
+                <span className={styles.sparkEmpty}>—</span>
               )}
             </div>
-            <span className={shared.metricValue}>{t.sessions}</span>
           </div>
         );
       })}
@@ -434,15 +616,16 @@ function ToolWorkTypeWidget({ analytics }: WidgetBodyProps) {
     e.types.set(t.work_type, (e.types.get(t.work_type) ?? 0) + t.sessions);
     byTool.set(t.host_tool, e);
   }
-  const tools = [...byTool.entries()]
+  const ranked = [...byTool.entries()]
     .map(([tool, v]) => ({
       tool,
       sessions: v.sessions,
       types: [...v.types.entries()].map(([work_type, sessions]) => ({ work_type, sessions })),
     }))
     .filter((t) => t.sessions > 0)
-    .sort((a, b) => b.sessions - a.sessions)
-    .slice(0, 5);
+    .sort((a, b) => b.sessions - a.sessions);
+  const tools = ranked.slice(0, TOOLS_TOP_N_CAP);
+  const hiddenCount = ranked.length - tools.length;
   if (tools.length === 0) return <GhostBars count={3} />;
   const allTypes = new Map<string, number>();
   for (const t of tools) {
@@ -454,10 +637,14 @@ function ToolWorkTypeWidget({ analytics }: WidgetBodyProps) {
   return (
     <div>
       <div className={shared.metricBars} style={{ marginBottom: 12 }}>
-        {tools.map((t) => {
+        {tools.map((t, i) => {
           const meta = getToolMeta(t.tool);
           return (
-            <div key={t.tool} className={shared.metricRow}>
+            <div
+              key={t.tool}
+              className={shared.metricRow}
+              style={{ '--row-index': i } as CSSProperties}
+            >
               <span className={shared.metricLabel} title={meta.label}>
                 {meta.label}
               </span>
@@ -483,6 +670,7 @@ function ToolWorkTypeWidget({ analytics }: WidgetBodyProps) {
             </div>
           );
         })}
+        {hiddenCount > 0 && <MoreHidden count={hiddenCount} />}
       </div>
       <div className={shared.workLegend}>
         {orderedTypes.slice(0, 6).map((wt) => (
@@ -513,6 +701,7 @@ export const toolWidgets: WidgetRegistry = {
   tools: ToolsWidget,
   models: ModelsWidget,
   'tool-handoffs': ToolHandoffsWidget,
+  'tool-outcomes': ToolOutcomesWidget,
   'tool-calls': ToolCallsWidget,
   'tool-call-freq': ToolCallFreqWidget,
   'tool-call-errors': ToolCallErrorsWidget,

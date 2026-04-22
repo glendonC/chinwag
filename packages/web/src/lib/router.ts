@@ -88,6 +88,15 @@ export function useRoute(): Route {
   return useSyncExternalStore(subscribe, getSnapshot);
 }
 
+/** Navigate to the tools view with a tool pre-selected, in one history entry. */
+export function navigateToTool(toolId: string): void {
+  const path = `/dashboard/tools?tool=${encodeURIComponent(toolId)}`;
+  if (window.location.pathname + window.location.search !== path) {
+    window.history.pushState(null, '', path);
+    emit();
+  }
+}
+
 /** Set or remove a query parameter, pushing a history entry. */
 export function setQueryParam(key: string, value: string | null): void {
   setQueryParams({ [key]: value });

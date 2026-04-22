@@ -20,6 +20,10 @@ interface ErrorPatternBucket {
   // Keyed by `${tool}:${error_preview}`; store the tool name alongside.
   tool: string;
   count: number;
+  // Max(called_at) across teams — latest occurrence wins. null only when
+  // every contributing team's row predates the schema-nullable-default,
+  // which is a deployment-phase transient condition.
+  last_at: string | null;
 }
 
 interface HourlyBucket {
@@ -104,8 +108,11 @@ export function merge(acc: ToolCallsAcc, team: TeamResult): void {
 
   for (const e of tc.error_patterns ?? []) {
     const key = `${e.tool}:${e.error_preview}`;
-    const bucket = acc.errorPatterns.get(key) ?? { tool: e.tool, count: 0 };
+    const bucket = acc.errorPatterns.get(key) ?? { tool: e.tool, count: 0, last_at: null };
     bucket.count += e.count;
+    if (e.last_at && (!bucket.last_at || e.last_at > bucket.last_at)) {
+      bucket.last_at = e.last_at;
+    }
     acc.errorPatterns.set(key, bucket);
   }
 
@@ -149,7 +156,7 @@ export function project(acc: ToolCallsAcc): ToolCallStats {
   const error_patterns = [...acc.errorPatterns.entries()]
     .map(([key, b]) => {
       const error_preview = key.slice(b.tool.length + 1);
-      return { tool: b.tool, error_preview, count: b.count };
+      return { tool: b.tool, error_preview, count: b.count, last_at: b.last_at };
     })
     .sort((a, b) => b.count - a.count)
     .slice(0, 20);

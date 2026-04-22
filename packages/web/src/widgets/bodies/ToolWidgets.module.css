@@ -14,7 +14,41 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 0;
+  padding: 8px 10px;
+  margin: 0 -10px;
+  border-radius: var(--radius-2xs);
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
+  /* Button chrome reset — .factualItem is rendered as a <button> so rows
+   * are keyboard-activatable. Strip default button styling, preserve flex. */
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  width: 100%;
+  cursor: pointer;
+}
+
+.factualItem:hover {
+  background: var(--hover-bg);
+}
+
+.factualItem:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.factualBody {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .factualItem {
+    animation: none !important;
+  }
 }
 
 .factualLabel {
@@ -63,6 +97,7 @@
   font-size: var(--text-2xs);
   font-weight: 700;
   color: var(--on-accent);
+  background: var(--tool-brand, var(--ink));
 }
 
 .toolDepthBars {
@@ -77,6 +112,142 @@
   width: 3px;
   border-radius: 1px;
   background: var(--ink);
+}
+
+/* ── Models list: model + per-tool attribution strip ──
+ * Each model occupies a two-line row: a head line with the model name and
+ * aggregate metadata, then a strip of tool pills (chromeless brand-dot +
+ * mono label + count). The tool strip is what makes this widget
+ * substrate-unique — cross-tool model attribution no IDE can produce. */
+
+.modelRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  margin: 0 -12px;
+  border-radius: var(--radius-2xs);
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
+}
+
+.modelRow:hover {
+  background: var(--hover-bg);
+}
+
+.modelHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.modelToolStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-left: 2px;
+}
+
+.modelToolPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+}
+
+.modelToolDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-circle);
+  background: var(--tool-brand, var(--soft));
+  flex-shrink: 0;
+}
+
+.modelToolLabel {
+  color: var(--ink);
+  opacity: 0.7;
+}
+
+.modelToolCount {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modelRow {
+    animation: none !important;
+  }
+}
+
+/* ── Small-multiples grid (tool-daily) ──────────────
+ * One thumbnail per tool — label + sparkline + total count. No top-N cap:
+ * the grid auto-fills at minmax(140px, 1fr) so a 10-tool team sees all of
+ * them tiled rather than the long tail being silently hidden. Chromeless:
+ * no borders, no cards, hierarchy from font-weight + opacity. Tool brand
+ * color surfaces as a thin underline under each label via --tool-brand. */
+
+.sparkGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px 20px;
+}
+
+.sparkCell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
+}
+
+.sparkHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.sparkLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--ink);
+  letter-spacing: var(--tracking-stat);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-shadow: inset 0 -2px 0 var(--tool-brand, var(--soft));
+  padding-bottom: 2px;
+}
+
+.sparkCount {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--ink);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.sparkBody {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+}
+
+.sparkEmpty {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sparkCell {
+    animation: none !important;
+  }
 }
 
 /* ── Section sub-label (used by TokenDetailWidget) ── */

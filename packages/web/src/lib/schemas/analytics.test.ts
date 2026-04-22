@@ -53,6 +53,11 @@ const INTENTIONALLY_UNWRAPPED: Record<string, string> = {
   dailyCommitSchema: 'composed into commitStatsSchema',
   commitOutcomeCorrelationSchema: 'composed into commitStatsSchema',
   commitEditRatioBucketSchema: 'composed into commitStatsSchema',
+
+  // Sub-schemas consumed transitively by their parent schemas that web
+  // imports. Listing each with the parent it's composed into.
+  formationRecommendationCountsSchema: 'composed into memoryUsageStatsSchema',
+  toolHandoffRecentFileSchema: 'composed into toolHandoffSchema (recent_files array)',
 };
 
 function listSharedZodSchemas(): string[] {

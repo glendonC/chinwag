@@ -73,9 +73,15 @@ export function classifyWorkType(filePath: string): string {
 
 export function queryModelPerformance(sql: SqlStorage, days: number): ModelOutcome[] {
   try {
+    // GROUP BY includes host_tool so the models widget can show cross-tool
+    // attribution per model (Claude Code ran Sonnet for X sessions, Cursor
+    // ran it for Y). Rows where host_tool is null collapse into a single
+    // per-model null-tool bucket — they still count toward the model total
+    // but drop out of the per-tool breakdown in the renderer.
     const rows = sql
       .exec(
         `SELECT agent_model,
+                host_tool,
                 COALESCE(outcome, 'unknown') AS outcome,
                 COUNT(*) AS count,
                 ROUND(AVG(
@@ -87,7 +93,7 @@ export function queryModelPerformance(sql: SqlStorage, days: number): ModelOutco
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
            AND agent_model IS NOT NULL AND agent_model != ''
-         GROUP BY agent_model, outcome
+         GROUP BY agent_model, host_tool, outcome
          ORDER BY count DESC`,
         days,
       )
@@ -97,6 +103,7 @@ export function queryModelPerformance(sql: SqlStorage, days: number): ModelOutco
       const row = r as Record<string, unknown>;
       return {
         agent_model: row.agent_model as string,
+        host_tool: (row.host_tool as string) || null,
         outcome: row.outcome as string,
         count: (row.count as number) || 0,
         avg_duration_min: (row.avg_duration_min as number) || 0,

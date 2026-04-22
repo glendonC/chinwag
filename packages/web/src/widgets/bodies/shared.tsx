@@ -135,6 +135,27 @@ export function StatWidget({
   );
 }
 
+/**
+ * Inline arrow+magnitude delta used alongside stat-row numbers where the
+ * bigger `StatWidget` surface doesn't fit. One decimal of precision, token
+ * colors. `invert=true` for metrics where lower is better (e.g., stuckness,
+ * error rate) — the color choice follows, not the arrow direction.
+ *
+ * Shared primitive so the stuckness stat-row and the outcome-bar legend
+ * stop re-implementing the same arrow+color logic `StatWidget` already has.
+ */
+export function InlineDelta({ value, invert = false }: { value: number; invert?: boolean }) {
+  const arrow = value > 0 ? '↑' : value < 0 ? '↓' : '→';
+  const isGood = invert ? value < 0 : value > 0;
+  const color = value === 0 ? 'var(--muted)' : isGood ? 'var(--success)' : 'var(--danger)';
+  return (
+    <span className={styles.statInlineDelta} style={{ color }}>
+      {arrow}
+      {Math.abs(Math.round(value * 10) / 10)}
+    </span>
+  );
+}
+
 export function GhostStatRow({ labels }: { labels: string[] }) {
   return (
     <div className={styles.ghostStatRow}>
@@ -200,6 +221,33 @@ export function GhostSparkline() {
 export function CoverageNote({ text }: { text: string | null }) {
   if (!text) return null;
   return <div className={styles.coverageNote}>{text}</div>;
+}
+
+/**
+ * True when the user is effectively solo for coordination purposes — zero or
+ * one active member in the window. Consolidates the three inline
+ * `analytics.member_analytics.length <= 1` checks that team-latent widgets
+ * (conflict-impact, conflicts-blocked, file-overlap) use to swap
+ * "system measured zero" framing for "requires 2+ agents — structurally
+ * zero, not observed zero." One place to evolve the definition (e.g.,
+ * agent count instead of human count) without touching every caller.
+ *
+ * Scope note: TeamMembersWidget does NOT use this because its solo-vs-empty
+ * branching (`length === 0` → empty, `length === 1` → render + footer) is a
+ * distinct semantic from the coordination-gate one, not the same predicate.
+ */
+export function isSoloTeam(analytics: { member_analytics: { length: number } }): boolean {
+  return analytics.member_analytics.length <= 1;
+}
+
+/**
+ * Muted trailing line for top-N list widgets that cap their render but want
+ * to stay honest about the hidden tail. Surfaces "+N more hidden" rather than
+ * silently dropping rows — D3b resilience at team scale.
+ */
+export function MoreHidden({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return <div className={styles.moreHidden}>+{count} more hidden</div>;
 }
 
 // Display prefix shown in coverage notes for each capability. These phrase

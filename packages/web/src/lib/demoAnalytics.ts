@@ -115,15 +115,27 @@ export function createDemoAnalytics(): UserAnalytics {
     model_outcomes: [
       {
         agent_model: 'claude-sonnet-4-5-20250514',
+        host_tool: 'claude-code',
         outcome: 'completed',
-        count: 82,
+        count: 58,
         avg_duration_min: 24,
-        total_edits: 1840,
-        total_lines_added: 4200,
-        total_lines_removed: 980,
+        total_edits: 1320,
+        total_lines_added: 3100,
+        total_lines_removed: 720,
+      },
+      {
+        agent_model: 'claude-sonnet-4-5-20250514',
+        host_tool: 'cursor',
+        outcome: 'completed',
+        count: 24,
+        avg_duration_min: 18,
+        total_edits: 520,
+        total_lines_added: 1100,
+        total_lines_removed: 260,
       },
       {
         agent_model: 'claude-opus-4-7',
+        host_tool: 'claude-code',
         outcome: 'completed',
         count: 31,
         avg_duration_min: 38,
@@ -133,6 +145,7 @@ export function createDemoAnalytics(): UserAnalytics {
       },
       {
         agent_model: 'gpt-5',
+        host_tool: 'codex',
         outcome: 'completed',
         count: 8,
         avg_duration_min: 21,
@@ -284,6 +297,9 @@ export function createDemoAnalytics(): UserAnalytics {
     ],
     concurrent_edits: [],
     member_analytics: [],
+    member_analytics_total: 1,
+    member_daily_lines: [],
+    per_project_lines: [],
     // Per-project rollup is a cross-project comparison — empty here because
     // the demo's teams_included === 1. Populate if the demo ever adopts a
     // multi-project posture.
@@ -303,13 +319,11 @@ export function createDemoAnalytics(): UserAnalytics {
       searches_with_results: 48,
       search_hit_rate: 48 / 67,
       memories_created_period: 3,
-      memories_updated_period: 2,
       stale_memories: 1,
       avg_memory_age_days: 42,
-      merged_memories: 0,
       pending_consolidation_proposals: 0,
       formation_observations_by_recommendation: { keep: 8, merge: 2, evolve: 1, discard: 1 },
-      secrets_blocked_period: 0,
+      secrets_blocked_24h: 0,
     },
     work_type_outcomes: [],
     conversation_edit_correlation: [],
@@ -384,7 +398,7 @@ export function createDemoAnalytics(): UserAnalytics {
       stuck_completion_rate: 0.32,
       normal_completion_rate: 0.78,
     },
-    file_overlap: { total_files: 148, overlapping_files: 9, overlap_rate: 0.06 },
+    file_overlap: { total_files: 148, overlapping_files: 9 },
     audit_staleness: [],
     first_edit_stats: {
       avg_minutes_to_first_edit: 3.8,
@@ -648,14 +662,25 @@ export function createDemoAnalytics(): UserAnalytics {
         },
       ],
       error_patterns: [
-        { tool: 'Bash', error_preview: 'File not found: no such file or directory', count: 42 },
+        {
+          tool: 'Bash',
+          error_preview: 'File not found: no such file or directory',
+          count: 42,
+          last_at: null,
+        },
         {
           tool: 'Edit',
           error_preview: 'Permission denied: cannot write to locked file',
           count: 28,
+          last_at: null,
         },
-        { tool: 'Grep', error_preview: 'Pattern did not match any files', count: 22 },
-        { tool: 'Bash', error_preview: 'Command timed out after 120s', count: 18 },
+        {
+          tool: 'Grep',
+          error_preview: 'Pattern did not match any files',
+          count: 22,
+          last_at: null,
+        },
+        { tool: 'Bash', error_preview: 'Command timed out after 120s', count: 18, last_at: null },
       ],
       hourly_activity: Array.from({ length: 24 }, (_, h) => {
         const peak = h >= 10 && h <= 14 ? 1.0 : h >= 8 && h <= 18 ? 0.55 : 0.12;
