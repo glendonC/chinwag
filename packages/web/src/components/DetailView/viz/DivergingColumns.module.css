@@ -1,0 +1,101 @@
+/* Diverging columns — added grows up from midline, removed grows down.
+ * Shared height normalized to the busiest day in either direction so
+ * the add/remove ratio is legible at a glance. */
+
+.diverging {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 2px;
+  height: var(--diverging-h, 140px);
+}
+
+.col {
+  display: grid;
+  grid-template-rows: 1fr 1px 1fr;
+  height: 100%;
+  animation: divergingColReveal 0.4s var(--motion) both;
+  animation-delay: calc(var(--col-index, 0) * 12ms);
+}
+
+.halfTop {
+  display: flex;
+  align-items: flex-end;
+  justify-content: stretch;
+  min-height: 0;
+}
+
+.halfBottom {
+  display: flex;
+  align-items: flex-start;
+  justify-content: stretch;
+  min-height: 0;
+}
+
+.midline {
+  background: var(--hover-bg);
+  height: 1px;
+  align-self: stretch;
+}
+
+.barAdd {
+  width: 100%;
+  background: var(--success);
+  opacity: var(--opacity-bar-fill);
+  min-height: 1px;
+  border-top-left-radius: 2px;
+  border-top-right-radius: 2px;
+}
+
+.barRemove {
+  width: 100%;
+  background: var(--danger);
+  opacity: var(--opacity-bar-fill);
+  min-height: 1px;
+  border-bottom-left-radius: 2px;
+  border-bottom-right-radius: 2px;
+}
+
+.axis {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+
+.axisLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: 0.01em;
+  text-align: center;
+  white-space: nowrap;
+  opacity: 0;
+}
+
+.axisLabel[data-visible='true'] {
+  opacity: 1;
+}
+
+@keyframes divergingColReveal {
+  from {
+    opacity: 0;
+    transform: scaleY(0.3);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .col {
+    animation: none;
+  }
+}

@@ -1,0 +1,21 @@
+/* Dot matrix — one dot per item, filled = hits the condition. 9px dots
+ * with 5px gutter, caller-controlled column count (default 15), so the
+ * grid occupies real visual weight next to a display-sized number next
+ * to it. Outlined "not-hit" dots use a 1px soft border so they read as
+ * hollow rings rather than absent slots. */
+
+.matrix {
+  display: grid;
+  grid-auto-rows: 9px;
+  gap: 5px;
+  flex-shrink: 0;
+  align-content: start;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  box-sizing: border-box;
+}

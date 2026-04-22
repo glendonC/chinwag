@@ -8,3 +8,7 @@ export type { BreakdownItem } from './BreakdownList.js';
 
 export { default as FileList } from './FileList.js';
 export type { FileListItem } from './FileList.js';
+
+// Reusable viz primitives — share the same import path as the shell
+// primitives above so callers don't need to memorize a second location.
+export * from './viz/index.js';

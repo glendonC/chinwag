@@ -1,21 +1,26 @@
 /*
  * UsageDetailView-specific styles. Shell (detail wrapper, tab bar,
- * panel), DetailSection (label + content), BreakdownList and FileList
- * moved to components/DetailView/*. What lives here is
- * Usage-specific: hero stat row, daily outcome strip, tool share
- * ring, duration columns, cache-efficiency legend.
+ * panel), DetailSection, BreakdownList, FileList, and the reusable
+ * viz primitives (HeroStatRow, DotMatrix, VelocityScatter, RateStrip,
+ * DivergingColumns, DivergingRows, SmallMultiples, Legend) all live
+ * in components/DetailView/ and its viz/ subfolder.
+ *
+ * What lives here is Session-tab specific and not yet extracted:
+ * the daily outcome strip (completed/abandoned/failed stack), the
+ * Tool share ring + its data table (has an "Open Tools tab" CTA
+ * that binds it to the app shell), and the duration-buckets strip.
+ * Plus view-level helpers (.empty, .topGrid, cache-efficiency legend).
  *
  * Sections (search for "── NAME ──" to jump):
  *   Panel body helpers              | .empty, .trendFrame
- *   Hero row (sessions tab)         | .sectionHero, .heroRow, .heroStat*, .dotMatrix, .dot
+ *   Top grid                        | .topGrid, .sectionHero
  *   Daily outcome strip             | .strip*
- *   Top grid                        | .topGrid
  *   Tool share ring                 | .ringBlock, .ringMedia, .ringSvg, .ringPanel
  *   Tool data table                 | .toolTable, .toolTh*, .toolRow, .toolCell*
  *   CTA link                        | .toolsCta*
  *   Duration columns                | .durationCols, .durationCol*
  *   Outcome legend                  | .outcomeLegend, .outcomeItem, .outcomeValue,
- *                                     .outcomeLabel, .outcomeDot, .outcomeDotHatch
+ *                                     .outcomeLabel
  */
 
 /* ── Panel body helpers ── */
@@ -57,104 +62,6 @@
  * the tool ring across the gap aligns visually with the hero number. */
 .sectionHero {
   align-self: stretch;
-}
-
-/* ── Hero row (sessions tab) ── */
-
-/*
- * Promoted from a muted mono strip to first-class stat blocks. Each block
- * pairs a dot-matrix viz (one dot per session) with a display-sized
- * colored value and mono label. Severity drives the value color:
- * stuckness tints warn/danger above thresholds; completion sits on
- * success; first-edit stays on ink.
- */
-.heroRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 28px 40px;
-}
-
-.heroStat {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 20px;
-  min-width: 0;
-  animation: rowReveal 0.3s var(--motion) both;
-  animation-delay: calc(var(--row-index, 0) * 50ms);
-}
-
-.heroStatText {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-}
-
-/* Dot matrix — one dot per session, filled = hits the condition. 9px
- * dots with 5px gutter, 15 columns wide, so the grid occupies real
- * visual weight next to the display-sized number (≈191×65px for 67
- * sessions, scaling as the period grows). Outlined "not-hit" dots use
- * a 1px soft border so they read as hollow rings rather than absent
- * slots. */
-.dotMatrix {
-  display: grid;
-  grid-auto-rows: 9px;
-  gap: 5px;
-  flex-shrink: 0;
-  align-content: start;
-}
-
-.dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  border: 1px solid transparent;
-  box-sizing: border-box;
-}
-
-.heroStatValue {
-  font-family: var(--display);
-  font-size: 3.4rem;
-  font-weight: 200;
-  letter-spacing: -0.04em;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.heroStatUnit {
-  font-family: var(--mono);
-  font-size: var(--text-base, 1rem);
-  font-weight: 400;
-  letter-spacing: 0;
-  opacity: 0.7;
-}
-
-.heroStatLabel {
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  font-weight: 500;
-  color: var(--soft);
-  letter-spacing: var(--tracking-stat);
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-/* Concrete ratio line beneath the label. Small, tabular-nums, more muted
- * than the label so the hierarchy reads value → label → context. */
-.heroStatSub {
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  color: var(--ghost-ink, var(--soft));
-  opacity: 0.75;
-  letter-spacing: 0.01em;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  margin-top: 2px;
 }
 
 /* ── Daily outcome strip ── */
@@ -504,26 +411,6 @@
   font-size: var(--text-sm);
 }
 
-.outcomeDot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  align-self: center;
-}
-
-/* Diagonal hatch swatch matching the "no outcome" strip segment. */
-.outcomeDotHatch {
-  background: repeating-linear-gradient(
-    135deg,
-    var(--soft) 0,
-    var(--soft) 1px,
-    transparent 1px,
-    transparent 3px
-  );
-  border-radius: 1px;
-}
-
 .outcomeValue {
   color: var(--ink);
   font-variant-numeric: tabular-nums;
@@ -532,4 +419,130 @@
 .outcomeLabel {
   color: var(--soft);
   font-size: var(--text-xs);
+}
+
+/* ── Files-touched hero ──
+ *
+ * Opening frame of the files-touched drill. Scalar breadth number on the
+ * left stacked above the work-type strip (variant='hero'); new-vs-revisited
+ * two-segment bar on the right. Reuses .topGrid so the row geometry is
+ * consistent with the Sessions hero (hero block | right-column context).
+ */
+
+.filesHero {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+  animation: rowReveal 0.3s var(--motion) both;
+}
+
+.filesHeroValue {
+  font-family: var(--display);
+  font-size: 4.2rem;
+  font-weight: 200;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── New vs revisited ──
+ *
+ * Two-segment horizontal bar. Ink-full "new" slice against a muted-ink
+ * "revisited" slice — the visual weight sits on expansion (new) because
+ * that's the signal the user is reading for. Legend beneath is monospace,
+ * count first / label / percentage.
+ */
+
+.nvr {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: rowReveal 0.3s var(--motion) both;
+}
+
+.nvrBar {
+  display: flex;
+  width: 100%;
+  height: 10px;
+  gap: 1px;
+  overflow: hidden;
+}
+
+.nvrSegNew {
+  min-width: 2px;
+  background: var(--ink);
+  transform-origin: left center;
+  animation: segRevealNvr 0.42s var(--motion) both;
+}
+
+.nvrSegRevisited {
+  min-width: 2px;
+  background: color-mix(in srgb, var(--ink) 18%, transparent);
+  transform-origin: left center;
+  animation: segRevealNvr 0.42s var(--motion) both;
+  animation-delay: 80ms;
+}
+
+.nvrLegend {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 24px;
+  row-gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nvrLegendItem {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.nvrLegendCount {
+  font-family: var(--display);
+  font-size: 1.4rem;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.nvrLegendLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+  color: var(--soft);
+}
+
+.nvrLegendShare {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+@keyframes segRevealNvr {
+  from {
+    opacity: 0;
+    transform: scaleX(0.65);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filesHero,
+  .nvr,
+  .nvrSegNew,
+  .nvrSegRevisited {
+    animation: none;
+    transform: none;
+  }
 }

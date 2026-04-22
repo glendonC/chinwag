@@ -1,0 +1,121 @@
+/* Diverging rows — horizontal bars; removed grows left, added grows
+ * right. Shared max across rows keeps magnitudes comparable. Relies on
+ * the global `rowReveal` keyframe (app.css). */
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 120px) minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
+}
+
+.rowLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tracks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 0;
+  min-height: 24px;
+  min-width: 0;
+  position: relative;
+}
+
+/* Center axis — 1px rule at the boundary between the two halves. Drawn
+ * with a pseudo-element so the grid stays clean and the rule scales
+ * with row height. */
+.tracks::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--hover-bg);
+  transform: translateX(-0.5px);
+  pointer-events: none;
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+  padding-right: 10px;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding-left: 10px;
+}
+
+.barRemoveH {
+  height: 10px;
+  background: var(--danger);
+  opacity: var(--opacity-bar-fill);
+  min-width: 1px;
+  border-top-left-radius: 2px;
+  border-bottom-left-radius: 2px;
+}
+
+.barAddH {
+  height: 10px;
+  background: var(--success);
+  opacity: var(--opacity-bar-fill);
+  min-width: 1px;
+  border-top-right-radius: 2px;
+  border-bottom-right-radius: 2px;
+}
+
+.removeVal,
+.addVal {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.removeVal {
+  color: var(--danger);
+}
+
+.addVal {
+  color: var(--success);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+}

@@ -299,7 +299,11 @@ async function main() {
   );
 
   logLine('[dev:local] waiting for local API...');
-  await waitForUrl(`${LOCAL_API_URL}/stats`, 'local API');
+  // Cold-start budget: wrangler dev needs to download workerd, bundle the
+  // worker, and boot the DO runtime before /stats responds. Measured at
+  // ~35s on a clean shell; 90s absorbs slower machines and first-run
+  // dependency fetches. Warm runs still return instantly.
+  await waitForUrl(`${LOCAL_API_URL}/stats`, 'local API', 90_000);
 
   logLine('[dev:local] provisioning isolated local auth...');
   const config = await ensureLocalConfig();

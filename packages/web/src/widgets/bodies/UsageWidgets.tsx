@@ -9,6 +9,7 @@ import {
   costEmptyReason,
 } from './shared.js';
 import { formatCost } from '../utils.js';
+import { WorkTypeStrip } from '../../components/WorkTypeStrip/index.js';
 
 function openUsage(tab: string) {
   return () => setQueryParam('usage', tab);
@@ -109,9 +110,11 @@ function EditsWidget({ analytics }: WidgetBodyProps) {
   );
 }
 
-// Lines added/removed don't have a dedicated tab — they're a subset of the
-// edits story, so they drill into the Edits tab where by-tool + most-touched
-// file breakdowns give them context.
+// Lines added/removed drill into their own Lines tab — edit count and line
+// volume are distinct questions (activity vs churn), so they get distinct
+// viz. The Lines tab is built around the diverging-timeline + per-work-type
+// + per-member/per-project splits that `member_daily_lines` and
+// `per_project_lines` exist to power.
 function LinesAddedWidget({ analytics }: WidgetBodyProps) {
   const drillable = useIsDrillable();
   if (isEmptyPeriod(analytics)) return <StatWidget value="--" />;
@@ -123,7 +126,7 @@ function LinesAddedWidget({ analytics }: WidgetBodyProps) {
     <StatWidget
       value={display}
       delta={delta}
-      onOpenDetail={drillable ? openUsage('edits') : undefined}
+      onOpenDetail={drillable ? openUsage('lines') : undefined}
       detailAriaLabel={
         drillable ? `Open usage detail · ${display} lines added${ariaDelta}` : undefined
       }
@@ -142,7 +145,7 @@ function LinesRemovedWidget({ analytics }: WidgetBodyProps) {
     <StatWidget
       value={display}
       delta={delta}
-      onOpenDetail={drillable ? openUsage('edits') : undefined}
+      onOpenDetail={drillable ? openUsage('lines') : undefined}
       detailAriaLabel={
         drillable ? `Open usage detail · ${display} lines removed${ariaDelta}` : undefined
       }
@@ -155,6 +158,11 @@ function LinesRemovedWidget({ analytics }: WidgetBodyProps) {
 // ranked top-50 list and would silently cap this stat at 50. Capture
 // gate is hook-enabled tools (Claude Code, Cursor, Windsurf); the
 // CoverageNote discloses this when non-hook tools are active.
+//
+// The card face pairs the scalar with a 3px work-type strip — files_touched
+// is breadth, and breadth has a native second dimension (what kind of
+// surface). The strip decompresses the number without labels; one glance
+// reveals "mostly backend + test" before the drill opens.
 function FilesTouchedWidget({ analytics }: WidgetBodyProps) {
   const drillable = useIsDrillable();
   if (isEmptyPeriod(analytics)) return <StatWidget value="--" />;
@@ -162,6 +170,7 @@ function FilesTouchedWidget({ analytics }: WidgetBodyProps) {
   const tools = analytics.data_coverage?.tools_reporting ?? [];
   const note = capabilityCoverageNote(tools, 'hooks');
   const display = n.toLocaleString();
+  const breakdown = analytics.files_by_work_type;
   return (
     <>
       <StatWidget
@@ -169,6 +178,13 @@ function FilesTouchedWidget({ analytics }: WidgetBodyProps) {
         onOpenDetail={drillable ? openUsage('files-touched') : undefined}
         detailAriaLabel={drillable ? `Open usage detail · ${display} files touched` : undefined}
       />
+      {breakdown.length > 0 && (
+        <WorkTypeStrip
+          entries={breakdown}
+          variant="card"
+          ariaLabel={`${display} files touched by work type`}
+        />
+      )}
       <CoverageNote text={note} />
     </>
   );
