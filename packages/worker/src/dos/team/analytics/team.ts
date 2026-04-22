@@ -5,25 +5,42 @@ import type { MemberAnalytics, MemberDailyLineTrend } from '@chinwag/shared/cont
 
 const log = createLogger('TeamDO.analytics');
 
+// Uncapped distinct-handle count for the window. Ships alongside the top-50
+// `queryMemberAnalytics` rows so the renderer can honestly surface a "+N more"
+// affordance when the team has more active members than the rendered list.
+// Without this, LIMIT 50 truncation was silent.
+export function queryMemberCount(sql: SqlStorage, days: number): number {
+  try {
+    const rows = sql
+      .exec(
+        `SELECT COUNT(DISTINCT handle) AS total
+         FROM sessions
+         WHERE started_at > datetime('now', '-' || ? || ' days')
+           AND handle IS NOT NULL`,
+        days,
+      )
+      .toArray();
+    const row = rows[0] as Record<string, unknown> | undefined;
+    return (row?.total as number) || 0;
+  } catch (err) {
+    log.warn(`memberCount query failed: ${err}`);
+    return 0;
+  }
+}
+
 export function queryMemberAnalytics(sql: SqlStorage, days: number): MemberAnalytics[] {
   try {
+    // Audit 2026-04-21: SQL trimmed to the fields the contract still carries.
+    // See memberAnalyticsSchema for the list of dropped fields and rationale.
     const rows = sql
       .exec(
         `SELECT
            handle,
            COUNT(*) AS sessions,
            SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS completed,
-           SUM(CASE WHEN outcome = 'abandoned' THEN 1 ELSE 0 END) AS abandoned,
-           SUM(CASE WHEN outcome = 'failed' THEN 1 ELSE 0 END) AS failed,
            ROUND(CAST(SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
              / NULLIF(COUNT(*), 0) * 100, 1) AS completion_rate,
-           ROUND(AVG(
-             ROUND((julianday(COALESCE(ended_at, datetime('now'))) - julianday(started_at)) * 24 * 60)
-           ), 1) AS avg_duration_min,
            COALESCE(SUM(edit_count), 0) AS total_edits,
-           COALESCE(SUM(lines_added), 0) AS total_lines_added,
-           COALESCE(SUM(lines_removed), 0) AS total_lines_removed,
-           COALESCE(SUM(commit_count), 0) AS total_commits,
            COALESCE(SUM(
              CASE WHEN ended_at IS NOT NULL
                THEN ROUND((julianday(ended_at) - julianday(started_at)) * 24, 2)
@@ -66,14 +83,8 @@ export function queryMemberAnalytics(sql: SqlStorage, days: number): MemberAnaly
         handle,
         sessions: (row.sessions as number) || 0,
         completed: (row.completed as number) || 0,
-        abandoned: (row.abandoned as number) || 0,
-        failed: (row.failed as number) || 0,
         completion_rate: (row.completion_rate as number) || 0,
-        avg_duration_min: (row.avg_duration_min as number) || 0,
         total_edits: (row.total_edits as number) || 0,
-        total_lines_added: (row.total_lines_added as number) || 0,
-        total_lines_removed: (row.total_lines_removed as number) || 0,
-        total_commits: (row.total_commits as number) || 0,
         primary_tool: primaryTools.get(handle) || null,
         total_session_hours: (row.total_session_hours as number) || 0,
       };

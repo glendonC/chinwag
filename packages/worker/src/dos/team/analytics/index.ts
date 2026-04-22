@@ -63,7 +63,7 @@ import {
   queryFirstEditStats,
   queryScopeComplexity,
 } from './sessions.js';
-import { queryMemberAnalytics, queryMemberDailyLines } from './team.js';
+import { queryMemberAnalytics, queryMemberCount, queryMemberDailyLines } from './team.js';
 import { queryMemoryUsage, queryMemoryOutcomeCorrelation, queryTopMemories } from './memory.js';
 import { queryConversationEditCorrelation } from './conversations.js';
 import { queryTokenUsage } from './tokens.js';
@@ -115,7 +115,7 @@ export function getExtendedAnalytics(
     concurrent_edits: queryConcurrentEdits(sql, days),
     file_rework: queryFileRework(sql, days),
     directory_heatmap: queryDirectoryHeatmap(sql, days),
-    audit_staleness: queryAuditStaleness(sql, days),
+    audit_staleness: queryAuditStaleness(sql),
 
     // ── Sessions ───────────────────────────────────────────────────────
     retry_patterns: queryRetryPatterns(sql, days),
@@ -128,6 +128,7 @@ export function getExtendedAnalytics(
 
     // ── Team ───────────────────────────────────────────────────────────
     member_analytics: queryMemberAnalytics(sql, days),
+    member_analytics_total: queryMemberCount(sql, days),
     member_daily_lines: queryMemberDailyLines(sql, days),
     // per_project_lines and per_project_velocity are cross-project by
     // construction; assembled at the user route from each team's totals

@@ -273,6 +273,23 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
       duration_distribution: sessions.projectDuration(durationAcc),
       concurrent_edits: sessions.projectConcurrent(concurrentAcc),
       member_analytics: members.project(memberAcc),
+      // Honest lower bound: take the max of post-merge distinct count and
+      // per-team uncapped totals. First catches cross-team dedupe (same
+      // handle in two teams = one person); second catches per-team LIMIT 50
+      // truncation that the merge never saw. Sum would double-count shared
+      // handles, which is the common case (user + collaborator teams).
+      member_analytics_total: (() => {
+        let maxTotal = memberAcc.size;
+        for (let i = 0; i < results.length; i++) {
+          const r = results[i];
+          if (!r || r.status !== 'fulfilled') continue;
+          const t = r.value;
+          if (t.error) continue;
+          const teamTotal = t.member_analytics_total ?? 0;
+          if (teamTotal > maxTotal) maxTotal = teamTotal;
+        }
+        return maxTotal;
+      })(),
       member_daily_lines: memberDailyLines.project(memberDailyLinesAcc),
       per_project_lines: perProjectLines.project(perProjectLinesAcc),
       retry_patterns: sessions.projectRetry(retryAcc),

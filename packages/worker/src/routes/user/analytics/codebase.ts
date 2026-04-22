@@ -286,7 +286,6 @@ export function projectFileOverlap(acc: FileOverlapAcc): FileOverlapStats {
   return {
     total_files: acc.total_files,
     overlapping_files: acc.overlapping_files,
-    overlap_rate: rate(acc.overlapping_files, acc.total_files),
   };
 }
 

@@ -2,7 +2,13 @@ import type { CSSProperties } from 'react';
 import SectionEmpty from '../../components/SectionEmpty/SectionEmpty.js';
 import styles from '../widget-shared.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
-import { GhostBars, GhostRows, GhostStatRow } from './shared.js';
+import {
+  capabilityCoverageNote,
+  CoverageNote,
+  GhostBars,
+  GhostRows,
+  GhostStatRow,
+} from './shared.js';
 
 function DirectoriesWidget({ analytics }: WidgetBodyProps) {
   const dirs = analytics.directory_heatmap;
@@ -10,8 +16,12 @@ function DirectoriesWidget({ analytics }: WidgetBodyProps) {
   const maxT = Math.max(...dirs.map((d) => d.touch_count), 1);
   return (
     <div className={styles.metricBars}>
-      {dirs.slice(0, 10).map((d) => (
-        <div key={d.directory} className={styles.metricRow}>
+      {dirs.slice(0, 10).map((d, i) => (
+        <div
+          key={d.directory}
+          className={styles.metricRow}
+          style={{ '--row-index': i } as CSSProperties}
+        >
           <span className={styles.metricLabel} title={d.directory}>
             {d.directory}
           </span>
@@ -31,30 +41,63 @@ function DirectoriesWidget({ analytics }: WidgetBodyProps) {
   );
 }
 
+// Color the per-file completion rate so a top-of-list file with a weak outcome
+// reads as a problem, not a celebration. Touch_count alone is contaminated by
+// retry thrashing — the rate reframes what the rank means.
+//   <40% → danger (thrash signal)
+//   40–69% → warn
+//   70%+  → muted (healthy; de-emphasize the green so every row isn't loud)
+function outcomeRateColor(rate: number): string {
+  if (rate < 40) return 'var(--danger)';
+  if (rate < 70) return 'var(--warn)';
+  return 'var(--muted)';
+}
+
 function FilesWidget({ analytics }: WidgetBodyProps) {
   const files = analytics.file_heatmap;
   if (files.length === 0) return <GhostRows count={3} />;
   return (
     <div className={styles.dataList}>
-      {files.slice(0, 10).map((f, i) => (
-        <div key={f.file} className={styles.dataRow} style={{ '--row-index': i } as CSSProperties}>
-          <span className={styles.dataName} title={f.file}>
-            {f.file.split('/').slice(-2).join('/')}
-          </span>
-          <div className={styles.dataMeta}>
-            <span className={styles.dataStat}>
-              <span className={styles.dataStatValue}>{f.touch_count}</span> touches
+      {files.slice(0, 10).map((f, i) => {
+        const linesAdded = f.total_lines_added ?? 0;
+        const linesRemoved = f.total_lines_removed ?? 0;
+        const hasLines = linesAdded > 0 || linesRemoved > 0;
+        const hasOutcome = f.outcome_rate != null && f.outcome_rate > 0;
+        return (
+          <div
+            key={f.file}
+            className={styles.dataRow}
+            style={{ '--row-index': i } as CSSProperties}
+          >
+            <span className={styles.dataName} title={f.file}>
+              {f.file.split('/').slice(-2).join('/')}
             </span>
-            {f.total_lines_added != null && f.total_lines_removed != null && (
+            <div className={styles.dataMeta}>
               <span className={styles.dataStat}>
-                <span className={styles.dataStatValue}>
-                  +{f.total_lines_added}/-{f.total_lines_removed}
-                </span>
+                <span className={styles.dataStatValue}>{f.touch_count}</span> touches
               </span>
-            )}
+              {hasOutcome && (
+                <span className={styles.dataStat}>
+                  <span
+                    className={styles.dataStatValue}
+                    style={{ color: outcomeRateColor(f.outcome_rate as number) }}
+                  >
+                    {f.outcome_rate}%
+                  </span>{' '}
+                  completed
+                </span>
+              )}
+              {hasLines && (
+                <span className={styles.dataStat}>
+                  <span className={styles.dataStatValue}>
+                    +{linesAdded}/-{linesRemoved}
+                  </span>
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -86,6 +129,19 @@ function FileChurnWidget({ analytics }: WidgetBodyProps) {
   );
 }
 
+// Rework ratio severity. Flat danger on every row trains the eye to ignore
+// the color — if every entry is red, the color carries no signal. Gradient
+// preserves the "this is a real problem" vs "this is mildly interesting"
+// distinction:
+//   ≥50% → danger (majority of edits failed; high-signal refactor target)
+//   25–49% → warn
+//   <25%  → muted (still on the list because of the query floor, but not alarm)
+function reworkSeverityColor(ratio: number): string {
+  if (ratio >= 50) return 'var(--danger)';
+  if (ratio >= 25) return 'var(--warn)';
+  return 'var(--muted)';
+}
+
 function FileReworkWidget({ analytics }: WidgetBodyProps) {
   const fr = analytics.file_rework;
   if (fr.length === 0) return <GhostRows count={3} />;
@@ -97,8 +153,14 @@ function FileReworkWidget({ analytics }: WidgetBodyProps) {
             {f.file.split('/').slice(-2).join('/')}
           </span>
           <div className={styles.dataMeta}>
-            <span className={styles.dataStat} style={{ color: 'var(--danger)' }}>
-              <span className={styles.dataStatValue}>{f.rework_ratio}%</span> rework
+            <span className={styles.dataStat}>
+              <span
+                className={styles.dataStatValue}
+                style={{ color: reworkSeverityColor(f.rework_ratio) }}
+              >
+                {f.rework_ratio}%
+              </span>{' '}
+              rework
             </span>
             <span className={styles.dataStat}>
               <span className={styles.dataStatValue}>
@@ -163,45 +225,42 @@ function ConcurrentEditsWidget({ analytics }: WidgetBodyProps) {
   );
 }
 
-function FileOverlapWidget({ analytics }: WidgetBodyProps) {
-  const fo = analytics.file_overlap;
-  if (fo.total_files === 0) return <GhostStatRow labels={['overlap rate', 'shared files']} />;
-  return (
-    <div className={styles.statRow}>
-      <div className={styles.statBlock}>
-        <span className={styles.statBlockValue}>{fo.overlap_rate}%</span>
-        <span className={styles.statBlockLabel}>overlap rate</span>
-      </div>
-      <div className={styles.statBlock}>
-        <span className={styles.statBlockValue}>{fo.overlapping_files}</span>
-        <span className={styles.statBlockLabel}>shared files</span>
-      </div>
-      <div className={styles.statBlock}>
-        <span className={styles.statBlockValue}>{fo.total_files}</span>
-        <span className={styles.statBlockLabel}>total files</span>
-      </div>
-    </div>
-  );
-}
-
+// Commits are hook-sourced (Claude Code, Cursor, Windsurf). MCP-only tools
+// don't populate the commits table — a solo Cline/Codex user has zero commits
+// because the data path isn't there, not because they didn't commit. Coverage
+// note discloses that in both populated and empty states; the shared helper
+// returns null when coverage is universal so the note disappears when not
+// needed. See shared.tsx:capabilityCoverageNote + A3 honesty comment.
 function CommitStatsWidget({ analytics }: WidgetBodyProps) {
   const cs = analytics.commit_stats;
-  if (cs.total_commits === 0) return <GhostStatRow labels={['commits', 'per session']} />;
+  const tools = analytics.data_coverage?.tools_reporting ?? [];
+  const note = capabilityCoverageNote(tools, 'commitTracking');
+  if (cs.total_commits === 0) {
+    return (
+      <>
+        <GhostStatRow labels={['commits', 'per session', 'sessions with commits']} />
+        <CoverageNote text={note} />
+      </>
+    );
+  }
   return (
-    <div className={styles.statRow}>
-      <div className={styles.statBlock}>
-        <span className={styles.statBlockValue}>{cs.total_commits}</span>
-        <span className={styles.statBlockLabel}>commits</span>
+    <>
+      <div className={styles.statRow}>
+        <div className={styles.statBlock}>
+          <span className={styles.statBlockValue}>{cs.total_commits}</span>
+          <span className={styles.statBlockLabel}>commits</span>
+        </div>
+        <div className={styles.statBlock}>
+          <span className={styles.statBlockValue}>{cs.commits_per_session}</span>
+          <span className={styles.statBlockLabel}>per session</span>
+        </div>
+        <div className={styles.statBlock}>
+          <span className={styles.statBlockValue}>{cs.sessions_with_commits}</span>
+          <span className={styles.statBlockLabel}>sessions with commits</span>
+        </div>
       </div>
-      <div className={styles.statBlock}>
-        <span className={styles.statBlockValue}>{cs.commits_per_session}</span>
-        <span className={styles.statBlockLabel}>per session</span>
-      </div>
-      <div className={styles.statBlock}>
-        <span className={styles.statBlockValue}>{cs.sessions_with_commits}</span>
-        <span className={styles.statBlockLabel}>sessions with commits</span>
-      </div>
-    </div>
+      <CoverageNote text={note} />
+    </>
   );
 }
 
@@ -213,5 +272,4 @@ export const codebaseWidgets: WidgetRegistry = {
   'file-rework': FileReworkWidget,
   'audit-staleness': AuditStalenessWidget,
   'concurrent-edits': ConcurrentEditsWidget,
-  'file-overlap': FileOverlapWidget,
 };

@@ -15,34 +15,42 @@ const log = createLogger('TeamDO.analytics');
 
 export function queryRetryPatterns(sql: SqlStorage, days: number): RetryPattern[] {
   try {
-    // Find files touched by the same handle across multiple sessions where at
-    // least one session was abandoned/failed. Uses CTEs to avoid triple-nested
-    // correlated subqueries: one pass to explode files, one to rank by recency.
+    // Audit 2026-04-21: Regrouped from (handle, file) to file only so the
+    // top-N cannot be swallowed by a single noisy agent. Adds cross-agent
+    // (COUNT DISTINCT handle) and cross-tool (GROUP_CONCAT DISTINCT host_tool)
+    // aggregates — the cross-tool column is the substrate-unique angle that
+    // elevates D1: only chinwag sees the same file retried across Claude Code
+    // + Cursor + Windsurf. `latest_outcome` still picks the most recent
+    // session's outcome across all agents so "resolved" means the file's
+    // current state regardless of who last touched it.
     const rows = sql
       .exec(
         `WITH file_sessions AS (
-           SELECT s.id, s.handle, s.outcome, s.started_at, f.value AS file
+           SELECT s.id, s.handle, COALESCE(s.host_tool, 'unknown') AS host_tool,
+             s.outcome, s.started_at, f.value AS file
            FROM sessions s, json_each(s.files_touched) f
            WHERE s.started_at > datetime('now', '-' || ? || ' days')
              AND s.files_touched != '[]'
          ),
-         handle_files AS (
-           SELECT handle, file,
+         file_stats AS (
+           SELECT file,
              COUNT(DISTINCT id) AS attempts,
+             COUNT(DISTINCT handle) AS agents,
+             GROUP_CONCAT(DISTINCT host_tool) AS tools_csv,
              MAX(CASE WHEN outcome IN ('abandoned', 'failed') THEN 1 ELSE 0 END) AS has_failure
            FROM file_sessions
-           GROUP BY handle, file
+           GROUP BY file
            HAVING attempts >= 2 AND has_failure = 1
          ),
          latest_outcome AS (
-           SELECT handle, file, outcome AS final_outcome,
-             ROW_NUMBER() OVER (PARTITION BY handle, file ORDER BY started_at DESC) AS rn
+           SELECT file, outcome AS final_outcome,
+             ROW_NUMBER() OVER (PARTITION BY file ORDER BY started_at DESC) AS rn
            FROM file_sessions
          )
-         SELECT hf.handle, hf.file, hf.attempts, lo.final_outcome
-         FROM handle_files hf
-         JOIN latest_outcome lo ON lo.handle = hf.handle AND lo.file = hf.file AND lo.rn = 1
-         ORDER BY hf.attempts DESC
+         SELECT fs.file, fs.attempts, fs.agents, fs.tools_csv, lo.final_outcome
+         FROM file_stats fs
+         JOIN latest_outcome lo ON lo.file = fs.file AND lo.rn = 1
+         ORDER BY fs.attempts DESC
          LIMIT 30`,
         days,
       )
@@ -51,10 +59,12 @@ export function queryRetryPatterns(sql: SqlStorage, days: number): RetryPattern[
     return rows.map((r) => {
       const row = r as Record<string, unknown>;
       const finalOutcome = (row.final_outcome as string) || null;
+      const toolsCsv = (row.tools_csv as string) || '';
       return {
-        handle: row.handle as string,
         file: row.file as string,
         attempts: (row.attempts as number) || 0,
+        agents: (row.agents as number) || 0,
+        tools: toolsCsv ? toolsCsv.split(',').filter(Boolean) : [],
         final_outcome: finalOutcome,
         resolved: finalOutcome === 'completed',
       };
@@ -189,19 +199,16 @@ export function queryFileOverlap(sql: SqlStorage, days: number): FileOverlapStat
       )
       .toArray();
 
-    if (rows.length === 0) return { total_files: 0, overlapping_files: 0, overlap_rate: 0 };
+    if (rows.length === 0) return { total_files: 0, overlapping_files: 0 };
 
     const row = rows[0] as Record<string, unknown>;
-    const total = (row.total_files as number) || 0;
-    const overlapping = (row.overlapping_files as number) || 0;
     return {
-      total_files: total,
-      overlapping_files: overlapping,
-      overlap_rate: total > 0 ? Math.round((overlapping / total) * 1000) / 10 : 0,
+      total_files: (row.total_files as number) || 0,
+      overlapping_files: (row.overlapping_files as number) || 0,
     };
   } catch (err) {
     log.warn(`fileOverlap query failed: ${err}`);
-    return { total_files: 0, overlapping_files: 0, overlap_rate: 0 };
+    return { total_files: 0, overlapping_files: 0 };
   }
 }
 

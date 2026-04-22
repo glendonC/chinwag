@@ -6,21 +6,18 @@
 import type { MemberAnalytics } from '@chinwag/shared/contracts/analytics.js';
 import type { TeamResult } from './types.js';
 
-const round1 = (n: number) => Math.round(n * 10) / 10;
 const rate = (num: number, denom: number) =>
   denom > 0 ? Math.round((num / denom) * 1000) / 10 : 0;
 
+// Audit 2026-04-21: Bucket trimmed to match the pruned MemberAnalytics shape.
+// abandoned/failed/avg_duration_min/total_lines_added/removed/total_commits
+// all dropped — see memberAnalyticsSchema comment for rationale. `completed`
+// stays because cross-team completion_rate = sum(completed) / sum(sessions);
+// averaging per-team rates would be wrong.
 interface MemberBucket {
   sessions: number;
   completed: number;
-  abandoned: number;
-  failed: number;
-  duration_sum: number;
-  duration_count: number;
   total_edits: number;
-  total_lines_added: number;
-  total_lines_removed: number;
-  total_commits: number;
   total_session_hours: number;
   tools: Map<string, number>;
 }
@@ -36,27 +33,13 @@ export function merge(acc: MemberAcc, team: TeamResult): void {
     const existing = acc.get(ma.handle) ?? {
       sessions: 0,
       completed: 0,
-      abandoned: 0,
-      failed: 0,
-      duration_sum: 0,
-      duration_count: 0,
       total_edits: 0,
-      total_lines_added: 0,
-      total_lines_removed: 0,
-      total_commits: 0,
       total_session_hours: 0,
       tools: new Map<string, number>(),
     };
     existing.sessions += ma.sessions;
     existing.completed += ma.completed;
-    existing.abandoned += ma.abandoned;
-    existing.failed += ma.failed;
-    existing.duration_sum += ma.avg_duration_min * ma.sessions;
-    existing.duration_count += ma.sessions;
     existing.total_edits += ma.total_edits;
-    existing.total_lines_added += ma.total_lines_added;
-    existing.total_lines_removed += ma.total_lines_removed;
-    existing.total_commits += ma.total_commits ?? 0;
     existing.total_session_hours += ma.total_session_hours;
     if (ma.primary_tool) {
       existing.tools.set(ma.primary_tool, (existing.tools.get(ma.primary_tool) ?? 0) + ma.sessions);
@@ -82,14 +65,8 @@ export function project(acc: MemberAcc): MemberAnalytics[] {
         handle,
         sessions: v.sessions,
         completed: v.completed,
-        abandoned: v.abandoned,
-        failed: v.failed,
         completion_rate: rate(v.completed, v.sessions),
-        avg_duration_min: v.duration_count > 0 ? round1(v.duration_sum / v.duration_count) : 0,
         total_edits: v.total_edits,
-        total_lines_added: v.total_lines_added,
-        total_lines_removed: v.total_lines_removed,
-        total_commits: v.total_commits,
         primary_tool: primaryTool,
         total_session_hours: Math.round(v.total_session_hours * 100) / 100,
       };

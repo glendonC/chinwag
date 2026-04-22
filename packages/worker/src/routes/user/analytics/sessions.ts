@@ -192,8 +192,16 @@ export function projectConflictStats(acc: ConflictStatsAcc): ConflictStats {
 
 // ── retry_patterns ───────────────────────────────
 
+// Audit 2026-04-21: Post-regroup shape — key is file (not handle:file). Attempts
+// sum across teams because the same path appearing in team-A and team-B
+// genuinely means more pain for this user. Agents is max-across-teams — the
+// union of distinct counts is not itself a distinct count, and max is a
+// truthful lower bound when the same person may appear in multiple teams.
+// Tools union normally because set semantics hold across teams.
 interface RetryBucket {
   attempts: number;
+  max_agents: number;
+  tools: Set<string>;
   final_outcome: string | null;
   resolved: boolean;
 }
@@ -206,9 +214,17 @@ export function createRetryAcc(): RetryAcc {
 
 export function mergeRetry(acc: RetryAcc, team: TeamResult): void {
   for (const rp of team.retry_patterns ?? []) {
-    const key = `${rp.handle}:${rp.file}`;
-    const existing = acc.get(key) ?? { attempts: 0, final_outcome: null, resolved: false };
+    const key = rp.file;
+    const existing = acc.get(key) ?? {
+      attempts: 0,
+      max_agents: 0,
+      tools: new Set<string>(),
+      final_outcome: null,
+      resolved: false,
+    };
     existing.attempts += rp.attempts;
+    existing.max_agents = Math.max(existing.max_agents, rp.agents);
+    for (const t of rp.tools) existing.tools.add(t);
     existing.final_outcome = rp.final_outcome ?? existing.final_outcome;
     existing.resolved = existing.final_outcome === 'completed';
     acc.set(key, existing);
@@ -219,16 +235,14 @@ export function projectRetry(acc: RetryAcc): RetryPattern[] {
   return [...acc.entries()]
     .sort(([, a], [, b]) => b.attempts - a.attempts)
     .slice(0, 30)
-    .map(([key, v]) => {
-      const sep = key.indexOf(':');
-      return {
-        handle: key.slice(0, sep),
-        file: key.slice(sep + 1),
-        attempts: v.attempts,
-        final_outcome: v.final_outcome,
-        resolved: v.resolved,
-      };
-    });
+    .map(([file, v]) => ({
+      file,
+      attempts: v.attempts,
+      agents: v.max_agents,
+      tools: [...v.tools],
+      final_outcome: v.final_outcome,
+      resolved: v.resolved,
+    }));
 }
 
 // ── concurrent_edits ─────────────────────────────

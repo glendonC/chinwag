@@ -43,6 +43,7 @@ export function buildEmptyAnalyticsResponse(days: number): UserAnalytics {
     duration_distribution: [],
     concurrent_edits: [],
     member_analytics: [],
+    member_analytics_total: 0,
     member_daily_lines: [],
     per_project_lines: [],
     retry_patterns: [],
@@ -55,13 +56,11 @@ export function buildEmptyAnalyticsResponse(days: number): UserAnalytics {
       searches_with_results: 0,
       search_hit_rate: 0,
       memories_created_period: 0,
-      memories_updated_period: 0,
       stale_memories: 0,
       avg_memory_age_days: 0,
-      merged_memories: 0,
       pending_consolidation_proposals: 0,
       formation_observations_by_recommendation: { keep: 0, merge: 0, evolve: 0, discard: 0 },
-      secrets_blocked_period: 0,
+      secrets_blocked_24h: 0,
     },
     period_comparison: {
       current: {
@@ -138,7 +137,6 @@ export function buildEmptyAnalyticsResponse(days: number): UserAnalytics {
     file_overlap: {
       total_files: 0,
       overlapping_files: 0,
-      overlap_rate: 0,
     },
     audit_staleness: [],
     first_edit_stats: {
