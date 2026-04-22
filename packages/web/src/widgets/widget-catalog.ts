@@ -293,7 +293,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   {
     id: 'cache-efficiency',
     name: 'cache hit rate',
-    description: 'Share of input tokens served from prompt cache',
+    description: 'How much of each prompt is reused from cache instead of re-sent to the model',
     category: 'tools',
     scope: 'both',
     viz: 'stat',
@@ -423,7 +423,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   {
     id: 'commit-stats',
     name: 'commits',
-    description: 'Commit activity from agent sessions',
+    description: 'Hook-captured commits from agent sessions, rolled up across tools',
     category: 'codebase',
     scope: 'both',
     viz: 'stat-row',
@@ -436,7 +436,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   {
     id: 'directories',
     name: 'top directories',
-    description: 'Most-edited directories by touch count',
+    description: 'Top 10 directories by touch count, with per-directory completion rate',
     category: 'codebase',
     scope: 'both',
     viz: 'bar-chart',
@@ -449,7 +449,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   {
     id: 'files',
     name: 'top files',
-    description: 'Most-edited files by touch count',
+    description: 'Top 10 files by touch count, with completion rate and line changes',
     category: 'codebase',
     scope: 'both',
     viz: 'data-list',
@@ -464,7 +464,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   {
     id: 'tools',
     name: 'tool comparison',
-    description: 'AI tools and their session/edit counts',
+    description: 'AI tools in use, with sessions, edits, and how much data each tool captures',
     category: 'tools',
     scope: 'both',
     viz: 'factual-grid',
@@ -477,7 +477,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   {
     id: 'models',
     name: 'models',
-    description: 'AI models and their session/edit counts',
+    description: 'Which models your agents use, split by the tool that ran them',
     category: 'tools',
     scope: 'both',
     viz: 'data-list',
@@ -609,7 +609,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   {
     id: 'prompt-efficiency',
     name: 'prompt efficiency',
-    description: 'User turns per edit trend over time',
+    description: 'Back-and-forth turns per edit over time — lower means fewer messages per change',
     category: 'activity',
     scope: 'both',
     viz: 'sparkline',
@@ -651,7 +651,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   {
     id: 'file-churn',
     name: 'file churn',
-    description: 'Files edited across multiple sessions',
+    description: 'Top 10 files by session spread — persistent work across separate sessions',
     category: 'codebase',
     scope: 'both',
     viz: 'data-list',
@@ -664,7 +664,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   {
     id: 'file-rework',
     name: 'file rework',
-    description: 'Files with high failed-edit ratios',
+    description: 'Top 10 files by failed-edit ratio — candidates for refactor or review',
     category: 'codebase',
     scope: 'both',
     viz: 'data-list',
@@ -676,8 +676,9 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'audit-staleness',
-    name: 'stale directories',
-    description: 'Directories with no recent activity',
+    name: 'cold directories',
+    description:
+      'Directories that went cold in this period (14+ days since last touch) — ownership gaps and pruning candidates',
     category: 'codebase',
     scope: 'both',
     viz: 'data-list',
@@ -686,12 +687,11 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 2,
     dataKeys: ['audit_staleness'],
-    timeScope: 'all-time',
   },
   {
     id: 'concurrent-edits',
     name: 'edit collisions',
-    description: 'Files touched by multiple agents in the same period — conflict risk',
+    description: 'Top 10 files touched by multiple agents this period — coordination hotspots',
     category: 'codebase',
     scope: 'both',
     viz: 'data-list',
@@ -732,7 +732,8 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   {
     id: 'tool-calls',
     name: 'tool calls',
-    description: 'Total calls, error rate, research-to-edit ratio',
+    description:
+      'How often agents call tools, how often calls fail, and how much they read before editing',
     category: 'tools',
     scope: 'both',
     viz: 'stat-row',
@@ -745,7 +746,8 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   {
     id: 'tool-call-freq',
     name: 'tool call frequency',
-    description: 'Most-invoked tools with error rates',
+    description:
+      'Which underlying tools agents call most (Edit, Read, Grep, MCP tools) and how often they error',
     category: 'tools',
     scope: 'both',
     viz: 'bar-chart',
@@ -758,7 +760,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   {
     id: 'tool-call-errors',
     name: 'tool call errors',
-    description: 'Common error patterns across tools',
+    description: 'Recurring errors when agents run tools, grouped by tool and error message',
     category: 'tools',
     scope: 'both',
     viz: 'data-list',
@@ -811,7 +813,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   {
     id: 'data-coverage',
     name: 'data coverage',
-    description: 'Which insight categories have data and which are waiting',
+    description: 'Which analytics have real data yet and what to do to light up the rest',
     category: 'tools',
     scope: 'both',
     viz: 'data-list',
@@ -881,22 +883,9 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     dataKeys: ['top_memories'],
   },
   {
-    id: 'formation-summary',
-    name: 'memory review feed',
-    description: 'Memories the consolidator flagged to merge, evolve, or discard this period',
-    category: 'memory',
-    scope: 'both',
-    viz: 'bar-chart',
-    w: 6,
-    h: 3,
-    minW: 4,
-    minH: 2,
-    dataKeys: ['memory_usage'],
-  },
-  {
     id: 'memory-safety',
     name: 'memory safety',
-    description: 'Consolidation queue, auditor flags, secrets caught, and merged memories',
+    description: 'Review queue: proposals, auditor flags, and secrets blocks needing attention',
     category: 'memory',
     scope: 'both',
     viz: 'stat-row',
@@ -905,6 +894,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 3,
     minH: 2,
     dataKeys: ['memory_usage'],
+    timeScope: 'live',
   },
 
   // ── Team (extended) ─────────────────
@@ -1048,6 +1038,12 @@ export const WIDGET_ALIASES: Record<string, string[]> = {
   // frame: "which prompt phrasings stall sessions" instead of "your mood vs
   // your outcomes." See .internal/WIDGET_RUBRIC.md E4.
   'sentiment-outcomes': ['prompt-clarity'],
+  // 2026-04-21: formation-summary cut. Duplicated memory-safety's
+  // auditor-flagged count in chart form (B2) and failed C1 — the bar chart
+  // rendered a minority subset (actionable flags) as if it were the whole.
+  // The merge/evolve/discard breakdown belongs in the review drill, not
+  // the cockpit.
+  'formation-summary': [],
 };
 
 /**
@@ -1086,10 +1082,16 @@ export const DEFAULT_LAYOUT: WidgetSlot[] = [
   { id: 'live-agents', colSpan: 6, rowSpan: 4 },
   { id: 'live-conflicts', colSpan: 6, rowSpan: 3 },
 
-  // KPI strip — 4 + 4 + 4
-  { id: 'edits', colSpan: 4, rowSpan: 2 },
-  { id: 'cost', colSpan: 4, rowSpan: 2 },
-  { id: 'cost-per-edit', colSpan: 4, rowSpan: 2 },
+  // KPI strip — 3 × 4. Four stats at their natural 3-col size so the row
+  // reads as a tab-selector group candidate (design-language pattern: stat
+  // values double as tab triggers, active = full ink, inactive = --soft).
+  // one-shot-rate earned default placement 2026-04-22 after the outcomes
+  // sweep: CodeBurn's killer metric, honest CoverageNote empty state for
+  // non-hook tools, and coverage grows only when the metric is visible.
+  { id: 'edits', colSpan: 3, rowSpan: 2 },
+  { id: 'cost', colSpan: 3, rowSpan: 2 },
+  { id: 'cost-per-edit', colSpan: 3, rowSpan: 2 },
+  { id: 'one-shot-rate', colSpan: 3, rowSpan: 2 },
 
   // Trend chart + outcomes — 8 + 4
   { id: 'session-trend', colSpan: 8, rowSpan: 3 },
@@ -1103,13 +1105,32 @@ export const DEFAULT_LAYOUT: WidgetSlot[] = [
   { id: 'directories', colSpan: 6, rowSpan: 4 },
   { id: 'files', colSpan: 6, rowSpan: 4 },
 
+  // Codebase deep — promoted 2026-04-21 after rubric pass.
+  // commit-stats earned cross-tool coverage when the Cursor/Windsurf hook
+  // handlers shipped 2026-04-17, so the old Claude-Code-only gating that
+  // justified catalog-only in ANALYTICS_SPEC §5.6 is stale. file-rework
+  // has the highest B3 in the category — drives "open this file, review"
+  // directly, per the rubric challenger pass. Full-width to match the
+  // airy stat-strip pattern used elsewhere in the default layout.
+  { id: 'commit-stats', colSpan: 12, rowSpan: 2 },
+  { id: 'file-rework', colSpan: 12, rowSpan: 4 },
+
   // Tools + models — 6 + 6
   { id: 'tools', colSpan: 6, rowSpan: 3 },
   { id: 'models', colSpan: 6, rowSpan: 3 },
 
-  // Health signals — 4 + 4 + 4 (memory split into activity + health)
-  { id: 'memory-activity', colSpan: 4, rowSpan: 2 },
-  { id: 'memory-health', colSpan: 4, rowSpan: 2 },
+  // Cross-tool handoffs — full-width. Substrate-unique (no IDE can show
+  // "Cursor started this file, Claude Code finished it"), so it earns
+  // default placement alongside the tools/models row.
+  { id: 'tool-handoffs', colSpan: 12, rowSpan: 3 },
+
+  // Memory correlation + stuckness — 8 + 4. memory-outcomes is the
+  // strongest D1 memory widget: completion rate bucketed by whether the
+  // session hit shared memory. Promoted from catalog-only in the
+  // 2026-04-21 memory audit; memory-activity and memory-health were
+  // demoted (raw search counts + abstract avg-age don't earn a cockpit
+  // slot without a stale-list companion).
+  { id: 'memory-outcomes', colSpan: 8, rowSpan: 3 },
   { id: 'stuckness', colSpan: 4, rowSpan: 2 },
 
   // Projects — 12

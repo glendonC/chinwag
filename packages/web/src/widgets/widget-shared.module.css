@@ -25,7 +25,7 @@
 .statInlineDelta {
   font-size: var(--text-xs);
   font-weight: 400;
-  margin-left: 8px;
+  margin-left: var(--space-sm);
   letter-spacing: 0;
 }
 
@@ -205,6 +205,8 @@ button.dataRow {
   display: flex;
   align-items: center;
   gap: 8px;
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
 }
 
 .metricLabel {
@@ -272,6 +274,8 @@ button.dataRow {
   display: flex;
   align-items: center;
   gap: 6px;
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
 }
 
 .workDot {
@@ -398,6 +402,18 @@ button.dataRow {
   line-height: 1.6;
 }
 
+/* ── "+N more hidden" trailing line ─────────────────
+ * Surfaces the hidden tail of top-N capped list/bar widgets (tool-daily,
+ * tool-work-type, data-coverage waiting list). Same muted treatment as
+ * .coverageNote so the eye reads it as a quiet caption, not a list item. */
+.moreHidden {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  margin-top: 8px;
+  letter-spacing: var(--tracking-stat);
+}
+
 [data-widget-viz='stat'] .coverageNote,
 [data-widget-viz='stat-row'] .coverageNote {
   position: absolute;
@@ -449,7 +465,8 @@ button.dataRow {
 /* ── Reduced motion ──────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
-  .dataRow {
+  .dataRow,
+  .metricRow {
     animation: none !important;
   }
   .ghostBarTrack,

@@ -39,6 +39,8 @@
   flex-direction: column;
   gap: 2px;
   flex: 1;
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 18ms);
 }
 
 .heatmapCell {

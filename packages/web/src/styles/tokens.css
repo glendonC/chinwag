@@ -55,12 +55,18 @@
      work-type-outcomes, tool-work-type). Aliases existing semantic
      tokens so dark-mode handling is free. Namespaced --work-* so
      future category palettes (--tool-*, --model-*) can follow the
-     same pattern without needing a generic --chart-N scheme. */
-  --work-frontend: var(--accent);
+     same pattern without needing a generic --chart-N scheme.
+
+     No entry aliases var(--accent): accent is reserved strictly for
+     live / real-time surfaces. Frontend moves to --info (indigo,
+     visibly distinct from accent blue); docs demotes to --muted
+     (neutral gray) since docs work is a less category-urgent signal
+     than frontend/backend/test/styling/config. */
+  --work-frontend: var(--info);
   --work-backend: var(--success);
   --work-test: var(--warn);
   --work-styling: var(--purple);
-  --work-docs: var(--info);
+  --work-docs: var(--muted);
   --work-config: var(--danger);
   --work-other: var(--soft);
 }

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import SectionEmpty from '../../components/SectionEmpty/SectionEmpty.js';
 import { DAY_LABELS, buildHeatmapData, workTypeColor } from '../utils.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
@@ -44,10 +44,18 @@ function Heatmap({ hourly }: { hourly: UserAnalytics['hourly_distribution'] }) {
         </div>
         <div className={styles.heatmapCols}>
           {Array.from({ length: 24 }, (_, hour) => (
-            <div key={hour} className={styles.heatmapCol}>
+            <div
+              key={hour}
+              className={styles.heatmapCol}
+              style={{ '--row-index': hour } as CSSProperties}
+            >
               {Array.from({ length: 7 }, (_, dow) => {
                 const val = grid[dow][hour];
-                const opacity = max > 0 ? 0.05 + (val / max) * 0.7 : 0.04;
+                // Clamp val/max to 1 so cells above p95 (see
+                // buildHeatmapData) saturate at full ink rather than
+                // exceeding the intended opacity range.
+                const norm = max > 0 ? Math.min(1, val / max) : 0;
+                const opacity = max > 0 ? 0.05 + norm * 0.7 : 0.04;
                 return (
                   <div
                     key={dow}
@@ -97,18 +105,22 @@ function WorkTypesWidget({ analytics }: WidgetBodyProps) {
         })}
       </div>
       <div className={shared.workLegend}>
-        {workTypes.map((w) => {
-          const pct = Math.round((w.sessions / total) * 100);
-          return pct < 1 ? null : (
-            <div key={w.work_type} className={shared.workLegendItem}>
+        {workTypes
+          .map((w) => ({ w, pct: Math.round((w.sessions / total) * 100) }))
+          .filter(({ pct }) => pct >= 1)
+          .map(({ w, pct }, i) => (
+            <div
+              key={w.work_type}
+              className={shared.workLegendItem}
+              style={{ '--row-index': i } as CSSProperties}
+            >
               <span className={shared.workDot} style={{ background: workTypeColor(w.work_type) }} />
               <span className={shared.workLegendLabel}>{w.work_type}</span>
               <span className={shared.workLegendValue}>
                 {pct}% · {w.sessions}
               </span>
             </div>
-          );
-        })}
+          ))}
       </div>
     </>
   );

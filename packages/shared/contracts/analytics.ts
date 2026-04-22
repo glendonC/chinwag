@@ -98,6 +98,11 @@ export type ToolDailyTrend = z.infer<typeof toolDailyTrendSchema>;
 
 export const modelOutcomeSchema = z.object({
   agent_model: z.string(),
+  // host_tool is nullable for backwards-compat with existing serialized
+  // rows; new aggregations always populate it. Splitting the model axis by
+  // tool is what makes the models widget substrate-unique (cross-tool
+  // attribution no single-tool dashboard can produce).
+  host_tool: z.string().nullable().default(null),
   outcome: z.string(),
   count: z.number(),
   avg_duration_min: z.number(),
@@ -184,18 +189,22 @@ export const concurrentEditEntrySchema = z.object({
 });
 export type ConcurrentEditEntry = z.infer<typeof concurrentEditEntrySchema>;
 
+// Audit 2026-04-21: Pruned to fields actual consumers read. Dropped:
+//   abandoned, failed — not rendered anywhere (completion_rate is the
+//     consumed summary; raw outcome splits were ghosted aggregation work).
+//   avg_duration_min — only shown on ModelOutcome, not member rows.
+//   total_lines_added, total_lines_removed, total_commits — wiring these up
+//     would commit the team-members widget to a GitHub-clone framing. They
+//     can be re-added when a drill view calls for them; the SQL is not a
+//     load-bearing source of truth.
+// `completed` is retained because cross-team completion_rate derivation needs
+// raw numerator + denominator; averaging per-team rates is wrong.
 export const memberAnalyticsSchema = z.object({
   handle: z.string(),
   sessions: z.number(),
   completed: z.number(),
-  abandoned: z.number(),
-  failed: z.number(),
   completion_rate: z.number(),
-  avg_duration_min: z.number(),
   total_edits: z.number(),
-  total_lines_added: z.number(),
-  total_lines_removed: z.number(),
-  total_commits: z.number().optional(),
   primary_tool: z.string().nullable(),
   // Same semantics as toolComparisonSchema.total_session_hours —
   // completed-session wall-clock sum, used as the per-teammate velocity
@@ -204,10 +213,20 @@ export const memberAnalyticsSchema = z.object({
 });
 export type MemberAnalytics = z.infer<typeof memberAnalyticsSchema>;
 
+// Audit 2026-04-21: Regrouped from (handle, file) to file only. The old shape
+// let one noisy agent dominate the top-N: if handle-A hit Button.tsx 8 times
+// and handle-B twice, the renderer showed two rows for the same file. The
+// new shape is file-centric — attempts are summed across agents, and the
+// agent / tool distinctness counts surface the cross-agent and cross-tool
+// angle that is actually substrate-unique (vs. Claude Code's own session log
+// which is per-tool). `tools` is the list of host_tools that contributed to
+// the retries, deduped; `agents` is the number of distinct handles that
+// retried this file.
 export const retryPatternSchema = z.object({
-  handle: z.string(),
   file: z.string(),
   attempts: z.number(),
+  agents: z.number(),
+  tools: z.array(z.string()),
   final_outcome: z.string().nullable(),
   resolved: z.boolean(),
 });
@@ -302,20 +321,20 @@ export const memoryUsageStatsSchema = z.object({
   searches_with_results: z.number(),
   search_hit_rate: z.number(),
   memories_created_period: z.number(),
-  memories_updated_period: z.number(),
   stale_memories: z.number(),
   avg_memory_age_days: z.number(),
-  // Lifetime count of memories that consolidation soft-merged. Stays in
-  // the table for unmerge recourse; not included in total_memories.
-  merged_memories: z.number(),
   // Live count of consolidation proposals awaiting human / agent review.
   pending_consolidation_proposals: z.number(),
-  // Period-scoped count of formation observations by recommendation type.
-  // 'keep' is the trivial case; merge/evolve/discard are flag candidates.
+  // Live count of unaddressed formation observations by recommendation
+  // (status = 'observed'). 'keep' is the trivial case; merge/evolve/discard
+  // are flag candidates. Age does not gate — a year-old unaddressed flag
+  // still needs a decision, so this query runs without a time filter.
   formation_observations_by_recommendation: formationRecommendationCountsSchema,
-  // Period-scoped count of writes the secret detector blocked. Signal
-  // that the filter is doing work; counts before-and-after force=true.
-  secrets_blocked_period: z.number(),
+  // Live count of secret-detector blocks in the last 24h. Signal that the
+  // filter is doing work; counts before-and-after force=true. Windowed at
+  // 24h (not the global period picker) so the memory-safety review surface
+  // stays live: a recent block is actionable, an old block is audit history.
+  secrets_blocked_24h: z.number(),
 });
 export type MemoryUsageStats = z.infer<typeof memoryUsageStatsSchema>;
 
@@ -364,10 +383,13 @@ export const stucknessStatsSchema = z.object({
 });
 export type StucknessStats = z.infer<typeof stucknessStatsSchema>;
 
+// Audit 2026-04-21: Dropped `overlap_rate`. The percentage was a B1 ambiguity
+// in the renderer ("60%" reads as good paired work or bad collision depending
+// on context). Absolute counts stay — total_files and overlapping_files are
+// concrete; consumers that need a rate recompute it from the counts.
 export const fileOverlapStatsSchema = z.object({
   total_files: z.number(),
   overlapping_files: z.number(),
-  overlap_rate: z.number(),
 });
 export type FileOverlapStats = z.infer<typeof fileOverlapStatsSchema>;
 
@@ -419,7 +441,10 @@ export type ScopeComplexityBucket = z.infer<typeof scopeComplexityBucketSchema>;
 
 export const promptEfficiencyTrendSchema = z.object({
   day: z.string(),
-  avg_turns_per_edit: z.number(),
+  // Nullable: the worker emits null for days with no conversation+edit
+  // activity (NULLIF on zero edits → no outer COALESCE). The client
+  // treats null as "skip this point" rather than rendering a zero floor.
+  avg_turns_per_edit: z.number().nullable(),
   sessions: z.number(),
 });
 export type PromptEfficiencyTrend = z.infer<typeof promptEfficiencyTrendSchema>;
@@ -474,6 +499,11 @@ export const toolCallErrorPatternSchema = z.object({
   tool: z.string(),
   error_preview: z.string(),
   count: z.number(),
+  // ISO timestamp of the most recent occurrence. Lets the errors widget
+  // surface a recency pane alongside frequency so rare-but-recent errors
+  // don't get buried under high-count historical ones. Nullable to stay
+  // compatible with old payloads.
+  last_at: z.string().nullable().default(null),
 });
 export type ToolCallErrorPattern = z.infer<typeof toolCallErrorPatternSchema>;
 
@@ -679,6 +709,11 @@ export const userAnalyticsSchema = teamAnalyticsSchema.extend({
   duration_distribution: z.array(durationBucketSchema),
   concurrent_edits: z.array(concurrentEditEntrySchema),
   member_analytics: z.array(memberAnalyticsSchema),
+  // Uncapped count of distinct handles with activity in the window. Ships
+  // alongside member_analytics (which is capped at 50 per team) so the
+  // renderer can surface a truthful "+N more" affordance when the team
+  // has more active members than the rendered list.
+  member_analytics_total: z.number(),
   retry_patterns: z.array(retryPatternSchema),
   conflict_correlation: z.array(conflictCorrelationSchema),
   conflict_stats: conflictStatsSchema,

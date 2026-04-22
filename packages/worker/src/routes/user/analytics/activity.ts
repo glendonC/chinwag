@@ -123,6 +123,11 @@ export function createPromptEffAcc(): PromptEffAcc {
 
 export function mergePromptEff(acc: PromptEffAcc, team: TeamResult): void {
   for (const pe of team.prompt_efficiency ?? []) {
+    // Skip null days (no conversation+edit activity this day for this team).
+    // A team contributing nothing to a day must not drag the cross-team
+    // aggregate toward zero — the projection below returns null when every
+    // team is silent on a day.
+    if (pe.avg_turns_per_edit == null) continue;
     const existing = acc.get(pe.day) ?? { turns_sum: 0, sessions: 0 };
     existing.turns_sum += pe.avg_turns_per_edit * pe.sessions;
     existing.sessions += pe.sessions;
@@ -135,7 +140,7 @@ export function projectPromptEff(acc: PromptEffAcc): PromptEfficiencyTrend[] {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([day, v]) => ({
       day,
-      avg_turns_per_edit: v.sessions > 0 ? round1(v.turns_sum / v.sessions) : 0,
+      avg_turns_per_edit: v.sessions > 0 ? round1(v.turns_sum / v.sessions) : null,
       sessions: v.sessions,
     }));
 }

@@ -51,6 +51,8 @@ import {
   toolCallErrorPatternSchema as baseToolCallErrorPatternSchema,
   toolCallTimelineSchema as baseToolCallTimelineSchema,
   commitStatsSchema as baseCommitStatsSchema,
+  memberDailyLineTrendSchema as baseMemberDailyLineTrendSchema,
+  projectLinesTrendSchema as baseProjectLinesTrendSchema,
 } from '@chinwag/shared/contracts/analytics.js';
 
 // ── Team analytics ──────────────────────────────────
@@ -194,18 +196,16 @@ const concurrentEditEntrySchema = baseConcurrentEditEntrySchema.extend({
 const memberAnalyticsSchema = baseMemberAnalyticsSchema.extend({
   sessions: z.number().default(0),
   completed: z.number().default(0),
-  abandoned: z.number().default(0),
-  failed: z.number().default(0),
   completion_rate: z.number().default(0),
-  avg_duration_min: z.number().default(0),
   total_edits: z.number().default(0),
-  total_lines_added: z.number().default(0),
-  total_lines_removed: z.number().default(0),
+  total_session_hours: z.number().default(0),
   primary_tool: z.string().nullable().default(null),
 });
 
 const retryPatternSchema = baseRetryPatternSchema.extend({
   attempts: z.number().default(0),
+  agents: z.number().default(0),
+  tools: z.array(z.string()).default([]),
   final_outcome: z.string().nullable().default(null),
   resolved: z.boolean().default(false),
 });
@@ -242,7 +242,6 @@ const memoryUsageStatsSchema = baseMemoryUsageStatsSchema.extend({
   searches_with_results: z.number().default(0),
   search_hit_rate: z.number().default(0),
   memories_created_period: z.number().default(0),
-  memories_updated_period: z.number().default(0),
   stale_memories: z.number().default(0),
   avg_memory_age_days: z.number().default(0),
 });
@@ -286,7 +285,6 @@ const stucknessStatsSchema = baseStucknessStatsSchema.extend({
 const fileOverlapStatsSchema = baseFileOverlapStatsSchema.extend({
   total_files: z.number().default(0),
   overlapping_files: z.number().default(0),
-  overlap_rate: z.number().default(0),
 });
 
 const auditStalenessEntrySchema = baseAuditStalenessEntrySchema.extend({
@@ -327,7 +325,10 @@ const scopeComplexityBucketSchema = baseScopeComplexityBucketSchema.extend({
 });
 
 const promptEfficiencyTrendSchema = basePromptEfficiencyTrendSchema.extend({
-  avg_turns_per_edit: z.number().default(0),
+  // Nullable per contract: the worker returns null for days with no
+  // conversation+edit activity so the sparkline can skip them rather
+  // than render a zero floor.
+  avg_turns_per_edit: z.number().nullable().default(null),
   sessions: z.number().default(0),
 });
 
@@ -436,6 +437,13 @@ const toolCallStatsSchema = z.object({
 
 // ── Data coverage (capability-based) ──────────────
 
+// Lines-drill support — per-member and per-project daily lines series used
+// by the Lines drill-down. Default to empty arrays so downstream consumers
+// can iterate without guarding every access; the shape is the shared
+// contract unmodified.
+const memberDailyLineTrendSchema = baseMemberDailyLineTrendSchema;
+const projectLinesTrendSchema = baseProjectLinesTrendSchema;
+
 const dataCoverageSchema = baseDataCoverageSchema.extend({
   tools_reporting: z.array(z.string()).default([]),
   tools_without_data: z.array(z.string()).default([]),
@@ -465,6 +473,7 @@ export const userAnalyticsSchema = teamAnalyticsSchema.extend({
   duration_distribution: z.array(durationBucketSchema).default([]),
   concurrent_edits: z.array(concurrentEditEntrySchema).default([]),
   member_analytics: z.array(memberAnalyticsSchema).default([]),
+  member_analytics_total: z.number().default(0),
   retry_patterns: z.array(retryPatternSchema).default([]),
   conflict_correlation: z.array(conflictCorrelationSchema).default([]),
   conflict_stats: conflictStatsSchema.default({ blocked_period: 0, found_period: 0 }),
@@ -476,13 +485,11 @@ export const userAnalyticsSchema = teamAnalyticsSchema.extend({
     searches_with_results: 0,
     search_hit_rate: 0,
     memories_created_period: 0,
-    memories_updated_period: 0,
     stale_memories: 0,
     avg_memory_age_days: 0,
-    merged_memories: 0,
     pending_consolidation_proposals: 0,
     formation_observations_by_recommendation: { keep: 0, merge: 0, evolve: 0, discard: 0 },
-    secrets_blocked_period: 0,
+    secrets_blocked_24h: 0,
   }),
   work_type_outcomes: z.array(workTypeOutcomeSchema).default([]),
   conversation_edit_correlation: z.array(conversationEditCorrelationSchema).default([]),
@@ -498,7 +505,6 @@ export const userAnalyticsSchema = teamAnalyticsSchema.extend({
   file_overlap: fileOverlapStatsSchema.default({
     total_files: 0,
     overlapping_files: 0,
-    overlap_rate: 0,
   }),
   audit_staleness: z.array(auditStalenessEntrySchema).default([]),
   first_edit_stats: firstEditStatsSchema.default({
@@ -513,6 +519,8 @@ export const userAnalyticsSchema = teamAnalyticsSchema.extend({
   hourly_effectiveness: z.array(hourlyEffectivenessSchema).default([]),
   outcome_tags: z.array(outcomeTagCountSchema).default([]),
   tool_handoffs: z.array(toolHandoffSchema).default([]),
+  member_daily_lines: z.array(memberDailyLineTrendSchema).default([]),
+  per_project_lines: z.array(projectLinesTrendSchema).default([]),
   period_comparison: periodComparisonSchema.default({
     current: {
       completion_rate: 0,
@@ -632,6 +640,9 @@ export function createEmptyUserAnalytics(): UserAnalytics {
     duration_distribution: [],
     concurrent_edits: [],
     member_analytics: [],
+    member_analytics_total: 0,
+    member_daily_lines: [],
+    per_project_lines: [],
     retry_patterns: [],
     conflict_correlation: [],
     conflict_stats: { blocked_period: 0, found_period: 0 },
@@ -643,13 +654,11 @@ export function createEmptyUserAnalytics(): UserAnalytics {
       searches_with_results: 0,
       search_hit_rate: 0,
       memories_created_period: 0,
-      memories_updated_period: 0,
       stale_memories: 0,
       avg_memory_age_days: 0,
-      merged_memories: 0,
       pending_consolidation_proposals: 0,
       formation_observations_by_recommendation: { keep: 0, merge: 0, evolve: 0, discard: 0 },
-      secrets_blocked_period: 0,
+      secrets_blocked_24h: 0,
     },
     work_type_outcomes: [],
     conversation_edit_correlation: [],
@@ -665,7 +674,6 @@ export function createEmptyUserAnalytics(): UserAnalytics {
     file_overlap: {
       total_files: 0,
       overlapping_files: 0,
-      overlap_rate: 0,
     },
     audit_staleness: [],
     first_edit_stats: {

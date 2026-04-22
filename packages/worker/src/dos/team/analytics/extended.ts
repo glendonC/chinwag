@@ -16,6 +16,11 @@ export function queryPromptEfficiency(
   tzOffsetMinutes: number = 0,
 ): PromptEfficiencyTrend[] {
   // Local-TZ spine consistent with the rest of the trend family.
+  //
+  // avg_turns_per_edit is nullable: NULLIF on zero edits + no outer COALESCE
+  // means days with no conversation+edit activity serialize as null rather
+  // than a literal 0. The downstream widget treats null as "skip this point"
+  // so the sparkline tracks real behavior, not dead-day floors.
   try {
     const rows = sql
       .exec(
@@ -25,10 +30,10 @@ export function queryPromptEfficiency(
            SELECT date(day, '+1 day') FROM spine WHERE day < date('now', ? || ' minutes')
          )
          SELECT spine.day AS day,
-                COALESCE(ROUND(
+                ROUND(
                   CAST(SUM(CASE WHEN ce.role = 'user' THEN 1 ELSE 0 END) AS REAL)
                   / NULLIF(SUM(s.edit_count), 0),
-                1), 0) AS avg_turns_per_edit,
+                1) AS avg_turns_per_edit,
                 COUNT(DISTINCT s.id) AS sessions
          FROM spine
          LEFT JOIN conversation_events ce ON date(datetime(ce.created_at, ? || ' minutes')) = spine.day
@@ -47,9 +52,10 @@ export function queryPromptEfficiency(
 
     return rows.map((r) => {
       const row = r as Record<string, unknown>;
+      const raw = row.avg_turns_per_edit;
       return {
         day: row.day as string,
-        avg_turns_per_edit: (row.avg_turns_per_edit as number) || 0,
+        avg_turns_per_edit: typeof raw === 'number' ? raw : null,
         sessions: (row.sessions as number) || 0,
       };
     });
