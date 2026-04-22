@@ -678,7 +678,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     id: 'audit-staleness',
     name: 'cold directories',
     description:
-      'Directories that went cold in this period (14+ days since last touch) — ownership gaps and pruning candidates',
+      'Directories with prior activity but no touches in 14+ days — ownership gaps and pruning candidates',
     category: 'codebase',
     scope: 'both',
     viz: 'data-list',
@@ -687,6 +687,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 2,
     dataKeys: ['audit_staleness'],
+    timeScope: 'all-time',
   },
   {
     id: 'concurrent-edits',
