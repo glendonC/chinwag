@@ -46,6 +46,7 @@ import { projectGradient } from '../../lib/projectGradient.js';
 import { useUserAnalytics } from '../../hooks/useUserAnalytics.js';
 import { useConversationAnalytics } from '../../hooks/useConversationAnalytics.js';
 import { useDismissible } from '../../hooks/useDismissible.js';
+import { useDetailDrill } from '../../hooks/useDetailDrill.js';
 import EmptyState from '../../components/EmptyState/EmptyState.jsx';
 import InlineHint from '../../components/InlineHint/InlineHint.jsx';
 import StatusState from '../../components/StatusState/StatusState.jsx';
@@ -259,37 +260,35 @@ export default function OverviewView() {
   // the back/forward buttons work. The value, when present, doubles as a
   // focus hint — clicking a specific agent row in the widget passes that
   // agent_id so LiveNowView can auto-scroll to their row inside the full
-  // picture. An empty string opens the view without focus.
-  const liveParam = useQueryParam('live');
+  // picture. An empty string opens the view without focus. The auxiliary
+  // `live-tab` param carries the initial tab when a row deep-links to a
+  // specific section (conflicts/files); closing live clears both.
+  const live = useDetailDrill('live');
   const liveTabParam = useQueryParam('live-tab');
-  const liveShifted = liveParam !== null;
-  const focusAgentId = liveParam && liveParam.length > 0 ? liveParam : null;
+  const liveShifted = live.shifted;
+  const focusAgentId = live.param && live.param.length > 0 ? live.param : null;
   const closeLive = useCallback(() => {
-    setQueryParam('live', null);
     setQueryParam('live-tab', null);
-  }, []);
+    live.close();
+  }, [live]);
 
   // Usage Detail — same query-param pattern as Live Now, scoped to the
   // usage category. The value is the initial tab (sessions/edits/cost/etc).
-  const usageParam = useQueryParam('usage');
-  const usageShifted = usageParam !== null;
-  const closeUsage = useCallback(() => {
-    setQueryParam('usage', null);
-  }, []);
+  const usage = useDetailDrill('usage');
+  const usageShifted = usage.shifted;
 
-  // Escape closes whichever detail view is open. One handler gated on either
-  // shift keeps the key binding singular.
-  const anyDetailShifted = liveShifted || usageShifted;
+  // Escape closes whichever detail view is open. Collapsing to a single
+  // active close handler keeps one listener regardless of how many
+  // drill-ins exist; adding a new category extends the chain by one line.
+  const activeClose = liveShifted ? closeLive : usageShifted ? usage.close : null;
   useEffect(() => {
-    if (!anyDetailShifted) return;
+    if (!activeClose) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (liveShifted) closeLive();
-      else if (usageShifted) closeUsage();
+      if (e.key === 'Escape') activeClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [anyDetailShifted, liveShifted, usageShifted, closeLive, closeUsage]);
+  }, [activeClose]);
 
   const projectFilter = useProjectFilter(teams);
   const { analytics } = useUserAnalytics(rangeDays, true, projectFilter.selectedIds);
@@ -640,8 +639,8 @@ export default function OverviewView() {
         ) : usageShifted ? (
           <UsageDetailView
             analytics={analytics}
-            initialTab={usageParam}
-            onBack={closeUsage}
+            initialTab={usage.param}
+            onBack={usage.close}
             rangeDays={rangeDays}
             onRangeChange={setRangeDays}
           />

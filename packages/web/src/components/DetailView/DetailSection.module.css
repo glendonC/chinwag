@@ -1,0 +1,14 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.label {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+}

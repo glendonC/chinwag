@@ -1,160 +1,62 @@
 /*
- * Usage Detail shares the visual contract with LiveNowView — header, tab
- * selectors, tabbed panel — but these stats are historical. Accent blue is
- * reserved for live data per the design language, so tab values stay on the
- * ink/soft axis and never switch to accent.
+ * UsageDetailView-specific styles. Shell (detail wrapper, tab bar,
+ * panel), DetailSection (label + content), BreakdownList and FileList
+ * moved to components/DetailView/*. What lives here is
+ * Usage-specific: hero stat row, daily outcome strip, tool share
+ * ring, duration columns, cache-efficiency legend.
  *
  * Sections (search for "── NAME ──" to jump):
- *   Tab selectors                   | line ~30
- *   Panel                           | line ~110
- *   Drill-down sections             | line ~125
- *   Hero row (sessions tab)         | line ~140
- *   Daily outcome strip             | line ~240
- *   Top grid                        | line ~355
- *   Tool share ring                 | line ~380
- *   Tool data table                 | line ~415
- *   CTA link                        | line ~470
- *   Duration columns                | line ~515
- *   Legend hatch swatch             | line ~595
- *   Outcome legend                  | line ~610
- *   Breakdown list                  | line ~645
- *   Trend block (sparkline)         | line ~700
- *   File rows                       | line ~710
- *
- * When this crosses ~1000 lines, extract tab-scoped sub-modules alongside
- * matching panel components from UsageDetailView.tsx.
+ *   Panel body helpers              | .empty, .trendFrame
+ *   Hero row (sessions tab)         | .sectionHero, .heroRow, .heroStat*, .dotMatrix, .dot
+ *   Daily outcome strip             | .strip*
+ *   Top grid                        | .topGrid
+ *   Tool share ring                 | .ringBlock, .ringMedia, .ringSvg, .ringPanel
+ *   Tool data table                 | .toolTable, .toolTh*, .toolRow, .toolCell*
+ *   CTA link                        | .toolsCta*
+ *   Duration columns                | .durationCols, .durationCol*
+ *   Outcome legend                  | .outcomeLegend, .outcomeItem, .outcomeValue,
+ *                                     .outcomeLabel, .outcomeDot, .outcomeDotHatch
  */
 
-.detail {
-  display: flex;
-  flex-direction: column;
-  gap: 48px;
-  animation: detailFadeIn 0.25s var(--motion) both;
-}
+/* ── Panel body helpers ── */
 
-@keyframes detailFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Header styles moved to DetailHeader component. */
-
-/* ── Tab selectors (stat values double as tabs) ── */
-
-.tabsRow {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--space-xs);
-}
-
-.tabButton {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  padding: 0;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-  animation: fadeSlideIn 0.35s var(--motion) both;
-  animation-delay: calc(var(--tab-index, 0) * 60ms);
-  outline: none;
-  min-width: 0;
-}
-
-.tabLabel {
-  position: relative;
-  display: inline-flex;
-  align-self: flex-start;
-  padding: var(--space-xs) var(--space-sm);
-  margin-left: calc(-1 * var(--space-sm));
-  border-radius: var(--radius-xs);
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  font-weight: 500;
-  color: var(--soft);
-  letter-spacing: var(--tracking-stat);
-  text-transform: uppercase;
-  background: transparent;
-  white-space: nowrap;
-  transition:
-    background var(--motion-fast) ease,
-    color var(--motion-fast) ease;
-}
-
-.tabButton:hover .tabLabel {
-  background: var(--hover-bg);
-}
-
-.tabActive .tabLabel {
-  background: var(--accent-bg);
-  color: var(--accent);
-}
-
-.tabValue {
-  font-size: 2.1rem;
-  font-weight: 200;
-  letter-spacing: -0.025em;
-  line-height: 1;
-  color: var(--soft);
-  transition: color var(--motion-base) var(--motion);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tabActive .tabValue {
-  color: var(--ink);
-}
-
-@keyframes fadeSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* ── Panel (tab content) ── */
-
-.panel {
-  display: flex;
-  flex-direction: column;
-  gap: 40px;
-  animation: detailFadeIn 0.2s var(--motion) both;
-}
-
+/* Muted mono text used for panel-level empty states and the CostPerEdit
+ * "Note" paragraph. Mirrors the shell's .empty class so the two styles
+ * read identically even though they live in different modules. */
 .empty {
   font-family: var(--mono);
   font-size: var(--text-xs);
   color: var(--soft);
 }
 
-/* ── Drill-down sections ── */
-
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+.trendFrame {
+  width: 100%;
+  height: 96px;
 }
 
-.sectionLabel {
-  font-family: var(--mono);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--muted);
-  letter-spacing: var(--tracking-stat);
-  text-transform: uppercase;
+/* ── Top grid — hero (left) + tool share (right) on wide viewports ──
+ *
+ * Two halves at the fold establish the session story: what happened
+ * (hero) and where (by tool). Duration is orthogonal to both and lives
+ * full-width below the daily strip. */
+
+.topGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 40px;
+}
+
+@media (min-width: 900px) {
+  .topGrid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 48px;
+  }
+}
+
+/* Hero section pins its label and content to the top of the grid row so
+ * the tool ring across the gap aligns visually with the hero number. */
+.sectionHero {
+  align-self: stretch;
 }
 
 /* ── Hero row (sessions tab) ── */
@@ -369,31 +271,6 @@
   .stripCol {
     animation: none;
   }
-}
-
-/* ── Top grid — hero (left) + tool share (right) on wide viewports ──
- *
- * Two halves at the fold establish the session story: what happened
- * (hero) and where (by tool). Duration is orthogonal to both and lives
- * full-width below the daily strip. */
-
-.topGrid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 40px;
-}
-
-@media (min-width: 900px) {
-  .topGrid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 48px;
-  }
-}
-
-/* Hero section pins its label and content to the top of the grid row so
- * the tool ring across the gap aligns visually with the hero number. */
-.sectionHero {
-  align-self: stretch;
 }
 
 /* ── Tool share ring ── */
@@ -611,19 +488,6 @@
   font-size: var(--text-2xs);
 }
 
-/* ── Legend hatch swatch ── */
-
-.outcomeDotHatch {
-  background: repeating-linear-gradient(
-    135deg,
-    var(--soft) 0,
-    var(--soft) 1px,
-    transparent 1px,
-    transparent 3px
-  );
-  border-radius: 1px;
-}
-
 /* ── Outcome legend ── */
 
 .outcomeLegend {
@@ -648,6 +512,18 @@
   align-self: center;
 }
 
+/* Diagonal hatch swatch matching the "no outcome" strip segment. */
+.outcomeDotHatch {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--soft) 0,
+    var(--soft) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  border-radius: 1px;
+}
+
 .outcomeValue {
   color: var(--ink);
   font-variant-numeric: tabular-nums;
@@ -656,124 +532,4 @@
 .outcomeLabel {
   color: var(--soft);
   font-size: var(--text-xs);
-}
-
-/* ── Breakdown list (by-tool, by-model, by-directory, etc.) ── */
-
-.breakdownList {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.breakdownRow {
-  display: grid;
-  grid-template-columns: minmax(140px, 180px) 1fr auto;
-  gap: 16px;
-  align-items: center;
-  padding: 10px 14px;
-  margin: 0 -14px;
-  border-radius: var(--radius-xs);
-  animation: rowReveal 0.3s var(--motion) both;
-  animation-delay: calc(var(--row-index, 0) * 35ms);
-}
-
-.breakdownLabel {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--sans);
-  font-size: var(--text-sm);
-  color: var(--ink);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.breakdownTrack {
-  height: 3px;
-  border-radius: 2px;
-  background: var(--hover-bg);
-  overflow: hidden;
-}
-
-.breakdownFill {
-  height: 100%;
-  background: var(--ink);
-  opacity: var(--opacity-bar-fill);
-}
-
-.breakdownValue {
-  font-family: var(--mono);
-  font-size: var(--text-xs);
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.breakdownMeta {
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  color: var(--soft);
-  letter-spacing: 0.01em;
-}
-
-/* ── Trend block (sparkline wrapper) ── */
-
-.trendFrame {
-  width: 100%;
-  height: 96px;
-}
-
-/* ── File rows (reused pattern from LiveNowView files tab) ── */
-
-.fileList {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.fileRow {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 8px 14px;
-  margin: 0 -14px;
-  border-radius: var(--radius-xs);
-  animation: rowReveal 0.3s var(--motion) both;
-  animation-delay: calc(var(--row-index, 0) * 35ms);
-}
-
-.fileName {
-  flex: 1;
-  min-width: 0;
-  font-family: var(--mono);
-  font-size: var(--text-sm);
-  color: var(--ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.fileMeta {
-  flex-shrink: 0;
-  font-family: var(--mono);
-  font-size: var(--text-xs);
-  color: var(--soft);
-  white-space: nowrap;
-}
-
-@media (max-width: 768px) {
-  .tabsRow {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    row-gap: 16px;
-  }
-
-  .tabValue {
-    font-size: 1.6rem;
-  }
 }

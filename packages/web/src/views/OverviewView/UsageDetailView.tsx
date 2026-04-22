@@ -1,7 +1,13 @@
 import { useMemo, type CSSProperties } from 'react';
 import clsx from 'clsx';
-import DetailHeader from '../../components/DetailHeader/DetailHeader.js';
-import KeyboardHint from '../../components/KeyboardHint/KeyboardHint.jsx';
+import {
+  BreakdownList,
+  BreakdownMeta,
+  DetailSection,
+  DetailView,
+  FileList,
+  type DetailTabDef,
+} from '../../components/DetailView/index.js';
 import RangePills from '../../components/RangePills/RangePills.jsx';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.js';
 import { useTabs } from '../../hooks/useTabs.js';
@@ -73,9 +79,10 @@ export default function UsageDetailView({
   }, [analytics]);
 
   const resolvedInitialTab: UsageTab = isUsageTab(initialTab) ? initialTab : 'sessions';
-  const { activeTab, setActiveTab, hint, ref: tabsRef } = useTabs(USAGE_TABS, resolvedInitialTab);
+  const tabControl = useTabs(USAGE_TABS, resolvedInitialTab);
+  const { activeTab } = tabControl;
 
-  const tabs: Array<{ id: UsageTab; label: string; value: string }> = [
+  const tabs: Array<DetailTabDef<UsageTab>> = [
     { id: 'sessions', label: 'Sessions', value: fmtCount(totals.sessions) },
     { id: 'edits', label: 'Edits', value: fmtCount(totals.edits) },
     {
@@ -103,49 +110,23 @@ export default function UsageDetailView({
   }, [analytics]);
 
   return (
-    <div className={styles.detail}>
-      <DetailHeader
-        backLabel="Overview"
-        onBack={onBack}
-        title="usage"
-        subtitle={scopeSubtitle}
-        actions={<RangePills value={rangeDays} onChange={onRangeChange} options={RANGES} />}
-      />
-
-      <div className={styles.tabsRow} ref={tabsRef} role="tablist" aria-label="Usage sections">
-        {tabs.map((t, i) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === t.id}
-            aria-controls={`usage-panel-${t.id}`}
-            data-tab={t.id}
-            tabIndex={activeTab === t.id ? 0 : -1}
-            className={clsx(styles.tabButton, activeTab === t.id && styles.tabActive)}
-            style={{ '--tab-index': i } as CSSProperties}
-            onClick={(e) => {
-              e.currentTarget.focus();
-              setActiveTab(t.id);
-            }}
-          >
-            <span className={styles.tabLabel}>
-              {t.label}
-              {activeTab === t.id && <KeyboardHint {...hint} />}
-            </span>
-            <span className={styles.tabValue}>{t.value}</span>
-          </button>
-        ))}
-      </div>
-
-      <div className={styles.panel} role="tabpanel" id={`usage-panel-${activeTab}`}>
-        {activeTab === 'sessions' && <SessionsPanel analytics={analytics} />}
-        {activeTab === 'edits' && <EditsPanel analytics={analytics} />}
-        {activeTab === 'cost' && <CostPanel analytics={analytics} />}
-        {activeTab === 'cost-per-edit' && <CostPerEditPanel analytics={analytics} />}
-        {activeTab === 'files-touched' && <FilesTouchedPanel analytics={analytics} />}
-      </div>
-    </div>
+    <DetailView
+      backLabel="Overview"
+      onBack={onBack}
+      title="usage"
+      subtitle={scopeSubtitle}
+      actions={<RangePills value={rangeDays} onChange={onRangeChange} options={RANGES} />}
+      tabs={tabs}
+      tabControl={tabControl}
+      idPrefix="usage"
+      tablistLabel="Usage sections"
+    >
+      {activeTab === 'sessions' && <SessionsPanel analytics={analytics} />}
+      {activeTab === 'edits' && <EditsPanel analytics={analytics} />}
+      {activeTab === 'cost' && <CostPanel analytics={analytics} />}
+      {activeTab === 'cost-per-edit' && <CostPerEditPanel analytics={analytics} />}
+      {activeTab === 'files-touched' && <FilesTouchedPanel analytics={analytics} />}
+    </DetailView>
   );
 }
 
@@ -240,8 +221,7 @@ function SessionsPanel({ analytics }: { analytics: UserAnalytics }) {
       {(hasHero || byTool.length > 0) && (
         <div className={styles.topGrid}>
           {hasHero && (
-            <section className={clsx(styles.section, styles.sectionHero)}>
-              <span className={styles.sectionLabel}>Session health</span>
+            <DetailSection label="Session health" className={styles.sectionHero}>
               <div className={styles.heroRow}>
                 {heroStats.map((s, i) => (
                   <div
@@ -275,21 +255,19 @@ function SessionsPanel({ analytics }: { analytics: UserAnalytics }) {
                   </div>
                 )}
               </div>
-            </section>
+            </DetailSection>
           )}
           {byTool.length > 0 && (
-            <section className={styles.section}>
-              <span className={styles.sectionLabel}>By tool</span>
+            <DetailSection label="By tool">
               <ToolRing entries={byTool} total={totalSessions} />
-            </section>
+            </DetailSection>
           )}
         </div>
       )}
 
       {/* Daily outcome strip — subsumes outcome split + daily trend */}
       {analytics.daily_trends.length >= 2 && (
-        <section className={styles.section}>
-          <span className={styles.sectionLabel}>Daily outcome mix</span>
+        <DetailSection label="Daily outcome mix">
           <DailyOutcomeStrip trends={analytics.daily_trends} maxTotal={dailyMaxTotal} />
           <div className={styles.stripLegend}>
             <LegendDot color="var(--success)" label="completed" />
@@ -297,15 +275,14 @@ function SessionsPanel({ analytics }: { analytics: UserAnalytics }) {
             <LegendDot color="var(--danger)" label="failed" />
             <LegendHatch label="no outcome" />
           </div>
-        </section>
+        </DetailSection>
       )}
 
       {/* Session duration — full-width band */}
       {durationDist.length > 0 && (
-        <section className={styles.section}>
-          <span className={styles.sectionLabel}>Session duration</span>
+        <DetailSection label="Session duration">
           <DurationStrip buckets={durationDist} />
-        </section>
+        </DetailSection>
       )}
     </>
   );
@@ -745,164 +722,119 @@ function EditsPanel({ analytics }: { analytics: UserAnalytics }) {
   return (
     <>
       {byTool.length > 0 && (
-        <section className={styles.section}>
-          <span className={styles.sectionLabel}>By tool</span>
-          <div className={styles.breakdownList}>
-            {byTool.map((t, i) => {
+        <DetailSection label="By tool">
+          <BreakdownList
+            items={byTool.map((t) => {
               const meta = getToolMeta(t.host_tool);
-              return (
-                <div
-                  key={t.host_tool}
-                  className={styles.breakdownRow}
-                  style={{ '--row-index': i } as CSSProperties}
-                >
-                  <span className={styles.breakdownLabel}>
+              return {
+                key: t.host_tool,
+                label: (
+                  <>
                     <ToolIcon tool={t.host_tool} size={14} />
                     {meta.label}
-                  </span>
-                  <div className={styles.breakdownTrack}>
-                    <div
-                      className={styles.breakdownFill}
-                      style={{
-                        width: `${(t.total_edits / maxEdits) * 100}%`,
-                        background: meta.color,
-                      }}
-                    />
-                  </div>
-                  <span className={styles.breakdownValue}>{fmtCount(t.total_edits)}</span>
-                </div>
-              );
+                  </>
+                ),
+                fillPct: (t.total_edits / maxEdits) * 100,
+                fillColor: meta.color,
+                value: fmtCount(t.total_edits),
+              };
             })}
-          </div>
-        </section>
+          />
+        </DetailSection>
       )}
 
       {byToolVelocity.length >= 2 && (
-        <section className={styles.section}>
-          <span className={styles.sectionLabel}>Edits per hour · by tool</span>
-          <div className={styles.breakdownList}>
-            {byToolVelocity.map((v, i) => {
+        <DetailSection label="Edits per hour · by tool">
+          <BreakdownList
+            items={byToolVelocity.map((v) => {
               const meta = getToolMeta(v.host_tool);
-              return (
-                <div
-                  key={v.host_tool}
-                  className={styles.breakdownRow}
-                  style={{ '--row-index': i } as CSSProperties}
-                >
-                  <span className={styles.breakdownLabel}>
+              return {
+                key: v.host_tool,
+                label: (
+                  <>
                     <ToolIcon tool={v.host_tool} size={14} />
                     {meta.label}
-                  </span>
-                  <div className={styles.breakdownTrack}>
-                    <div
-                      className={styles.breakdownFill}
-                      style={{
-                        width: `${(v.rate / maxToolVelocity) * 100}%`,
-                        background: meta.color,
-                      }}
-                    />
-                  </div>
-                  <span className={styles.breakdownValue}>
+                  </>
+                ),
+                fillPct: (v.rate / maxToolVelocity) * 100,
+                fillColor: meta.color,
+                value: (
+                  <>
                     {v.rate.toFixed(1)} /hr
-                    <span className={styles.breakdownMeta}> · {v.hours.toFixed(1)}h logged</span>
-                  </span>
-                </div>
-              );
+                    <BreakdownMeta> · {v.hours.toFixed(1)}h logged</BreakdownMeta>
+                  </>
+                ),
+              };
             })}
-          </div>
-        </section>
+          />
+        </DetailSection>
       )}
 
       {byMemberVelocity.length >= 2 && (
-        <section className={styles.section}>
-          <span className={styles.sectionLabel}>Edits per hour · by teammate</span>
-          <div className={styles.breakdownList}>
-            {byMemberVelocity.map((v, i) => (
-              <div
-                key={v.handle}
-                className={styles.breakdownRow}
-                style={{ '--row-index': i } as CSSProperties}
-              >
-                <span className={styles.breakdownLabel}>
+        <DetailSection label="Edits per hour · by teammate">
+          <BreakdownList
+            items={byMemberVelocity.map((v) => ({
+              key: v.handle,
+              label: (
+                <>
                   {v.primary_tool && <ToolIcon tool={v.primary_tool} size={14} />}
                   {v.handle}
-                </span>
-                <div className={styles.breakdownTrack}>
-                  <div
-                    className={styles.breakdownFill}
-                    style={{ width: `${(v.rate / maxMemberVelocity) * 100}%` }}
-                  />
-                </div>
-                <span className={styles.breakdownValue}>
+                </>
+              ),
+              fillPct: (v.rate / maxMemberVelocity) * 100,
+              value: (
+                <>
                   {v.rate.toFixed(1)} /hr
-                  <span className={styles.breakdownMeta}> · {v.hours.toFixed(1)}h logged</span>
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
+                  <BreakdownMeta> · {v.hours.toFixed(1)}h logged</BreakdownMeta>
+                </>
+              ),
+            }))}
+          />
+        </DetailSection>
       )}
 
       {byProjectVelocity.length >= 2 && (
-        <section className={styles.section}>
-          <span className={styles.sectionLabel}>Edits per hour · by project</span>
-          <div className={styles.breakdownList}>
-            {byProjectVelocity.map((p, i) => (
-              <div
-                key={p.team_id}
-                className={styles.breakdownRow}
-                style={{ '--row-index': i } as CSSProperties}
-              >
-                <span className={styles.breakdownLabel}>
+        <DetailSection label="Edits per hour · by project">
+          <BreakdownList
+            items={byProjectVelocity.map((p) => ({
+              key: p.team_id,
+              label: (
+                <>
                   {p.primary_tool && <ToolIcon tool={p.primary_tool} size={14} />}
                   {p.team_name ?? p.team_id}
-                </span>
-                <div className={styles.breakdownTrack}>
-                  <div
-                    className={styles.breakdownFill}
-                    style={{ width: `${(p.edits_per_hour / maxProjectVelocity) * 100}%` }}
-                  />
-                </div>
-                <span className={styles.breakdownValue}>
+                </>
+              ),
+              fillPct: (p.edits_per_hour / maxProjectVelocity) * 100,
+              value: (
+                <>
                   {p.edits_per_hour.toFixed(1)} /hr
-                  <span className={styles.breakdownMeta}>
-                    {' · '}
-                    {p.total_session_hours.toFixed(1)}h logged
-                  </span>
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
+                  <BreakdownMeta> · {p.total_session_hours.toFixed(1)}h logged</BreakdownMeta>
+                </>
+              ),
+            }))}
+          />
+        </DetailSection>
       )}
 
       {topFiles.length > 0 && (
-        <section className={styles.section}>
-          <span className={styles.sectionLabel}>Most-touched files</span>
-          <ul className={styles.fileList}>
-            {topFiles.map((f, i) => (
-              <li
-                key={f.file}
-                className={styles.fileRow}
-                style={{ '--row-index': i } as CSSProperties}
-              >
-                <span className={styles.fileName} title={f.file}>
-                  {f.file}
-                </span>
-                <span className={styles.fileMeta}>{fmtCount(f.touch_count)} touches</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <DetailSection label="Most-touched files">
+          <FileList
+            items={topFiles.map((f) => ({
+              key: f.file,
+              name: f.file,
+              title: f.file,
+              meta: `${fmtCount(f.touch_count)} touches`,
+            }))}
+          />
+        </DetailSection>
       )}
 
       {dailyEdits.length >= 2 && (
-        <section className={styles.section}>
-          <span className={styles.sectionLabel}>Daily trend</span>
+        <DetailSection label="Daily trend">
           <div className={styles.trendFrame}>
             <Sparkline data={dailyEdits} height={96} />
           </div>
-        </section>
+        </DetailSection>
       )}
     </>
   );
@@ -934,71 +866,48 @@ function CostPanel({ analytics }: { analytics: UserAnalytics }) {
   return (
     <>
       {byModel.length > 0 && (
-        <section className={styles.section}>
-          <span className={styles.sectionLabel}>By model</span>
-          <div className={styles.breakdownList}>
-            {byModel.map((m, i) => (
-              <div
-                key={m.agent_model}
-                className={styles.breakdownRow}
-                style={{ '--row-index': i } as CSSProperties}
-              >
-                <span className={styles.breakdownLabel}>{m.agent_model}</span>
-                <div className={styles.breakdownTrack}>
-                  <div
-                    className={styles.breakdownFill}
-                    style={{ width: `${((m.estimated_cost_usd ?? 0) / maxModelCost) * 100}%` }}
-                  />
-                </div>
-                <span className={styles.breakdownValue}>
+        <DetailSection label="By model">
+          <BreakdownList
+            items={byModel.map((m) => ({
+              key: m.agent_model,
+              label: m.agent_model,
+              fillPct: ((m.estimated_cost_usd ?? 0) / maxModelCost) * 100,
+              value: (
+                <>
                   {formatCost(m.estimated_cost_usd, 2)}
-                  <span className={styles.breakdownMeta}> · {fmtCount(m.sessions)} sessions</span>
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
+                  <BreakdownMeta> · {fmtCount(m.sessions)} sessions</BreakdownMeta>
+                </>
+              ),
+            }))}
+          />
+        </DetailSection>
       )}
 
       {byTool.length > 0 && (
-        <section className={styles.section}>
-          <span className={styles.sectionLabel}>By tool (input + cache read)</span>
-          <div className={styles.breakdownList}>
-            {byTool.map((m, i) => {
+        <DetailSection label="By tool (input + cache read)">
+          <BreakdownList
+            items={byTool.map((m) => {
               const meta = getToolMeta(m.host_tool);
               const tokens = m.input_tokens + m.cache_read_tokens;
-              return (
-                <div
-                  key={m.host_tool}
-                  className={styles.breakdownRow}
-                  style={{ '--row-index': i } as CSSProperties}
-                >
-                  <span className={styles.breakdownLabel}>
+              return {
+                key: m.host_tool,
+                label: (
+                  <>
                     <ToolIcon tool={m.host_tool} size={14} />
                     {meta.label}
-                  </span>
-                  <div className={styles.breakdownTrack}>
-                    <div
-                      className={styles.breakdownFill}
-                      style={{
-                        width: `${(tokens / maxToolTokens) * 100}%`,
-                        background: meta.color,
-                      }}
-                    />
-                  </div>
-                  <span className={styles.breakdownValue}>
-                    {fmtCount(Math.round(tokens / 1000))}k tok
-                  </span>
-                </div>
-              );
+                  </>
+                ),
+                fillPct: (tokens / maxToolTokens) * 100,
+                fillColor: meta.color,
+                value: `${fmtCount(Math.round(tokens / 1000))}k tok`,
+              };
             })}
-          </div>
-        </section>
+          />
+        </DetailSection>
       )}
 
       {t.cache_hit_rate != null && (
-        <section className={styles.section}>
-          <span className={styles.sectionLabel}>Cache efficiency</span>
+        <DetailSection label="Cache efficiency">
           <div className={styles.outcomeLegend}>
             <div className={styles.outcomeItem}>
               <span className={styles.outcomeValue}>{fmtPct(t.cache_hit_rate, 1)}</span>
@@ -1009,7 +918,7 @@ function CostPanel({ analytics }: { analytics: UserAnalytics }) {
               </span>
             </div>
           </div>
-        </section>
+        </DetailSection>
       )}
     </>
   );
@@ -1057,48 +966,38 @@ function CostPerEditPanel({ analytics }: { analytics: UserAnalytics }) {
   return (
     <>
       {perTool.length > 0 && (
-        <section className={styles.section}>
-          <span className={styles.sectionLabel}>By tool · cheapest first</span>
-          <div className={styles.breakdownList}>
-            {perTool.map((x, i) => {
+        <DetailSection label="By tool · cheapest first">
+          <BreakdownList
+            items={perTool.map((x) => {
               const meta = getToolMeta(x.host_tool);
-              return (
-                <div
-                  key={x.host_tool}
-                  className={styles.breakdownRow}
-                  style={{ '--row-index': i } as CSSProperties}
-                >
-                  <span className={styles.breakdownLabel}>
+              return {
+                key: x.host_tool,
+                label: (
+                  <>
                     <ToolIcon tool={x.host_tool} size={14} />
                     {meta.label}
-                  </span>
-                  <div className={styles.breakdownTrack}>
-                    <div
-                      className={styles.breakdownFill}
-                      style={{
-                        width: `${((x.rate ?? 0) / maxRate) * 100}%`,
-                        background: meta.color,
-                      }}
-                    />
-                  </div>
-                  <span className={styles.breakdownValue}>
+                  </>
+                ),
+                fillPct: ((x.rate ?? 0) / maxRate) * 100,
+                fillColor: meta.color,
+                value: (
+                  <>
                     {formatCost(x.rate, 3)}
-                    <span className={styles.breakdownMeta}> / {fmtCount(x.edits)} edits</span>
-                  </span>
-                </div>
-              );
+                    <BreakdownMeta> / {fmtCount(x.edits)} edits</BreakdownMeta>
+                  </>
+                ),
+              };
             })}
-          </div>
-        </section>
+          />
+        </DetailSection>
       )}
 
-      <section className={styles.section}>
-        <span className={styles.sectionLabel}>Note</span>
+      <DetailSection label="Note">
         <span className={styles.empty}>
           Per-tool rates are proportional estimates from input-token share, not model-joined exact
           costs.
         </span>
-      </section>
+      </DetailSection>
     </>
   );
 }
@@ -1123,72 +1022,47 @@ function FilesTouchedPanel({ analytics }: { analytics: UserAnalytics }) {
   return (
     <>
       {dirs.length > 0 && (
-        <section className={styles.section}>
-          <span className={styles.sectionLabel}>By directory</span>
-          <div className={styles.breakdownList}>
-            {dirs.map((d, i) => (
-              <div
-                key={d.directory}
-                className={styles.breakdownRow}
-                style={{ '--row-index': i } as CSSProperties}
-              >
-                <span className={styles.breakdownLabel}>{d.directory}</span>
-                <div className={styles.breakdownTrack}>
-                  <div
-                    className={styles.breakdownFill}
-                    style={{ width: `${(d.touch_count / maxDir) * 100}%` }}
-                  />
-                </div>
-                <span className={styles.breakdownValue}>
+        <DetailSection label="By directory">
+          <BreakdownList
+            items={dirs.map((d) => ({
+              key: d.directory,
+              label: d.directory,
+              fillPct: (d.touch_count / maxDir) * 100,
+              value: (
+                <>
                   {fmtCount(d.touch_count)}
-                  <span className={styles.breakdownMeta}> · {d.file_count} files</span>
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
+                  <BreakdownMeta> · {d.file_count} files</BreakdownMeta>
+                </>
+              ),
+            }))}
+          />
+        </DetailSection>
       )}
 
       {topFiles.length > 0 && (
-        <section className={styles.section}>
-          <span className={styles.sectionLabel}>Most-touched files</span>
-          <ul className={styles.fileList}>
-            {topFiles.map((f, i) => (
-              <li
-                key={f.file}
-                className={styles.fileRow}
-                style={{ '--row-index': i } as CSSProperties}
-              >
-                <span className={styles.fileName} title={f.file}>
-                  {f.file}
-                </span>
-                <span className={styles.fileMeta}>{fmtCount(f.touch_count)} touches</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <DetailSection label="Most-touched files">
+          <FileList
+            items={topFiles.map((f) => ({
+              key: f.file,
+              name: f.file,
+              title: f.file,
+              meta: `${fmtCount(f.touch_count)} touches`,
+            }))}
+          />
+        </DetailSection>
       )}
 
       {rework.length > 0 && (
-        <section className={styles.section}>
-          <span className={styles.sectionLabel}>Highest rework ratio</span>
-          <ul className={styles.fileList}>
-            {rework.map((r, i) => (
-              <li
-                key={r.file}
-                className={styles.fileRow}
-                style={{ '--row-index': i } as CSSProperties}
-              >
-                <span className={styles.fileName} title={r.file}>
-                  {r.file}
-                </span>
-                <span className={styles.fileMeta}>
-                  {fmtPct(r.rework_ratio, 1)} rework · {fmtCount(r.total_edits)} edits
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <DetailSection label="Highest rework ratio">
+          <FileList
+            items={rework.map((r) => ({
+              key: r.file,
+              name: r.file,
+              title: r.file,
+              meta: `${fmtPct(r.rework_ratio, 1)} rework · ${fmtCount(r.total_edits)} edits`,
+            }))}
+          />
+        </DetailSection>
       )}
     </>
   );

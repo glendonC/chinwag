@@ -1,115 +1,10 @@
-.detail {
-  display: flex;
-  flex-direction: column;
-  gap: 48px;
-  animation: detailFadeIn 0.25s var(--motion) both;
-}
-
-@keyframes detailFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Header styles moved to DetailHeader component. */
-
-/* ── Tab selectors (stat values double as tabs) ── */
-
-.tabsRow {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-xs);
-}
-
-.tabButton {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  padding: 0;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-  animation: fadeSlideIn 0.35s var(--motion) both;
-  animation-delay: calc(var(--tab-index, 0) * 60ms);
-  outline: none;
-}
-
-.tabLabel {
-  position: relative;
-  display: inline-flex;
-  align-self: flex-start;
-  padding: var(--space-xs) var(--space-sm);
-  margin-left: calc(-1 * var(--space-sm));
-  border-radius: var(--radius-xs);
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  font-weight: 500;
-  color: var(--soft);
-  letter-spacing: var(--tracking-stat);
-  text-transform: uppercase;
-  background: transparent;
-  transition:
-    background var(--motion-fast) ease,
-    color var(--motion-fast) ease;
-}
-
-.tabButton:hover .tabLabel {
-  background: var(--hover-bg);
-}
-
-.tabActive .tabLabel {
-  background: var(--accent-bg);
-  color: var(--accent);
-}
-
-.tabValue {
-  font-size: 2.25rem;
-  font-weight: 200;
-  letter-spacing: -0.025em;
-  line-height: 1;
-  color: var(--soft);
-  transition: color var(--motion-base) var(--motion);
-  white-space: nowrap;
-}
-
-.tabActive .tabValue {
-  color: var(--ink);
-}
-
-.tabAccent {
-  color: color-mix(in srgb, var(--accent) 40%, var(--soft));
-}
-
-.tabActive .tabAccent {
-  color: var(--accent);
-}
-
-@keyframes fadeSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* ── Panel (tab content) ── */
-
-.panel {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  animation: detailFadeIn 0.2s var(--motion) both;
-}
+/*
+ * LiveNowView-specific styles. Shell (detail wrapper, tab bar, panel,
+ * empty text) moved to components/DetailView/DetailView.module.css.
+ * What lives here is the agents-tab grid table — the part that is
+ * unique to Live's drill-in. Conflicts and Files tabs render through
+ * the shared FileRow + conflictTable classes from LiveWidgets.
+ */
 
 .empty {
   font-family: var(--mono);
@@ -257,10 +152,6 @@
  * No local classes for those two tabs live in this module anymore. */
 
 @media (max-width: 768px) {
-  .statGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .agentsHeader,
   .agentsRow {
     grid-template-columns: minmax(100px, 1.2fr) minmax(80px, 1fr) 56px 80px 64px;

@@ -2,9 +2,8 @@ import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import clsx from 'clsx';
 import { getToolMeta } from '../../lib/toolMeta.js';
 import { formatDuration } from '../../lib/utils.js';
-import DetailHeader from '../../components/DetailHeader/DetailHeader.js';
+import { DetailView, type DetailTabDef } from '../../components/DetailView/index.js';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.js';
-import KeyboardHint from '../../components/KeyboardHint/KeyboardHint.jsx';
 import { useTabs } from '../../hooks/useTabs.js';
 import type { LiveAgent } from '../../widgets/types.js';
 import { groupFilesByTeam } from '../../widgets/live-data.js';
@@ -82,7 +81,8 @@ export default function LiveNowView({
       ? 'agents'
       : 'agents';
 
-  const { activeTab, setActiveTab, hint, ref: statsRef } = useTabs(LIVE_TABS, resolvedInitialTab);
+  const tabControl = useTabs(LIVE_TABS, resolvedInitialTab);
+  const { activeTab } = tabControl;
 
   // Auto-scroll the focused agent row into view when the view opens on the
   // agents tab. Gated on activeTab so switching to another tab doesn't
@@ -99,14 +99,18 @@ export default function LiveNowView({
 
   if (totalAgents === 0) {
     return (
-      <div className={styles.detail}>
-        <DetailHeader
-          backLabel="Overview"
-          onBack={onBack}
-          title="live"
-          subtitle="No one working right now across your projects."
-        />
-      </div>
+      <DetailView
+        backLabel="Overview"
+        onBack={onBack}
+        title="live"
+        subtitle="No one working right now across your projects."
+        tabs={[]}
+        tabControl={tabControl}
+        idPrefix="live"
+        tablistLabel="Live sections"
+      >
+        <span />
+      </DetailView>
     );
   }
 
@@ -119,60 +123,40 @@ export default function LiveNowView({
     { count: teamsRepresented, singular: 'project' },
   ]);
 
-  const tabs: Array<{ id: LiveTab; label: string; value: string | number; tone: '' | 'accent' }> = [
+  const tabs: Array<DetailTabDef<LiveTab>> = [
     {
       id: 'agents',
       label: 'Agents',
       value: totalAgents,
-      tone: totalAgents > 0 ? 'accent' : '',
+      ...(totalAgents > 0 ? { tone: 'accent' as const } : {}),
     },
     {
       id: 'conflicts',
       label: 'Conflicts',
       value: totalConflicts,
-      tone: totalConflicts > 0 ? 'accent' : '',
+      ...(totalConflicts > 0 ? { tone: 'accent' as const } : {}),
     },
     {
       id: 'files',
       label: 'Files',
       value: totalFilesInPlay,
-      tone: totalFilesInPlay > 0 ? 'accent' : '',
+      ...(totalFilesInPlay > 0 ? { tone: 'accent' as const } : {}),
     },
   ];
 
   return (
-    <div className={styles.detail}>
-      <DetailHeader backLabel="Overview" onBack={onBack} title="live" subtitle={liveSubtitle} />
-
-      <div className={styles.tabsRow} ref={statsRef} role="tablist" aria-label="Live sections">
-        {tabs.map((t, i) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === t.id}
-            aria-controls={`live-panel-${t.id}`}
-            data-tab={t.id}
-            tabIndex={activeTab === t.id ? 0 : -1}
-            className={clsx(styles.tabButton, activeTab === t.id && styles.tabActive)}
-            style={{ '--tab-index': i } as CSSProperties}
-            onClick={(e) => {
-              e.currentTarget.focus();
-              setActiveTab(t.id);
-            }}
-          >
-            <span className={styles.tabLabel}>
-              {t.label}
-              {activeTab === t.id && <KeyboardHint {...hint} />}
-            </span>
-            <span className={clsx(styles.tabValue, t.tone === 'accent' && styles.tabAccent)}>
-              {t.value}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      <div className={styles.panel} role="tabpanel" id={`live-panel-${activeTab}`}>
+    <DetailView
+      backLabel="Overview"
+      onBack={onBack}
+      title="live"
+      subtitle={liveSubtitle}
+      tabs={tabs}
+      tabControl={tabControl}
+      idPrefix="live"
+      tablistLabel="Live sections"
+      panelCompact
+    >
+      <>
         {activeTab === 'agents' && (
           <div className={styles.agentsTable}>
             <div className={styles.agentsHeader}>
@@ -289,7 +273,7 @@ export default function LiveNowView({
             )}
           </>
         )}
-      </div>
-    </div>
+      </>
+    </DetailView>
   );
 }
