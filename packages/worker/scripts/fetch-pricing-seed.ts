@@ -78,7 +78,7 @@ async function main(): Promise<void> {
   try {
     response = await fetch(LITELLM_URL, {
       headers: {
-        'User-Agent': 'chinwag-pricing-seed',
+        'User-Agent': 'chinmeister-pricing-seed',
         Accept: 'application/json',
       },
     });

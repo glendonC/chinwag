@@ -10,7 +10,7 @@ import { writeFileSync, mkdirSync, existsSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 
-const PIDS_DIR = join(homedir(), '.chinwag', 'pids');
+const PIDS_DIR = join(homedir(), '.chinmeister', 'pids');
 
 describe('detectTerminalEnvironment', () => {
   const origEnv = { ...process.env };
@@ -69,11 +69,11 @@ describe('buildTerminalCommand', () => {
       task: 'refactor auth',
     });
 
-    expect(cmd).toContain('CHINWAG_TOOL');
+    expect(cmd).toContain('CHINMEISTER_TOOL');
     expect(cmd).toContain('claude-code');
-    expect(cmd).toContain('CHINWAG_AGENT_ID');
+    expect(cmd).toContain('CHINMEISTER_AGENT_ID');
     expect(cmd).toContain('mkdir -p');
-    expect(cmd).toContain('.chinwag/pids');
+    expect(cmd).toContain('.chinmeister/pids');
     expect(cmd).toContain('echo $$');
     expect(cmd).toContain('cd');
     expect(cmd).toContain('/Users/test/project');

@@ -234,8 +234,8 @@ async function loadContextModule(overrides = {}) {
   vi.doMock('../dashboard/memory.js', () => ({}));
   vi.doMock('../dashboard/composer.js', () => ({}));
   vi.doMock('../dashboard/integrations.js', () => ({}));
-  vi.doMock('@chinwag/shared/integration-model.js', () => ({}));
-  vi.doMock('@chinwag/shared/integration-doctor.js', () => ({}));
+  vi.doMock('@chinmeister/shared/integration-model.js', () => ({}));
+  vi.doMock('@chinmeister/shared/integration-doctor.js', () => ({}));
 
   const mod = await import('../dashboard/context.js');
   return mod;

@@ -6,7 +6,7 @@ import type {
   MemoryOutcomeCorrelation,
   MemoryAccessEntry,
   FormationRecommendationCounts,
-} from '@chinwag/shared/contracts/analytics.js';
+} from '@chinmeister/shared/contracts/analytics.js';
 
 const log = createLogger('TeamDO.analytics');
 

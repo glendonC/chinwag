@@ -1,8 +1,8 @@
 // Shared token refresh logic used by both api.ts (runtime 401 recovery)
 // and auth.ts (startup validation). Consolidated to avoid drift.
 
-import { createJsonApiClient } from '@chinwag/shared/api-client.js';
-import { getConfigPaths, saveConfig } from '@chinwag/shared/config.js';
+import { createJsonApiClient } from '@chinmeister/shared/api-client.js';
+import { getConfigPaths, saveConfig } from '@chinmeister/shared/config.js';
 import { createLogger } from './utils/logger.js';
 import { getErrorMessage } from './utils/responses.js';
 
@@ -57,7 +57,7 @@ async function doRefreshAndPersist(
   currentConfig: Record<string, unknown>,
 ): Promise<RefreshResult | null> {
   try {
-    const client = createJsonApiClient({ baseUrl, userAgent: 'chinwag-mcp/1.0' });
+    const client = createJsonApiClient({ baseUrl, userAgent: 'chinmeister-mcp/1.0' });
     const result = await client.post<RefreshResult>('/auth/refresh', {
       refresh_token: refreshToken,
     });

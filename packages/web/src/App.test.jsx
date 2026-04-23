@@ -97,7 +97,7 @@ async function loadAppModule(options = {}) {
   window.location.hash = options.hashToken ? `#token=${options.hashToken}` : '';
 
   if (options.storedToken) {
-    localStorage.setItem('chinwag_token', options.storedToken);
+    localStorage.setItem('chinmeister_token', options.storedToken);
   }
 
   // Pin zustand/react/shallow to use the statically imported React instance.
@@ -142,7 +142,7 @@ async function loadAppModule(options = {}) {
 
   vi.doMock('./lib/api.js', () => ({
     api: apiMock,
-    getApiUrl: () => 'https://test.chinwag.dev',
+    getApiUrl: () => 'https://test.chinmeister.com',
   }));
 
   vi.doMock('./views/ConnectView/ConnectView.js', () => ({
@@ -233,24 +233,24 @@ async function loadAppModule(options = {}) {
       return match[1];
     },
     getStoredToken() {
-      return localStorage.getItem('chinwag_token');
+      return localStorage.getItem('chinmeister_token');
     },
     async authenticate(token) {
       authStore.setState({ token });
       try {
         const user = await apiMock('GET', '/me', null, token);
         authStore.setState({ token, user });
-        localStorage.setItem('chinwag_token', token);
+        localStorage.setItem('chinmeister_token', token);
         return true;
       } catch (error) {
         authStore.setState({ token: null, user: null });
-        localStorage.removeItem('chinwag_token');
+        localStorage.removeItem('chinmeister_token');
         throw error;
       }
     },
     logout() {
       authStore.setState({ token: null, user: null });
-      localStorage.removeItem('chinwag_token');
+      localStorage.removeItem('chinmeister_token');
     },
     updateUser(updates) {
       const current = authStore.getState().user;
@@ -522,7 +522,7 @@ describe('App boot and view switching', () => {
 
     expect(container.querySelector('[aria-label="Expand sidebar"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="sidebar-collapsed"]')?.textContent).toBe('true');
-    expect(localStorage.getItem('chinwag:sidebar-collapsed-v1')).toBe('1');
+    expect(localStorage.getItem('chinmeister:sidebar-collapsed-v1')).toBe('1');
 
     unmount();
     stopPolling();

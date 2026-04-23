@@ -20,7 +20,7 @@ export function _resetInflightRefresh(): void {
   inflightRefresh = null;
 }
 
-/** Config shape as used by the auth module (superset of ChinwagConfig). */
+/** Config shape as used by the auth module (superset of ChinmeisterConfig). */
 interface AuthConfig {
   token?: string;
   refresh_token?: string;
@@ -50,7 +50,7 @@ interface ValidateConfigDeps {
 }
 
 /**
- * Validate that a chinwag config exists and has a valid token.
+ * Validate that a chinmeister config exists and has a valid token.
  * If the access token is expired, attempts a transparent refresh using the
  * refresh token (180-day TTL vs 90-day access token).
  * Exits the process with an error message if validation fails.
@@ -61,13 +61,13 @@ export async function validateConfig({
   api,
 }: ValidateConfigDeps): Promise<{ config: AuthConfig }> {
   if (!configExists()) {
-    log.error('No config found. Run `npx chinwag` first to create an account.');
+    log.error('No config found. Run `npx chinmeister` first to create an account.');
     process.exit(1);
   }
 
   let config = loadConfig() as AuthConfig;
   if (!config?.token) {
-    log.error('Invalid config — missing token. Run `npx chinwag` to re-initialize.');
+    log.error('Invalid config — missing token. Run `npx chinmeister` to re-initialize.');
     process.exit(1);
   }
 
@@ -93,12 +93,12 @@ export async function validateConfig({
       if (refreshed) {
         config = { ...config, token: refreshed.token, refresh_token: refreshed.refresh_token };
       } else {
-        log.error('Run `npx chinwag init` to re-authenticate.');
+        log.error('Run `npx chinmeister init` to re-authenticate.');
         process.exit(1);
       }
     } else if (httpErr.status === 401) {
       log.error('Access token expired and no refresh token available.');
-      log.error('Run `npx chinwag init` to re-authenticate.');
+      log.error('Run `npx chinmeister init` to re-authenticate.');
       process.exit(1);
     }
     // Non-401 errors: proceed anyway — might be temporary network issue

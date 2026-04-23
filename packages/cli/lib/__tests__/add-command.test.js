@@ -61,7 +61,7 @@ describe('runAdd', () => {
     await runAdd(undefined);
 
     const logCalls = consoleLogSpy.mock.calls.flat().join('\n');
-    expect(logCalls).toMatch(/Usage: npx chinwag add <tool>/);
+    expect(logCalls).toMatch(/Usage: npx chinmeister add <tool>/);
     expect(logCalls).toMatch(/cursor/);
     expect(logCalls).toMatch(/windsurf/);
   });

@@ -1,9 +1,9 @@
-// Opens the chinwag web dashboard in the default browser.
+// Opens the chinmeister web dashboard in the default browser.
 // Passes the auth token via URL hash fragment (never sent to server).
 
 import { execFileSync } from 'child_process';
 import { configExists, loadConfig } from './config.js';
-import { createLogger } from '@chinwag/shared';
+import { createLogger } from '@chinmeister/shared';
 import { EXEC_TIMEOUT_MS } from './constants/timings.js';
 import { getRuntimeTargets } from './api.js';
 
@@ -11,13 +11,13 @@ const log = createLogger('open-dashboard');
 
 export async function openDashboard(): Promise<void> {
   if (!configExists()) {
-    console.log('  Run `npx chinwag init` first to create an account.');
+    console.log('  Run `npx chinmeister init` first to create an account.');
     return;
   }
 
   const config = loadConfig();
   if (!config?.token) {
-    console.log('  Invalid config — missing token. Run `npx chinwag init` to re-initialize.');
+    console.log('  Invalid config — missing token. Run `npx chinmeister init` to re-initialize.');
     return;
   }
 

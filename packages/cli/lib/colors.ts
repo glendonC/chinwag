@@ -1,4 +1,4 @@
-// Color utilities — maps chinwag color names to Ink/chalk color names
+// Color utilities — maps chinmeister color names to Ink/chalk color names
 
 // All colors map to standard ANSI codes (basic 8 + bright 8), universally
 // supported across iTerm2, Terminal.app, Windows Terminal, gnome-terminal.

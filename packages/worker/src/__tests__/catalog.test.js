@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TOOL_CATALOG } from '../catalog.js';
-import { MCP_TOOLS } from '@chinwag/shared/tool-registry.js';
+import { MCP_TOOLS } from '@chinmeister/shared/tool-registry.js';
 
 describe('tool catalog', () => {
   it('includes every shared MCP-configurable tool exactly once', () => {

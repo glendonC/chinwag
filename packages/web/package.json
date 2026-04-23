@@ -1,5 +1,5 @@
 {
-  "name": "chinwag-web",
+  "name": "chinmeister-web",
   "private": true,
   "license": "BUSL-1.1",
   "type": "module",
@@ -14,7 +14,7 @@
     "dev:static": "node dev-server.mjs"
   },
   "dependencies": {
-    "@chinwag/shared": "file:../shared",
+    "@chinmeister/shared": "file:../shared",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",

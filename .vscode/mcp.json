@@ -1,14 +1,8 @@
 {
   "mcpServers": {
-    "chinwag": {
+    "chinmeister": {
       "command": "npx",
-      "args": [
-        "-y",
-        "chinwag",
-        "mcp",
-        "--tool",
-        "vscode"
-      ]
+      "args": ["-y", "chinmeister", "mcp", "--tool", "vscode"]
     }
   }
 }

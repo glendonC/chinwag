@@ -1,15 +1,15 @@
-import { createJsonApiClient } from '@chinwag/shared/api-client.js';
-import type { JsonApiClient } from '@chinwag/shared/api-client.js';
-import type { ChinwagConfig } from '@chinwag/shared/config.js';
-import { resolveRuntimeTargets, type RuntimeTargets } from '@chinwag/shared/runtime-profile.js';
+import { createJsonApiClient } from '@chinmeister/shared/api-client.js';
+import type { JsonApiClient } from '@chinmeister/shared/api-client.js';
+import type { ChinmeisterConfig } from '@chinmeister/shared/config.js';
+import { resolveRuntimeTargets, type RuntimeTargets } from '@chinmeister/shared/runtime-profile.js';
 
 // During development, point this at wrangler dev's local URL.
 export function getRuntimeTargets(): RuntimeTargets {
   return resolveRuntimeTargets({
-    profile: process.env.CHINWAG_PROFILE,
-    apiUrl: process.env.CHINWAG_API_URL,
-    dashboardUrl: process.env.CHINWAG_DASHBOARD_URL,
-    chatWsUrl: process.env.CHINWAG_WS_URL,
+    profile: process.env.CHINMEISTER_PROFILE,
+    apiUrl: process.env.CHINMEISTER_API_URL,
+    dashboardUrl: process.env.CHINMEISTER_DASHBOARD_URL,
+    chatWsUrl: process.env.CHINMEISTER_WS_URL,
   });
 }
 
@@ -18,7 +18,7 @@ export function getApiUrl(): string {
 }
 
 export function api(
-  config: ChinwagConfig | null,
+  config: ChinmeisterConfig | null,
   { agentId }: { agentId?: string | null } = {},
 ): JsonApiClient {
   const runtime = getRuntimeTargets();

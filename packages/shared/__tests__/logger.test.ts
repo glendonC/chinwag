@@ -3,43 +3,43 @@ import { createLogger } from '../logger.js';
 
 describe('createLogger', () => {
   let errorSpy: ReturnType<typeof vi.spyOn>;
-  const originalEnv = process.env.CHINWAG_DEBUG;
+  const originalEnv = process.env.CHINMEISTER_DEBUG;
 
   beforeEach(() => {
     errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    delete process.env.CHINWAG_DEBUG;
+    delete process.env.CHINMEISTER_DEBUG;
   });
 
   afterEach(() => {
     errorSpy.mockRestore();
     if (originalEnv !== undefined) {
-      process.env.CHINWAG_DEBUG = originalEnv;
+      process.env.CHINMEISTER_DEBUG = originalEnv;
     } else {
-      delete process.env.CHINWAG_DEBUG;
+      delete process.env.CHINMEISTER_DEBUG;
     }
   });
 
   // -------------------------------------------------------------------------
-  // Normal mode (CHINWAG_DEBUG not set)
+  // Normal mode (CHINMEISTER_DEBUG not set)
   // -------------------------------------------------------------------------
 
-  describe('normal mode (CHINWAG_DEBUG not set)', () => {
-    it('logs info with [chinwag] prefix', () => {
+  describe('normal mode (CHINMEISTER_DEBUG not set)', () => {
+    it('logs info with [chinmeister] prefix', () => {
       const log = createLogger('test');
       log.info('hello');
-      expect(errorSpy).toHaveBeenCalledWith('[chinwag] hello');
+      expect(errorSpy).toHaveBeenCalledWith('[chinmeister] hello');
     });
 
-    it('logs warn with [chinwag] prefix', () => {
+    it('logs warn with [chinmeister] prefix', () => {
       const log = createLogger('test');
       log.warn('careful');
-      expect(errorSpy).toHaveBeenCalledWith('[chinwag] careful');
+      expect(errorSpy).toHaveBeenCalledWith('[chinmeister] careful');
     });
 
-    it('logs error with [chinwag] prefix', () => {
+    it('logs error with [chinmeister] prefix', () => {
       const log = createLogger('test');
       log.error('broken');
-      expect(errorSpy).toHaveBeenCalledWith('[chinwag] broken');
+      expect(errorSpy).toHaveBeenCalledWith('[chinmeister] broken');
     });
 
     it('suppresses debug messages entirely', () => {
@@ -51,19 +51,19 @@ describe('createLogger', () => {
     it('ignores context parameter in normal mode', () => {
       const log = createLogger('test');
       log.info('msg', { key: 'val' });
-      expect(errorSpy).toHaveBeenCalledWith('[chinwag] msg');
+      expect(errorSpy).toHaveBeenCalledWith('[chinmeister] msg');
     });
 
     it('does not include source name in normal mode output', () => {
       const log = createLogger('mySpecialModule');
       log.info('test');
-      expect(errorSpy).toHaveBeenCalledWith('[chinwag] test');
+      expect(errorSpy).toHaveBeenCalledWith('[chinmeister] test');
     });
 
     it('does not include level tag in normal mode output', () => {
       const log = createLogger('src');
       log.warn('issue');
-      expect(errorSpy).toHaveBeenCalledWith('[chinwag] issue');
+      expect(errorSpy).toHaveBeenCalledWith('[chinmeister] issue');
     });
 
     it('debug with context is still suppressed', () => {
@@ -74,66 +74,66 @@ describe('createLogger', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Debug mode (CHINWAG_DEBUG=1)
+  // Debug mode (CHINMEISTER_DEBUG=1)
   // -------------------------------------------------------------------------
 
-  describe('debug mode (CHINWAG_DEBUG=1)', () => {
+  describe('debug mode (CHINMEISTER_DEBUG=1)', () => {
     beforeEach(() => {
-      process.env.CHINWAG_DEBUG = '1';
+      process.env.CHINMEISTER_DEBUG = '1';
     });
 
     it('includes source tag in output', () => {
       const log = createLogger('myModule');
       log.info('event');
-      expect(errorSpy).toHaveBeenCalledWith('[chinwag:myModule] event');
+      expect(errorSpy).toHaveBeenCalledWith('[chinmeister:myModule] event');
     });
 
     it('includes WARN level tag', () => {
       const log = createLogger('myModule');
       log.warn('something');
-      expect(errorSpy).toHaveBeenCalledWith('[chinwag:myModule] WARN something');
+      expect(errorSpy).toHaveBeenCalledWith('[chinmeister:myModule] WARN something');
     });
 
     it('includes ERROR level tag', () => {
       const log = createLogger('myModule');
       log.error('fail');
-      expect(errorSpy).toHaveBeenCalledWith('[chinwag:myModule] ERROR fail');
+      expect(errorSpy).toHaveBeenCalledWith('[chinmeister:myModule] ERROR fail');
     });
 
     it('includes DEBUG level tag', () => {
       const log = createLogger('myModule');
       log.debug('trace');
-      expect(errorSpy).toHaveBeenCalledWith('[chinwag:myModule] DEBUG trace');
+      expect(errorSpy).toHaveBeenCalledWith('[chinmeister:myModule] DEBUG trace');
     });
 
     it('omits level tag for info (info is the default level)', () => {
       const log = createLogger('src');
       log.info('started');
-      expect(errorSpy).toHaveBeenCalledWith('[chinwag:src] started');
+      expect(errorSpy).toHaveBeenCalledWith('[chinmeister:src] started');
     });
 
     it('includes context as JSON', () => {
       const log = createLogger('myModule');
       log.info('event', { key: 'val' });
-      expect(errorSpy).toHaveBeenCalledWith('[chinwag:myModule] event {"key":"val"}');
+      expect(errorSpy).toHaveBeenCalledWith('[chinmeister:myModule] event {"key":"val"}');
     });
 
     it('includes context with multiple keys', () => {
       const log = createLogger('src');
       log.warn('issue', { code: 42, msg: 'bad' });
-      expect(errorSpy).toHaveBeenCalledWith('[chinwag:src] WARN issue {"code":42,"msg":"bad"}');
+      expect(errorSpy).toHaveBeenCalledWith('[chinmeister:src] WARN issue {"code":42,"msg":"bad"}');
     });
 
     it('omits context when it is an empty object', () => {
       const log = createLogger('src');
       log.info('clean', {});
-      expect(errorSpy).toHaveBeenCalledWith('[chinwag:src] clean');
+      expect(errorSpy).toHaveBeenCalledWith('[chinmeister:src] clean');
     });
 
     it('omits context when undefined', () => {
       const log = createLogger('src');
       log.info('no ctx');
-      expect(errorSpy).toHaveBeenCalledWith('[chinwag:src] no ctx');
+      expect(errorSpy).toHaveBeenCalledWith('[chinmeister:src] no ctx');
     });
 
     it('shows debug messages in debug mode', () => {
@@ -145,17 +145,17 @@ describe('createLogger', () => {
     it('includes context for debug level', () => {
       const log = createLogger('mod');
       log.debug('detail', { step: 1, ok: true });
-      expect(errorSpy).toHaveBeenCalledWith('[chinwag:mod] DEBUG detail {"step":1,"ok":true}');
+      expect(errorSpy).toHaveBeenCalledWith('[chinmeister:mod] DEBUG detail {"step":1,"ok":true}');
     });
 
     it('includes context for error level', () => {
       const log = createLogger('mod');
       log.error('crash', { stack: 'trace' });
-      expect(errorSpy).toHaveBeenCalledWith('[chinwag:mod] ERROR crash {"stack":"trace"}');
+      expect(errorSpy).toHaveBeenCalledWith('[chinmeister:mod] ERROR crash {"stack":"trace"}');
     });
 
-    it('works with any truthy CHINWAG_DEBUG value', () => {
-      process.env.CHINWAG_DEBUG = 'true';
+    it('works with any truthy CHINMEISTER_DEBUG value', () => {
+      process.env.CHINMEISTER_DEBUG = 'true';
       const log = createLogger('test');
       log.debug('visible');
       expect(errorSpy).toHaveBeenCalled();
@@ -179,7 +179,7 @@ describe('createLogger', () => {
     });
 
     it('uses console.error for debug when in debug mode', () => {
-      process.env.CHINWAG_DEBUG = '1';
+      process.env.CHINMEISTER_DEBUG = '1';
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       const log = createLogger('test');
       log.debug('msg');
@@ -203,13 +203,13 @@ describe('createLogger', () => {
     });
 
     it('different source names produce independent loggers', () => {
-      process.env.CHINWAG_DEBUG = '1';
+      process.env.CHINMEISTER_DEBUG = '1';
       const logA = createLogger('moduleA');
       const logB = createLogger('moduleB');
       logA.info('from A');
       logB.info('from B');
-      expect(errorSpy).toHaveBeenCalledWith('[chinwag:moduleA] from A');
-      expect(errorSpy).toHaveBeenCalledWith('[chinwag:moduleB] from B');
+      expect(errorSpy).toHaveBeenCalledWith('[chinmeister:moduleA] from A');
+      expect(errorSpy).toHaveBeenCalledWith('[chinmeister:moduleB] from B');
     });
   });
 });

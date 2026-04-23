@@ -303,12 +303,12 @@ describe('tool spawn configurations', () => {
 });
 
 describe('tool catalog mcpCompatible flags', () => {
-  // MCP_TOOLS holds every tool whose sessions chinwag wants to attribute
+  // MCP_TOOLS holds every tool whose sessions chinmeister wants to attribute
   // — not strictly "tools that speak MCP". Copilot, for example, is in the
   // registry so clientInfo can be routed to a distinct `copilot` id, but
   // Copilot itself is not an MCP host. The invariant we actually care about
   // is: anything claiming `mcpCompatible` must also be `mcpConfigurable`
-  // (i.e. `chinwag add <tool>` must have somewhere to write MCP config).
+  // (i.e. `chinmeister add <tool>` must have somewhere to write MCP config).
   it('every mcpCompatible tool is also mcpConfigurable', () => {
     for (const tool of MCP_TOOLS) {
       if (tool.catalog.mcpCompatible) {

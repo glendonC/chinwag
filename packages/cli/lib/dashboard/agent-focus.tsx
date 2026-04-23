@@ -116,7 +116,7 @@ export function AgentFocusView({
         <Text>
           {' '}
           {freshAgent._managed
-            ? 'Spawned by chinwag — full control (stop, restart, diagnostics)'
+            ? 'Spawned by chinmeister — full control (stop, restart, diagnostics)'
             : 'Connected externally — observe and message only'}
         </Text>
       </Box>

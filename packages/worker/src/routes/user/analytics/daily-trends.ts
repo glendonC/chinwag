@@ -3,7 +3,7 @@
 // (sum of avg*sessions / sum of sessions) that every consumer must compute
 // the same way.
 
-import type { DailyTrend } from '@chinwag/shared/contracts/analytics.js';
+import type { DailyTrend } from '@chinmeister/shared/contracts/analytics.js';
 import type { TeamResult } from './types.js';
 
 interface DailyTrendBucket {

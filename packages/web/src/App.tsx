@@ -36,7 +36,7 @@ function ViewLoading(): ReactNode {
 }
 
 type BootState = 'loading' | 'ready' | 'unauthenticated';
-const SIDEBAR_COLLAPSE_STORAGE_KEY = 'chinwag:sidebar-collapsed-v1';
+const SIDEBAR_COLLAPSE_STORAGE_KEY = 'chinmeister:sidebar-collapsed-v1';
 
 function readSidebarCollapsed(): boolean {
   if (typeof window === 'undefined') return true;
@@ -205,7 +205,7 @@ export default function App(): ReactNode {
             <path className={styles.chevron2} fill="#a896d4" d="M6 18 22 18 26 14 10 14z" />
             <path className={styles.chevron3} fill="#d49aae" d="M4 24 20 24 24 20 8 20z" />
           </svg>
-          <span className={styles.bootBrand}>chinwag</span>
+          <span className={styles.bootBrand}>chinmeister</span>
         </div>
       </div>
     );

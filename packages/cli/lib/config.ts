@@ -8,5 +8,9 @@ export {
   loadConfig,
   saveConfig,
   deleteConfig,
-} from '@chinwag/shared/config.js';
-export type { ChinwagConfig, ConfigPathOptions, ConfigPaths } from '@chinwag/shared/config.js';
+} from '@chinmeister/shared/config.js';
+export type {
+  ChinmeisterConfig,
+  ConfigPathOptions,
+  ConfigPaths,
+} from '@chinmeister/shared/config.js';

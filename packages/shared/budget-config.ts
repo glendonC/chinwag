@@ -8,8 +8,8 @@
 //
 // Precedence, strongest wins:
 //   runtime override  (MCP tool call this session)
-//   user override     (~/.chinwag/config.json "budgets")
-//   team default      (.chinwag "budgets")
+//   user override     (~/.chinmeister/config.json "budgets")
+//   team default      (.chinmeister "budgets")
 //   hardcoded default (below)
 //
 // The resolver is a pure function so it's trivially unit-testable and callable

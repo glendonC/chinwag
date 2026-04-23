@@ -1,7 +1,7 @@
 import {
   buildAgentSurfaceCatalogEntries,
   buildHostIntegrationCatalogEntries,
-} from '@chinwag/shared/integration-model.js';
+} from '@chinmeister/shared/integration-model.js';
 
 // Tool Catalog -- discovery surface for the full AI dev tool catalog.
 // MCP-configurable tools are derived from the shared canonical registry so

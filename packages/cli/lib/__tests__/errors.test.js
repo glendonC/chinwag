@@ -7,7 +7,7 @@ describe('classifyError', () => {
     const result = classifyError(err);
     expect(result).toEqual({
       state: 'offline',
-      detail: 'Session expired. Re-run chinwag init.',
+      detail: 'Session expired. Re-run chinmeister init.',
       fatal: true,
     });
   });

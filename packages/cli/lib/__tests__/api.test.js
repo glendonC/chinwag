@@ -21,17 +21,17 @@ describe('CLI API client', () => {
   });
 
   it('uses the configured base URL and auth header', async () => {
-    vi.stubEnv('CHINWAG_API_URL', 'http://localhost:8787');
+    vi.stubEnv('CHINMEISTER_API_URL', 'http://localhost:8787');
     fetch.mockResolvedValue(mockJsonResponse({ ok: true }));
 
-    await api({ token: 'cli-token' }).post('/teams', { name: 'chinwag' });
+    await api({ token: 'cli-token' }).post('/teams', { name: 'chinmeister' });
 
     expect(getApiUrl()).toBe('http://localhost:8787');
     expect(fetch).toHaveBeenCalledWith(
       'http://localhost:8787/teams',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ name: 'chinwag' }),
+        body: JSON.stringify({ name: 'chinmeister' }),
         headers: expect.objectContaining({
           Authorization: 'Bearer cli-token',
           'Content-Type': 'application/json',
@@ -41,7 +41,7 @@ describe('CLI API client', () => {
   });
 
   it('uses the local profile defaults without explicit URL overrides', async () => {
-    vi.stubEnv('CHINWAG_PROFILE', 'local');
+    vi.stubEnv('CHINMEISTER_PROFILE', 'local');
     fetch.mockResolvedValue(mockJsonResponse({ ok: true }));
 
     await api({ token: 'cli-token' }).get('/me');
@@ -74,7 +74,7 @@ describe('CLI API client', () => {
     await initAccount();
 
     expect(fetch).toHaveBeenCalledWith(
-      'https://chinwag-api.glendonchin.workers.dev/auth/init',
+      'https://chinmeister-api.glendonchin.workers.dev/auth/init',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({}),

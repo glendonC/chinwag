@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { saveConfig } from './config.js';
-import type { ChinwagConfig } from './config.js';
+import type { ChinmeisterConfig } from './config.js';
 import { initAccount } from './api.js';
 import { getInkColor } from './colors.js';
 import { classifyInitError } from './utils/errors.js';
-import { formatError } from '@chinwag/shared';
+import { formatError } from '@chinmeister/shared';
 
 interface AccountResult {
   token: string;
@@ -25,7 +25,7 @@ interface UserInfo {
 }
 
 interface WelcomeProps {
-  onComplete: (config: ChinwagConfig, user: UserInfo) => void;
+  onComplete: (config: ChinmeisterConfig, user: UserInfo) => void;
 }
 
 export function Welcome({ onComplete }: WelcomeProps): React.ReactNode {
@@ -42,7 +42,7 @@ export function Welcome({ onComplete }: WelcomeProps): React.ReactNode {
       setError(null);
       try {
         const result = (await initAccount()) as AccountResult;
-        const config: ChinwagConfig = {
+        const config: ChinmeisterConfig = {
           token: result.token,
           refresh_token: result.refresh_token,
           handle: result.handle,
@@ -83,7 +83,7 @@ export function Welcome({ onComplete }: WelcomeProps): React.ReactNode {
     if (state !== 'ready') return;
 
     if (key.return) {
-      const config: ChinwagConfig = {
+      const config: ChinmeisterConfig = {
         token: account!.token,
         refresh_token: account!.refresh_token,
         handle: account!.handle,
@@ -134,7 +134,7 @@ export function Welcome({ onComplete }: WelcomeProps): React.ReactNode {
         </Box>
         <Box flexDirection="column">
           <Text color="cyan" bold>
-            Welcome to chinwag
+            Welcome to chinmeister
           </Text>
           <Text>{''}</Text>
           <Text>Your agents now share context,</Text>

@@ -17,16 +17,16 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
-import { createLogger } from '@chinwag/shared';
+import { createLogger } from '@chinmeister/shared';
 import { loadSpec } from './loader.js';
 import { diagnose, markHealed } from './health.js';
 import { validateSpec, checkConsensus } from './validator.js';
-import { writeFileAtomicSync } from '@chinwag/shared/fs-atomic.js';
+import { writeFileAtomicSync } from '@chinmeister/shared/fs-atomic.js';
 import type { ParserSpec } from './types.js';
 
 const log = createLogger('spec-healer');
 
-const HEALED_SPECS_DIR = join(homedir(), '.chinwag', 'specs');
+const HEALED_SPECS_DIR = join(homedir(), '.chinmeister', 'specs');
 const HEAL_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 1 day
 
 export interface HealResult {
@@ -220,7 +220,7 @@ Generate a corrected ParserSpec JSON that extracts conversations, tokens, and to
 1. Use the same version (1) and format
 2. Update field paths to match the actual log structure
 3. Preserve the discovery strategy (how to find log files)
-4. Map fields correctly to the chinwag canonical schema
+4. Map fields correctly to the chinmeister canonical schema
 
 Return ONLY the JSON spec, no explanation.`;
 }

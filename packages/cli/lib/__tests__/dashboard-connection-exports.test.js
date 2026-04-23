@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
  *   - contextFingerprint and getPollInterval are pure, exported functions
  *     — tested directly.
  *   - useDashboardConnection is a React hook — tested via vi.doMock of
- *     React, @chinwag/shared, and other deps so we can drive hook logic
+ *     React, @chinmeister/shared, and other deps so we can drive hook logic
  *     through a minimal state simulation.
  */
 
@@ -68,8 +68,8 @@ async function loadModule() {
     useRef: mockUseRef,
   }));
 
-  // Mock @chinwag/shared
-  vi.doMock('@chinwag/shared', () => ({
+  // Mock @chinmeister/shared
+  vi.doMock('@chinmeister/shared', () => ({
     formatError: (err) => (err instanceof Error ? err.message : String(err)),
     createLogger: () => ({
       info: vi.fn(),
@@ -79,12 +79,12 @@ async function loadModule() {
     }),
   }));
 
-  vi.doMock('@chinwag/shared/dashboard-ws.js', () => ({
+  vi.doMock('@chinmeister/shared/dashboard-ws.js', () => ({
     applyDelta: vi.fn((prev) => prev),
   }));
 
-  vi.doMock('@chinwag/shared/contracts.js', () => ({}));
-  vi.doMock('@chinwag/shared/integration-model.js', () => ({}));
+  vi.doMock('@chinmeister/shared/contracts.js', () => ({}));
+  vi.doMock('@chinmeister/shared/integration-model.js', () => ({}));
 
   // Mock local deps
   vi.doMock('../api.js', () => ({
@@ -463,7 +463,7 @@ describe('useDashboardConnection error states', () => {
       useRef: mockUseRef,
     }));
 
-    vi.doMock('@chinwag/shared', () => ({
+    vi.doMock('@chinmeister/shared', () => ({
       formatError: (err) => (err instanceof Error ? err.message : String(err)),
       createLogger: () => ({
         info: vi.fn(),
@@ -473,12 +473,12 @@ describe('useDashboardConnection error states', () => {
       }),
     }));
 
-    vi.doMock('@chinwag/shared/dashboard-ws.js', () => ({
+    vi.doMock('@chinmeister/shared/dashboard-ws.js', () => ({
       applyDelta: vi.fn((prev) => prev),
     }));
 
-    vi.doMock('@chinwag/shared/contracts.js', () => ({}));
-    vi.doMock('@chinwag/shared/integration-model.js', () => ({}));
+    vi.doMock('@chinmeister/shared/contracts.js', () => ({}));
+    vi.doMock('@chinmeister/shared/integration-model.js', () => ({}));
 
     vi.doMock('../api.js', () => ({
       api: () => ({
@@ -526,7 +526,7 @@ describe('useDashboardConnection error states', () => {
       config: { token: 'tok_test' },
       stdout: { columns: 80, on: vi.fn(), off: vi.fn() },
     });
-    expect(result.error).toBe('No .chinwag file found. Run `npx chinwag init` first.');
+    expect(result.error).toBe('No .chinmeister file found. Run `npx chinmeister init` first.');
     expect(result.teamId).toBeNull();
   });
 
@@ -540,7 +540,7 @@ describe('useDashboardConnection error states', () => {
       useRef: mockUseRef,
     }));
 
-    vi.doMock('@chinwag/shared', () => ({
+    vi.doMock('@chinmeister/shared', () => ({
       formatError: (err) => (err instanceof Error ? err.message : String(err)),
       createLogger: () => ({
         info: vi.fn(),
@@ -550,12 +550,12 @@ describe('useDashboardConnection error states', () => {
       }),
     }));
 
-    vi.doMock('@chinwag/shared/dashboard-ws.js', () => ({
+    vi.doMock('@chinmeister/shared/dashboard-ws.js', () => ({
       applyDelta: vi.fn((prev) => prev),
     }));
 
-    vi.doMock('@chinwag/shared/contracts.js', () => ({}));
-    vi.doMock('@chinwag/shared/integration-model.js', () => ({}));
+    vi.doMock('@chinmeister/shared/contracts.js', () => ({}));
+    vi.doMock('@chinmeister/shared/integration-model.js', () => ({}));
 
     vi.doMock('../api.js', () => ({
       api: () => ({
@@ -617,7 +617,7 @@ describe('useDashboardConnection error states', () => {
       useRef: mockUseRef,
     }));
 
-    vi.doMock('@chinwag/shared', () => ({
+    vi.doMock('@chinmeister/shared', () => ({
       formatError: (err) => (err instanceof Error ? err.message : String(err)),
       createLogger: () => ({
         info: vi.fn(),
@@ -627,12 +627,12 @@ describe('useDashboardConnection error states', () => {
       }),
     }));
 
-    vi.doMock('@chinwag/shared/dashboard-ws.js', () => ({
+    vi.doMock('@chinmeister/shared/dashboard-ws.js', () => ({
       applyDelta: vi.fn((prev) => prev),
     }));
 
-    vi.doMock('@chinwag/shared/contracts.js', () => ({}));
-    vi.doMock('@chinwag/shared/integration-model.js', () => ({}));
+    vi.doMock('@chinmeister/shared/contracts.js', () => ({}));
+    vi.doMock('@chinmeister/shared/integration-model.js', () => ({}));
 
     vi.doMock('../api.js', () => ({
       api: () => ({

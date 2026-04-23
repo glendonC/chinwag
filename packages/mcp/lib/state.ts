@@ -33,7 +33,7 @@ export function createAgentState(initial: McpState): McpState {
       const key = String(prop);
       if (!validKeys.has(key)) {
         throw new Error(
-          `[chinwag] AgentState: unexpected property "${key}". ` +
+          `[chinmeister] AgentState: unexpected property "${key}". ` +
             'Declare it in the createAgentState() initial object.',
         );
       }
@@ -41,7 +41,7 @@ export function createAgentState(initial: McpState): McpState {
       return true;
     },
     deleteProperty(_target: McpState, prop: string | symbol): never {
-      throw new Error(`[chinwag] AgentState: cannot delete property "${String(prop)}".`);
+      throw new Error(`[chinmeister] AgentState: cannot delete property "${String(prop)}".`);
     },
   };
 

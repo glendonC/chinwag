@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-// chinwag MCP server — connects AI agents to the chinwag network.
-// Runs locally via stdio transport. Reads ~/.chinwag/config.json for auth.
+// chinmeister MCP server — connects AI agents to the chinmeister network.
+// Runs locally via stdio transport. Reads ~/.chinmeister/config.json for auth.
 // CRITICAL: Never use console.log — it corrupts stdio JSON-RPC. Use the structured logger.
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -16,11 +16,11 @@ import { registerProfile } from './dist/auth.js';
 import { createWebSocketManager } from './dist/websocket.js';
 import { registerTools, registerResources } from './dist/tools/index.js';
 import { createAgentState } from './dist/state.js';
-import { setTerminalTitle } from '@chinwag/shared/session-registry.js';
+import { setTerminalTitle } from '@chinmeister/shared/session-registry.js';
 import {
   scanHostIntegrations,
   configureHostIntegration,
-} from '@chinwag/shared/integration-doctor.js';
+} from '@chinmeister/shared/integration-doctor.js';
 import { bootstrap } from './dist/bootstrap.js';
 import { detectRuntimeIdentity, generateSessionAgentId } from './dist/identity.js';
 import {
@@ -30,7 +30,7 @@ import {
   cleanupSpawnedProcesses,
 } from './dist/command-executor.js';
 import { loadTeamBudgets } from './dist/team.js';
-import { parseBudgetConfig, resolveBudgets } from '@chinwag/shared/budget-config.js';
+import { parseBudgetConfig, resolveBudgets } from '@chinmeister/shared/budget-config.js';
 
 const log = createLogger('mcp');
 
@@ -65,7 +65,7 @@ async function main() {
     ({ tty: parentTty } = registerProcessSession(agentId, toolName));
     if (parentTty) {
       log.info(`Terminal: ${parentTty}`);
-      setTerminalTitle(parentTty, `chinwag · ${basename(process.cwd())}`);
+      setTerminalTitle(parentTty, `chinmeister · ${basename(process.cwd())}`);
     }
   } catch (err) {
     log.warn(err?.message || 'session registration failed');
@@ -76,12 +76,12 @@ async function main() {
   await registerProfile(client, profile);
 
   // 4. Resolve context-budget config from team → user defaults.
-  // Runtime overrides land later via `chinwag_configure_budget`.
+  // Runtime overrides land later via `chinmeister_configure_budget`.
   // Budget loading is best-effort — a broken team or user config must never
   // prevent the MCP server from starting.
   //
   // User-layer budgets are now stored server-side (web-managed) and returned
-  // on `/me`. We fall back to the local `~/.chinwag/config.json` `budgets`
+  // on `/me`. We fall back to the local `~/.chinmeister/config.json` `budgets`
   // field when the API is unreachable so offline agents still honor overrides.
   let teamBudgets = null;
   try {
@@ -258,17 +258,17 @@ async function main() {
 
   // 7. Create MCP server (tools are registered before join — they work with deferred team state)
   const server = new McpServer({
-    name: 'chinwag',
+    name: 'chinmeister',
     version: PKG.version,
-    instructions: `You are connected to chinwag — a shared brain for your team's AI coding agents. Other agents (potentially from different tools like Cursor, Claude Code, Windsurf) may be working on this project right now.
+    instructions: `You are connected to chinmeister — a shared brain for your team's AI coding agents. Other agents (potentially from different tools like Cursor, Claude Code, Windsurf) may be working on this project right now.
 
 CRITICAL WORKFLOW — follow these steps every session:
-1. FIRST call chinwag_get_team_context to see who's working, what files are active, any locked files, recent messages, and shared project knowledge. Include your model identifier if you know it (e.g. "claude-opus-4-6", "gpt-4o").
-2. BEFORE editing any file, call chinwag_check_conflicts with the files you plan to modify. If a file is locked or another agent is editing it, coordinate first — use chinwag_send_message to notify them.
-3. AFTER you start editing, call chinwag_claim_files to lock the files you're working on, then call chinwag_update_activity with your file list and a brief summary.
-4. When you discover something important about the project (setup requirements, gotchas, conventions, decisions), call chinwag_save_memory so every future agent session starts with that knowledge.
-5. AFTER running git commit, call chinwag_report_commits with the commit SHA(s), branch name, and commit message. This links your commits to this session for git attribution analytics.
-6. When done with files, call chinwag_release_files so other agents can work on them.
+1. FIRST call chinmeister_get_team_context to see who's working, what files are active, any locked files, recent messages, and shared project knowledge. Include your model identifier if you know it (e.g. "claude-opus-4-6", "gpt-4o").
+2. BEFORE editing any file, call chinmeister_check_conflicts with the files you plan to modify. If a file is locked or another agent is editing it, coordinate first — use chinmeister_send_message to notify them.
+3. AFTER you start editing, call chinmeister_claim_files to lock the files you're working on, then call chinmeister_update_activity with your file list and a brief summary.
+4. When you discover something important about the project (setup requirements, gotchas, conventions, decisions), call chinmeister_save_memory so every future agent session starts with that knowledge.
+5. AFTER running git commit, call chinmeister_report_commits with the commit SHA(s), branch name, and commit message. This links your commits to this session for git attribution analytics.
+6. When done with files, call chinmeister_release_files so other agents can work on them.
 
 This coordination prevents merge conflicts across tools and builds shared project intelligence.`,
   });

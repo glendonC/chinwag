@@ -1,4 +1,4 @@
-// Shared constants for the chinwag platform.
+// Shared constants for the chinmeister platform.
 // Single source of truth for values used by multiple packages (MCP, Worker, Web, CLI).
 // Package-specific constants (rate limits, heartbeat windows, UI timings) stay local.
 

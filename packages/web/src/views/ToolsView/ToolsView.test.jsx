@@ -157,7 +157,7 @@ describe('ToolsView', () => {
     const { container, unmount } = renderComponent(ToolsView, {});
 
     expect(container.textContent).toContain('No tools have reported sessions yet');
-    expect(container.textContent).toContain('npx chinwag init');
+    expect(container.textContent).toContain('npx chinmeister init');
 
     unmount();
   });

@@ -7,7 +7,7 @@ export interface TeamFileInfo {
   root: string;
   teamId: string;
   teamName: string;
-  /** Team-level budget defaults from the `.chinwag` file, if present. */
+  /** Team-level budget defaults from the `.chinmeister` file, if present. */
   budgets: Partial<BudgetConfig> | null;
 }
 
@@ -24,7 +24,7 @@ export function isValidTeamId(id: unknown): id is string {
 export function findTeamFile(startDir = process.cwd()): TeamFileInfo | null {
   let dir = startDir;
   while (true) {
-    const filePath = join(dir, '.chinwag');
+    const filePath = join(dir, '.chinmeister');
     if (existsSync(filePath)) {
       try {
         const raw = readFileSync(filePath, 'utf-8');

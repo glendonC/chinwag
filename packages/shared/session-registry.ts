@@ -36,10 +36,10 @@ export interface ResolveSessionOptions {
   recordAlive?: (record: SessionRecord) => boolean;
 }
 
-export const SESSION_COMMAND_MARKER = 'chinwag-mcp';
+export const SESSION_COMMAND_MARKER = 'chinmeister-mcp';
 
 export function getSessionsDir(homeDir = homedir()): string {
-  return join(homeDir, '.chinwag', 'sessions');
+  return join(homeDir, '.chinmeister', 'sessions');
 }
 
 export function safeAgentId(agentId: string): string {
@@ -229,7 +229,7 @@ export function deleteCompletedSession(
 /**
  * List every completion record currently on disk. Used by the dashboard's
  * orphan-sweep path: externally-launched agents (claude-code run directly,
- * not via chinwag's managed flow) still produce `<agentId>.completed.json`
+ * not via chinmeister's managed flow) still produce `<agentId>.completed.json`
  * via MCP cleanup, but the dashboard never observes their exit — so those
  * files pile up until a future dashboard session picks them up. Sweeping
  * on mount lets post-session collectors run against external agents too,

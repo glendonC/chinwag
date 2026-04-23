@@ -59,8 +59,8 @@ export default function SpawnForm({ teamId, availableTools, onClose }: SpawnForm
     return (
       <div className={styles.form}>
         <p className={styles.empty}>
-          No spawnable tools detected. Open a chinwag-connected tool (Claude Code, Cursor, etc.) in
-          this project to enable remote spawning.
+          No spawnable tools detected. Open a chinmeister-connected tool (Claude Code, Cursor, etc.)
+          in this project to enable remote spawning.
         </p>
       </div>
     );

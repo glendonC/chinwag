@@ -21,7 +21,7 @@ interface DashboardLayout {
 }
 
 function storageKey(tabId: string): string {
-  return `chinwag:project-${tabId}-dashboard`;
+  return `chinmeister:project-${tabId}-dashboard`;
 }
 
 function buildDefaultLayout(defaults: WidgetSlot[]): DashboardLayout {

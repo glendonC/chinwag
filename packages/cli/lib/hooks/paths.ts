@@ -1,6 +1,6 @@
 // Resolve the git hooks directory for a repo. Respects `core.hooksPath` so
 // repos already using husky, lefthook, or a monorepo-level hooks dir keep
-// working after `chinwag init` — we install into whatever path git actually
+// working after `chinmeister init` — we install into whatever path git actually
 // consults, not a hard-coded `.git/hooks/`.
 
 import { execFileSync } from 'node:child_process';

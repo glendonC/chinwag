@@ -339,7 +339,7 @@ export default function ToolsView() {
 
                 {sortedRows.length === 0 ? (
                   <div className={styles.scoredEmpty}>
-                    No tools have reported sessions yet. Run <code>npx chinwag init</code> in a
+                    No tools have reported sessions yet. Run <code>npx chinmeister init</code> in a
                     project to get started.
                   </div>
                 ) : (

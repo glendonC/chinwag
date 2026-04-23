@@ -3,7 +3,7 @@ import { createStore, useStore } from 'zustand';
 import { api } from '../api.js';
 import { userProfileSchema, validateResponse } from '../apiSchemas.js';
 
-const TOKEN_KEY = 'chinwag_token';
+const TOKEN_KEY = 'chinmeister_token';
 
 type UserProfile = z.infer<typeof userProfileSchema>;
 

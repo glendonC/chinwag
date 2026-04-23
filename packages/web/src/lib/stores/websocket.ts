@@ -1,5 +1,5 @@
 import { api, getRuntimeTargets } from '../api.js';
-import { applyDelta } from '@chinwag/shared/dashboard-ws.js';
+import { applyDelta } from '@chinmeister/shared/dashboard-ws.js';
 import type { TeamContext } from '../apiSchemas.js';
 import { RECONCILE_INITIAL_MS, RECONCILE_MAX_MS } from '../constants.js';
 import { authActions } from './auth.js';
@@ -212,7 +212,7 @@ export async function connectTeamWebSocket(teamId: string): Promise<void> {
           });
         }
       } catch (e) {
-        console.warn('[chinwag] Malformed WS event:', (e as Error).message);
+        console.warn('[chinmeister] Malformed WS event:', (e as Error).message);
       }
     };
 

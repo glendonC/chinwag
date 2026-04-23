@@ -1,5 +1,5 @@
 // React binding for the demo-scenario URL param. Hooks subscribe to the
-// custom 'chinwag:demo-scenario-changed' event so a switcher swap causes
+// custom 'chinmeister:demo-scenario-changed' event so a switcher swap causes
 // every dashboard hook to re-derive its fixture in lockstep. Avoids
 // routing the scenario through a global store — the URL is already the
 // source of truth, and React's re-render tree is cheap enough at demo
@@ -24,12 +24,12 @@ export function useDemoScenario(): DemoScenarioState {
     function handler() {
       setState(snapshot());
     }
-    window.addEventListener('chinwag:demo-scenario-changed', handler);
+    window.addEventListener('chinmeister:demo-scenario-changed', handler);
     // popstate fires on browser navigation; keep the demo param in sync if
     // the user manually edits the URL.
     window.addEventListener('popstate', handler);
     return () => {
-      window.removeEventListener('chinwag:demo-scenario-changed', handler);
+      window.removeEventListener('chinmeister:demo-scenario-changed', handler);
       window.removeEventListener('popstate', handler);
     };
   }, []);

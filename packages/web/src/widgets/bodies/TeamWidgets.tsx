@@ -289,7 +289,7 @@ function ConflictsBlockedWidget({ analytics }: WidgetBodyProps) {
 // file, attempts summed across agents) so a single noisy agent can no longer
 // dominate the top-10. The agents + tools columns surface the substrate-unique
 // angle — "this file hurts multiple people using multiple tools" is a claim
-// only chinwag can make. Path truncation adapts to disambiguation: if two
+// only chinmeister can make. Path truncation adapts to disambiguation: if two
 // visible rows share a basename (e.g., two `Button.tsx`), show up to four
 // trailing segments so they aren't visually identical; otherwise keep last
 // two for compactness. A muted "+N more" line surfaces when the SQL returns

@@ -3,7 +3,7 @@
 // enough that giving it its own module keeps the session-shape code
 // readable.
 
-import type { MemberAnalytics } from '@chinwag/shared/contracts/analytics.js';
+import type { MemberAnalytics } from '@chinmeister/shared/contracts/analytics.js';
 import type { TeamResult } from './types.js';
 
 const rate = (num: number, denom: number) =>

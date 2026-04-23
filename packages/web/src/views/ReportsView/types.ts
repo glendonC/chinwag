@@ -2,7 +2,7 @@
 //
 // Findings are the unit of value — each finding is a claim with citations
 // and actions. Actions are split into three categories so the UI can
-// visually distinguish "this changes chinwag state" from "this hands you
+// visually distinguish "this changes chinmeister state" from "this hands you
 // an artifact" from "this launches your own managed agent with context".
 
 export type RunStatus = 'queued' | 'running' | 'complete' | 'failed';
@@ -10,7 +10,7 @@ export type RunStatus = 'queued' | 'running' | 'complete' | 'failed';
 /**
  * Which AI path a run is using.
  * - `primary`   = user's own managed agent (Claude Code / Codex / Aider)
- * - `secondary` = chinwag-offered AI (when primary is unavailable)
+ * - `secondary` = chinmeister-offered AI (when primary is unavailable)
  */
 export type RunPath = 'primary' | 'secondary';
 
@@ -36,7 +36,7 @@ export interface Citation {
 }
 
 /**
- * Action categories mapped to how they connect to chinwag's architecture:
+ * Action categories mapped to how they connect to chinmeister's architecture:
  * - `state`  = Worker-side DO write (memory, config, watcher, rule, team state)
  * - `export` = artifact the user takes with them (download, copy, draft snippet)
  * - `spawn`  = delegate to the user's managed agent (spawns a fresh session with context)

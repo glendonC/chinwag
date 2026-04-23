@@ -66,10 +66,10 @@ describe('detectToolName', () => {
 
   beforeEach(() => {
     savedArgv = [...process.argv];
-    savedEnv = process.env.CHINWAG_TOOL;
-    savedAgentId = process.env.CHINWAG_AGENT_ID;
-    savedSurface = process.env.CHINWAG_SURFACE;
-    savedTransport = process.env.CHINWAG_TRANSPORT;
+    savedEnv = process.env.CHINMEISTER_TOOL;
+    savedAgentId = process.env.CHINMEISTER_AGENT_ID;
+    savedSurface = process.env.CHINMEISTER_SURFACE;
+    savedTransport = process.env.CHINMEISTER_TRANSPORT;
     // Clean slate: remove --tool from argv and env var
     process.argv = process.argv.filter((_, i, arr) => {
       if (arr[i] === '--tool') return false;
@@ -78,33 +78,33 @@ describe('detectToolName', () => {
       if (i > 0 && arr[i - 1] === '--surface') return false;
       return true;
     });
-    delete process.env.CHINWAG_TOOL;
-    delete process.env.CHINWAG_AGENT_ID;
-    delete process.env.CHINWAG_SURFACE;
-    delete process.env.CHINWAG_TRANSPORT;
+    delete process.env.CHINMEISTER_TOOL;
+    delete process.env.CHINMEISTER_AGENT_ID;
+    delete process.env.CHINMEISTER_SURFACE;
+    delete process.env.CHINMEISTER_TRANSPORT;
   });
 
   afterEach(() => {
     process.argv = savedArgv;
     if (savedEnv !== undefined) {
-      process.env.CHINWAG_TOOL = savedEnv;
+      process.env.CHINMEISTER_TOOL = savedEnv;
     } else {
-      delete process.env.CHINWAG_TOOL;
+      delete process.env.CHINMEISTER_TOOL;
     }
     if (savedAgentId !== undefined) {
-      process.env.CHINWAG_AGENT_ID = savedAgentId;
+      process.env.CHINMEISTER_AGENT_ID = savedAgentId;
     } else {
-      delete process.env.CHINWAG_AGENT_ID;
+      delete process.env.CHINMEISTER_AGENT_ID;
     }
     if (savedSurface !== undefined) {
-      process.env.CHINWAG_SURFACE = savedSurface;
+      process.env.CHINMEISTER_SURFACE = savedSurface;
     } else {
-      delete process.env.CHINWAG_SURFACE;
+      delete process.env.CHINMEISTER_SURFACE;
     }
     if (savedTransport !== undefined) {
-      process.env.CHINWAG_TRANSPORT = savedTransport;
+      process.env.CHINMEISTER_TRANSPORT = savedTransport;
     } else {
-      delete process.env.CHINWAG_TRANSPORT;
+      delete process.env.CHINMEISTER_TRANSPORT;
     }
   });
 
@@ -121,20 +121,20 @@ describe('detectToolName', () => {
     expect(detectToolName('fallback')).toBe('cursor');
   });
 
-  it('reads CHINWAG_TOOL from process.env', () => {
-    process.env.CHINWAG_TOOL = 'windsurf';
+  it('reads CHINMEISTER_TOOL from process.env', () => {
+    process.env.CHINMEISTER_TOOL = 'windsurf';
     expect(detectToolName('fallback')).toBe('windsurf');
   });
 
   it('argv --tool takes priority over env var', () => {
     process.argv.push('--tool', 'cursor');
-    process.env.CHINWAG_TOOL = 'windsurf';
+    process.env.CHINMEISTER_TOOL = 'windsurf';
     expect(detectToolName('fallback')).toBe('cursor');
   });
 
   it('infers the tool from parent process commands', () => {
     const readProcessInfoFn = vi.fn((pid) => {
-      if (pid === 10) return { ppid: 20, command: 'npm exec chinwag-mcp' };
+      if (pid === 10) return { ppid: 20, command: 'npm exec chinmeister-mcp' };
       if (pid === 20) return { ppid: 1, command: 'claude' };
       return null;
     });
@@ -169,15 +169,15 @@ describe('detectToolName', () => {
 
 describe('detectRuntimeIdentity', () => {
   afterEach(() => {
-    delete process.env.CHINWAG_TOOL;
-    delete process.env.CHINWAG_SURFACE;
-    delete process.env.CHINWAG_TRANSPORT;
+    delete process.env.CHINMEISTER_TOOL;
+    delete process.env.CHINMEISTER_SURFACE;
+    delete process.env.CHINMEISTER_TRANSPORT;
   });
 
   it('returns structured identity for explicit host and surface overrides', () => {
-    process.env.CHINWAG_TOOL = 'cursor';
-    process.env.CHINWAG_SURFACE = 'cline';
-    process.env.CHINWAG_TRANSPORT = 'mcp';
+    process.env.CHINMEISTER_TOOL = 'cursor';
+    process.env.CHINMEISTER_SURFACE = 'cline';
+    process.env.CHINMEISTER_TRANSPORT = 'mcp';
 
     expect(detectRuntimeIdentity('unknown', { readProcessInfoFn: () => null })).toMatchObject({
       hostTool: 'cursor',
@@ -212,16 +212,16 @@ describe('detectRuntimeIdentity', () => {
 
 describe('getConfiguredAgentId', () => {
   afterEach(() => {
-    delete process.env.CHINWAG_AGENT_ID;
+    delete process.env.CHINMEISTER_AGENT_ID;
   });
 
   it('returns a configured session id when the prefix matches the tool', () => {
-    process.env.CHINWAG_AGENT_ID = 'claude-code:abc123:def45678';
+    process.env.CHINMEISTER_AGENT_ID = 'claude-code:abc123:def45678';
     expect(getConfiguredAgentId('claude-code')).toBe('claude-code:abc123:def45678');
   });
 
   it('ignores configured ids for the wrong tool', () => {
-    process.env.CHINWAG_AGENT_ID = 'cursor:abc123:def45678';
+    process.env.CHINMEISTER_AGENT_ID = 'cursor:abc123:def45678';
     expect(getConfiguredAgentId('claude-code')).toBeNull();
   });
 });

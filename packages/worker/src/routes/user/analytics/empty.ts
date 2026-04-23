@@ -3,7 +3,7 @@
 // zero-shaped values, so we build them explicitly here rather than
 // running the accumulators against an empty fan-out.
 
-import type { UserAnalytics } from '@chinwag/shared/contracts/analytics.js';
+import type { UserAnalytics } from '@chinmeister/shared/contracts/analytics.js';
 
 /**
  * Shape the body returned by /me/analytics when the user has no visible

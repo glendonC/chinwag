@@ -1,13 +1,13 @@
 #!/bin/bash
-# Seed demo memory categories and categorized memories into a local chinwag instance.
+# Seed demo memory categories and categorized memories into a local chinmeister instance.
 # Usage: ./scripts/seed-demo-categories.sh <team_id> <token>
 #
 # Requires a running wrangler dev server (cd packages/worker && npx wrangler dev)
-# and an authenticated user. Get your token from ~/.chinwag/config.json or browser devtools.
+# and an authenticated user. Get your token from ~/.chinmeister/config.json or browser devtools.
 
 set -euo pipefail
 
-API="${CHINWAG_API:-http://localhost:8787}"
+API="${CHINMEISTER_API:-http://localhost:8787}"
 TEAM_ID="${1:?Usage: $0 <team_id> <token>}"
 TOKEN="${2:?Usage: $0 <team_id> <token>}"
 

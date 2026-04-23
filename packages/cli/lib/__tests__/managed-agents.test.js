@@ -28,8 +28,8 @@ describe('createManagedAgentLaunch', () => {
       rows: 30,
     });
     expect(launch.agentId).toMatch(/^claude-code:[0-9a-f]{12}:[0-9a-f]{8}$/);
-    expect(launch.env.CHINWAG_TOOL).toBe('claude-code');
-    expect(launch.env.CHINWAG_AGENT_ID).toBe(launch.agentId);
+    expect(launch.env.CHINMEISTER_TOOL).toBe('claude-code');
+    expect(launch.env.CHINMEISTER_AGENT_ID).toBe(launch.agentId);
   });
 
   it('classifies Codex auth failures for launcher gating', () => {

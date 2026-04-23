@@ -7,7 +7,7 @@ import { detectTools, writeMcpConfig, writeHooksConfig, configureTool } from '..
 let tmpDir;
 
 beforeEach(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chinwag-test-'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chinmeister-test-'));
 });
 
 afterEach(() => {
@@ -37,22 +37,26 @@ describe('detectTools', () => {
 });
 
 describe('writeMcpConfig', () => {
-  it('writes JSON file with mcpServers.chinwag entry', () => {
+  it('writes JSON file with mcpServers.chinmeister entry', () => {
     const result = writeMcpConfig(tmpDir, 'mcp.json', {});
     expect(result).toEqual({ ok: true });
 
     const content = JSON.parse(fs.readFileSync(path.join(tmpDir, 'mcp.json'), 'utf-8'));
-    expect(content.mcpServers.chinwag).toBeDefined();
-    expect(content.mcpServers.chinwag.command).toBe('npx');
-    expect(content.mcpServers.chinwag.args).toEqual(['-y', 'chinwag', 'mcp']);
+    expect(content.mcpServers.chinmeister).toBeDefined();
+    expect(content.mcpServers.chinmeister.command).toBe('npx');
+    expect(content.mcpServers.chinmeister.args).toEqual(['-y', 'chinmeister', 'mcp']);
   });
 
-  it('adds chinwag-channel when channel=true', () => {
+  it('adds chinmeister-channel when channel=true', () => {
     writeMcpConfig(tmpDir, 'mcp.json', { channel: true });
 
     const content = JSON.parse(fs.readFileSync(path.join(tmpDir, 'mcp.json'), 'utf-8'));
-    expect(content.mcpServers['chinwag-channel']).toBeDefined();
-    expect(content.mcpServers['chinwag-channel'].args).toEqual(['-y', 'chinwag', 'channel']);
+    expect(content.mcpServers['chinmeister-channel']).toBeDefined();
+    expect(content.mcpServers['chinmeister-channel'].args).toEqual([
+      '-y',
+      'chinmeister',
+      'channel',
+    ]);
   });
 
   it('preserves existing entries in the file', () => {
@@ -72,7 +76,7 @@ describe('writeMcpConfig', () => {
       command: 'node',
       args: ['other.js'],
     });
-    expect(content.mcpServers.chinwag).toBeDefined();
+    expect(content.mcpServers.chinmeister).toBeDefined();
   });
 
   it('creates intermediate directories for nested paths', () => {
@@ -85,14 +89,20 @@ describe('writeMcpConfig', () => {
     writeMcpConfig(tmpDir, 'mcp.json', { toolId: 'cursor' });
 
     const content = JSON.parse(fs.readFileSync(path.join(tmpDir, 'mcp.json'), 'utf-8'));
-    expect(content.mcpServers.chinwag.args).toEqual(['-y', 'chinwag', 'mcp']);
+    expect(content.mcpServers.chinmeister.args).toEqual(['-y', 'chinmeister', 'mcp']);
   });
 
   it('uses tool-specific args for unique config files', () => {
     writeMcpConfig(tmpDir, '.cursor/mcp.json', { toolId: 'cursor' });
 
     const content = JSON.parse(fs.readFileSync(path.join(tmpDir, '.cursor', 'mcp.json'), 'utf-8'));
-    expect(content.mcpServers.chinwag.args).toEqual(['-y', 'chinwag', 'mcp', '--tool', 'cursor']);
+    expect(content.mcpServers.chinmeister.args).toEqual([
+      '-y',
+      'chinmeister',
+      'mcp',
+      '--tool',
+      'cursor',
+    ]);
   });
 });
 
@@ -118,7 +128,7 @@ describe('writeHooksConfig', () => {
     const filePath = path.join(tmpDir, '.claude', 'settings.json');
     const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 
-    // Each event should have chinwag hook entries. PostToolUse has three
+    // Each event should have chinmeister hook entries. PostToolUse has three
     // matchers: Edit|Write (report-edit), Read (report-read), and Bash
     // (report-commit).
     expect(content.hooks.PreToolUse).toHaveLength(1);
@@ -139,10 +149,12 @@ describe('writeHooksConfig', () => {
     writeHooksConfig(tmpDir);
 
     const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-    // Should have both the existing hook and the chinwag hook
+    // Should have both the existing hook and the chinmeister hook
     expect(content.hooks.PreToolUse).toHaveLength(2);
     expect(content.hooks.PreToolUse[0].command).toBe('some-other-hook');
-    expect(content.hooks.PreToolUse[1].hooks[0].command).toBe('npx -y chinwag hook check-conflict');
+    expect(content.hooks.PreToolUse[1].hooks[0].command).toBe(
+      'npx -y chinmeister hook check-conflict',
+    );
   });
 });
 
@@ -156,8 +168,8 @@ describe('configureTool', () => {
     expect(fs.existsSync(filePath)).toBe(true);
 
     const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-    expect(content.mcpServers.chinwag).toBeDefined();
-    expect(content.mcpServers.chinwag.args).toContain('cursor');
+    expect(content.mcpServers.chinmeister).toBeDefined();
+    expect(content.mcpServers.chinmeister.args).toContain('cursor');
   });
 
   it('returns error for unknown tool', () => {
@@ -179,6 +191,6 @@ describe('configureTool', () => {
     // MCP config should have channel entry
     const mcpPath = path.join(tmpDir, '.mcp.json');
     const content = JSON.parse(fs.readFileSync(mcpPath, 'utf-8'));
-    expect(content.mcpServers['chinwag-channel']).toBeDefined();
+    expect(content.mcpServers['chinmeister-channel']).toBeDefined();
   });
 });

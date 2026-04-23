@@ -5,7 +5,7 @@
 // Arrays are concatenated and re-aggregated by key so the user sees one
 // frequency row per tool across all teams, not one per team per tool.
 
-import type { ToolCallStats } from '@chinwag/shared/contracts/analytics.js';
+import type { ToolCallStats } from '@chinmeister/shared/contracts/analytics.js';
 import type { TeamResult } from './types.js';
 
 interface FrequencyBucket {

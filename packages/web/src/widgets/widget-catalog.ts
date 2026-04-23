@@ -184,7 +184,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   {
     id: 'claimed-files',
     name: 'claimed files',
-    description: 'Files reserved by agents via chinwag_claim_files',
+    description: 'Files reserved by agents via chinmeister_claim_files',
     category: 'live',
     scope: 'project',
     viz: 'data-list',

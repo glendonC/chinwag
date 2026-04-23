@@ -18,7 +18,7 @@ type ThemePreference = (typeof THEME_OPTIONS)[number];
 // ── Budget presets ──
 // Users pick a semantic context level rather than twiddling raw numbers.
 // The mapping lives here (the only place in the UI that knows the magnitudes).
-// If someone edits `~/.chinwag/config.json` or `.chinwag` to an off-preset
+// If someone edits `~/.chinmeister/config.json` or `.chinmeister` to an off-preset
 // combination we show no preset as active rather than lying about which one
 // matches — the MCP still honors the concrete values either way.
 const BUDGET_DEFAULTS = {

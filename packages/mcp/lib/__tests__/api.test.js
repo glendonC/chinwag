@@ -21,7 +21,7 @@ describe('MCP API client', () => {
   });
 
   it('includes auth, user-agent, and agent headers', async () => {
-    vi.stubEnv('CHINWAG_API_URL', 'http://localhost:8787');
+    vi.stubEnv('CHINMEISTER_API_URL', 'http://localhost:8787');
     fetch.mockResolvedValue(mockJsonResponse({ ok: true }));
 
     await api(
@@ -45,7 +45,7 @@ describe('MCP API client', () => {
         headers: expect.objectContaining({
           Authorization: 'Bearer mcp-token',
           'Content-Type': 'application/json',
-          'User-Agent': 'chinwag-mcp/1.0',
+          'User-Agent': 'chinmeister-mcp/1.0',
           'X-Agent-Id': 'cursor:abc123',
           'X-Agent-Host-Tool': 'cursor',
           'X-Agent-Surface': 'cline',
@@ -57,7 +57,7 @@ describe('MCP API client', () => {
   });
 
   it('uses the local profile defaults without explicit URL overrides', async () => {
-    vi.stubEnv('CHINWAG_PROFILE', 'local');
+    vi.stubEnv('CHINMEISTER_PROFILE', 'local');
     fetch.mockResolvedValue(mockJsonResponse({ ok: true }));
 
     await api({ token: 'mcp-token' }, { agentId: 'cursor:abc123' }).get('/me');

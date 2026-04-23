@@ -1,4 +1,4 @@
-// Shared constants for the chinwag worker.
+// Shared constants for the chinmeister worker.
 // All magic numbers live here — import by name, never hardcode.
 //
 // DO return pattern:
@@ -34,7 +34,7 @@ export const CONTEXT_MEMBERS_LIMIT = 100;
 export const CONTEXT_LOCKS_LIMIT = 100;
 export const MESSAGE_EXPIRY_HOURS = 1;
 
-// --- Shared constants (re-exported from @chinwag/shared) ---
+// --- Shared constants (re-exported from @chinmeister/shared) ---
 export {
   MAX_SUMMARY_LENGTH,
   MAX_MEMORY_TEXT_LENGTH,
@@ -47,7 +47,7 @@ export {
   LOCK_CLAIM_MAX_FILES,
   MEMORY_SEARCH_MAX_LIMIT,
   MEMORY_SEARCH_DEFAULT_LIMIT,
-} from '@chinwag/shared/constants.js';
+} from '@chinmeister/shared/constants.js';
 
 // --- Capacity caps ---
 export const ACTIVITY_MAX_FILES = 50;

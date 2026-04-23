@@ -4,8 +4,8 @@ const { sharedConfigMock } = vi.hoisted(() => ({
   sharedConfigMock: {
     getConfigPaths: vi.fn(() => ({
       profile: 'prod',
-      configDir: '/home/testuser/.chinwag',
-      configFile: '/home/testuser/.chinwag/config.json',
+      configDir: '/home/testuser/.chinmeister',
+      configFile: '/home/testuser/.chinmeister/config.json',
     })),
     configExists: vi.fn(() => true),
     loadConfig: vi.fn(() => ({ token: 'tok_test' })),
@@ -13,7 +13,7 @@ const { sharedConfigMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('@chinwag/shared/config.js', () => sharedConfigMock);
+vi.mock('@chinmeister/shared/config.js', () => sharedConfigMock);
 
 import * as mcpConfig from '../config.js';
 

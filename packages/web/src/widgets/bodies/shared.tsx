@@ -1,4 +1,7 @@
-import { getToolsWithCapability, type DataCapabilities } from '@chinwag/shared/tool-registry.js';
+import {
+  getToolsWithCapability,
+  type DataCapabilities,
+} from '@chinmeister/shared/tool-registry.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
 import { formatCostDelta } from '../utils.js';
 import styles from '../widget-shared.module.css';
@@ -290,7 +293,7 @@ interface CostReliabilityInput {
  * say no: no sessions reported token data, the pricing snapshot is stale
  * (pricing-enrich.ts zeroes costs rather than serve wrong numbers), or every
  * observed model is unpriced on a fresh snapshot (the totalCost sum is zero
- * not because there was no spend but because chinwag can't price the models
+ * not because there was no spend but because chinmeister can't price the models
  * that did spend). Any of the three → render em-dash.
  */
 export function hasCostData(tu: CostReliabilityInput): boolean {

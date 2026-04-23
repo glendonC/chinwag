@@ -4,7 +4,7 @@
 // CRITICAL: Never console.log — stdio transport.
 
 import { spawn, execFileSync, type ChildProcess } from 'node:child_process';
-import { MCP_TOOLS } from '@chinwag/shared/tool-registry.js';
+import { MCP_TOOLS } from '@chinmeister/shared/tool-registry.js';
 import { createLogger } from './utils/logger.js';
 
 const log = createLogger('command-executor');
@@ -62,7 +62,7 @@ export function executeSpawnCommand(
       cwd: (payload.cwd as string) || cwd,
       detached: true,
       stdio: 'ignore',
-      env: { ...process.env, CHINWAG_TOOL: toolId },
+      env: { ...process.env, CHINMEISTER_TOOL: toolId },
     });
 
     if (child.pid) {

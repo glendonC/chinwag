@@ -1,10 +1,10 @@
 import { basename } from 'path';
-import type { TeamContext as SharedTeamContext } from '@chinwag/shared/contracts/dashboard.js';
+import type { TeamContext as SharedTeamContext } from '@chinmeister/shared/contracts/dashboard.js';
 import type {
   TeamMemory as SharedTeamMemory,
   TeamMember as SharedTeamMember,
   TeamSession as SharedTeamSession,
-} from '@chinwag/shared/contracts/team.js';
+} from '@chinmeister/shared/contracts/team.js';
 
 export const MAX_MEMORIES = 8;
 

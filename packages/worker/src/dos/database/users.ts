@@ -5,7 +5,7 @@
 import type { DOResult, User, NewUser, AgentProfile } from '../../types.js';
 import { toSQLDateTime } from '../../lib/text-utils.js';
 import { VALID_COLORS } from '../../lib/constants.js';
-import { parseBudgetConfig } from '@chinwag/shared/budget-config.js';
+import { parseBudgetConfig } from '@chinmeister/shared/budget-config.js';
 
 // Columns fetched whenever a full User profile is returned (auth, /me, etc.).
 // Kept as a constant so the three getters that produce a User stay in sync.

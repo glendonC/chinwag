@@ -51,7 +51,7 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print(f"chinwag web  http://localhost:{PORT}  (missing routes → 404.html)")
+    print(f"chinmeister web  http://localhost:{PORT}  (missing routes → 404.html)")
     print("             Use Ctrl+C to stop.\n")
     with socketserver.TCPServer(("", PORT), Handler) as httpd:
         httpd.serve_forever()

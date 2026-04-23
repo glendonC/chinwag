@@ -160,7 +160,7 @@ describe('findTeamFile', () => {
   });
 
   describe('found in current directory', () => {
-    it('returns TeamFileInfo when .chinwag is in the start dir', () => {
+    it('returns TeamFileInfo when .chinmeister is in the start dir', () => {
       mockExistsSync.mockReturnValue(true);
       mockReadFileSync.mockReturnValue(
         JSON.stringify({ team: 't_abcdef0123456789', name: 'My Project' }),
@@ -168,7 +168,7 @@ describe('findTeamFile', () => {
 
       const result = findTeamFile('/home/user/project');
       expect(result).toEqual({
-        filePath: '/home/user/project/.chinwag',
+        filePath: '/home/user/project/.chinmeister',
         root: '/home/user/project',
         teamId: 't_abcdef0123456789',
         teamName: 'My Project',
@@ -209,15 +209,15 @@ describe('findTeamFile', () => {
   });
 
   describe('directory walk-up', () => {
-    it('walks up one level to find .chinwag', () => {
+    it('walks up one level to find .chinmeister', () => {
       mockExistsSync
-        .mockReturnValueOnce(false) // /home/user/project/sub/.chinwag
-        .mockReturnValueOnce(true); // /home/user/project/.chinwag
+        .mockReturnValueOnce(false) // /home/user/project/sub/.chinmeister
+        .mockReturnValueOnce(true); // /home/user/project/.chinmeister
       mockReadFileSync.mockReturnValue(JSON.stringify({ team: 't_0000000000000001' }));
 
       const result = findTeamFile('/home/user/project/sub');
       expect(result).toEqual({
-        filePath: '/home/user/project/.chinwag',
+        filePath: '/home/user/project/.chinmeister',
         root: '/home/user/project',
         teamId: 't_0000000000000001',
         teamName: 'project', // defaults to basename
@@ -225,18 +225,18 @@ describe('findTeamFile', () => {
       });
     });
 
-    it('walks multiple levels up to find .chinwag', () => {
+    it('walks multiple levels up to find .chinmeister', () => {
       mockExistsSync
-        .mockReturnValueOnce(false) // /a/b/c/.chinwag
-        .mockReturnValueOnce(false) // /a/b/.chinwag
-        .mockReturnValueOnce(true); // /a/.chinwag
+        .mockReturnValueOnce(false) // /a/b/c/.chinmeister
+        .mockReturnValueOnce(false) // /a/b/.chinmeister
+        .mockReturnValueOnce(true); // /a/.chinmeister
       mockReadFileSync.mockReturnValue(
         JSON.stringify({ team: 't_1111111111111111', name: 'Root' }),
       );
 
       const result = findTeamFile('/a/b/c');
       expect(result).toEqual({
-        filePath: '/a/.chinwag',
+        filePath: '/a/.chinmeister',
         root: '/a',
         teamId: 't_1111111111111111',
         teamName: 'Root',

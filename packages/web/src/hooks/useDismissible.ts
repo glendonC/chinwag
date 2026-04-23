@@ -70,10 +70,10 @@ function subscribe(key: string, fn: () => void): () => void {
  *
  * Two usage modes:
  * - Boolean — omit `id`. One dismissal per storage key.
- *     const { isDismissed, dismiss } = useDismissible('chinwag:hint:foo');
+ *     const { isDismissed, dismiss } = useDismissible('chinmeister:hint:foo');
  *     isDismissed(); dismiss();
  * - Per-id — pass an id to track dismissals per subject under one key.
- *     const { isDismissed, dismiss } = useDismissible('chinwag:hint:bar');
+ *     const { isDismissed, dismiss } = useDismissible('chinmeister:hint:bar');
  *     isDismissed(teamId); dismiss(teamId);
  *
  * All instances using the same key stay in sync via a module-level store,

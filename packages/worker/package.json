@@ -1,5 +1,5 @@
 {
-  "name": "chinwag-worker",
+  "name": "chinmeister-worker",
   "version": "0.1.0",
   "private": true,
   "license": "BUSL-1.1",
@@ -14,7 +14,7 @@
     "build:pricing-seed": "node --experimental-strip-types scripts/fetch-pricing-seed.ts"
   },
   "dependencies": {
-    "@chinwag/shared": "file:../shared"
+    "@chinmeister/shared": "file:../shared"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.13.4",

@@ -9,12 +9,12 @@ import {
   resolveSessionAgentId,
   safeAgentId,
   writeSessionRecord,
-} from '@chinwag/shared/session-registry.js';
+} from '@chinmeister/shared/session-registry.js';
 
 let tempHome;
 
 beforeEach(() => {
-  tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'chinwag-sessions-'));
+  tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'chinmeister-sessions-'));
 });
 
 afterEach(() => {
@@ -58,7 +58,7 @@ describe('session registry', () => {
         pid: 111,
         cwd: '/repo-a',
         createdAt: 1,
-        commandMarker: 'chinwag-mcp',
+        commandMarker: 'chinmeister-mcp',
       },
       { homeDir: tempHome },
     );
@@ -70,7 +70,7 @@ describe('session registry', () => {
         pid: 222,
         cwd: '/repo-a',
         createdAt: 2,
-        commandMarker: 'chinwag-mcp',
+        commandMarker: 'chinmeister-mcp',
       },
       { homeDir: tempHome },
     );
@@ -82,7 +82,7 @@ describe('session registry', () => {
         pid: 333,
         cwd: '/repo-a',
         createdAt: 3,
-        commandMarker: 'chinwag-mcp',
+        commandMarker: 'chinmeister-mcp',
       },
       { homeDir: tempHome },
     );

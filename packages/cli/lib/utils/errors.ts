@@ -31,11 +31,11 @@ export function classifyError(err: {
   const status = err.status;
 
   if (status === 401)
-    return { state: 'offline', detail: 'Session expired. Re-run chinwag init.', fatal: true };
+    return { state: 'offline', detail: 'Session expired. Re-run chinmeister init.', fatal: true };
   if (status === 403)
     return { state: 'offline', detail: 'Access denied. You may have been removed from this team.' };
   if (status === 404)
-    return { state: 'offline', detail: 'Team not found. The .chinwag file may be stale.' };
+    return { state: 'offline', detail: 'Team not found. The .chinmeister file may be stale.' };
   if (status === 409) return { state: 'error', detail: 'Conflict. That resource already exists.' };
   if (status === 429) return { state: 'reconnecting', detail: 'Rate limited. Retrying shortly.' };
   if (status != null && status >= 500)

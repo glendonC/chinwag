@@ -1,6 +1,6 @@
 # Architecture
 
-This document is the high-level map of chinwag: what we are building, how the pieces fit together, and why we made the choices we did. Read it when you need orientation, not on every commit. It should be updated a few times per year, or when a section goes stale (then fix it or open an issue).
+This document is the high-level map of chinmeister: what we are building, how the pieces fit together, and why we made the choices we did. Read it when you need orientation, not on every commit. It should be updated a few times per year, or when a section goes stale (then fix it or open an issue).
 
 ---
 
@@ -18,11 +18,11 @@ At a glance: AI tools on your machine talk to a local MCP server; that server ta
 flowchart TB
   subgraph machine["Developer's machine"]
     direction TB
-    TUI[chinwag TUI dashboard]
+    TUI[chinmeister TUI dashboard]
     T1[Claude Code + hooks + channel]
     T2[Cursor]
     T3[Windsurf, Codex, Aider, VS Code, ...]
-    MCP[chinwag MCP server]
+    MCP[chinmeister MCP server]
     TUI -->|spawn/control| T1
     TUI -->|spawn/control| T3
     T1 --> MCP
@@ -52,7 +52,7 @@ flowchart TB
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                          chinwag                                 │
+│                          chinmeister                                 │
 │                                                                  │
 │  Developer's machine                                             │
 │  ┌────────────┐  ┌────────────┐  ┌────────────┐                    │
@@ -65,7 +65,7 @@ flowchart TB
 │         └───────┬───────┴───────┬───────┘                        │
 │                 ▼               ▼                                 │
 │         ┌─────────────────────────┐                              │
-│         │   chinwag MCP server    │  (one per agent connection)   │
+│         │   chinmeister MCP server    │  (one per agent connection)   │
 │         │   reports activity     │                              │
 │         │   checks conflicts     │                              │
 │         │   reads/writes memory  │                              │
@@ -91,7 +91,7 @@ flowchart TB
 
 </details>
 
-**AI agents** are the primary users. They interact with chinwag through the MCP server that runs alongside each agent session. Developers interact with chinwag indirectly: their agents are smarter because chinwag is connected.
+**AI agents** are the primary users. They interact with chinmeister through the MCP server that runs alongside each agent session. Developers interact with chinmeister indirectly: their agents are smarter because chinmeister is connected.
 
 **The TUI dashboard** is the primary human control surface for managing agentic workflows. It shows all agents (managed and connected) in one place, supports messaging, memory management, and agent lifecycle control for managed agents.
 
@@ -99,19 +99,19 @@ flowchart TB
 
 ## Two-tier agent model
 
-chinwag supports two tiers of agent integration based on how much lifecycle control chinwag has.
+chinmeister supports two tiers of agent integration based on how much lifecycle control chinmeister has.
 
 ### Managed agents (CLI tools)
 
-Claude Code, Codex, Aider, and other CLI-based AI agents. chinwag can spawn these as child processes, track their lifecycle, and provide full control (start, stop, restart, message). When launched via `chinwag run` or `[n]` in the TUI, chinwag owns the process. Agents started independently still auto-connect via MCP and appear in the dashboard, but without process control.
+Claude Code, Codex, Aider, and other CLI-based AI agents. chinmeister can spawn these as child processes, track their lifecycle, and provide full control (start, stop, restart, message). When launched via `chinmeister run` or `[n]` in the TUI, chinmeister owns the process. Agents started independently still auto-connect via MCP and appear in the dashboard, but without process control.
 
 ### Connected agents (IDE tools)
 
-Cursor, Windsurf, and other IDE-embedded agents. These join via MCP and get full coordination (shared memory, conflict detection, messaging, file locks). chinwag cannot control their lifecycle — that's the IDE's domain. Control signals are advisory (messages the agent reads and follows).
+Cursor, Windsurf, and other IDE-embedded agents. These join via MCP and get full coordination (shared memory, conflict detection, messaging, file locks). chinmeister cannot control their lifecycle — that's the IDE's domain. Control signals are advisory (messages the agent reads and follows).
 
 ### Docker Desktop analogy
 
-chinwag follows the Docker Desktop model: agents appear in the dashboard regardless of how they were started. You can run `claude "refactor auth"` from any terminal tab and it shows up in chinwag. Or you can press `[n]` in the TUI to spawn one. Both work. chinwag does not gate your workflow — it enhances it.
+chinmeister follows the Docker Desktop model: agents appear in the dashboard regardless of how they were started. You can run `claude "refactor auth"` from any terminal tab and it shows up in chinmeister. Or you can press `[n]` in the TUI to spawn one. Both work. chinmeister does not gate your workflow — it enhances it.
 
 ### Control mechanisms by tier
 
@@ -133,13 +133,13 @@ The dashboard shows both tiers in one unified list. Managed agents get stop/rest
 ### Setup (one-time per project)
 
 ```
-npx chinwag init
+npx chinmeister init
 ```
 
 This single command:
 
-1. Creates an account (if first run): generates token, saves to the active profile config (`~/.chinwag/config.json` for production, `~/.chinwag/local/config.json` for local dev)
-2. Creates a team for the project (or joins existing if `.chinwag` file exists)
+1. Creates an account (if first run): generates token, saves to the active profile config (`~/.chinmeister/config.json` for production, `~/.chinmeister/local/config.json` for local dev)
+2. Creates a team for the project (or joins existing if `.chinmeister` file exists)
 3. Writes MCP config files for all detected tools (driven by the shared registry in `packages/shared/tool-registry.ts`, re-exported through `packages/cli/lib/tools.ts`; the broader discover catalog lives in `packages/worker/src/catalog.ts` and is served by `GET /tools/catalog`):
    - `.mcp.json`: Claude Code, Codex, Aider, Amazon Q
    - `.cursor/mcp.json`: Cursor
@@ -148,7 +148,7 @@ This single command:
    - `.idea/mcp.json`: JetBrains IDEs
 4. For Claude Code: configures hooks (`.claude/settings.json`) and channel
 
-The `.chinwag` file is committed to the repo. When a teammate clones and runs `npx chinwag init`, they auto-join the same team.
+The `.chinmeister` file is committed to the repo. When a teammate clones and runs `npx chinmeister init`, they auto-join the same team.
 
 ### Per-tool integration depth
 
@@ -157,7 +157,7 @@ The `.chinwag` file is committed to the repo. When a teammate clones and runs `n
 | **Claude Code**     | Managed   | Full: push alerts + enforced conflict prevention | Channels push real-time team state. PreToolUse hooks block conflicting edits. SessionStart hook injects team context. Process control when spawned via TUI. |
 | **Codex CLI**       | Managed   | Basic: tool-based + process control              | MCP tools available. Process control when spawned via TUI.                                                                                                  |
 | **Aider**           | Managed   | Basic: tool-based + process control              | MCP tools available. Shares `.mcp.json`. Process control when spawned via TUI.                                                                              |
-| **Cursor**          | Connected | Good: pull-based awareness                       | MCP `instructions` field + tool descriptions guide the agent to check chinwag. Lifecycle owned by IDE.                                                      |
+| **Cursor**          | Connected | Good: pull-based awareness                       | MCP `instructions` field + tool descriptions guide the agent to check chinmeister. Lifecycle owned by IDE.                                                  |
 | **Windsurf**        | Connected | Good: pull-based awareness                       | MCP tools + instructions. Same integration model as Cursor. Lifecycle owned by IDE.                                                                         |
 | **VS Code Copilot** | Connected | Good: pull-based awareness                       | MCP tools + instructions. Also covers Cline and Continue extensions. Lifecycle owned by IDE.                                                                |
 | **JetBrains**       | Connected | Basic: tool-based                                | MCP tools via `.idea/mcp.json`. Lifecycle owned by IDE.                                                                                                     |
@@ -172,7 +172,7 @@ The TUI dashboard is the primary interface for managing agentic workflows:
 - View all agents (managed + connected) in one unified list
 - Send messages to individual agents or broadcast to the team
 - Search and manage project memory
-- Start new managed agents (`[n]` key or `chinwag run`)
+- Start new managed agents (`[n]` key or `chinmeister run`)
 - Stop/restart managed agents (`[x]` key on managed agent rows)
 
 The TUI does not replace each tool's native interface. Agents still run in their own terminals or IDEs. The TUI provides the unified view and control layer across all of them.
@@ -199,7 +199,7 @@ The monorepo has five packages:
 
 - **Technology:** Node.js 22+, Ink (React for terminals), node-pty, esbuild, TypeScript
 - **Entry point:** `cli.tsx` (screen router)
-- **Responsibility:** Primary human control surface. Handles `chinwag init`, `chinwag add`, and `chinwag run`. Agent operations dashboard (active agents, conflicts, shared memory, session history). Process management for managed CLI agents (spawn, track, stop, restart). Tool discovery screen. Chat is available but secondary.
+- **Responsibility:** Primary human control surface. Handles `chinmeister init`, `chinmeister add`, and `chinmeister run`. Agent operations dashboard (active agents, conflicts, shared memory, session history). Process management for managed CLI agents (spawn, track, stop, restart). Tool discovery screen. Chat is available but secondary.
 - **Key constraint:** The CLI has no knowledge of Durable Objects, room IDs, or server internals. It speaks only the public HTTP/WebSocket API.
 
 ### `packages/shared/`: Shared Primitives
@@ -274,18 +274,18 @@ Three bin entries remain JS (`index.js`, `hook.js`, `channel.js`) because they'r
 | `lib/channel-reconcile.ts`  | Periodic HTTP reconciliation. Fetches full context every 60s to catch drift; falls back to 10s polling when the WebSocket is disconnected.                                                                                                                                                                                                                |
 | `lib/command-executor.ts`   | Executes commands dispatched from managed-agent control surfaces.                                                                                                                                                                                                                                                                                         |
 | `lib/tools/index.ts`        | Tool registration orchestrator. Wires together all tool modules and registers them on the MCP server. Exports `withTeam` middleware for team-guarded tool handlers.                                                                                                                                                                                       |
-| `lib/tools/team.ts`         | `chinwag_join_team` tool implementation.                                                                                                                                                                                                                                                                                                                  |
-| `lib/tools/activity.ts`     | `chinwag_update_activity` tool implementation.                                                                                                                                                                                                                                                                                                            |
-| `lib/tools/conflicts.ts`    | `chinwag_check_conflicts` tool implementation.                                                                                                                                                                                                                                                                                                            |
-| `lib/tools/context.ts`      | `chinwag_get_team_context` tool implementation.                                                                                                                                                                                                                                                                                                           |
-| `lib/tools/memory.ts`       | Memory tools: `chinwag_save_memory`, `chinwag_search_memory`, `chinwag_update_memory`, `chinwag_delete_memory`.                                                                                                                                                                                                                                           |
-| `lib/tools/locks.ts`        | Lock tools: `chinwag_claim_files`, `chinwag_release_files`.                                                                                                                                                                                                                                                                                               |
-| `lib/tools/messaging.ts`    | `chinwag_send_message` tool implementation.                                                                                                                                                                                                                                                                                                               |
+| `lib/tools/team.ts`         | `chinmeister_join_team` tool implementation.                                                                                                                                                                                                                                                                                                              |
+| `lib/tools/activity.ts`     | `chinmeister_update_activity` tool implementation.                                                                                                                                                                                                                                                                                                        |
+| `lib/tools/conflicts.ts`    | `chinmeister_check_conflicts` tool implementation.                                                                                                                                                                                                                                                                                                        |
+| `lib/tools/context.ts`      | `chinmeister_get_team_context` tool implementation.                                                                                                                                                                                                                                                                                                       |
+| `lib/tools/memory.ts`       | Memory tools: `chinmeister_save_memory`, `chinmeister_search_memory`, `chinmeister_update_memory`, `chinmeister_delete_memory`.                                                                                                                                                                                                                           |
+| `lib/tools/locks.ts`        | Lock tools: `chinmeister_claim_files`, `chinmeister_release_files`.                                                                                                                                                                                                                                                                                       |
+| `lib/tools/messaging.ts`    | `chinmeister_send_message` tool implementation.                                                                                                                                                                                                                                                                                                           |
 | `lib/tools/integrations.ts` | Integration-related tool registration.                                                                                                                                                                                                                                                                                                                    |
 | `lib/tools/commits.ts`      | Commit-reporting tool implementation.                                                                                                                                                                                                                                                                                                                     |
 | `lib/tools/outcome.ts`      | Outcome-reporting tool implementation.                                                                                                                                                                                                                                                                                                                    |
-| `lib/tools/telemetry.ts`    | MCP telemetry helpers (`chinwag_record_tokens`, `chinwag_record_tool_call`).                                                                                                                                                                                                                                                                              |
-| `lib/config.ts`             | Reads the active profile config (`~/.chinwag/config.json` or `~/.chinwag/local/config.json`) and the `.chinwag` team file.                                                                                                                                                                                                                                |
+| `lib/tools/telemetry.ts`    | MCP telemetry helpers (`chinmeister_record_tokens`, `chinmeister_record_tool_call`).                                                                                                                                                                                                                                                                      |
+| `lib/config.ts`             | Reads the active profile config (`~/.chinmeister/config.json` or `~/.chinmeister/local/config.json`) and the `.chinmeister` team file.                                                                                                                                                                                                                    |
 | `lib/profile.ts`            | Auto-detects languages, frameworks, tools, and platforms from project files and environment variables.                                                                                                                                                                                                                                                    |
 | `lib/context.ts`            | Shared context cache with TTL. Serves as preamble source and offline fallback when the API is unreachable.                                                                                                                                                                                                                                                |
 | `lib/diff-state.ts`         | State diffing for the channel server. Compares team context snapshots and returns human-readable event strings for meaningful changes.                                                                                                                                                                                                                    |
@@ -305,18 +305,18 @@ Three bin entries remain JS (`index.js`, `hook.js`, `channel.js`) because they'r
 | `lib/process-manager.ts`                | Spawns CLI agents via node-pty, tracks PIDs, handles kill/restart. Provides lifecycle events for dashboard integration.                                                                                                                                             |
 | `lib/process/conversation-collector.ts` | Post-session conversation collector. Parses conversation logs from managed agent sessions (tool-specific parsers behind a generic interface) and uploads normalized events for conversation analytics.                                                              |
 | `lib/discover.tsx`                      | Tool discovery screen. Shows your configured tools, recommends new tools from the catalog, browse by category, one-key add.                                                                                                                                         |
-| `lib/commands/init.ts`                  | `chinwag init`: account setup, team creation/join, tool detection via registry, MCP config + hooks writing.                                                                                                                                                         |
-| `lib/commands/add.ts`                   | `chinwag add <tool>`: adds a specific tool's MCP config. Fetches discovery catalog from API.                                                                                                                                                                        |
-| `lib/commands/run.ts`                   | `chinwag run`: spawn a managed agent and wire it into the dashboard.                                                                                                                                                                                                |
-| `lib/commands/doctor.ts`                | `chinwag doctor`: inspect and repair integration config.                                                                                                                                                                                                            |
+| `lib/commands/init.ts`                  | `chinmeister init`: account setup, team creation/join, tool detection via registry, MCP config + hooks writing.                                                                                                                                                     |
+| `lib/commands/add.ts`                   | `chinmeister add <tool>`: adds a specific tool's MCP config. Fetches discovery catalog from API.                                                                                                                                                                    |
+| `lib/commands/run.ts`                   | `chinmeister run`: spawn a managed agent and wire it into the dashboard.                                                                                                                                                                                            |
+| `lib/commands/doctor.ts`                | `chinmeister doctor`: inspect and repair integration config.                                                                                                                                                                                                        |
 | `lib/commands/token.ts`                 | Account token utilities.                                                                                                                                                                                                                                            |
 | `lib/tools.ts`                          | CLI re-export of the shared MCP tool registry. Discovery catalog lives in the worker API (`GET /tools/catalog`).                                                                                                                                                    |
 | `lib/mcp-config.ts`                     | Writes MCP config files for detected tools.                                                                                                                                                                                                                         |
 | `lib/chat.tsx`                          | Live chat. WebSocket connection with exponential backoff reconnect (1s→15s cap).                                                                                                                                                                                    |
 | `lib/customize.tsx`                     | Profile editor. Change handle, cycle through 12-color palette, set status.                                                                                                                                                                                          |
 | `lib/api.ts`                            | HTTP client. Wraps fetch with Bearer token auth, 10s timeout, retry with exponential backoff on 5xx/network errors.                                                                                                                                                 |
-| `lib/colors.ts`                         | Maps chinwag's 12 colors to ANSI terminal colors for Ink rendering.                                                                                                                                                                                                 |
-| `lib/config.ts`                         | Reads/writes the active profile config. Production uses `~/.chinwag/config.json`; local dev uses `~/.chinwag/local/config.json`.                                                                                                                                    |
+| `lib/colors.ts`                         | Maps chinmeister's 12 colors to ANSI terminal colors for Ink rendering.                                                                                                                                                                                             |
+| `lib/config.ts`                         | Reads/writes the active profile config. Production uses `~/.chinmeister/config.json`; local dev uses `~/.chinmeister/local/config.json`.                                                                                                                            |
 
 ### Shared (`packages/shared/`)
 
@@ -334,7 +334,7 @@ Three bin entries remain JS (`index.js`, `hook.js`, `channel.js`) because they'r
 | `integration-model.ts`         | Integration types + state machine.                                                                                                                                                       |
 | `runtime-profile.ts`           | Runtime profile resolution (`production` vs `local`), config path selection.                                                                                                             |
 | `config.ts`                    | Reads and validates the active profile config path.                                                                                                                                      |
-| `team-utils.ts`                | Team ID validation and `.chinwag` file discovery.                                                                                                                                        |
+| `team-utils.ts`                | Team ID validation and `.chinmeister` file discovery.                                                                                                                                    |
 | `process-utils.ts`             | Process info helpers (parent PID, TTY path).                                                                                                                                             |
 | `tool-call-categories.ts`      | Work-type classification for tool calls.                                                                                                                                                 |
 | `error-utils.ts` / `logger.ts` | Shared error normalization and logger facade.                                                                                                                                            |
@@ -344,45 +344,45 @@ Three bin entries remain JS (`index.js`, `hook.js`, `channel.js`) because they'r
 
 ### Setup and Authentication
 
-1. Developer runs `npx chinwag init` in a project directory
+1. Developer runs `npx chinmeister init` in a project directory
 2. CLI calls `POST /auth/init` (no auth required)
 3. Worker creates user in DatabaseDO: generates UUID, token, random two-word handle, random color
 4. Worker writes `token:{bearer-token} → user_id` to KV
 5. CLI saves `{token, refresh_token, handle, color}` to the active profile config file
-6. CLI creates team via `POST /teams`, writes `.chinwag` file with team ID
+6. CLI creates team via `POST /teams`, writes `.chinmeister` file with team ID
 7. CLI writes MCP config files for detected tools (`.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json`)
 8. For Claude Code: writes hooks config to `.claude/settings.json`
 
 ### Agent Session Lifecycle
 
-1. Developer opens any MCP-compatible tool (Claude Code, Cursor, Windsurf, etc.) in the project, or spawns a managed agent via TUI/`chinwag run`
-2. Tool discovers MCP config, starts chinwag MCP server subprocess
-3. MCP server reads the active profile config for auth token, `.chinwag` for team ID
+1. Developer opens any MCP-compatible tool (Claude Code, Cursor, Windsurf, etc.) in the project, or spawns a managed agent via TUI/`chinmeister run`
+2. Tool discovers MCP config, starts chinmeister MCP server subprocess
+3. MCP server reads the active profile config for auth token, `.chinmeister` for team ID
 4. MCP server joins team via backend API, reports agent type and session start
-5. **Claude Code (hooks path):** SessionStart hook fires, calls chinwag backend, injects team context into Claude's session ("2 other agents active, Sarah's Cursor editing auth.js")
+5. **Claude Code (hooks path):** SessionStart hook fires, calls chinmeister backend, injects team context into Claude's session ("2 other agents active, Sarah's Cursor editing auth.js")
 6. **Claude Code (channel path):** Channel pushes real-time updates as team state changes
-7. **All tools (MCP path):** Agent can call `chinwag_check_conflicts` before edits, `chinwag_update_activity` to report what it's working on, `chinwag_get_team_context` for shared memory
-8. **Claude Code (hooks enforcement):** PreToolUse hook on Edit/Write calls chinwag API and blocks the edit if another agent is in that file
+7. **All tools (MCP path):** Agent can call `chinmeister_check_conflicts` before edits, `chinmeister_update_activity` to report what it's working on, `chinmeister_get_team_context` for shared memory
+8. **Claude Code (hooks enforcement):** PreToolUse hook on Edit/Write calls chinmeister API and blocks the edit if another agent is in that file
 9. **Managed agents:** TUI tracks the child process. Stop/restart controls available in the dashboard. Process exit triggers cleanup.
 10. On session end: MCP server reports disconnect, backend cleans up agent state
 
 ### Shared Project Memory
 
 1. Agent discovers a project fact ("tests require Redis", "deploy needs AWS_REGION=us-west-2")
-2. Agent calls `chinwag_save_memory` MCP tool with the fact and optional freeform tags
+2. Agent calls `chinmeister_save_memory` MCP tool with the fact and optional freeform tags
 3. MCP server sends to backend, TeamDO persists in SQLite with metadata (source agent, timestamp, tags)
-4. Future agent sessions on the same team find memories via `chinwag_search_memory` (text search, tag filter) or receive recent memories in `chinwag_get_team_context`
-5. Memories are team knowledge — any team member can update or delete. Agents manage relevance themselves; chinwag stores and retrieves
+4. Future agent sessions on the same team find memories via `chinmeister_search_memory` (text search, tag filter) or receive recent memories in `chinmeister_get_team_context`
+5. Memories are team knowledge — any team member can update or delete. Agents manage relevance themselves; chinmeister stores and retrieves
 
 ### Session Intelligence
 
-chinwag captures session-level data that powers workflow analytics and long-term intelligence.
+chinmeister captures session-level data that powers workflow analytics and long-term intelligence.
 
 1. **Automatic capture (hook-enabled tools).** Every file edit fires a PostToolUse hook that records the file path, increments the session's edit count, and appends to files_touched. This happens without the agent opting in — hooks are system-level.
 2. **Voluntary reporting (all MCP tools).** Agents report activity, check conflicts, and manage memory through MCP tool calls. Each call updates the session's last-activity timestamp.
 3. **Session record.** Each session stores: `edit_count`, `files_touched`, `conflicts_hit`, `memories_saved`, `duration_minutes`, `agent_model`, `host_tool`, `transport`, `framework`. This is the raw material for analytics.
-4. **Derived metrics.** From raw session data, chinwag derives edit velocity (edits/minute), codebase heatmaps (aggregate files_touched), stuckness patterns (correlate stuck sessions with file areas), and retry detection (multiple sessions on same files in short windows).
-5. **Conversation intelligence (managed agents).** After a managed session ends, chinwag parses the agent's conversation logs and uploads normalized events — user and assistant messages with sequence, timestamps, and character counts. The backend stores these in `conversation_events` and runs analytics: sentiment distribution, topic classification, message length trends, and crucially, correlation between conversation patterns and session outcomes. Tool-specific parsers (isolated behind a generic `ConversationEvent[]` interface) handle each tool's log format; the analytics layer is tool-agnostic.
+4. **Derived metrics.** From raw session data, chinmeister derives edit velocity (edits/minute), codebase heatmaps (aggregate files_touched), stuckness patterns (correlate stuck sessions with file areas), and retry detection (multiple sessions on same files in short windows).
+5. **Conversation intelligence (managed agents).** After a managed session ends, chinmeister parses the agent's conversation logs and uploads normalized events — user and assistant messages with sequence, timestamps, and character counts. The backend stores these in `conversation_events` and runs analytics: sentiment distribution, topic classification, message length trends, and crucially, correlation between conversation patterns and session outcomes. Tool-specific parsers (isolated behind a generic `ConversationEvent[]` interface) handle each tool's log format; the analytics layer is tool-agnostic.
 6. **Integration depth determines data richness.** Hook-enabled tools provide granular, automatic data on every edit. MCP-only tools provide coordination data and voluntary reporting. Managed tools get the deepest tier: conversation-level analytics. The intelligence layer works with all, surfacing richer insights where richer data is available.
 
 ### Chat (Secondary)
@@ -399,15 +399,15 @@ Chat is available but secondary to the agent coordination focus. It exists becau
 
 ## Key Design Decisions
 
-**MCP server is the product, not the CLI.** The primary value is delivered invisibly through agent MCP connections. This is like git: you run `git init` once, then git works in the background. chinwag works the same way: init once, then your agents are smarter.
+**MCP server is the product, not the CLI.** The primary value is delivered invisibly through agent MCP connections. This is like git: you run `git init` once, then git works in the background. chinmeister works the same way: init once, then your agents are smarter.
 
-**Two-tier agent model.** CLI agents (Claude Code, Codex, Aider) are managed: chinwag can spawn, stop, and restart them. IDE agents (Cursor, Windsurf) are connected: they join via MCP and get full coordination, but lifecycle control stays with the IDE. Both tiers appear in the same dashboard. This matches reality — you cannot kill a Cursor agent from outside Cursor, but you can kill a Claude Code process.
+**Two-tier agent model.** CLI agents (Claude Code, Codex, Aider) are managed: chinmeister can spawn, stop, and restart them. IDE agents (Cursor, Windsurf) are connected: they join via MCP and get full coordination, but lifecycle control stays with the IDE. Both tiers appear in the same dashboard. This matches reality — you cannot kill a Cursor agent from outside Cursor, but you can kill a Claude Code process.
 
-**Docker Desktop, not Docker Engine.** Agents show up in the dashboard regardless of how they were started. `chinwag run` and `[n]` in the TUI are convenient launchers, not gatekeepers. An agent started from a random terminal tab auto-connects via MCP the same way.
+**Docker Desktop, not Docker Engine.** Agents show up in the dashboard regardless of how they were started. `chinmeister run` and `[n]` in the TUI are convenient launchers, not gatekeepers. An agent started from a random terminal tab auto-connects via MCP the same way.
 
 **Three surfaces, one backend.** MCP server (for agents), TUI (for terminal users), web dashboard (for visual workflow management). All hit the same API. No surface gets special backend endpoints. This means features built for one surface are automatically available to the others.
 
-**One team per project, one account across projects within a runtime profile.** The `.chinwag` file (committed to git) scopes a team to a repo. `~/.chinwag/config.json` gives the user a cross-project production identity, while local development uses `~/.chinwag/local/config.json` so local testing never overwrites production auth. This enables both team coordination within a repo and solo multi-project visibility across repos while keeping local and production environments intentionally separate.
+**One team per project, one account across projects within a runtime profile.** The `.chinmeister` file (committed to git) scopes a team to a repo. `~/.chinmeister/config.json` gives the user a cross-project production identity, while local development uses `~/.chinmeister/local/config.json` so local testing never overwrites production auth. This enables both team coordination within a repo and solo multi-project visibility across repos while keeping local and production environments intentionally separate.
 
 **Claude Code gets the deepest integration.** Claude Code supports hooks (enforceable interception before file edits), channels (server-initiated push), and is a CLI tool (full process control). This enables conflict prevention that the agent cannot bypass plus managed lifecycle. Other tools get softer integration via MCP instructions and tool descriptions. As tools add hook-like capabilities, their integration deepens.
 
@@ -419,19 +419,19 @@ Chat is available but secondary to the agent coordination focus. It exists becau
 
 **KV for auth only.** KV is eventually consistent, which is fine for token→user_id lookups (tokens are write-once). All other data lives in Durable Objects where we need strong consistency.
 
-**`chinwag init` writes config for all detected tools.** Rather than requiring developers to manually configure MCP servers, the init command detects installed tools and writes their config files. This is the zero-friction adoption path: one command, then forget about it.
+**`chinmeister init` writes config for all detected tools.** Rather than requiring developers to manually configure MCP servers, the init command detects installed tools and writes their config files. This is the zero-friction adoption path: one command, then forget about it.
 
 ## Architectural Invariants
 
 These are constraints that should be preserved as the codebase evolves:
 
-- **MCP server is the primary interface.** The MCP server is how agents interact with chinwag. The TUI and web dashboard are human-facing surfaces. Features should be MCP-first, then surfaced in TUI and web.
+- **MCP server is the primary interface.** The MCP server is how agents interact with chinmeister. The TUI and web dashboard are human-facing surfaces. Features should be MCP-first, then surfaced in TUI and web.
 - **All surfaces share one API.** The MCP server, TUI, and web dashboard must never depend on server internals (DO class names, room IDs, internal data formats). If a client needs something, it should be a documented API endpoint. No surface gets special backend treatment.
 - **Durable Objects own their data.** No external system reads DO storage directly. All access goes through the DO's RPC methods. This preserves the single-writer guarantee.
 - **Worker is stateless.** No request-scoped state in module-level variables. Workers reuse V8 isolates across requests. Global state causes cross-request data leaks.
 - **KV is append-only for auth.** Token mappings are written once at account creation and never updated.
 - **MCP server: never `console.log`.** Stdio transport uses stdout for JSON-RPC. Any `console.log` corrupts the protocol. Use `console.error` for all logging.
-- **Managed agents are optional.** Process management is a convenience layer. All coordination features work identically for agents started outside chinwag. The system must never require agents to be spawned via `chinwag run` or the TUI.
+- **Managed agents are optional.** Process management is a convenience layer. All coordination features work identically for agents started outside chinmeister. The system must never require agents to be spawned via `chinmeister run` or the TUI.
 
 ## Crosscutting Concerns
 
@@ -489,7 +489,7 @@ For what's shipped and what's next, see [ROADMAP.md](ROADMAP.md). For product vi
 - The web dashboard is designed to work both in a browser and embedded in IDE panels.
 - All DO communication uses RPC, not fetch. New features should follow this pattern.
 - Maintain the MCP server ↔ Worker API boundary (agents use the same API as the CLI and web).
-- Process management is a CLI concern. The backend does not need to know whether an agent was spawned by chinwag or started independently.
+- Process management is a CLI concern. The backend does not need to know whether an agent was spawned by chinmeister or started independently.
 
 ---
 

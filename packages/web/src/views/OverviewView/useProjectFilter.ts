@@ -5,7 +5,7 @@ interface Team {
   team_name?: string | null;
 }
 
-const STORAGE_KEY = 'chinwag:overview-project-filter';
+const STORAGE_KEY = 'chinmeister:overview-project-filter';
 
 function loadFilter(): string[] | null {
   try {

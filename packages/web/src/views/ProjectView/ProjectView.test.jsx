@@ -96,20 +96,20 @@ describe('ProjectView states', () => {
       pollingState: {
         contextData: null,
         contextStatus: 'error',
-        contextTeamId: 't_chinwag',
+        contextTeamId: 't_chinmeister',
         pollError: 'Internal server error',
         pollErrorData: null,
         lastUpdate: null,
       },
       teamState: {
-        activeTeamId: 't_chinwag',
-        teams: [{ team_id: 't_chinwag', team_name: 'chinwag' }],
+        activeTeamId: 't_chinmeister',
+        teams: [{ team_id: 't_chinmeister', team_name: 'chinmeister' }],
       },
     });
     const { container, unmount } = renderComponent(ProjectView);
 
     expect(container.querySelector('[data-testid="status-state"]')?.textContent).toContain(
-      'Could not load chinwag',
+      'Could not load chinmeister',
     );
     expect(container.querySelector('[data-testid="view-header"]')).toBeNull();
 

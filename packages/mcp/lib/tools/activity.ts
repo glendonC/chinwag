@@ -1,8 +1,8 @@
-// chinwag_update_activity tool handler.
+// chinmeister_update_activity tool handler.
 
 import * as z from 'zod/v4';
-import { setTerminalTitle } from '@chinwag/shared/session-registry.js';
-import { BUDGET_DEFAULTS } from '@chinwag/shared/budget-config.js';
+import { setTerminalTitle } from '@chinmeister/shared/session-registry.js';
+import { BUDGET_DEFAULTS } from '@chinmeister/shared/budget-config.js';
 import { normalizeFiles } from '../utils/paths.js';
 import { withTimeout } from '../utils/responses.js';
 import {
@@ -34,10 +34,10 @@ export function registerActivityTool(
   const { team, state } = deps;
 
   addTool(
-    'chinwag_update_activity',
+    'chinmeister_update_activity',
     {
       description:
-        'Report what files you are currently working on. IMPORTANT: Call this immediately after chinwag_claim_files to broadcast your activity. Other agents across all tools will see this in their team context.',
+        'Report what files you are currently working on. IMPORTANT: Call this immediately after chinmeister_claim_files to broadcast your activity. Other agents across all tools will see this in their team context.',
       inputSchema: updateActivitySchema,
     },
     withTeam(deps, async (args, { preamble }) => {
@@ -56,7 +56,7 @@ export function registerActivityTool(
           summary.length > TITLE_MAX_LENGTH
             ? summary.slice(0, TITLE_MAX_LENGTH - 1) + '\u2026'
             : summary;
-        setTerminalTitle(state.tty, `chinwag \u00B7 ${label}`);
+        setTerminalTitle(state.tty, `chinmeister \u00B7 ${label}`);
       }
       const suffix = silent ? ' (local only; team broadcast disabled)' : '';
       return {

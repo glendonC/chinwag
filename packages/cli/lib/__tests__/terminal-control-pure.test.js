@@ -5,7 +5,7 @@ vi.mock('react', () => ({
   useEffect: vi.fn(),
 }));
 
-vi.mock('@chinwag/shared', () => ({
+vi.mock('@chinmeister/shared', () => ({
   createLogger: () => ({
     info: vi.fn(),
     warn: vi.fn(),

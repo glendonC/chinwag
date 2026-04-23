@@ -30,12 +30,12 @@ vi.mock('../api.js', () => ({
   api: vi.fn().mockReturnValue({}),
 }));
 
-vi.mock('@chinwag/shared/session-registry.js', () => ({
+vi.mock('@chinmeister/shared/session-registry.js', () => ({
   isProcessAlive: vi.fn().mockReturnValue(true),
   pingAgentTerminal: vi.fn(),
 }));
 
-import { pingAgentTerminal } from '@chinwag/shared/session-registry.js';
+import { pingAgentTerminal } from '@chinmeister/shared/session-registry.js';
 
 // --- shouldRequestAttention logic ---
 // Extracted from channel.js for testing. We test the pattern directly.
@@ -153,7 +153,7 @@ describe('pushEvent', () => {
         params: { content: 'test event' },
       });
     } catch (err) {
-      consoleSpy(`[chinwag-channel] Push failed: ${err.message}`);
+      consoleSpy(`[chinmeister-channel] Push failed: ${err.message}`);
     }
 
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Push failed'));
@@ -210,7 +210,7 @@ describe('polling logic', () => {
       await team.getTeamContext('t_abc');
     } catch (err) {
       // Poll failed — prevState should not change
-      consoleSpy(`[chinwag-channel] Poll failed: ${err.message}`);
+      consoleSpy(`[chinmeister-channel] Poll failed: ${err.message}`);
     }
 
     // prevState remains unchanged

@@ -1,6 +1,6 @@
-import { createJsonApiClient } from '@chinwag/shared/api-client.js';
-import type { RuntimeIdentity } from '@chinwag/shared/agent-identity.js';
-import { resolveRuntimeTargets, type RuntimeTargets } from '@chinwag/shared/runtime-profile.js';
+import { createJsonApiClient } from '@chinmeister/shared/api-client.js';
+import type { RuntimeIdentity } from '@chinmeister/shared/agent-identity.js';
+import { resolveRuntimeTargets, type RuntimeTargets } from '@chinmeister/shared/runtime-profile.js';
 import { loadConfig } from './config.js';
 import { refreshAndPersistToken } from './token-refresh.js';
 import {
@@ -22,10 +22,10 @@ interface ApiOptions {
 
 export function getRuntimeTargets(): RuntimeTargets {
   return resolveRuntimeTargets({
-    profile: process.env.CHINWAG_PROFILE,
-    apiUrl: process.env.CHINWAG_API_URL,
-    dashboardUrl: process.env.CHINWAG_DASHBOARD_URL,
-    chatWsUrl: process.env.CHINWAG_WS_URL,
+    profile: process.env.CHINMEISTER_PROFILE,
+    apiUrl: process.env.CHINMEISTER_API_URL,
+    dashboardUrl: process.env.CHINMEISTER_DASHBOARD_URL,
+    chatWsUrl: process.env.CHINMEISTER_WS_URL,
   });
 }
 
@@ -79,7 +79,7 @@ export function api(
       authToken: token,
       agentId,
       runtimeIdentity,
-      userAgent: 'chinwag-mcp/1.0',
+      userAgent: 'chinmeister-mcp/1.0',
       timeoutMs: API_TIMEOUT_MS,
       maxRetryAttempts: API_MAX_RETRY_ATTEMPTS,
       maxTimeoutRetryAttempts: API_MAX_TIMEOUT_RETRY_ATTEMPTS,

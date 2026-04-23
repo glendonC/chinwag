@@ -49,7 +49,7 @@ export async function handleFetch(wsCtx: WsCtx, request: Request): Promise<Respo
     return new Response('Not found', { status: 404 });
   }
 
-  if (request.headers.get('X-Chinwag-Verified') !== '1') {
+  if (request.headers.get('X-Chinmeister-Verified') !== '1') {
     return new Response('Forbidden', { status: 403 });
   }
 

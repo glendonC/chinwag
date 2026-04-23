@@ -58,38 +58,38 @@ export function writeJson(filePath: string, value: ConfigJson): void {
   writeFileSync(filePath, JSON.stringify(value, null, 2) + '\n');
 }
 
-export function buildChinwagCliArgs(
+export function buildChinmeisterCliArgs(
   subcommand: string,
   { hostId = null, surfaceId = null }: { hostId?: string | null; surfaceId?: string | null } = {},
 ): string[] {
-  const args = ['-y', 'chinwag', subcommand];
+  const args = ['-y', 'chinmeister', subcommand];
   if (hostId) args.push('--tool', hostId);
   if (surfaceId) args.push('--surface', surfaceId);
   return args;
 }
 
-export function buildChinwagHookCommand(
+export function buildChinmeisterHookCommand(
   subcommand: string,
   {
     hostId = DEFAULT_HOOK_HOST,
     surfaceId = null,
   }: { hostId?: string; surfaceId?: string | null } = {},
 ): string {
-  const args = ['npx', '-y', 'chinwag', 'hook', subcommand];
+  const args = ['npx', '-y', 'chinmeister', 'hook', subcommand];
   if (hostId && hostId !== DEFAULT_HOOK_HOST) args.push('--tool', hostId);
   if (surfaceId) args.push('--surface', surfaceId);
   return args.join(' ');
 }
 
-function isChinwagHookCommand(command: unknown): boolean {
-  return typeof command === 'string' && command.includes('chinwag hook');
+function isChinmeisterHookCommand(command: unknown): boolean {
+  return typeof command === 'string' && command.includes('chinmeister hook');
 }
 
 function buildExpectedMcpArgs(
   hostId: string,
   { subcommand = 'mcp', sharedRoot = false }: { subcommand?: string; sharedRoot?: boolean } = {},
 ): string[] {
-  return buildChinwagCliArgs(subcommand, {
+  return buildChinmeisterCliArgs(subcommand, {
     hostId: sharedRoot ? null : hostId,
   });
 }
@@ -100,7 +100,7 @@ export function hasMatchingMcpEntry(
   { channel = false, sharedRoot = false }: { channel?: boolean; sharedRoot?: boolean } = {},
 ): boolean {
   const servers = config.mcpServers || {};
-  const primary = servers.chinwag;
+  const primary = servers.chinmeister;
   const expectedPrimary = buildExpectedMcpArgs(hostId, { subcommand: 'mcp', sharedRoot });
   const primaryOk =
     primary?.command === 'npx' &&
@@ -108,7 +108,7 @@ export function hasMatchingMcpEntry(
   if (!primaryOk) return false;
 
   if (!channel) return true;
-  const channelEntry = servers['chinwag-channel'];
+  const channelEntry = servers['chinmeister-channel'];
   const expectedChannel = buildExpectedMcpArgs(hostId, { subcommand: 'channel', sharedRoot });
   return (
     channelEntry?.command === 'npx' &&
@@ -125,9 +125,9 @@ export function hasMatchingHookConfig(
 
   if (format === 'windsurf') {
     const expected: Record<string, string> = {
-      pre_write_code: buildChinwagHookCommand('check-conflict', { hostId }),
-      post_write_code: buildChinwagHookCommand('report-edit', { hostId }),
-      post_run_command: buildChinwagHookCommand('report-commit', { hostId }),
+      pre_write_code: buildChinmeisterHookCommand('check-conflict', { hostId }),
+      post_write_code: buildChinmeisterHookCommand('report-edit', { hostId }),
+      post_run_command: buildChinmeisterHookCommand('report-commit', { hostId }),
     };
     return Object.entries(expected).every(([event, command]) => {
       const entries = hooks[event] || [];
@@ -136,9 +136,9 @@ export function hasMatchingHookConfig(
   }
 
   const expected: Record<string, string> = {
-    PreToolUse: buildChinwagHookCommand('check-conflict', { hostId }),
-    PostToolUse: buildChinwagHookCommand('report-edit', { hostId }),
-    SessionStart: buildChinwagHookCommand('session-start', { hostId }),
+    PreToolUse: buildChinmeisterHookCommand('check-conflict', { hostId }),
+    PostToolUse: buildChinmeisterHookCommand('report-edit', { hostId }),
+    SessionStart: buildChinmeisterHookCommand('session-start', { hostId }),
   };
   return Object.entries(expected).every(([event, command]) => {
     const entries = hooks[event] || [];
@@ -168,36 +168,36 @@ export function writeMcpConfig(
 
   if (isSharedRootConfig) {
     for (const key of Object.keys(config.mcpServers)) {
-      if (key.startsWith('chinwag-') && key !== 'chinwag-channel') {
+      if (key.startsWith('chinmeister-') && key !== 'chinmeister-channel') {
         delete config.mcpServers[key];
       }
     }
-    config.mcpServers.chinwag = {
+    config.mcpServers.chinmeister = {
       command: 'npx',
-      args: buildChinwagCliArgs('mcp', { hostId: null, surfaceId }),
+      args: buildChinmeisterCliArgs('mcp', { hostId: null, surfaceId }),
     };
-    if (config.mcpServers['chinwag-channel']) {
-      config.mcpServers['chinwag-channel'] = {
+    if (config.mcpServers['chinmeister-channel']) {
+      config.mcpServers['chinmeister-channel'] = {
         command: 'npx',
-        args: buildChinwagCliArgs('channel', { hostId: null, surfaceId }),
+        args: buildChinmeisterCliArgs('channel', { hostId: null, surfaceId }),
       };
     }
   } else {
     for (const key of Object.keys(config.mcpServers)) {
-      if (key === 'chinwag' || key.startsWith('chinwag-')) {
+      if (key === 'chinmeister' || key.startsWith('chinmeister-')) {
         delete config.mcpServers[key];
       }
     }
-    config.mcpServers.chinwag = {
+    config.mcpServers.chinmeister = {
       command: 'npx',
-      args: buildChinwagCliArgs('mcp', { hostId: host?.id || null, surfaceId }),
+      args: buildChinmeisterCliArgs('mcp', { hostId: host?.id || null, surfaceId }),
     };
   }
 
   if (channel && config.mcpServers) {
-    config.mcpServers['chinwag-channel'] = {
+    config.mcpServers['chinmeister-channel'] = {
       command: 'npx',
-      args: buildChinwagCliArgs('channel', {
+      args: buildChinmeisterCliArgs('channel', {
         hostId: isSharedRootConfig ? null : host?.id || null,
         surfaceId,
       }),
@@ -225,14 +225,14 @@ export function writeHooksConfig(
 
   if (!config.hooks) config.hooks = {};
 
-  const chinwagHooks: Record<string, HookConfigEntry[]> = {
+  const chinmeisterHooks: Record<string, HookConfigEntry[]> = {
     PreToolUse: [
       {
         matcher: 'Edit|Write',
         hooks: [
           {
             type: 'command',
-            command: buildChinwagHookCommand('check-conflict', { hostId, surfaceId }),
+            command: buildChinmeisterHookCommand('check-conflict', { hostId, surfaceId }),
           },
         ],
       },
@@ -243,7 +243,7 @@ export function writeHooksConfig(
         hooks: [
           {
             type: 'command',
-            command: buildChinwagHookCommand('report-edit', { hostId, surfaceId }),
+            command: buildChinmeisterHookCommand('report-edit', { hostId, surfaceId }),
           },
         ],
       },
@@ -252,7 +252,7 @@ export function writeHooksConfig(
         hooks: [
           {
             type: 'command',
-            command: buildChinwagHookCommand('report-read', { hostId, surfaceId }),
+            command: buildChinmeisterHookCommand('report-read', { hostId, surfaceId }),
           },
         ],
       },
@@ -261,7 +261,7 @@ export function writeHooksConfig(
         hooks: [
           {
             type: 'command',
-            command: buildChinwagHookCommand('report-commit', { hostId, surfaceId }),
+            command: buildChinmeisterHookCommand('report-commit', { hostId, surfaceId }),
           },
         ],
       },
@@ -271,18 +271,18 @@ export function writeHooksConfig(
         hooks: [
           {
             type: 'command',
-            command: buildChinwagHookCommand('session-start', { hostId, surfaceId }),
+            command: buildChinmeisterHookCommand('session-start', { hostId, surfaceId }),
           },
         ],
       },
     ],
   };
 
-  for (const [event, entries] of Object.entries(chinwagHooks)) {
+  for (const [event, entries] of Object.entries(chinmeisterHooks)) {
     const currentEntries = config.hooks[event] || [];
     config.hooks[event] = currentEntries.filter((hook) => {
       const existingCommand = hook.hooks?.[0]?.command || hook.command;
-      return !isChinwagHookCommand(existingCommand);
+      return !isChinmeisterHookCommand(existingCommand);
     });
     config.hooks[event].push(...entries);
   }
@@ -305,14 +305,14 @@ export function writeCursorHooksConfig(cwd: string): WriteResult {
   const config = readJson(filePath);
   if (!config.hooks) config.hooks = {};
 
-  const chinwagHooks: Record<string, HookConfigEntry[]> = {
+  const chinmeisterHooks: Record<string, HookConfigEntry[]> = {
     PreToolUse: [
       {
         matcher: 'Edit|Write',
         hooks: [
           {
             type: 'command',
-            command: buildChinwagHookCommand('check-conflict', { hostId: 'cursor' }),
+            command: buildChinmeisterHookCommand('check-conflict', { hostId: 'cursor' }),
           },
         ],
       },
@@ -323,7 +323,7 @@ export function writeCursorHooksConfig(cwd: string): WriteResult {
         hooks: [
           {
             type: 'command',
-            command: buildChinwagHookCommand('report-edit', { hostId: 'cursor' }),
+            command: buildChinmeisterHookCommand('report-edit', { hostId: 'cursor' }),
           },
         ],
       },
@@ -332,7 +332,7 @@ export function writeCursorHooksConfig(cwd: string): WriteResult {
         hooks: [
           {
             type: 'command',
-            command: buildChinwagHookCommand('report-commit', { hostId: 'cursor' }),
+            command: buildChinmeisterHookCommand('report-commit', { hostId: 'cursor' }),
           },
         ],
       },
@@ -342,17 +342,17 @@ export function writeCursorHooksConfig(cwd: string): WriteResult {
         hooks: [
           {
             type: 'command',
-            command: buildChinwagHookCommand('session-start', { hostId: 'cursor' }),
+            command: buildChinmeisterHookCommand('session-start', { hostId: 'cursor' }),
           },
         ],
       },
     ],
   };
 
-  for (const [event, entries] of Object.entries(chinwagHooks)) {
+  for (const [event, entries] of Object.entries(chinmeisterHooks)) {
     const current = (config.hooks[event] || []) as HookConfigEntry[];
     config.hooks[event] = current.filter(
-      (h) => !isChinwagHookCommand(h.hooks?.[0]?.command || h.command),
+      (h) => !isChinmeisterHookCommand(h.hooks?.[0]?.command || h.command),
     );
     (config.hooks[event] as HookConfigEntry[]).push(...entries);
   }
@@ -374,19 +374,21 @@ export function writeWindsurfHooksConfig(cwd: string): WriteResult {
   const config = readJson(filePath);
   if (!config.hooks) config.hooks = {};
 
-  const chinwagHooks: Record<string, HookConfigEntry[]> = {
+  const chinmeisterHooks: Record<string, HookConfigEntry[]> = {
     pre_write_code: [
-      { command: buildChinwagHookCommand('check-conflict', { hostId: 'windsurf' }) },
+      { command: buildChinmeisterHookCommand('check-conflict', { hostId: 'windsurf' }) },
     ],
-    post_write_code: [{ command: buildChinwagHookCommand('report-edit', { hostId: 'windsurf' }) }],
+    post_write_code: [
+      { command: buildChinmeisterHookCommand('report-edit', { hostId: 'windsurf' }) },
+    ],
     post_run_command: [
-      { command: buildChinwagHookCommand('report-commit', { hostId: 'windsurf' }) },
+      { command: buildChinmeisterHookCommand('report-commit', { hostId: 'windsurf' }) },
     ],
   };
 
-  for (const [event, entries] of Object.entries(chinwagHooks)) {
+  for (const [event, entries] of Object.entries(chinmeisterHooks)) {
     const current = (config.hooks[event] || []) as HookConfigEntry[];
-    config.hooks[event] = current.filter((h) => !isChinwagHookCommand(h.command));
+    config.hooks[event] = current.filter((h) => !isChinmeisterHookCommand(h.command));
     (config.hooks[event] as HookConfigEntry[]).push(...entries);
   }
 
@@ -407,11 +409,11 @@ export function configureHostIntegration(
   if (!host) return { error: `Unknown host integration: ${hostId}` };
   // Tools that don't speak MCP (e.g. Copilot) register with an empty
   // `mcpConfig`. They still belong in the registry for clientInfo attribution
-  // but `chinwag add <tool>` has nothing to configure for them — surface a
+  // but `chinmeister add <tool>` has nothing to configure for them — surface a
   // clear message rather than writing to the project root.
   if (!host.mcpConfig) {
     return {
-      error: `${host.name} does not support MCP configuration via chinwag. Sessions will still be attributed to ${host.id} when detected.`,
+      error: `${host.name} does not support MCP configuration via chinmeister. Sessions will still be attributed to ${host.id} when detected.`,
     };
   }
 

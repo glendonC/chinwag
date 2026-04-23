@@ -1,13 +1,13 @@
 // Tool call analytics: frequency, errors, one-shot rate, research-to-edit ratio.
 
 import { createLogger } from '../../../lib/logger.js';
-import { RESEARCH_TOOLS, EDIT_TOOLS, sqlInList } from '@chinwag/shared/tool-call-categories.js';
+import { RESEARCH_TOOLS, EDIT_TOOLS, sqlInList } from '@chinmeister/shared/tool-call-categories.js';
 import type {
   ToolCallStats,
   ToolCallFrequency,
   ToolCallErrorPattern,
   ToolCallTimeline,
-} from '@chinwag/shared/contracts/analytics.js';
+} from '@chinmeister/shared/contracts/analytics.js';
 
 const log = createLogger('TeamDO.analytics');
 

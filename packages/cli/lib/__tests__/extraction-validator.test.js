@@ -7,7 +7,7 @@ import { validateSpec, checkConsensus } from '../extraction/validator.js';
 function fixtureRoot() {
   return join(
     tmpdir(),
-    `chinwag-validator-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    `chinmeister-validator-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
   );
 }
 

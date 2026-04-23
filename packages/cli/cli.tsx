@@ -5,7 +5,7 @@ import { basename, dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { readFileSync } from 'fs';
 import { loadConfig, configExists, deleteConfig } from './lib/config.js';
-import type { ChinwagConfig } from './lib/config.js';
+import type { ChinmeisterConfig } from './lib/config.js';
 import { api } from './lib/api.js';
 import { Welcome } from './lib/init.jsx';
 import { Chat } from './lib/chat.jsx';
@@ -14,13 +14,13 @@ import { Dashboard } from './lib/dashboard/index.jsx';
 import { ControlShell } from './lib/shell.jsx';
 import type { ModeItem, ShellDimensions } from './lib/shell.jsx';
 import { useTerminalControl } from './lib/terminal-control.js';
-import { formatError, createLogger } from '@chinwag/shared';
+import { formatError, createLogger } from '@chinmeister/shared';
 
 const log = createLogger('cli');
 
 // Node 22+ required for native WebSocket
 if (parseInt(process.version.slice(1)) < 22) {
-  console.error('chinwag requires Node.js 22 or later (current: ' + process.version + ')');
+  console.error('chinmeister requires Node.js 22 or later (current: ' + process.version + ')');
   process.exit(1);
 }
 
@@ -49,7 +49,7 @@ async function handOffToRuntime(
   { stripSubcommand = false, transport = null }: HandOffOptions = {},
 ): Promise<void> {
   if (transport) {
-    process.env.CHINWAG_TRANSPORT = transport;
+    process.env.CHINMEISTER_TRANSPORT = transport;
   }
   if (stripSubcommand) {
     const [node = '', script = ''] = process.argv;
@@ -79,9 +79,9 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    process.stderr.write(`[chinwag] Screen error: ${error.message}\n`);
+    process.stderr.write(`[chinmeister] Screen error: ${error.message}\n`);
     if (errorInfo.componentStack) {
-      process.stderr.write(`[chinwag] Component stack:${errorInfo.componentStack}\n`);
+      process.stderr.write(`[chinmeister] Component stack:${errorInfo.componentStack}\n`);
     }
   }
 
@@ -105,21 +105,21 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 // Handle reset command before launching TUI
 if (process.argv[2] === 'reset') {
   deleteConfig();
-  console.log('Config cleared. Run chinwag to start fresh.');
+  console.log('Config cleared. Run chinmeister to start fresh.');
   process.exit(0);
 }
 
 // Hidden runtime subcommands used by generated tool configs.
 if (process.argv[2] === 'mcp') {
-  await handOffToRuntime('chinwag-mcp/index.js', { transport: 'mcp' });
+  await handOffToRuntime('chinmeister-mcp/index.js', { transport: 'mcp' });
 }
 
 if (process.argv[2] === 'channel') {
-  await handOffToRuntime('chinwag-mcp/channel.js', { transport: 'channel' });
+  await handOffToRuntime('chinmeister-mcp/channel.js', { transport: 'channel' });
 }
 
 if (process.argv[2] === 'hook') {
-  await handOffToRuntime('chinwag-mcp/hook.js', { stripSubcommand: true, transport: 'hook' });
+  await handOffToRuntime('chinmeister-mcp/hook.js', { stripSubcommand: true, transport: 'hook' });
 }
 
 // Handle init command before launching TUI
@@ -197,7 +197,7 @@ const SHELL_MODE_PREFIXES: Record<string, ModeItem> = {
 
 function App(): React.ReactNode {
   const [screen, setScreen] = useState('loading');
-  const [config, setConfig] = useState<ChinwagConfig | null>(null);
+  const [config, setConfig] = useState<ChinmeisterConfig | null>(null);
   const [user, setUser] = useState<UserInfo | null>(null);
   const [spin, setSpin] = useState(0);
   const [footerHints, setFooterHints] = useState<FooterHint[] | null>(null);
@@ -208,7 +208,7 @@ function App(): React.ReactNode {
   const prefix = SHELL_MODE_PREFIXES[screen];
   const shellModes = prefix ? [prefix, ...PRIMARY_MODES] : PRIMARY_MODES;
 
-  useTerminalControl(`chinwag · ${projectLabel || 'control plane'}`);
+  useTerminalControl(`chinmeister · ${projectLabel || 'control plane'}`);
 
   useEffect(() => {
     if (screen !== 'loading') return;
@@ -237,7 +237,7 @@ function App(): React.ReactNode {
     init();
   }, []);
 
-  const onSetup = (cfg: ChinwagConfig, usr: UserInfo): void => {
+  const onSetup = (cfg: ChinmeisterConfig, usr: UserInfo): void => {
     setConfig(cfg);
     setUser(usr);
     setScreen('dashboard');
@@ -280,7 +280,7 @@ function App(): React.ReactNode {
           <Box paddingTop={1}>
             <Text>
               <Text color="cyan">{SPINNER[spin]}</Text>
-              <Text dimColor> connecting to chinwag</Text>
+              <Text dimColor> connecting to chinmeister</Text>
             </Text>
           </Box>
         );

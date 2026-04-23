@@ -326,7 +326,7 @@
 /* ── Static ProjectFilter label (single-project case) ──
    Matches the Customize button's border/color weight so the two sit at
    visual parity. No hover state — this is a label, not a button. Uses the
-   chinwag project gradient squircle as the icon to match the Sidebar's
+   chinmeister project gradient squircle as the icon to match the Sidebar's
    existing project identity vocabulary. */
 
 .projectFilterStatic {

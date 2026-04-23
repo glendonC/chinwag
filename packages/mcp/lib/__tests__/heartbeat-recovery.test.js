@@ -107,7 +107,7 @@ describe('heartbeat recovery', () => {
 
   it('awaits rejoin on 403 and retries heartbeat', async () => {
     // Join team first
-    await server.callTool('chinwag_join_team', { team_id: 't_hb1' });
+    await server.callTool('chinmeister_join_team', { team_id: 't_hb1' });
     expect(state.teamId).toBe('t_hb1');
 
     // Set up heartbeat to fail with 403 on first call, then succeed
@@ -135,7 +135,7 @@ describe('heartbeat recovery', () => {
   });
 
   it('increments failure counter when rejoin fails on 403', async () => {
-    await server.callTool('chinwag_join_team', { team_id: 't_hb2' });
+    await server.callTool('chinmeister_join_team', { team_id: 't_hb2' });
 
     const err403 = new Error('Forbidden');
     err403.status = 403;
@@ -159,7 +159,7 @@ describe('heartbeat recovery', () => {
   // --- heartbeat death -> recovery timer -> successful recovery ---
 
   it('starts recovery timer after heartbeat death and recovers on success', async () => {
-    await server.callTool('chinwag_join_team', { team_id: 't_hb3' });
+    await server.callTool('chinmeister_join_team', { team_id: 't_hb3' });
 
     // Make all heartbeats fail to trigger death
     team.heartbeat.mockRejectedValue(new Error('Network error'));
@@ -188,7 +188,7 @@ describe('heartbeat recovery', () => {
   });
 
   it('retries recovery timer when recovery heartbeat fails', async () => {
-    await server.callTool('chinwag_join_team', { team_id: 't_hb4' });
+    await server.callTool('chinmeister_join_team', { team_id: 't_hb4' });
 
     // Fail all heartbeats to trigger death
     team.heartbeat.mockRejectedValue(new Error('Network error'));
@@ -216,7 +216,7 @@ describe('heartbeat recovery', () => {
   });
 
   it('applies exponential backoff and caps at 30 minutes', async () => {
-    await server.callTool('chinwag_join_team', { team_id: 't_hb_backoff' });
+    await server.callTool('chinmeister_join_team', { team_id: 't_hb_backoff' });
 
     team.heartbeat.mockRejectedValue(new Error('Network error'));
 
@@ -249,7 +249,7 @@ describe('heartbeat recovery', () => {
   });
 
   it('resets backoff to base delay after recovery succeeds', async () => {
-    await server.callTool('chinwag_join_team', { team_id: 't_hb_reset' });
+    await server.callTool('chinmeister_join_team', { team_id: 't_hb_reset' });
 
     team.heartbeat.mockRejectedValue(new Error('Network error'));
 
@@ -290,7 +290,7 @@ describe('heartbeat recovery', () => {
     state.heartbeatDead = true;
 
     refreshContext.mockResolvedValue({ members: [] });
-    const result = await server.callTool('chinwag_get_team_context', {});
+    const result = await server.callTool('chinmeister_get_team_context', {});
 
     // Should NOT be an isError (tools still work)
     expect(result.isError).not.toBe(true);
@@ -301,11 +301,11 @@ describe('heartbeat recovery', () => {
     expect(allText).toMatch(/heartbeat lost/);
   });
 
-  it('chinwag_update_activity includes degraded warning when heartbeatDead', async () => {
+  it('chinmeister_update_activity includes degraded warning when heartbeatDead', async () => {
     state.teamId = 't_hb6';
     state.heartbeatDead = true;
 
-    const result = await server.callTool('chinwag_update_activity', {
+    const result = await server.callTool('chinmeister_update_activity', {
       files: ['src/app.js'],
       summary: 'Testing',
     });
@@ -316,11 +316,11 @@ describe('heartbeat recovery', () => {
     expect(allText).toMatch(/Presence degraded/);
   });
 
-  it('chinwag_send_message includes degraded warning when heartbeatDead', async () => {
+  it('chinmeister_send_message includes degraded warning when heartbeatDead', async () => {
     state.teamId = 't_hb7';
     state.heartbeatDead = true;
 
-    const result = await server.callTool('chinwag_send_message', {
+    const result = await server.callTool('chinmeister_send_message', {
       text: 'Hello team',
     });
 
@@ -335,7 +335,7 @@ describe('heartbeat recovery', () => {
     state.heartbeatDead = false;
 
     refreshContext.mockResolvedValue({ members: [] });
-    const result = await server.callTool('chinwag_get_team_context', {});
+    const result = await server.callTool('chinmeister_get_team_context', {});
 
     const allText = result.content.map((c) => c.text).join('');
     expect(allText).not.toMatch(/Presence degraded/);

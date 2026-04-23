@@ -72,7 +72,7 @@ export interface TokenExtractionSpec {
   usagePath: string;
   /** Fallback paths tried in order if usagePath resolves to null. */
   usagePathFallbacks?: string[];
-  /** Maps chinwag canonical field names to tool-specific field names. */
+  /** Maps chinmeister canonical field names to tool-specific field names. */
   fieldMapping: {
     input_tokens: string;
     output_tokens: string;
@@ -175,7 +175,7 @@ export interface SqliteSource {
    * DDL, no DML). May use `json_extract()` and other scalar functions. Each
    * result row becomes an entry; column names become keys on that entry.
    *
-   * Specs are shipped with chinwag and validated before execution, so raw SQL
+   * Specs are shipped with chinmeister and validated before execution, so raw SQL
    * is acceptable here. Do NOT interpolate user input into the query; if
    * parameterisation is ever needed, extend this shape with a typed params
    * array rather than string concatenation.

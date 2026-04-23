@@ -6,7 +6,7 @@
 // row. No new DO query needed; daily_trends already carries the per-day
 // lines we want to attribute by project.
 
-import type { ProjectLinesTrend } from '@chinwag/shared/contracts/analytics.js';
+import type { ProjectLinesTrend } from '@chinmeister/shared/contracts/analytics.js';
 import type { TeamResult } from './types.js';
 
 interface TeamEntry {

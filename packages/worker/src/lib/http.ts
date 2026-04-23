@@ -21,7 +21,7 @@ interface JsonOptions {
  * the diff so a schema bug can never nuke user traffic.
  */
 function isStrictEnv(): boolean {
-  const env = (globalThis as { CHINWAG_ENV?: string }).CHINWAG_ENV;
+  const env = (globalThis as { CHINMEISTER_ENV?: string }).CHINMEISTER_ENV;
   return env !== 'production';
 }
 

@@ -27,7 +27,7 @@ export function validateResponse<T, F = undefined>(
   if (result.success) return result.data;
 
   const detail = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
-  console.warn(`[chinwag] API response validation warning (${label}):`, detail);
+  console.warn(`[chinmeister] API response validation warning (${label}):`, detail);
 
   if (options.throwOnError) {
     const error = new Error(`Invalid API response (${label})`);

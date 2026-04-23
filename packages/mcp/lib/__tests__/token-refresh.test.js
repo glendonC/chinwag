@@ -1,24 +1,24 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-vi.mock('@chinwag/shared/api-client.js', () => ({
+vi.mock('@chinmeister/shared/api-client.js', () => ({
   createJsonApiClient: vi.fn(),
 }));
 
 const { getConfigPathsMock, saveConfigMock } = vi.hoisted(() => ({
   getConfigPathsMock: vi.fn(() => ({
     profile: 'prod',
-    configDir: '/home/user/.chinwag',
-    configFile: '/home/user/.chinwag/config.json',
+    configDir: '/home/user/.chinmeister',
+    configFile: '/home/user/.chinmeister/config.json',
   })),
   saveConfigMock: vi.fn(),
 }));
 
-vi.mock('@chinwag/shared/config.js', () => ({
+vi.mock('@chinmeister/shared/config.js', () => ({
   getConfigPaths: getConfigPathsMock,
   saveConfig: saveConfigMock,
 }));
 
-import { createJsonApiClient } from '@chinwag/shared/api-client.js';
+import { createJsonApiClient } from '@chinmeister/shared/api-client.js';
 import { refreshAndPersistToken, _resetInflightRefresh } from '../token-refresh.js';
 
 describe('refreshAndPersistToken', () => {
@@ -32,8 +32,8 @@ describe('refreshAndPersistToken', () => {
     createJsonApiClient.mockReturnValue({ post: mockPost });
     getConfigPathsMock.mockReturnValue({
       profile: 'prod',
-      configDir: '/home/user/.chinwag',
-      configFile: '/home/user/.chinwag/config.json',
+      configDir: '/home/user/.chinmeister',
+      configFile: '/home/user/.chinmeister/config.json',
     });
   });
 
@@ -53,7 +53,7 @@ describe('refreshAndPersistToken', () => {
 
     expect(createJsonApiClient).toHaveBeenCalledWith({
       baseUrl: 'https://api.example.com',
-      userAgent: 'chinwag-mcp/1.0',
+      userAgent: 'chinmeister-mcp/1.0',
     });
     expect(mockPost).toHaveBeenCalledWith('/auth/refresh', {
       refresh_token: 'old_refresh_token',

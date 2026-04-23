@@ -1,4 +1,4 @@
-// chinwag_check_conflicts tool handler.
+// chinmeister_check_conflicts tool handler.
 
 import * as z from 'zod/v4';
 import { getCachedContext } from '../context.js';
@@ -60,7 +60,7 @@ function offlineFallback(files: string[]): McpToolResult {
     content: [
       {
         type: 'text' as const,
-        text: '[offline] Could not reach chinwag to check conflicts. Do not treat this as clearance to edit.',
+        text: '[offline] Could not reach chinmeister to check conflicts. Do not treat this as clearance to edit.',
       },
     ],
     isError: true,
@@ -74,7 +74,7 @@ export function registerConflictsTool(
   const { team, state } = deps;
 
   addTool(
-    'chinwag_check_conflicts',
+    'chinmeister_check_conflicts',
     {
       description:
         'Check if any teammate agents are working on the same files you plan to edit. Call this BEFORE starting edits on shared code to avoid merge conflicts.',

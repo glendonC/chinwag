@@ -131,7 +131,7 @@ describe('hook.js logic', () => {
       }).toThrow('EXIT:0');
     });
 
-    it('exits 0 when no .chinwag team file', () => {
+    it('exits 0 when no .chinmeister team file', () => {
       findTeamFile.mockReturnValue(null);
       expect(() => {
         if (!findTeamFile()) process.exit(0);
@@ -222,7 +222,7 @@ describe('hook.js logic', () => {
       try {
         await team.checkConflicts('t_abc', ['auth.js']);
       } catch (err) {
-        console.error(`[chinwag] Conflict check failed: ${err.message}`);
+        console.error(`[chinmeister] Conflict check failed: ${err.message}`);
         // In real hook: process.exit(0)
       }
 
@@ -250,7 +250,7 @@ describe('hook.js logic', () => {
       try {
         await team.reportFile('t_abc', 'auth.js');
       } catch (err) {
-        console.error(`[chinwag] Activity report failed: ${err.message}`);
+        console.error(`[chinmeister] Activity report failed: ${err.message}`);
       }
 
       expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Activity report failed'));
@@ -317,7 +317,7 @@ describe('hook.js logic', () => {
       try {
         await team.getTeamContext('t_abc');
       } catch (err) {
-        console.error(`[chinwag] Context fetch failed: ${err.message}`);
+        console.error(`[chinmeister] Context fetch failed: ${err.message}`);
       }
 
       expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Context fetch failed'));
@@ -353,7 +353,7 @@ describe('hook.js logic', () => {
       expect(() => {
         const subcommand = 'unknown';
         if (!['check-conflict', 'report-edit', 'session-start'].includes(subcommand)) {
-          console.error(`[chinwag] Unknown hook subcommand: ${subcommand}`);
+          console.error(`[chinmeister] Unknown hook subcommand: ${subcommand}`);
           process.exit(1);
         }
       }).toThrow('EXIT:1');

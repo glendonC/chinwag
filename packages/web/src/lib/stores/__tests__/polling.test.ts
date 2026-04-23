@@ -325,7 +325,7 @@ describe('polling store', () => {
       const apiMock = vi.fn().mockResolvedValue({
         teams: [],
         degraded: true,
-        failed_teams: [{ team_id: 't_one', team_name: 'chinwag' }],
+        failed_teams: [{ team_id: 't_one', team_name: 'chinmeister' }],
       });
       const loadTeamsMock = vi.fn().mockResolvedValue(undefined);
       const { forceRefresh } = await loadPollingModule({ apiMock, loadTeamsMock });

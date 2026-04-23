@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-// chinwag-hook — coding-tool hook handler.
+// chinmeister-hook — coding-tool hook handler.
 // Called by the host tool's hook system as a shell command.
-// Reads hook input from stdin (JSON), calls chinwag backend.
+// Reads hook input from stdin (JSON), calls chinmeister backend.
 //
 // Hosts supported: claude-code (default), cursor (identical payload), windsurf
 // (Cascade Hooks — different payload shape). Host is selected via --tool.
@@ -283,7 +283,7 @@ async function sessionStart(team, teamId, hasExactSession) {
     const ctx = await team.getTeamContext(teamId);
 
     if (ctx.members && ctx.members.length > 0) {
-      process.stdout.write('=== chinwag team context ===\n');
+      process.stdout.write('=== chinmeister team context ===\n');
       const lines = formatTeamContextDisplay(ctx, { showInsights: true });
       for (const line of lines) {
         process.stdout.write(`${line}\n`);

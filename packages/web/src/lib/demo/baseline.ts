@@ -862,7 +862,7 @@ export function createBaselineAnalytics(): UserAnalytics {
     {
       id: 'mem-5',
       text_preview:
-        'DO RPC not fetch — except TeamDO.fetch for WebSocket upgrade, which sets X-Chinwag-Verified: 1 header.',
+        'DO RPC not fetch — except TeamDO.fetch for WebSocket upgrade, which sets X-Chinmeister-Verified: 1 header.',
       access_count: 12,
       last_accessed_at: new Date(Date.now() - 28 * 3600_000).toISOString(),
     },
@@ -1129,7 +1129,7 @@ export function createBaselineAnalytics(): UserAnalytics {
       sessions: Math.round(tool_call_sessions * 0.18),
     },
     {
-      tool: 'mcp__chinwag__chinwag_search_memory',
+      tool: 'mcp__chinmeister__chinmeister_search_memory',
       calls: Math.round(total_calls * 0.006),
       errors: 2,
       error_rate: 0.009,
@@ -1137,7 +1137,7 @@ export function createBaselineAnalytics(): UserAnalytics {
       sessions: Math.round(tool_call_sessions * 0.42),
     },
     {
-      tool: 'mcp__chinwag__chinwag_update_activity',
+      tool: 'mcp__chinmeister__chinmeister_update_activity',
       calls: Math.round(total_calls * 0.004),
       errors: 1,
       error_rate: 0.006,

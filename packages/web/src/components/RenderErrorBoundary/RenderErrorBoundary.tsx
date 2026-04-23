@@ -21,7 +21,7 @@ export default class RenderErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     const label = this.props.label || 'Render';
-    console.error(`[chinwag] ${label} error:`, error, info.componentStack);
+    console.error(`[chinmeister] ${label} error:`, error, info.componentStack);
   }
 
   componentDidUpdate(prevProps: Props): void {

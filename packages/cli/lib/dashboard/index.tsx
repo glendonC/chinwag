@@ -26,7 +26,7 @@ import type { UseMemoryManagerReturn } from './memory.js';
 import type { UseComposerReturn } from './composer.js';
 import type { UseIntegrationDoctorReturn } from './integrations.js';
 import type { UseDashboardConnectionReturn } from './connection.jsx';
-import type { ChinwagConfig } from '../config.js';
+import type { ChinmeisterConfig } from '../config.js';
 
 interface FooterHint {
   key: string;
@@ -41,7 +41,7 @@ interface DashboardLayout {
 // ── Main Dashboard component ────────────────────────
 
 interface DashboardProps {
-  config: ChinwagConfig | null;
+  config: ChinmeisterConfig | null;
   navigate: (to: string) => void;
   layout?: DashboardLayout;
   setFooterHints?: ((hints: FooterHint[]) => void) | null;
@@ -93,12 +93,12 @@ class DashboardErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    process.stderr.write(`[chinwag] Dashboard crash: ${error.message}\n`);
+    process.stderr.write(`[chinmeister] Dashboard crash: ${error.message}\n`);
     if (error.stack) {
-      process.stderr.write(`[chinwag] ${error.stack}\n`);
+      process.stderr.write(`[chinmeister] ${error.stack}\n`);
     }
     if (errorInfo.componentStack) {
-      process.stderr.write(`[chinwag] Component stack:${errorInfo.componentStack}\n`);
+      process.stderr.write(`[chinmeister] Component stack:${errorInfo.componentStack}\n`);
     }
   }
 
@@ -107,7 +107,7 @@ class DashboardErrorBoundary extends Component<
       return (
         <Box flexDirection="column" padding={1}>
           <Text color="red">Dashboard crashed: {this.state.error.message}</Text>
-          <Text dimColor>Press Ctrl+C to exit, then restart chinwag.</Text>
+          <Text dimColor>Press Ctrl+C to exit, then restart chinmeister.</Text>
         </Box>
       );
     }
@@ -116,7 +116,7 @@ class DashboardErrorBoundary extends Component<
 }
 
 interface DashboardProvidersProps {
-  config: ChinwagConfig | null;
+  config: ChinmeisterConfig | null;
   navigate: (to: string) => void;
   viewportRows: number;
   setFooterHints: ((hints: FooterHint[]) => void) | null;
@@ -160,7 +160,7 @@ function DashboardProviders({
   });
   useCollectorSubscription({ config, teamId });
   // Drains `<agentId>.completed.json` records left behind by externally
-  // launched agents (user ran claude-code directly, not through chinwag).
+  // launched agents (user ran claude-code directly, not through chinmeister).
   // Runs once per dashboard mount — subsequent external sessions fill the
   // queue again and get swept next time.
   useOrphanCollectorSweep({ config, teamId });
@@ -204,7 +204,7 @@ function DashboardProviders({
 }
 
 interface DashboardViewProps {
-  config: ChinwagConfig | null;
+  config: ChinmeisterConfig | null;
   navigate: (to: string) => void;
   setFooterHints: ((hints: FooterHint[]) => void) | null;
   connection: UseDashboardConnectionReturn;

@@ -7,7 +7,7 @@
 //
 // Two paths:
 //   - `primary`   = user's own managed agent
-//   - `secondary` = chinwag-offered AI (metered / paid tier in real product)
+//   - `secondary` = chinmeister-offered AI (metered / paid tier in real product)
 //
 // The skeleton defaults to primary. Flip the MOCK_STATE below to preview
 // the "no managed agent" experience.
@@ -19,7 +19,7 @@ export type PathAvailability = {
   active: RunPath;
   /** Whether the primary path (user's managed agent) is available. */
   primaryAvailable: boolean;
-  /** Whether the secondary path (chinwag-offered AI) is offered. */
+  /** Whether the secondary path (chinmeister-offered AI) is offered. */
   secondaryOffered: boolean;
   /** Display label for the active path. */
   label: string;
@@ -46,25 +46,25 @@ export function getPathAvailability(): PathAvailability {
         active: 'secondary',
         primaryAvailable: false,
         secondaryOffered: true,
-        label: 'chinwag AI',
-        trustLine: 'No managed agent detected · runs on chinwag AI · basic quality · free tier',
+        label: 'chinmeister AI',
+        trustLine: 'No managed agent detected · runs on chinmeister AI · basic quality · free tier',
       };
     case 'cli-offline':
       return {
         active: 'secondary',
         primaryAvailable: false,
         secondaryOffered: true,
-        label: 'chinwag AI',
-        trustLine: 'Your CLI is offline · runs on chinwag AI · basic quality · free tier',
+        label: 'chinmeister AI',
+        trustLine: 'Your CLI is offline · runs on chinmeister AI · basic quality · free tier',
       };
   }
 }
 
 /** Convenience helpers used by the UI. */
 export function pathLabel(path: RunPath): string {
-  return path === 'primary' ? 'Your Claude Code' : 'chinwag AI';
+  return path === 'primary' ? 'Your Claude Code' : 'chinmeister AI';
 }
 
 export function pathShortLabel(path: RunPath): string {
-  return path === 'primary' ? 'Claude Code' : 'chinwag AI';
+  return path === 'primary' ? 'Claude Code' : 'chinmeister AI';
 }

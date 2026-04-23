@@ -121,7 +121,7 @@ import {
 import type {
   ConversationAnalytics,
   SessionConversationStats,
-} from '@chinwag/shared/contracts/conversation.js';
+} from '@chinmeister/shared/contracts/conversation.js';
 import {
   submitCommand as submitCommandFn,
   getPendingCommands as getPendingCommandsFn,
@@ -1235,7 +1235,7 @@ export class TeamDO extends DurableObject<Env> {
    * their own window state regardless of which agent they were using —
    * the Anthropic limit is billed to the account, not the session.
    *
-   * When chinwag eventually grows a cross-team aggregator for Pro
+   * When chinmeister eventually grows a cross-team aggregator for Pro
    * windows, this DO method is the per-team primitive it should call.
    * Today, multi-team users get per-team views; the algorithm itself
    * works on any pre-collected event stream so merging across teams is

@@ -34,7 +34,7 @@ let consoleLogSpy;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chinwag-init-test-'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chinmeister-init-test-'));
   consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
   // Default: no tools detected
@@ -70,7 +70,7 @@ describe('runInit', () => {
       });
       api.mockReturnValue(mockClient);
 
-      // Need to create a .chinwag-less dir to trigger team creation
+      // Need to create a .chinmeister-less dir to trigger team creation
       const origCwd = process.cwd();
       process.chdir(tmpDir);
       try {
@@ -168,9 +168,9 @@ describe('runInit', () => {
       loadConfig.mockReturnValue({ token: 'tok_ok', handle: 'glendon' });
     });
 
-    it('joins existing team when .chinwag file exists', async () => {
-      const chinwagFile = path.join(tmpDir, '.chinwag');
-      fs.writeFileSync(chinwagFile, JSON.stringify({ team: 't_existing', name: 'my-project' }));
+    it('joins existing team when .chinmeister file exists', async () => {
+      const chinmeisterFile = path.join(tmpDir, '.chinmeister');
+      fs.writeFileSync(chinmeisterFile, JSON.stringify({ team: 't_existing', name: 'my-project' }));
 
       const mockClient = createMockApiClient();
       api.mockReturnValue(mockClient);
@@ -189,7 +189,7 @@ describe('runInit', () => {
       );
     });
 
-    it('creates new team when no .chinwag file', async () => {
+    it('creates new team when no .chinmeister file', async () => {
       const mockClient = createMockApiClient({
         post: vi
           .fn()
@@ -211,16 +211,16 @@ describe('runInit', () => {
         expect.objectContaining({ name: expect.any(String) }),
       );
 
-      // .chinwag file should be created
-      const chinwagFile = path.join(tmpDir, '.chinwag');
-      expect(fs.existsSync(chinwagFile)).toBe(true);
-      const content = JSON.parse(fs.readFileSync(chinwagFile, 'utf-8'));
+      // .chinmeister file should be created
+      const chinmeisterFile = path.join(tmpDir, '.chinmeister');
+      expect(fs.existsSync(chinmeisterFile)).toBe(true);
+      const content = JSON.parse(fs.readFileSync(chinmeisterFile, 'utf-8'));
       expect(content.team).toBe('t_created');
     });
 
     it('handles team join 404 error', async () => {
-      const chinwagFile = path.join(tmpDir, '.chinwag');
-      fs.writeFileSync(chinwagFile, JSON.stringify({ team: 't_stale' }));
+      const chinmeisterFile = path.join(tmpDir, '.chinmeister');
+      fs.writeFileSync(chinmeisterFile, JSON.stringify({ team: 't_stale' }));
 
       const err404 = new Error('Not Found');
       err404.status = 404;

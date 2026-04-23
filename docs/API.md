@@ -1,6 +1,6 @@
 # API Reference
 
-Base URL: `https://chinwag-api.glendonchin.workers.dev`
+Base URL: `https://chinmeister-api.glendonchin.workers.dev`
 
 ## Authentication
 
@@ -10,7 +10,7 @@ All authenticated endpoints require a Bearer token in the `Authorization` header
 Authorization: Bearer <token>
 ```
 
-Tokens are issued by `POST /auth/init` (CLI/MCP) or the GitHub OAuth flow (web dashboard). They are stored locally in `~/.chinwag/config.json`.
+Tokens are issued by `POST /auth/init` (CLI/MCP) or the GitHub OAuth flow (web dashboard). They are stored locally in `~/.chinmeister/config.json`.
 
 ### Agent Identity Headers
 
@@ -200,7 +200,7 @@ Initiate GitHub OAuth login. Redirects to GitHub's authorization page.
 
 GitHub OAuth callback. Exchanges the authorization code for an access token, creates or retrieves the user account, and redirects to the dashboard.
 
-**Response:** `302` redirect to `https://chinwag.dev/dashboard#token=<session_token>`
+**Response:** `302` redirect to `https://chinmeister.com/dashboard#token=<session_token>`
 
 **Error redirects:**
 
@@ -218,7 +218,7 @@ GitHub OAuth callback. Exchanges the authorization code for an access token, cre
 
 GitHub OAuth callback for linking an existing account to GitHub. Requires a valid OAuth state that was initiated by `POST /auth/github/link`.
 
-**Response:** `302` redirect to `https://chinwag.dev/dashboard#github_linked=1`
+**Response:** `302` redirect to `https://chinmeister.com/dashboard#github_linked=1`
 
 **Error redirects:**
 
@@ -386,7 +386,7 @@ List teams the current user belongs to.
   "teams": [
     {
       "team_id": "t_a7b3c9d2e1f04856",
-      "team_name": "chinwag",
+      "team_name": "chinmeister",
       "joined_at": "2026-02-10T09:00:00Z"
     }
   ]
@@ -406,7 +406,7 @@ Cross-project dashboard summary for all the user's teams. Returns lightweight co
   "teams": [
     {
       "team_id": "t_a7b3c9d2e1f04856",
-      "team_name": "chinwag",
+      "team_name": "chinmeister",
       "active_agents": 2,
       "total_members": 4,
       "conflict_count": 1,
@@ -1424,7 +1424,7 @@ Get session history for the team.
 
 Global chat room WebSocket. Requires authentication via Bearer token or ticket query parameter.
 
-**Connection:** `wss://chinwag-api.glendonchin.workers.dev/ws/chat?ticket=<ticket>`
+**Connection:** `wss://chinmeister-api.glendonchin.workers.dev/ws/chat?ticket=<ticket>`
 
 **Query parameters:**
 
@@ -1516,7 +1516,7 @@ Global chat room WebSocket. Requires authentication via Bearer token or ticket q
 
 Team coordination WebSocket. Provides real-time updates for team activity, member status, locks, and more. Requires authentication via Bearer token or ticket.
 
-**Connection:** `wss://chinwag-api.glendonchin.workers.dev/teams/t_a7b3c9d2e1f04856/ws?ticket=<ticket>&role=agent`
+**Connection:** `wss://chinmeister-api.glendonchin.workers.dev/teams/t_a7b3c9d2e1f04856/ws?ticket=<ticket>&role=agent`
 
 **Query parameters:**
 
@@ -1766,8 +1766,8 @@ All request bodies are capped at 50 KB. WebSocket messages are also capped at 50
 
 The API supports CORS for the following origins:
 
-- `https://chinwag.dev`
-- `https://www.chinwag.dev`
+- `https://chinmeister.com`
+- `https://www.chinmeister.com`
 - Localhost origins in non-production environments
 
 Allowed headers: `Content-Type`, `Authorization`, `X-Agent-Id`, `X-Agent-Host-Tool`, `X-Agent-Surface`, `X-Agent-Transport`, `X-Agent-Tier`

@@ -62,7 +62,7 @@ export async function runPulseCheck(env: Env): Promise<void> {
 
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github+json',
-    'User-Agent': 'chinwag-pulse',
+    'User-Agent': 'chinmeister-pulse',
   };
   // Use GitHub token if available for higher rate limit (5000/hr vs 60/hr)
   const token = env.GITHUB_TOKEN;

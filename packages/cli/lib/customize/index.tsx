@@ -9,13 +9,13 @@ import { homedir } from 'os';
 import { fileURLToPath } from 'url';
 import { api } from '../api.js';
 import { saveConfig, loadConfig } from '../config.js';
-import type { ChinwagConfig } from '../config.js';
+import type { ChinmeisterConfig } from '../config.js';
 import { getInkColor, getColorList } from '../colors.js';
 import { scanIntegrationHealth, summarizeIntegrationScan } from '../mcp-config.js';
 import { classifyError } from '../utils/errors.js';
-import type { IntegrationScanResult } from '@chinwag/shared/integration-doctor.js';
+import type { IntegrationScanResult } from '@chinmeister/shared/integration-doctor.js';
 import type { HandleUpdateResponse } from '../types/api.js';
-import { formatError, createLogger } from '@chinwag/shared';
+import { formatError, createLogger } from '@chinmeister/shared';
 import { FLASH_MIN_DURATION_MS, FLASH_MS_PER_CHAR } from '../constants/timings.js';
 
 import { HandleScreen } from './HandleScreen.jsx';
@@ -35,14 +35,14 @@ try {
   /* keep default — bundled path must resolve; missing file is non-fatal */
 }
 
-let VSCODE_EXTENSION = { publisher: 'chinwag', name: 'chinwag', version: PKG_VERSION };
+let VSCODE_EXTENSION = { publisher: 'chinmeister', name: 'chinmeister', version: PKG_VERSION };
 const vscodePkgPath = join(_CLI_ROOT, '..', 'vscode', 'package.json');
 if (existsSync(vscodePkgPath)) {
   try {
     const pkg = JSON.parse(readFileSync(vscodePkgPath, 'utf-8'));
     VSCODE_EXTENSION = {
-      publisher: pkg.publisher || 'chinwag',
-      name: pkg.name || 'chinwag',
+      publisher: pkg.publisher || 'chinmeister',
+      name: pkg.name || 'chinmeister',
       version: pkg.version || PKG_VERSION,
     };
   } catch {
@@ -66,7 +66,7 @@ interface CustomizeUser {
 }
 
 interface CustomizeProps {
-  config: ChinwagConfig | null;
+  config: ChinmeisterConfig | null;
   user: CustomizeUser | null;
   navigate: (to: string) => void;
   refreshUser: () => Promise<void>;
@@ -169,13 +169,13 @@ export function Customize({
       }
       showFlash(
         wasInstalled
-          ? `Updated — ${IDE_COMMAND_SHORTCUT} → "chinwag: Open Dashboard"`
-          : `Installed — restart IDE, then ${IDE_COMMAND_SHORTCUT} → "chinwag: Open Dashboard"`,
+          ? `Updated — ${IDE_COMMAND_SHORTCUT} → "chinmeister: Open Dashboard"`
+          : `Installed — restart IDE, then ${IDE_COMMAND_SHORTCUT} → "chinmeister: Open Dashboard"`,
       );
     } catch (err: unknown) {
       log.error(formatError(err));
       if (wasInstalled) {
-        showFlash(`${IDE_COMMAND_SHORTCUT} → "chinwag: Open Dashboard"`);
+        showFlash(`${IDE_COMMAND_SHORTCUT} → "chinmeister: Open Dashboard"`);
       } else {
         showFlash('Could not install IDE extension. Check file permissions.', 'error');
       }
@@ -197,7 +197,7 @@ export function Customize({
         setFlash({ type: 'error', text: result.error });
         return;
       }
-      const cfg = loadConfig() as ChinwagConfig;
+      const cfg = loadConfig() as ChinmeisterConfig;
       cfg.handle = newHandle;
       saveConfig(cfg);
       await refreshUser();
@@ -218,7 +218,7 @@ export function Customize({
   async function saveColor(color: string): Promise<void> {
     try {
       await api(config).put('/me/color', { color });
-      const cfg = loadConfig() as ChinwagConfig;
+      const cfg = loadConfig() as ChinmeisterConfig;
       cfg.color = color;
       saveConfig(cfg);
       await refreshUser();

@@ -2,10 +2,10 @@ import type { Dispatch, SetStateAction } from 'react';
 import { useState, useRef } from 'react';
 import { api } from '../api.js';
 import { isAgentAddressable, getAgentTargetLabel } from './agent-display.js';
-import type { ChinwagConfig } from '../config.js';
+import type { ChinmeisterConfig } from '../config.js';
 import type { CombinedAgentRow } from './view.js';
 import type { NoticeTone } from './reducer.js';
-import { formatError, createLogger } from '@chinwag/shared';
+import { formatError, createLogger } from '@chinmeister/shared';
 
 const log = createLogger('dashboard-composer');
 
@@ -17,7 +17,7 @@ interface CommandSuggestion {
 }
 
 interface UseComposerParams {
-  config: ChinwagConfig | null;
+  config: ChinmeisterConfig | null;
   teamId: string | null;
   bumpRefreshKey: () => void;
   flash: (text: string, options?: { tone?: NoticeTone; autoClearMs?: number }) => void;

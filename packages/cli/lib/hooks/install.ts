@@ -1,4 +1,4 @@
-// Install the chinwag pre-commit chain-runner + guard plugin into a git
+// Install the chinmeister pre-commit chain-runner + guard plugin into a git
 // repository. Idempotent: re-running upgrades in place. Non-destructive:
 // any pre-existing `pre-commit` hook we didn't write is preserved as
 // `pre-commit.orig` and re-run first by the chain-runner, so users who
@@ -8,7 +8,7 @@ import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'n
 import { platform } from 'node:os';
 import { join } from 'node:path';
 import { resolveGitHookLocation, isRegularFile } from './paths.js';
-import { CHINWAG_HOOK_MARKER, GUARD_SCRIPT, RUNNER_SCRIPT } from './templates.js';
+import { CHINMEISTER_HOOK_MARKER, GUARD_SCRIPT, RUNNER_SCRIPT } from './templates.js';
 
 export type HookInstallResult =
   | { status: 'installed'; hooksDir: string; preservedOriginal: boolean; customHooksPath: boolean }
@@ -17,19 +17,19 @@ export type HookInstallResult =
   | { status: 'error'; error: string };
 
 /**
- * Install (or upgrade) chinwag's pre-commit chain-runner + guard plugin
+ * Install (or upgrade) chinmeister's pre-commit chain-runner + guard plugin
  * for the repo rooted at `cwd`. Returns a structured status so the init
  * command can print an honest line ("installed" vs "upgraded" vs
  * "skipped" vs "error").
  */
-export function installChinwagHooks(cwd: string): HookInstallResult {
+export function installChinmeisterHooks(cwd: string): HookInstallResult {
   const location = resolveGitHookLocation(cwd);
   if (!location) return { status: 'skipped-not-a-repo' };
 
   const { hooksDir, customHooksPath } = location;
   const preCommit = join(hooksDir, 'pre-commit');
   const pluginsDir = join(hooksDir, 'pre-commit.d');
-  const guardPlugin = join(pluginsDir, '50-chinwag-guard.js');
+  const guardPlugin = join(pluginsDir, '50-chinmeister-guard.js');
 
   try {
     mkdirSync(pluginsDir, { recursive: true });
@@ -42,8 +42,8 @@ export function installChinwagHooks(cwd: string): HookInstallResult {
   let upgradingOurs = false;
   if (isRegularFile(preCommit)) {
     const existing = safeReadHead(preCommit);
-    if (existing.includes(CHINWAG_HOOK_MARKER)) {
-      // Re-running `chinwag init`. Overwrite without touching .orig — the
+    if (existing.includes(CHINMEISTER_HOOK_MARKER)) {
+      // Re-running `chinmeister init`. Overwrite without touching .orig — the
       // original was already moved aside on the first install.
       upgradingOurs = true;
     } else {

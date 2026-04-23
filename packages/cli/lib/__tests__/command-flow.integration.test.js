@@ -85,9 +85,9 @@ async function startCliApiServer() {
 async function loadCliCommands(homeDir, apiUrl, profile = null) {
   vi.resetModules();
   process.env.HOME = homeDir;
-  process.env.CHINWAG_API_URL = apiUrl;
-  if (profile) process.env.CHINWAG_PROFILE = profile;
-  else delete process.env.CHINWAG_PROFILE;
+  process.env.CHINMEISTER_API_URL = apiUrl;
+  if (profile) process.env.CHINMEISTER_PROFILE = profile;
+  else delete process.env.CHINMEISTER_PROFILE;
 
   const [{ runInit }, { runAdd }] = await Promise.all([
     import('../commands/init.js'),
@@ -99,8 +99,8 @@ async function loadCliCommands(homeDir, apiUrl, profile = null) {
 
 describe('cli command flow integration', () => {
   const originalHome = process.env.HOME;
-  const originalApiUrl = process.env.CHINWAG_API_URL;
-  const originalProfile = process.env.CHINWAG_PROFILE;
+  const originalApiUrl = process.env.CHINMEISTER_API_URL;
+  const originalProfile = process.env.CHINMEISTER_PROFILE;
   const originalCwd = process.cwd();
   const tempDirs = [];
 
@@ -108,14 +108,14 @@ describe('cli command flow integration', () => {
     process.chdir(originalCwd);
     process.env.HOME = originalHome;
     if (originalApiUrl === undefined) {
-      delete process.env.CHINWAG_API_URL;
+      delete process.env.CHINMEISTER_API_URL;
     } else {
-      process.env.CHINWAG_API_URL = originalApiUrl;
+      process.env.CHINMEISTER_API_URL = originalApiUrl;
     }
     if (originalProfile === undefined) {
-      delete process.env.CHINWAG_PROFILE;
+      delete process.env.CHINMEISTER_PROFILE;
     } else {
-      process.env.CHINWAG_PROFILE = originalProfile;
+      process.env.CHINMEISTER_PROFILE = originalProfile;
     }
     vi.restoreAllMocks();
     for (const dir of tempDirs.splice(0)) {
@@ -124,8 +124,8 @@ describe('cli command flow integration', () => {
   });
 
   it('runInit writes config to the active profile path and creates the project team file', async () => {
-    const homeDir = mkdtempSync(join(tmpdir(), 'chinwag-cli-home-'));
-    const repoDir = mkdtempSync(join(tmpdir(), 'chinwag-cli-repo-'));
+    const homeDir = mkdtempSync(join(tmpdir(), 'chinmeister-cli-home-'));
+    const repoDir = mkdtempSync(join(tmpdir(), 'chinmeister-cli-repo-'));
     tempDirs.push(homeDir, repoDir);
 
     const fakeApi = await startCliApiServer();
@@ -135,9 +135,9 @@ describe('cli command flow integration', () => {
       await runInit();
 
       const config = JSON.parse(
-        readFileSync(join(homeDir, '.chinwag', 'local', 'config.json'), 'utf-8'),
+        readFileSync(join(homeDir, '.chinmeister', 'local', 'config.json'), 'utf-8'),
       );
-      const teamFile = JSON.parse(readFileSync(join(repoDir, '.chinwag'), 'utf-8'));
+      const teamFile = JSON.parse(readFileSync(join(repoDir, '.chinmeister'), 'utf-8'));
 
       expect(config).toMatchObject({
         token: 'tok_cli_init',
@@ -156,10 +156,10 @@ describe('cli command flow integration', () => {
   });
 
   it('runAdd prints the MCP_TOOLS list when called with no tool arg', async () => {
-    const homeDir = mkdtempSync(join(tmpdir(), 'chinwag-cli-home-'));
-    const repoDir = mkdtempSync(join(tmpdir(), 'chinwag-cli-repo-'));
+    const homeDir = mkdtempSync(join(tmpdir(), 'chinmeister-cli-home-'));
+    const repoDir = mkdtempSync(join(tmpdir(), 'chinmeister-cli-repo-'));
     tempDirs.push(homeDir, repoDir);
-    mkdirSync(join(homeDir, '.chinwag'), { recursive: true });
+    mkdirSync(join(homeDir, '.chinmeister'), { recursive: true });
     vi.resetModules();
 
     const fakeApi = await startCliApiServer();
@@ -176,7 +176,7 @@ describe('cli command flow integration', () => {
       // No API call — the simplified add uses MCP_TOOLS only.
       expect(fakeApi.state.directoryCalls).toBe(0);
       const output = logs.join('\n');
-      expect(output).toContain('Usage: npx chinwag add <tool>');
+      expect(output).toContain('Usage: npx chinmeister add <tool>');
       expect(output).toContain('cursor');
       logSpy.mockRestore();
     } finally {
@@ -184,9 +184,9 @@ describe('cli command flow integration', () => {
     }
   });
 
-  it('runInit writes only the local profile config when CHINWAG_PROFILE=local', async () => {
-    const homeDir = mkdtempSync(join(tmpdir(), 'chinwag-cli-home-'));
-    const repoDir = mkdtempSync(join(tmpdir(), 'chinwag-cli-repo-'));
+  it('runInit writes only the local profile config when CHINMEISTER_PROFILE=local', async () => {
+    const homeDir = mkdtempSync(join(tmpdir(), 'chinmeister-cli-home-'));
+    const repoDir = mkdtempSync(join(tmpdir(), 'chinmeister-cli-repo-'));
     tempDirs.push(homeDir, repoDir);
 
     const fakeApi = await startCliApiServer();
@@ -195,8 +195,8 @@ describe('cli command flow integration', () => {
       process.chdir(repoDir);
       await runInit();
 
-      const prodConfigPath = join(homeDir, '.chinwag', 'config.json');
-      const localConfigPath = join(homeDir, '.chinwag', 'local', 'config.json');
+      const prodConfigPath = join(homeDir, '.chinmeister', 'config.json');
+      const localConfigPath = join(homeDir, '.chinmeister', 'local', 'config.json');
 
       expect(existsSync(prodConfigPath)).toBe(false);
       expect(existsSync(localConfigPath)).toBe(true);

@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock the shared team-utils module
-vi.mock('@chinwag/shared/team-utils.js', () => ({
+vi.mock('@chinmeister/shared/team-utils.js', () => ({
   TEAM_ID_PATTERN: /^[a-zA-Z0-9_-]+$/,
   isValidTeamId: vi.fn((id) => typeof id === 'string' && /^t_[a-zA-Z0-9_-]+$/.test(id)),
   findTeamFile: vi.fn(),
 }));
 
 import { findTeamFile, teamHandlers } from '../team.js';
-import { findTeamFile as findTeamFileShared } from '@chinwag/shared/team-utils.js';
+import { findTeamFile as findTeamFileShared } from '@chinmeister/shared/team-utils.js';
 
 // --- findTeamFile ---
 
@@ -17,12 +17,12 @@ describe('findTeamFile', () => {
     vi.clearAllMocks();
   });
 
-  it('returns teamId when .chinwag file is found', () => {
+  it('returns teamId when .chinmeister file is found', () => {
     findTeamFileShared.mockReturnValue({ teamId: 't_abc123' });
     expect(findTeamFile()).toBe('t_abc123');
   });
 
-  it('returns null when .chinwag file is not found', () => {
+  it('returns null when .chinmeister file is not found', () => {
     findTeamFileShared.mockReturnValue(null);
     expect(findTeamFile()).toBeNull();
   });

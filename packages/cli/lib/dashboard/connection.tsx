@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import { applyDelta } from '@chinwag/shared/dashboard-ws.js';
+import { applyDelta } from '@chinmeister/shared/dashboard-ws.js';
 import { api, getApiUrl } from '../api.js';
 import { detectTools } from '../mcp-config.js';
 import { getProjectContext } from '../project.js';
@@ -9,11 +9,11 @@ import { SPINNER_INTERVAL_MS } from './constants.js';
 import { useTimerRegistry } from './use-timer-registry.js';
 import { classifyError } from '../utils/errors.js';
 import { hasError } from '../utils/type-guards.js';
-import type { ChinwagConfig } from '../config.js';
+import type { ChinmeisterConfig } from '../config.js';
 import type { TeamContext } from './view.js';
-import type { HostIntegration } from '@chinwag/shared/integration-model.js';
-import type { WebSocketTicketResponse } from '@chinwag/shared/contracts/dashboard.js';
-import { formatError, createLogger } from '@chinwag/shared';
+import type { HostIntegration } from '@chinmeister/shared/integration-model.js';
+import type { WebSocketTicketResponse } from '@chinmeister/shared/contracts/dashboard.js';
+import { formatError, createLogger } from '@chinmeister/shared';
 import {
   POLL_FAST_MS,
   POLL_MEDIUM_MS,
@@ -79,7 +79,7 @@ interface StdoutLike {
 }
 
 interface UseDashboardConnectionParams {
-  config: ChinwagConfig | null;
+  config: ChinmeisterConfig | null;
   stdout: StdoutLike | null;
 }
 
@@ -115,10 +115,10 @@ export function useDashboardConnection({
 }: UseDashboardConnectionParams): UseDashboardConnectionReturn {
   // Connection state
   const [context, setContext] = useState<TeamContext | null>(null);
-  // ── .chinwag file discovery (computed once at mount) ──
+  // ── .chinmeister file discovery (computed once at mount) ──
   const initProject = (): InitProjectState => {
     const project = getProjectContext(process.cwd());
-    if (!project) return { error: 'No .chinwag file found. Run `npx chinwag init` first.' };
+    if (!project) return { error: 'No .chinmeister file found. Run `npx chinmeister init` first.' };
     if (hasError(project)) return { error: project.error };
     let tools: HostIntegration[] = [];
     try {

@@ -80,5 +80,5 @@ http
     }
   })
   .listen(PORT, () => {
-    console.error(`chinwag web  http://localhost:${PORT}  (missing routes → 404.html)`);
+    console.error(`chinmeister web  http://localhost:${PORT}  (missing routes → 404.html)`);
   });

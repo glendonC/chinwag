@@ -382,7 +382,7 @@ describe('derived data from useProjectData logic', () => {
 
   it('extracts projectLabel from active team or falls back', () => {
     const teams = [
-      { team_id: 't_1', team_name: 'chinwag' },
+      { team_id: 't_1', team_name: 'chinmeister' },
       { team_id: 't_2', team_name: null },
     ];
 
@@ -391,7 +391,7 @@ describe('derived data from useProjectData logic', () => {
       return activeTeam?.team_name || activeTeam?.team_id || 'this project';
     }
 
-    expect(getProjectLabel('t_1')).toBe('chinwag');
+    expect(getProjectLabel('t_1')).toBe('chinmeister');
     expect(getProjectLabel('t_2')).toBe('t_2');
     expect(getProjectLabel('t_missing')).toBe('this project');
   });

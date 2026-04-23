@@ -1,4 +1,4 @@
-# chinwag: Development Guide
+# chinmeister: Development Guide
 
 **Primary docs:**
 
@@ -14,11 +14,11 @@ Monorepo with five packages:
 
 - **`packages/mcp/`:** MCP server (the core product). Runs locally alongside each AI agent. Reports activity, checks conflicts, reads/writes shared memory. Stdio transport. Never `console.log`.
 - **`packages/worker/`:** Cloudflare Workers backend. Durable Objects for team coordination (TeamDO), data (DatabaseDO), chat rooms (RoomDO), presence (LobbyDO). KV for auth token lookups only.
-- **`packages/cli/`:** TUI dashboard and setup. Handles `chinwag init`, `chinwag add`, agent dashboard, tool discovery. Node.js CLI built with Ink (React for terminals). Entry: `cli.jsx`, screens in `lib/`. Built with esbuild to `dist/cli.js`. Requires Node 22+ (native WebSocket).
+- **`packages/cli/`:** TUI dashboard and setup. Handles `chinmeister init`, `chinmeister add`, agent dashboard, tool discovery. Node.js CLI built with Ink (React for terminals). Entry: `cli.jsx`, screens in `lib/`. Built with esbuild to `dist/cli.js`. Requires Node 22+ (native WebSocket).
 - **`packages/shared/`:** Shared primitives reused across packages. Tool registry, agent identity, API client factory, session registry. Dependency-light, no grab bags.
-- **`packages/web/`:** Web presence at chinwag.dev. React 19 + Vite SPA on Cloudflare Pages. Landing page (`index.html`) plus authenticated dashboard (`dashboard.html`) with Zustand state management and CSS Modules. Cross-project workflow visibility, tool discovery, and team management.
+- **`packages/web/`:** Web presence at chinmeister.com. React 19 + Vite SPA on Cloudflare Pages. Landing page (`index.html`) plus authenticated dashboard (`dashboard.html`) with Zustand state management and CSS Modules. Cross-project workflow visibility, tool discovery, and team management.
 
-**Live API:** `https://chinwag-api.glendonchin.workers.dev`
+**Live API:** `https://chinmeister-api.glendonchin.workers.dev`
 
 ## Development Principles
 
@@ -37,7 +37,7 @@ This same principle applies everywhere: prefer intelligent systems over growing 
 
 ### Model-agnostic coordination infrastructure
 
-chinwag provides the network, shared state, and coordination primitives — agents bring the intelligence. Primitives are freeform and unopinionated so they scale as models get smarter, not against them. Memory uses freeform tags, not fixed categories. Search returns results by recency — agents are the semantic ranker. Conflict detection surfaces data — agents decide what to do with it.
+chinmeister provides the network, shared state, and coordination primitives — agents bring the intelligence. Primitives are freeform and unopinionated so they scale as models get smarter, not against them. Memory uses freeform tags, not fixed categories. Search returns results by recency — agents are the semantic ranker. Conflict detection surfaces data — agents decide what to do with it.
 
 For product vision, positioning, ICP, and differentiation, see [`docs/VISION.md`](docs/VISION.md).
 
@@ -78,7 +78,7 @@ Every change must pass these checks. These are not aspirational; they are blocke
 
 ### Patterns to follow
 
-- **DO RPC, not fetch — with one exception.** All Durable Object communication uses native RPC (direct method calls), not HTTP fetch. `await db.someMethod(args)`, not `await db.fetch(new Request(...))`. The one place `team.fetch()` is still required is the WebSocket upgrade in `routes/team/membership.ts`: Cloudflare's Hibernation API only exposes WebSockets through a fetch-shaped entry point, so the worker sets `X-Chinwag-Verified: 1` on the internal request and `TeamDO.fetch` trusts it. Every other code path is RPC.
+- **DO RPC, not fetch — with one exception.** All Durable Object communication uses native RPC (direct method calls), not HTTP fetch. `await db.someMethod(args)`, not `await db.fetch(new Request(...))`. The one place `team.fetch()` is still required is the WebSocket upgrade in `routes/team/membership.ts`: Cloudflare's Hibernation API only exposes WebSockets through a fetch-shaped entry point, so the worker sets `X-Chinmeister-Verified: 1` on the internal request and `TeamDO.fetch` trusts it. Every other code path is RPC.
 - **Error returns, not throws.** DO methods return `{ ok: true }` or `{ error: 'message' }`. Route handlers check for `.error` and return the appropriate HTTP status. Throws are for unexpected failures only.
 - **Handlers validate, DOs trust — with defense in depth on untrusted inputs.** Input validation (type checking, length caps, sanitization) happens in the route handler. DO methods then trust the shape, but will still cap lengths on free-text inputs that get persisted (e.g. `tool.slice(0,100)`, `error_preview.slice(0,200)` in `dos/team/sessions.ts`) and will still reject unknown enum values on outcomes and moderation categories. The rule is: handlers are the primary validation line, DOs carry the minimum defensive truncation for fields that directly land in the database.
 - **MCP server: never `console.log`.** Stdio transport uses stdout for JSON-RPC. Any `console.log` corrupts the protocol. Use `console.error` for all logging. Enforced by ESLint (`no-console` as `error` for the MCP package).
@@ -87,17 +87,17 @@ Every change must pass these checks. These are not aspirational; they are blocke
 
 - **MCP server is the product, not the CLI:** value delivered invisibly through agent connections
 - **Three surfaces, one backend:** MCP server (agents), TUI (terminal users), web dashboard (visual workflow management). All hit the same API.
-- **`chinwag init` writes config for all detected tools:** zero-friction, one command setup
+- **`chinmeister init` writes config for all detected tools:** zero-friction, one command setup
 - **Claude Code gets deepest integration** (hooks + channels = enforceable). Other tools get MCP-based awareness. Depth increases as tools add hook-like capabilities.
-- **Four-tier analytics model:** Agent-level (observe/measure/control individual sessions), project-level (what's happening in this codebase — the repo-axis view, scoped by `.chinwag`), developer-level (personal AI performance across projects and tools), team-level (manage a team of developers and their agents). Analytics endpoints mirror this: session detail, `GET /teams/:tid/analytics` (project scope), `GET /me/analytics` (developer scope), team-scoped analytics with `member_analytics`. Every session captures duration, edits, files, tokens, cost, conflicts, outcome, and conversation events. Hook-enabled tools (Claude Code) provide automatic granular capture; MCP-only tools provide coordination data.
+- **Four-tier analytics model:** Agent-level (observe/measure/control individual sessions), project-level (what's happening in this codebase — the repo-axis view, scoped by `.chinmeister`), developer-level (personal AI performance across projects and tools), team-level (manage a team of developers and their agents). Analytics endpoints mirror this: session detail, `GET /teams/:tid/analytics` (project scope), `GET /me/analytics` (developer scope), team-scoped analytics with `member_analytics`. Every session captures duration, edits, files, tokens, cost, conflicts, outcome, and conversation events. Hook-enabled tools (Claude Code) provide automatic granular capture; MCP-only tools provide coordination data.
 - **TeamDO is the coordination hub:** one instance per team, single-writer for conflict detection
-- **One team per project, one account across projects:** `.chinwag` file scopes team to repo, `~/.chinwag/config.json` gives the user a cross-project identity
+- **One team per project, one account across projects:** `.chinmeister` file scopes team to repo, `~/.chinmeister/config.json` gives the user a cross-project identity
 - Handle format: 3-20 chars, alphanumeric + underscores, globally unique
 - 12-color palette: red, cyan, yellow, green, magenta, blue, orange, lime, pink, sky, lavender, white
 
 ### Non-goals
 
-See [`docs/VISION.md`](docs/VISION.md) for the full list. Key ones for development: chinwag is not an agent orchestrator, not a standalone APM, and not an MCP server registry.
+See [`docs/VISION.md`](docs/VISION.md) for the full list. Key ones for development: chinmeister is not an agent orchestrator, not a standalone APM, and not an MCP server registry.
 
 ### Chat (secondary)
 

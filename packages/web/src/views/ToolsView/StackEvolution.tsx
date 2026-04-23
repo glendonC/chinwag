@@ -1,8 +1,8 @@
 // Stack evolution — how your AI stack has been used over time.
 // Stacked area over analytics.tool_daily: x = day, y = sessions,
 // one color layer per tool. Replaces the previous "adoption timeline"
-// framing, which made a claim chinwag couldn't actually back (firstSeen
-// = first session chinwag recorded, not when the dev actually adopted
+// framing, which made a claim chinmeister couldn't actually back (firstSeen
+// = first session chinmeister recorded, not when the dev actually adopted
 // the tool).
 //
 // Only a cross-vendor observer can render this because the stack

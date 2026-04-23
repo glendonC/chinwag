@@ -126,7 +126,7 @@ describe('api-client', () => {
 
   describe('DEFAULT_API_URL', () => {
     it('exports the production API URL', () => {
-      expect(DEFAULT_API_URL).toBe('https://chinwag-api.glendonchin.workers.dev');
+      expect(DEFAULT_API_URL).toBe('https://chinmeister-api.glendonchin.workers.dev');
     });
   });
 

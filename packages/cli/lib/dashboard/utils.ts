@@ -9,7 +9,7 @@ export function truncateText(
 
 import { execFileSync } from 'child_process';
 import { homedir } from 'os';
-import { createLogger } from '@chinwag/shared';
+import { createLogger } from '@chinmeister/shared';
 import { getRuntimeTargets } from '../api.js';
 
 const log = createLogger('dashboard-utils');

@@ -6,13 +6,13 @@ import { createLogger } from './logger.js';
 import {
   LOCAL_RUNTIME_PROFILE,
   resolveRuntimeProfile,
-  type ChinwagRuntimeProfile,
+  type ChinmeisterRuntimeProfile,
   type RuntimeProfileOptions,
 } from './runtime-profile.js';
 
 const log = createLogger('config');
 
-export interface ChinwagConfig {
+export interface ChinmeisterConfig {
   token?: string;
   refresh_token?: string;
   handle?: string;
@@ -21,7 +21,7 @@ export interface ChinwagConfig {
   [key: string]: unknown;
 }
 
-const OPTIONAL_STRING_FIELDS: ReadonlyArray<keyof ChinwagConfig> = [
+const OPTIONAL_STRING_FIELDS: ReadonlyArray<keyof ChinmeisterConfig> = [
   'token',
   'refresh_token',
   'handle',
@@ -30,7 +30,7 @@ const OPTIONAL_STRING_FIELDS: ReadonlyArray<keyof ChinwagConfig> = [
 ];
 
 /**
- * Structurally validate a parsed value against the ChinwagConfig shape.
+ * Structurally validate a parsed value against the ChinmeisterConfig shape.
  * Returns an error string if invalid, or null if the shape is acceptable.
  */
 export function validateConfigShape(value: unknown): string | null {
@@ -48,27 +48,27 @@ export function validateConfigShape(value: unknown): string | null {
   return null;
 }
 
-export const CONFIG_DIR = join(homedir(), '.chinwag');
+export const CONFIG_DIR = join(homedir(), '.chinmeister');
 export const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
 export const LOCAL_CONFIG_DIR = join(CONFIG_DIR, 'local');
 export const LOCAL_CONFIG_FILE = join(LOCAL_CONFIG_DIR, 'config.json');
 
 export interface ConfigPathOptions extends RuntimeProfileOptions {
-  profile?: ChinwagRuntimeProfile | string | null;
+  profile?: ChinmeisterRuntimeProfile | string | null;
 }
 
 export interface ConfigPaths {
-  profile: ChinwagRuntimeProfile;
+  profile: ChinmeisterRuntimeProfile;
   configDir: string;
   configFile: string;
 }
 
 function resolveConfigPathOptions(options: ConfigPathOptions = {}): RuntimeProfileOptions {
   return {
-    profile: options.profile ?? process.env.CHINWAG_PROFILE,
-    apiUrl: options.apiUrl ?? process.env.CHINWAG_API_URL,
-    dashboardUrl: options.dashboardUrl ?? process.env.CHINWAG_DASHBOARD_URL,
-    chatWsUrl: options.chatWsUrl ?? process.env.CHINWAG_WS_URL,
+    profile: options.profile ?? process.env.CHINMEISTER_PROFILE,
+    apiUrl: options.apiUrl ?? process.env.CHINMEISTER_API_URL,
+    dashboardUrl: options.dashboardUrl ?? process.env.CHINMEISTER_DASHBOARD_URL,
+    chatWsUrl: options.chatWsUrl ?? process.env.CHINMEISTER_WS_URL,
   };
 }
 
@@ -92,7 +92,7 @@ export function configExists(options: ConfigPathOptions = {}): boolean {
   return existsSync(getConfigPaths(options).configFile);
 }
 
-export function loadConfig(options: ConfigPathOptions = {}): ChinwagConfig | null {
+export function loadConfig(options: ConfigPathOptions = {}): ChinmeisterConfig | null {
   const { configFile } = getConfigPaths(options);
   if (!existsSync(configFile)) return null;
   let raw: string;
@@ -121,10 +121,10 @@ export function loadConfig(options: ConfigPathOptions = {}): ChinwagConfig | nul
     return null;
   }
 
-  return parsed as ChinwagConfig;
+  return parsed as ChinmeisterConfig;
 }
 
-export function saveConfig(config: ChinwagConfig, options: ConfigPathOptions = {}): void {
+export function saveConfig(config: ChinmeisterConfig, options: ConfigPathOptions = {}): void {
   const { configDir, configFile } = getConfigPaths(options);
   mkdirSync(configDir, { recursive: true, mode: 0o700 });
   writeFileSync(configFile, JSON.stringify(config, null, 2) + '\n', { mode: 0o600 });

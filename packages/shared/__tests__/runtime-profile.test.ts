@@ -148,7 +148,7 @@ describe('isLoopbackUrl', () => {
 
   describe('remote hosts', () => {
     it('returns false for public URLs', () => {
-      expect(isLoopbackUrl('https://chinwag-api.glendonchin.workers.dev')).toBe(false);
+      expect(isLoopbackUrl('https://chinmeister-api.glendonchin.workers.dev')).toBe(false);
       expect(isLoopbackUrl('https://example.com')).toBe(false);
       expect(isLoopbackUrl('https://google.com')).toBe(false);
     });
@@ -204,7 +204,9 @@ describe('getDefaultDashboardPath', () => {
 
 describe('coerceDashboardUrl', () => {
   it('appends default prod path when URL has no path', () => {
-    expect(coerceDashboardUrl('https://chinwag.dev', 'prod')).toBe('https://chinwag.dev/dashboard');
+    expect(coerceDashboardUrl('https://chinmeister.com', 'prod')).toBe(
+      'https://chinmeister.com/dashboard',
+    );
   });
 
   it('appends default local path when URL has no path', () => {
@@ -214,8 +216,8 @@ describe('coerceDashboardUrl', () => {
   });
 
   it('appends default path when URL has only root slash', () => {
-    expect(coerceDashboardUrl('https://chinwag.dev/', 'prod')).toBe(
-      'https://chinwag.dev/dashboard',
+    expect(coerceDashboardUrl('https://chinmeister.com/', 'prod')).toBe(
+      'https://chinmeister.com/dashboard',
     );
   });
 
@@ -226,17 +228,17 @@ describe('coerceDashboardUrl', () => {
   });
 
   it('preserves existing dashboard path', () => {
-    expect(coerceDashboardUrl('https://chinwag.dev/dashboard', 'prod')).toBe(
-      'https://chinwag.dev/dashboard',
+    expect(coerceDashboardUrl('https://chinmeister.com/dashboard', 'prod')).toBe(
+      'https://chinmeister.com/dashboard',
     );
   });
 
   it('defaults to prod profile when profile is omitted', () => {
-    expect(coerceDashboardUrl('https://chinwag.dev')).toBe('https://chinwag.dev/dashboard');
+    expect(coerceDashboardUrl('https://chinmeister.com')).toBe('https://chinmeister.com/dashboard');
   });
 
   it('preserves query string from input', () => {
-    const result = coerceDashboardUrl('https://chinwag.dev/dashboard?team=abc', 'prod');
+    const result = coerceDashboardUrl('https://chinmeister.com/dashboard?team=abc', 'prod');
     expect(result).toContain('team=abc');
   });
 
@@ -299,9 +301,9 @@ describe('resolveRuntimeProfile', () => {
     });
 
     it('returns prod for remote URLs with no explicit profile', () => {
-      expect(resolveRuntimeProfile({ apiUrl: 'https://chinwag-api.glendonchin.workers.dev' })).toBe(
-        'prod',
-      );
+      expect(
+        resolveRuntimeProfile({ apiUrl: 'https://chinmeister-api.glendonchin.workers.dev' }),
+      ).toBe('prod');
     });
 
     it('returns prod when all URLs are remote', () => {
@@ -322,8 +324,8 @@ describe('resolveRuntimeProfile', () => {
 
 describe('toWebSocketOrigin', () => {
   it('converts https to wss', () => {
-    expect(toWebSocketOrigin('https://chinwag-api.glendonchin.workers.dev')).toBe(
-      'wss://chinwag-api.glendonchin.workers.dev',
+    expect(toWebSocketOrigin('https://chinmeister-api.glendonchin.workers.dev')).toBe(
+      'wss://chinmeister-api.glendonchin.workers.dev',
     );
   });
 
@@ -371,8 +373,8 @@ describe('resolveRuntimeTargets', () => {
       profile: 'prod',
       apiUrl: DEFAULT_API_URL,
       dashboardUrl: DEFAULT_DASHBOARD_URL,
-      teamWsOrigin: 'wss://chinwag-api.glendonchin.workers.dev',
-      chatWsUrl: 'wss://chinwag-api.glendonchin.workers.dev/ws/chat',
+      teamWsOrigin: 'wss://chinmeister-api.glendonchin.workers.dev',
+      chatWsUrl: 'wss://chinmeister-api.glendonchin.workers.dev/ws/chat',
     });
   });
 
@@ -419,7 +421,7 @@ describe('resolveRuntimeTargets', () => {
 
   it('derives dashboardOrigin and dashboardPath from default prod', () => {
     const targets = resolveRuntimeTargets();
-    expect(targets.dashboardOrigin).toBe('https://chinwag.dev');
+    expect(targets.dashboardOrigin).toBe('https://chinmeister.com');
     expect(targets.dashboardPath).toBe('/dashboard');
   });
 
@@ -459,11 +461,11 @@ describe('exported constants', () => {
   });
 
   it('DEFAULT_API_URL is the production API endpoint', () => {
-    expect(DEFAULT_API_URL).toBe('https://chinwag-api.glendonchin.workers.dev');
+    expect(DEFAULT_API_URL).toBe('https://chinmeister-api.glendonchin.workers.dev');
   });
 
   it('DEFAULT_DASHBOARD_URL is the production dashboard', () => {
-    expect(DEFAULT_DASHBOARD_URL).toBe('https://chinwag.dev/dashboard');
+    expect(DEFAULT_DASHBOARD_URL).toBe('https://chinmeister.com/dashboard');
   });
 
   it('LOCAL_API_URL is localhost:8787', () => {

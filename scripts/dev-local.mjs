@@ -10,7 +10,7 @@ const repoName = basename(rootDir);
 
 const LOCAL_API_URL = 'http://localhost:8787';
 const LOCAL_DASHBOARD_URL = 'http://localhost:56790/dashboard.html';
-const LOCAL_CONFIG_DIR = join(homedir(), '.chinwag', 'local');
+const LOCAL_CONFIG_DIR = join(homedir(), '.chinmeister', 'local');
 const LOCAL_CONFIG_FILE = join(LOCAL_CONFIG_DIR, 'config.json');
 
 /** @typedef {{ token?: string, refresh_token?: string, handle?: string, color?: string }} LocalConfig */
@@ -64,7 +64,7 @@ function readLocalConfig() {
 }
 
 function readTeamFile() {
-  const teamFilePath = join(rootDir, '.chinwag');
+  const teamFilePath = join(rootDir, '.chinmeister');
   if (!existsSync(teamFilePath)) return null;
   try {
     const data = JSON.parse(readFileSync(teamFilePath, 'utf-8'));
@@ -319,7 +319,7 @@ async function main() {
       stdio: 'inherit',
       env: {
         ...process.env,
-        VITE_CHINWAG_PROFILE: 'local',
+        VITE_CHINMEISTER_PROFILE: 'local',
       },
     }),
   );
@@ -336,7 +336,7 @@ async function main() {
   logLine(`[dev:local] Team: ${team.teamId}`);
   if (!readTeamFile()) {
     logLine(
-      '[dev:local] No .chinwag file found, so this local team is dashboard-only until you link the repo.',
+      '[dev:local] No .chinmeister file found, so this local team is dashboard-only until you link the repo.',
     );
   }
   logLine('[dev:local] Press Ctrl+C to stop both servers.');

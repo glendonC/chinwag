@@ -3,7 +3,7 @@
 // object pair, and the weighted-average math (weight by total_sessions)
 // only makes sense as a single unit.
 
-import type { PeriodComparison } from '@chinwag/shared/contracts/analytics.js';
+import type { PeriodComparison } from '@chinmeister/shared/contracts/analytics.js';
 import type { TeamResult } from './types.js';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;

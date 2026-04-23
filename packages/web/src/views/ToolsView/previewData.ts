@@ -8,7 +8,7 @@
 // mixes plus a small set of files co-edited across those tools to feed
 // the shared-file stream section.
 
-import type { ToolCallCategory } from '@chinwag/shared/tool-call-categories.js';
+import type { ToolCallCategory } from '@chinmeister/shared/tool-call-categories.js';
 import type { ToolDailyTrend, ToolHandoff, ToolWorkTypeBreakdown } from '../../lib/apiSchemas.js';
 import { normalizeToolId } from '../../lib/toolMeta.js';
 
@@ -73,7 +73,7 @@ export interface SharedFile {
 export const PREVIEW_SHARED_FILES: SharedFile[] = [
   {
     filePath: 'packages/worker/src/auth/middleware.ts',
-    projectLabel: 'chinwag-api',
+    projectLabel: 'chinmeister-api',
     edits: [
       {
         tool: 'claude-code',
@@ -170,7 +170,7 @@ export const PREVIEW_SHARED_FILES: SharedFile[] = [
   },
   {
     filePath: 'packages/web/src/App.tsx',
-    projectLabel: 'chinwag-web',
+    projectLabel: 'chinmeister-web',
     edits: [
       {
         tool: 'claude-code',
@@ -267,7 +267,7 @@ export const PREVIEW_SHARED_FILES: SharedFile[] = [
   },
   {
     filePath: 'packages/worker/src/dos/team/analytics.ts',
-    projectLabel: 'chinwag-api',
+    projectLabel: 'chinmeister-api',
     edits: [
       {
         tool: 'claude-code',
@@ -338,7 +338,7 @@ export const PREVIEW_SHARED_FILES: SharedFile[] = [
   },
   {
     filePath: 'packages/mcp/lib/tools/memory.js',
-    projectLabel: 'chinwag-api',
+    projectLabel: 'chinmeister-api',
     edits: [
       {
         tool: 'claude-code',
@@ -383,7 +383,7 @@ export const PREVIEW_SHARED_FILES: SharedFile[] = [
   },
   {
     filePath: 'packages/web/src/views/OverviewView/OverviewView.tsx',
-    projectLabel: 'chinwag-web',
+    projectLabel: 'chinmeister-web',
     edits: [
       {
         tool: 'cursor',
@@ -454,7 +454,7 @@ export const PREVIEW_SHARED_FILES: SharedFile[] = [
   },
   {
     filePath: 'packages/cli/lib/dashboard.jsx',
-    projectLabel: 'chinwag-api',
+    projectLabel: 'chinmeister-api',
     edits: [
       {
         tool: 'claude-code',
@@ -499,7 +499,7 @@ export const PREVIEW_SHARED_FILES: SharedFile[] = [
   },
   {
     filePath: 'docs/ARCHITECTURE.md',
-    projectLabel: 'chinwag-api',
+    projectLabel: 'chinmeister-api',
     edits: [
       {
         tool: 'claude-code',
@@ -531,7 +531,7 @@ export const PREVIEW_SHARED_FILES: SharedFile[] = [
   },
   {
     filePath: 'scripts/migrate.sh',
-    projectLabel: 'chinwag-api',
+    projectLabel: 'chinmeister-api',
     edits: [
       {
         tool: 'codex',
@@ -772,7 +772,7 @@ export const PREVIEW_TOOL_DAILY: ToolDailyTrend[] = derivePreviewToolDaily();
 
 // ── Tool × Model effectiveness ──
 // The join of host_tool and agent_model. DATA_MAP Tier 1 insight.
-// Completion rate per (tool, model) cell. Only chinwag can render this.
+// Completion rate per (tool, model) cell. Only chinmeister can render this.
 export interface ToolModelCell {
   toolId: string;
   model: string;
@@ -796,7 +796,7 @@ export const PREVIEW_TOOL_MODEL: ToolModelCell[] = [
 
 // ── Drill-in: internal tool usage ──
 // What tools each coding agent invokes during a session.
-// Row = an internal tool (Read, Edit, Bash, Grep, chinwag_save_memory, etc.).
+// Row = an internal tool (Read, Edit, Bash, Grep, chinmeister_save_memory, etc.).
 export interface InternalToolUsage {
   name: string;
   category: ToolCallCategory;
@@ -820,7 +820,7 @@ export const PREVIEW_INTERNAL_USAGE: Record<string, DrillInternalUsage> = {
       { name: 'Bash', category: 'exec', calls: 287, errorRate: 11.4, avgMs: 1640 },
       { name: 'Glob', category: 'research', calls: 164, errorRate: 0.0, avgMs: 52 },
       { name: 'Write', category: 'edit', calls: 41, errorRate: 2.4, avgMs: 88 },
-      { name: 'chinwag_save_memory', category: 'memory', calls: 22, errorRate: 0.0, avgMs: 95 },
+      { name: 'chinmeister_save_memory', category: 'memory', calls: 22, errorRate: 0.0, avgMs: 95 },
     ],
   },
   cursor: {
@@ -873,7 +873,7 @@ function buildSessionShape(seed: number): SessionEvent[] {
     ['Bash', 'exec', 1880],
     ['Read', 'research', 43],
     ['Edit', 'edit', 71],
-    ['chinwag_save_memory', 'memory', 92],
+    ['chinmeister_save_memory', 'memory', 92],
     ['Read', 'research', 38],
     ['Edit', 'edit', 76],
   ];

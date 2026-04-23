@@ -1,4 +1,4 @@
-name = "chinwag-api"
+name = "chinmeister-api"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
 
@@ -11,7 +11,7 @@ compatibility_date = "2024-12-01"
 crons = ["0 3 * * 1", "0 */6 * * *"]
 
 # Workers Observability — logs + traces persisted to CF dashboard
-# View at: dash.cloudflare.com → Workers & Pages → chinwag-api → Observability
+# View at: dash.cloudflare.com → Workers & Pages → chinmeister-api → Observability
 [observability]
 enabled = true
 
@@ -20,7 +20,7 @@ enabled = true
 
 [vars]
 ENVIRONMENT = "production"
-DASHBOARD_URL = "https://chinwag.dev"
+DASHBOARD_URL = "https://chinmeister.com"
 MODERATION_MODE = "strict"
 
 [env.local.vars]

@@ -9,7 +9,7 @@ import type {
   WorkTypeDistribution,
   ToolWorkTypeBreakdown,
   WorkTypeOutcome,
-} from '@chinwag/shared/contracts/analytics.js';
+} from '@chinmeister/shared/contracts/analytics.js';
 
 const log = createLogger('TeamDO.analytics');
 

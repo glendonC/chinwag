@@ -1,5 +1,5 @@
-// chinwag memory tool handlers:
-// chinwag_save_memory, chinwag_update_memory, chinwag_search_memory, chinwag_delete_memory
+// chinmeister memory tool handlers:
+// chinmeister_save_memory, chinmeister_update_memory, chinmeister_search_memory, chinmeister_delete_memory
 
 import * as z from 'zod/v4';
 import { safeArray, withTimeout } from '../utils/responses.js';
@@ -12,7 +12,7 @@ import {
   MEMORY_SEARCH_MAX_LIMIT,
   API_TIMEOUT_MS,
 } from '../constants.js';
-import { BUDGET_DEFAULTS, truncateMemoryText } from '@chinwag/shared/budget-config.js';
+import { BUDGET_DEFAULTS, truncateMemoryText } from '@chinmeister/shared/budget-config.js';
 import { withTeam } from './middleware.js';
 import type { AddToolFn, ToolDeps } from './types.js';
 
@@ -32,7 +32,7 @@ const saveMemorySchema = z.object({
 type SaveMemoryArgs = z.infer<typeof saveMemorySchema>;
 
 const updateMemorySchema = z.object({
-  id: z.string().describe('Memory ID to update (UUID format, get from chinwag_search_memory)'),
+  id: z.string().describe('Memory ID to update (UUID format, get from chinmeister_search_memory)'),
   text: z.string().max(MAX_MEMORY_TEXT_LENGTH).optional().describe('Updated text content'),
   tags: z
     .array(z.string().max(MAX_TAG_LENGTH))
@@ -68,7 +68,7 @@ const searchMemorySchema = z.object({
 type SearchMemoryArgs = z.infer<typeof searchMemorySchema>;
 
 const deleteMemorySchema = z.object({
-  id: z.string().describe('Memory ID to delete (UUID format, get from chinwag_search_memory)'),
+  id: z.string().describe('Memory ID to delete (UUID format, get from chinmeister_search_memory)'),
 });
 type DeleteMemoryArgs = z.infer<typeof deleteMemorySchema>;
 
@@ -85,7 +85,7 @@ const reviewProposalsSchema = z.object({
 type ReviewProposalsArgs = z.infer<typeof reviewProposalsSchema>;
 
 const applyProposalSchema = z.object({
-  proposal_id: z.string().describe('Proposal ID from chinwag_review_consolidation_proposals'),
+  proposal_id: z.string().describe('Proposal ID from chinmeister_review_consolidation_proposals'),
 });
 type ApplyProposalArgs = z.infer<typeof applyProposalSchema>;
 
@@ -122,7 +122,7 @@ export function registerMemoryTools(
   const { team, state } = deps;
 
   addTool(
-    'chinwag_save_memory',
+    'chinmeister_save_memory',
     {
       description:
         'Save project knowledge that persists across sessions and is shared with all agents on the team. Store anything worth remembering: setup requirements, conventions, architecture decisions, gotchas, useful links, or context that would help a future agent working in this codebase. You decide what to store and how to tag it.',
@@ -139,10 +139,10 @@ export function registerMemoryTools(
   );
 
   addTool(
-    'chinwag_update_memory',
+    'chinmeister_update_memory',
     {
       description:
-        'Update an existing team memory. Use chinwag_search_memory first to find the ID. Any team member can update any memory -- memories are team knowledge. Use this to correct, improve, or re-tag knowledge without creating duplicates.',
+        'Update an existing team memory. Use chinmeister_search_memory first to find the ID. Any team member can update any memory -- memories are team knowledge. Use this to correct, improve, or re-tag knowledge without creating duplicates.',
       inputSchema: updateMemorySchema,
     },
     withTeam(deps, async (args, { preamble }) => {
@@ -182,7 +182,7 @@ export function registerMemoryTools(
   );
 
   addTool(
-    'chinwag_search_memory',
+    'chinmeister_search_memory',
     {
       description:
         'Search team project memories by keyword and/or tags. Use this to find knowledge the team has saved before starting work or when you need context.',
@@ -226,10 +226,10 @@ export function registerMemoryTools(
   );
 
   addTool(
-    'chinwag_delete_memory',
+    'chinmeister_delete_memory',
     {
       description:
-        'Delete a team memory by ID. Use chinwag_search_memory first to find the ID of the memory to delete. Use this to remove outdated, incorrect, or redundant knowledge.',
+        'Delete a team memory by ID. Use chinmeister_search_memory first to find the ID of the memory to delete. Use this to remove outdated, incorrect, or redundant knowledge.',
       inputSchema: deleteMemorySchema,
     },
     withTeam(
@@ -252,7 +252,7 @@ export function registerMemoryTools(
   );
 
   addTool(
-    'chinwag_delete_memories_batch',
+    'chinmeister_delete_memories_batch',
     {
       description:
         'Delete multiple memories at once. Provide IDs, tags, and/or a before-date filter. Use this for bulk cleanup of outdated or redundant knowledge.',
@@ -296,7 +296,7 @@ export function registerMemoryTools(
   );
 
   addTool(
-    'chinwag_review_consolidation_proposals',
+    'chinmeister_review_consolidation_proposals',
     {
       description:
         'List pending consolidation proposals — pairs of memories that look like duplicates (cosine similarity + lexical overlap + tag-set agreement). Each proposal shows both memories side-by-side so you can decide whether to apply (merge) or reject. Nothing merges automatically.',
@@ -343,10 +343,10 @@ export function registerMemoryTools(
   );
 
   addTool(
-    'chinwag_apply_consolidation',
+    'chinmeister_apply_consolidation',
     {
       description:
-        'Apply a consolidation proposal — soft-merges the source memory into the target. The source stays in the database with a merged_into pointer; search excludes it. Reversible via chinwag_unmerge_memory.',
+        'Apply a consolidation proposal — soft-merges the source memory into the target. The source stays in the database with a merged_into pointer; search excludes it. Reversible via chinmeister_unmerge_memory.',
       inputSchema: applyProposalSchema,
     },
     withTeam(deps, async (args, { preamble }) => {
@@ -365,7 +365,7 @@ export function registerMemoryTools(
         content: [
           {
             type: 'text' as const,
-            text: `${preamble}Merged ${result.source_id} into ${result.target_id}. Reversible via chinwag_unmerge_memory.`,
+            text: `${preamble}Merged ${result.source_id} into ${result.target_id}. Reversible via chinmeister_unmerge_memory.`,
           },
         ],
       };
@@ -373,7 +373,7 @@ export function registerMemoryTools(
   );
 
   addTool(
-    'chinwag_run_formation_sweep',
+    'chinmeister_run_formation_sweep',
     {
       description:
         'Run shadow-mode formation auditor on recent memories. For each unclassified memory, an LLM looks at the top-5 cosine-similar neighbours and records whether the new memory should be kept, merged, evolved, or discarded. Recommendations are observability only — nothing applies automatically. Use this periodically to audit memory quality and tune consolidation thresholds.',
@@ -405,10 +405,10 @@ export function registerMemoryTools(
   );
 
   addTool(
-    'chinwag_review_formation_observations',
+    'chinmeister_review_formation_observations',
     {
       description:
-        'List recent formation observations — what the auditor LLM thought about each memory (keep / merge / evolve / discard). Filter by recommendation to focus on flagged cases. Recommendations are observability; apply consolidation explicitly via chinwag_apply_consolidation if you agree.',
+        'List recent formation observations — what the auditor LLM thought about each memory (keep / merge / evolve / discard). Filter by recommendation to focus on flagged cases. Recommendations are observability; apply consolidation explicitly via chinmeister_apply_consolidation if you agree.',
       inputSchema: formationListSchema,
     },
     withTeam(
@@ -438,7 +438,7 @@ export function registerMemoryTools(
             content: [
               {
                 type: 'text' as const,
-                text: `No formation observations${filtered}. Run chinwag_run_formation_sweep to populate.`,
+                text: `No formation observations${filtered}. Run chinmeister_run_formation_sweep to populate.`,
               },
             ],
           };
@@ -456,7 +456,7 @@ export function registerMemoryTools(
   );
 
   addTool(
-    'chinwag_unmerge_memory',
+    'chinmeister_unmerge_memory',
     {
       description:
         "Restore a memory that was soft-merged by consolidation. Clears the merged_into pointer so search picks it up again. Use this when consolidation absorbed a memory it shouldn't have.",

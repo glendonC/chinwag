@@ -48,7 +48,7 @@ describe('registerProcessSession', () => {
       pid: 4321,
       cwd: '/repo',
       createdAt: 123,
-      commandMarker: 'chinwag-mcp',
+      commandMarker: 'chinmeister-mcp',
       homeDir: '/tmp/home',
       writeSessionRecordFn,
     });
@@ -60,7 +60,7 @@ describe('registerProcessSession', () => {
       pid: 4321,
       cwd: '/repo',
       createdAt: 123,
-      commandMarker: 'chinwag-mcp',
+      commandMarker: 'chinmeister-mcp',
     });
     expect(writeSessionRecordFn).toHaveBeenCalledWith('cursor:abc123:def456', record, {
       homeDir: '/tmp/home',

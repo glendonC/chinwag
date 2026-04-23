@@ -1,6 +1,6 @@
 // Shared primitives used across other schema files.
 // Guards the UI layer against malformed backend data.
-// Base shapes imported from @chinwag/shared/contracts; client-specific
+// Base shapes imported from @chinmeister/shared/contracts; client-specific
 // .default(), .catch(), .transform(), .preprocess() applied on top.
 
 import { z } from 'zod';
@@ -12,7 +12,7 @@ import {
   authenticatedUserSchema as baseUserSchema,
   userTeamSchema as baseTeamSchema,
   webSocketTicketResponseSchema as baseWsTicketSchema,
-} from '@chinwag/shared/contracts/dashboard.js';
+} from '@chinmeister/shared/contracts/dashboard.js';
 
 import {
   type teamMemberSchema,
@@ -22,12 +22,12 @@ import {
   memoryCategorySchema as baseMemoryCategorySchema,
   teamMessageSchema as baseMessageSchema,
   teamSessionSchema as baseSessionSchema,
-} from '@chinwag/shared/contracts/team.js';
+} from '@chinmeister/shared/contracts/team.js';
 
 import {
   toolCatalogEntrySchema as baseToolCatalogEntrySchema,
   toolDirectoryEvaluationSchema as baseToolDirectoryEvaluationSchema,
-} from '@chinwag/shared/contracts/tools.js';
+} from '@chinmeister/shared/contracts/tools.js';
 
 // ── Shared primitives ───────────────────────────────
 
@@ -215,7 +215,7 @@ export type TeamContext = z.infer<typeof teamContextSchema>;
 
 // ── Dashboard summary response ──────────────────────
 
-// Mirrors @chinwag/shared/contracts/dashboard.ts optional fields so server
+// Mirrors @chinmeister/shared/contracts/dashboard.ts optional fields so server
 // omission stays observable (undefined) instead of silently coerced to 0.
 // Passthrough preserves `active_members` — a web-only presentation payload
 // (heartbeat presence with phantom filtering + LIMIT 20) that doesn't belong

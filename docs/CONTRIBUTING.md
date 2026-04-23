@@ -1,6 +1,6 @@
-# Contributing to chinwag
+# Contributing to chinmeister
 
-chinwag is the control layer for agentic development: one command connects your AI coding tools into a unified system with shared memory, live coordination, and conflict prevention. The MCP server is the product. After `npx chinwag init` (or a global install and `chinwag init`), it runs invisibly alongside each agent.
+chinmeister is the control layer for agentic development: one command connects your AI coding tools into a unified system with shared memory, live coordination, and conflict prevention. The MCP server is the product. After `npx chinmeister init` (or a global install and `chinmeister init`), it runs invisibly alongside each agent.
 
 We welcome contributions from everyone. Whether you are fixing a typo, reporting a bug, improving documentation, or building a feature, thank you.
 
@@ -36,8 +36,8 @@ We do not tolerate harassment, personal attacks, or exclusionary behavior. Maint
 ### Clone and install
 
 ```bash
-git clone https://github.com/glendonchin/chinwag.git
-cd chinwag
+git clone https://github.com/glendonchin/chinmeister.git
+cd chinmeister
 npm install
 ```
 
@@ -60,24 +60,24 @@ npm run dev:web
 
 - The worker in local mode
 - The web dashboard in the local profile
-- An isolated local config at `~/.chinwag/local/config.json`
+- An isolated local config at `~/.chinmeister/local/config.json`
 - A local dashboard URL that is safe to use without touching production auth
 
 If you want to run the CLI against the local worker manually:
 
 ```bash
-CHINWAG_PROFILE=local CHINWAG_API_URL=http://localhost:8787 npm run dev:cli
+CHINMEISTER_PROFILE=local CHINMEISTER_API_URL=http://localhost:8787 npm run dev:cli
 ```
 
 If you want to run the web dashboard against the local worker manually:
 
 ```bash
-VITE_CHINWAG_PROFILE=local npm run dev --workspace=packages/web
+VITE_CHINMEISTER_PROFILE=local npm run dev --workspace=packages/web
 ```
 
 ## Project structure
 
-chinwag is a monorepo with five packages:
+chinmeister is a monorepo with five packages:
 
 ```
 packages/
@@ -90,8 +90,8 @@ packages/
   cli/          Node.js terminal UI (Ink/React, optional)
     cli.jsx       Entry point, screen router, error boundary
     lib/
-      init-command.js   chinwag init: account, team, tool detection, config writing
-      add-command.js    chinwag add: adds MCP config, fetches catalog from API
+      init-command.js   chinmeister init: account, team, tool detection, config writing
+      add-command.js    chinmeister add: adds MCP config, fetches catalog from API
       tools.js          CLI re-export of the shared MCP tool registry
       mcp-config.js     Tool detection and config file writing
       dashboard.jsx     Agent activity dashboard
@@ -132,7 +132,7 @@ If you are unsure which package your change belongs in, follow where the behavio
 
 ### Reporting bugs
 
-[Open a bug report](https://github.com/glendonchin/chinwag/issues/new) with:
+[Open a bug report](https://github.com/glendonchin/chinmeister/issues/new) with:
 
 - What you expected to happen
 - What actually happened
@@ -141,7 +141,7 @@ If you are unsure which package your change belongs in, follow where the behavio
 
 ### Suggesting features
 
-[Open a feature request](https://github.com/glendonchin/chinwag/issues/new) with:
+[Open a feature request](https://github.com/glendonchin/chinmeister/issues/new) with:
 
 - The problem you are trying to solve
 - Your proposed solution
@@ -149,7 +149,7 @@ If you are unsure which package your change belongs in, follow where the behavio
 
 ### Your first contribution
 
-Look for issues labeled [`good first issue`](https://github.com/glendonchin/chinwag/labels/good%20first%20issue). These are scoped, well-defined tasks designed to be approachable.
+Look for issues labeled [`good first issue`](https://github.com/glendonchin/chinmeister/labels/good%20first%20issue). These are scoped, well-defined tasks designed to be approachable.
 
 Good first contributions also include:
 
@@ -221,7 +221,7 @@ These versions must not be unified. They target different runtimes, and Ink does
 - Bundled with esbuild to `dist/cli.js`
 - Screen components are in `lib/`. The dashboard is the primary control surface; other screens receive `navigate`, `user`, and `config` props as needed.
 - Colors are mapped in `lib/colors.js`. Use `getInkColor()` for Ink components.
-- Production config lives at `~/.chinwag/config.json`. Local profile config lives at `~/.chinwag/local/config.json`. Use `lib/config.js` helpers; never write directly.
+- Production config lives at `~/.chinmeister/config.json`. Local profile config lives at `~/.chinmeister/local/config.json`. Use `lib/config.js` helpers; never write directly.
 
 **Worker (`packages/worker/`)**
 
@@ -306,7 +306,7 @@ Push new commits to address review feedback (do not force-push over the review).
 
 ### License
 
-chinwag is licensed under the [MIT License](../LICENSE). By contributing, you agree that your contributions will be licensed under the same terms.
+chinmeister is licensed under the [MIT License](../LICENSE). By contributing, you agree that your contributions will be licensed under the same terms.
 
 ### Developer Certificate of Origin
 

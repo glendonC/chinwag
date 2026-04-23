@@ -1,5 +1,5 @@
 // Mock completed report content for the 8 reports. Each one demonstrates
-// the full finding pattern: concrete citations into chinwag's own data and
+// the full finding pattern: concrete citations into chinmeister's own data and
 // (where relevant) the user's codebase, plus actions split across
 // state / export / spawn categories. Findings are deliberately varied in
 // severity and action mix so the skeleton shows the full range of what a

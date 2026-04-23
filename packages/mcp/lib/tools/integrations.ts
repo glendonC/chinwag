@@ -1,7 +1,7 @@
-// chinwag_scan_integrations and chinwag_configure_integration tool handlers.
+// chinmeister_scan_integrations and chinmeister_configure_integration tool handlers.
 
 import * as z from 'zod/v4';
-import { formatIntegrationScanResults } from '@chinwag/shared/integration-doctor.js';
+import { formatIntegrationScanResults } from '@chinmeister/shared/integration-doctor.js';
 import { getErrorMessage } from '../utils/responses.js';
 import { INTEGRATION_ID_MAX_LENGTH } from '../constants.js';
 import type { AddToolFn, ToolDeps } from './types.js';
@@ -34,10 +34,10 @@ export function registerIntegrationTools(
   if (!integrationDoctor) return;
 
   addTool(
-    'chinwag_scan_integrations',
+    'chinmeister_scan_integrations',
     {
       description:
-        'Inspect local Chinwag integration health for supported hosts in this repo. Use this to see which tools are detected, configured, missing setup, or need repair before asking the user to debug settings manually.',
+        'Inspect local Chinmeister integration health for supported hosts in this repo. Use this to see which tools are detected, configured, missing setup, or need repair before asking the user to debug settings manually.',
       inputSchema: scanIntegrationsSchema,
     },
     async (args) => {
@@ -63,10 +63,10 @@ export function registerIntegrationTools(
   );
 
   addTool(
-    'chinwag_configure_integration',
+    'chinmeister_configure_integration',
     {
       description:
-        'Configure Chinwag for a supported host tool in the current repo by writing the required MCP config and related local setup files. Use chinwag_scan_integrations first so you know what needs repair.',
+        'Configure Chinmeister for a supported host tool in the current repo by writing the required MCP config and related local setup files. Use chinmeister_scan_integrations first so you know what needs repair.',
       inputSchema: configureIntegrationSchema,
     },
     async (args) => {

@@ -9,7 +9,7 @@ import { detectRuntimeIdentity, getConfiguredAgentId, generateSessionAgentId } f
 import { resolveAgentIdentity } from './lifecycle.js';
 import { validateConfig } from './auth.js';
 import { createLogger } from './utils/logger.js';
-import type { RuntimeIdentity } from '@chinwag/shared/agent-identity.js';
+import type { RuntimeIdentity } from '@chinmeister/shared/agent-identity.js';
 import type { TeamHandlers } from './team.js';
 
 const log = createLogger('bootstrap');
@@ -50,13 +50,13 @@ export interface BootstrapOptions {
    */
   onMissing?: 'require-all' | 'require-config' | 'optional';
 
-  /** Label for log messages, e.g. 'chinwag' or 'chinwag-channel'. */
+  /** Label for log messages, e.g. 'chinmeister' or 'chinmeister-channel'. */
   logPrefix?: string;
 }
 
 /**
  * Config shape after bootstrap. Uses a loose record type so it works with both
- * ChinwagConfig (from loadConfig) and AuthConfig (from validateConfig, which
+ * ChinmeisterConfig (from loadConfig) and AuthConfig (from validateConfig, which
  * may add refresh_token and other fields after token refresh).
  */
 export type BootstrapConfig = Record<string, unknown> & { token?: string };
@@ -88,7 +88,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
     configMode = 'simple',
     identityMode = 'resolve',
     onMissing = 'require-all',
-    logPrefix = 'chinwag',
+    logPrefix = 'chinmeister',
   } = options;
 
   // 1. Load and validate config
@@ -96,7 +96,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
 
   if (configMode === 'full') {
     // Full validation: checks /me, refreshes expired tokens, exits on failure
-    // loadConfig returns ChinwagConfig which is a subset of AuthConfig; the cast
+    // loadConfig returns ChinmeisterConfig which is a subset of AuthConfig; the cast
     // bridges the index-signature mismatch between the two interfaces.
     const result = await validateConfig({
       configExists,
@@ -121,7 +121,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
   if (!teamId) {
     if (onMissing === 'require-config') {
       // channel.js: missing team is a clean exit, not an error
-      log.info('No .chinwag file — inactive.');
+      log.info('No .chinmeister file — inactive.');
       process.exit(0);
     } else if (onMissing === 'optional') {
       process.exit(0);

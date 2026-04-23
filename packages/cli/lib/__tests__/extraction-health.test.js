@@ -6,7 +6,7 @@ import { join } from 'path';
 function fixtureHome() {
   return join(
     tmpdir(),
-    `chinwag-health-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    `chinmeister-health-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
   );
 }
 
@@ -50,7 +50,7 @@ describe('SpecHealth persistence', () => {
     const health = getToolHealth('claude-code');
     expect(health).not.toBeNull();
     expect(health.attempts).toHaveLength(1);
-    expect(existsSync(join(home, '.chinwag', 'spec-health.json'))).toBe(true);
+    expect(existsSync(join(home, '.chinmeister', 'spec-health.json'))).toBe(true);
   });
 
   it('persisted file is valid JSON (atomic write, no partial data)', async () => {
@@ -66,7 +66,7 @@ describe('SpecHealth persistence', () => {
       error: 'field not found',
     });
 
-    const raw = readFileSync(join(home, '.chinwag', 'spec-health.json'), 'utf-8');
+    const raw = readFileSync(join(home, '.chinmeister', 'spec-health.json'), 'utf-8');
     expect(() => JSON.parse(raw)).not.toThrow();
     const parsed = JSON.parse(raw);
     expect(parsed.tools.codex.attempts[0].error).toBe('field not found');

@@ -4,7 +4,7 @@ import type {
   HourlyBucket,
   UserAnalytics,
 } from '../lib/apiSchemas.js';
-import { getDataCapabilities } from '@chinwag/shared/tool-registry.js';
+import { getDataCapabilities } from '@chinmeister/shared/tool-registry.js';
 
 // ── Work types ────────────────────────────────────
 

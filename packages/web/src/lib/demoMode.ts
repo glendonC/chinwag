@@ -44,7 +44,7 @@ export function setActiveScenarioId(id: DemoScenarioId | null): void {
   if (id == null) url.searchParams.delete(DEMO_PARAM);
   else url.searchParams.set(DEMO_PARAM, id);
   window.history.replaceState({}, '', url.toString());
-  window.dispatchEvent(new Event('chinwag:demo-scenario-changed'));
+  window.dispatchEvent(new Event('chinmeister:demo-scenario-changed'));
 }
 
 /** Whether to surface the DemoSwitcher floating control. On in demo mode

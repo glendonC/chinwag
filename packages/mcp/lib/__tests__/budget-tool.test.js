@@ -9,7 +9,7 @@ vi.mock('../config.js', () => ({
 }));
 
 import { registerBudgetTool } from '../tools/budget.ts';
-import { BUDGET_DEFAULTS } from '@chinwag/shared/budget-config.js';
+import { BUDGET_DEFAULTS } from '@chinmeister/shared/budget-config.js';
 import { loadTeamBudgets } from '../team.js';
 import { loadConfig } from '../config.js';
 
@@ -20,11 +20,11 @@ function makeHarness(initialBudgets = { ...BUDGET_DEFAULTS }) {
     registered.set(name, handler);
   };
   registerBudgetTool(addTool, { state });
-  const handler = registered.get('chinwag_configure_budget');
+  const handler = registered.get('chinmeister_configure_budget');
   return { state, handler };
 }
 
-describe('chinwag_configure_budget', () => {
+describe('chinmeister_configure_budget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     loadTeamBudgets.mockReturnValue(null);

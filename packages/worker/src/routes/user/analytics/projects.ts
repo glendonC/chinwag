@@ -13,7 +13,7 @@
 // denominator semantics, so per-project rates reconcile with the global
 // sparkline's math.
 
-import type { ProjectVelocityRollup } from '@chinwag/shared/contracts/analytics.js';
+import type { ProjectVelocityRollup } from '@chinmeister/shared/contracts/analytics.js';
 import type { TeamResult } from './types.js';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;

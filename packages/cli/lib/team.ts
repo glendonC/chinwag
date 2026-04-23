@@ -1,11 +1,11 @@
 import { basename, join } from 'path';
 import { loadConfig, configExists } from './config.js';
 import { api } from './api.js';
-import { writeFileAtomicSync } from '@chinwag/shared/fs-atomic.js';
+import { writeFileAtomicSync } from '@chinmeister/shared/fs-atomic.js';
 
 export async function handleTeamCommand(subcmd: string | undefined, arg?: string): Promise<void> {
   if (!configExists()) {
-    console.log('Run `npx chinwag` first to create an account.');
+    console.log('Run `npx chinmeister` first to create an account.');
     return;
   }
 
@@ -18,14 +18,14 @@ export async function handleTeamCommand(subcmd: string | undefined, arg?: string
       const result = await client.post<{ team_id: string }>('/teams', { name: projectName });
       const teamId = result.team_id;
 
-      const chinwagFile = join(process.cwd(), '.chinwag');
+      const chinmeisterFile = join(process.cwd(), '.chinmeister');
       writeFileAtomicSync(
-        chinwagFile,
+        chinmeisterFile,
         JSON.stringify({ team: teamId, name: projectName }, null, 2) + '\n',
       );
 
       console.log(`Team created: ${teamId}`);
-      console.log(`Wrote .chinwag to ${chinwagFile}`);
+      console.log(`Wrote .chinmeister to ${chinmeisterFile}`);
       console.log('Commit this file so teammates auto-join.');
     } catch (err: unknown) {
       const status = (err as { status?: number }).status;
@@ -35,21 +35,21 @@ export async function handleTeamCommand(subcmd: string | undefined, arg?: string
     }
   } else if (subcmd === 'join') {
     if (!arg) {
-      console.log('Usage: npx chinwag team join <team-id>');
+      console.log('Usage: npx chinmeister team join <team-id>');
       return;
     }
     try {
       const projectName = basename(process.cwd());
       await client.post(`/teams/${arg}/join`, { name: projectName });
 
-      const chinwagFile = join(process.cwd(), '.chinwag');
+      const chinmeisterFile = join(process.cwd(), '.chinmeister');
       writeFileAtomicSync(
-        chinwagFile,
+        chinmeisterFile,
         JSON.stringify({ team: arg, name: projectName }, null, 2) + '\n',
       );
 
       console.log(`Joined team: ${arg}`);
-      console.log(`Wrote .chinwag to ${chinwagFile}`);
+      console.log(`Wrote .chinmeister to ${chinmeisterFile}`);
     } catch (err: unknown) {
       const status = (err as { status?: number }).status;
       console.log(
@@ -57,6 +57,6 @@ export async function handleTeamCommand(subcmd: string | undefined, arg?: string
       );
     }
   } else {
-    console.log('Usage: npx chinwag team <create|join> [team-id]');
+    console.log('Usage: npx chinmeister team <create|join> [team-id]');
   }
 }

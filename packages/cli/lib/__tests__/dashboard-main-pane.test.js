@@ -164,7 +164,7 @@ async function loadMainPaneModule() {
   vi.doMock('../dashboard/agents.js', () => ({}));
   vi.doMock('../dashboard/composer.js', () => ({}));
   vi.doMock('../dashboard/memory.js', () => ({}));
-  vi.doMock('@chinwag/shared/integration-doctor.js', () => ({}));
+  vi.doMock('@chinmeister/shared/integration-doctor.js', () => ({}));
 
   const mod = await import('../dashboard/main-pane.js');
   const memoryMod = await import('../dashboard/memory-view.js');
@@ -431,7 +431,7 @@ describe('MainPane', () => {
         connDetail: null,
         spinnerFrame: 0,
         cols: 80,
-        projectDisplayName: 'chinwag',
+        projectDisplayName: 'chinmeister',
       },
       allVisibleAgents: [],
       liveAgents: [],
@@ -447,7 +447,7 @@ describe('MainPane', () => {
       onMemorySubmit: vi.fn(),
     });
     const texts = allRenderedText();
-    expect(texts.some((t) => t.includes('chinwag'))).toBe(true);
+    expect(texts.some((t) => t.includes('chinmeister'))).toBe(true);
   });
 
   it('shows tool picker when open', async () => {

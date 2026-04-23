@@ -1,4 +1,4 @@
-// chinwag_report_commits tool handler.
+// chinmeister_report_commits tool handler.
 
 import * as z from 'zod/v4';
 import { withTimeout } from '../utils/responses.js';
@@ -32,7 +32,7 @@ export function registerCommitsTool(
   const { team, state } = deps;
 
   addTool(
-    'chinwag_report_commits',
+    'chinmeister_report_commits',
     {
       description:
         'Report git commits made during your current session. Call this after running git commit to link your commits to this agent session. This enables git attribution analytics — understanding which commits came from which agent sessions, tools, and models.',

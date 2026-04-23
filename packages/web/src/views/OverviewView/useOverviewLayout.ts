@@ -13,12 +13,12 @@ import {
 // grid-axis sizes (colSpan, rowSpan) — no x/y. Rendering is CSS Grid with
 // grid-auto-flow:row, so ordering is the only placement signal.
 
-const STORAGE_KEY = 'chinwag:overview-dashboard';
+const STORAGE_KEY = 'chinmeister:overview-dashboard';
 const STORAGE_VERSION = 3;
 const UNDO_STACK_LIMIT = 25;
 
-const LEGACY_IDS_KEY = 'chinwag:overview-layout';
-const LEGACY_POS_KEY = 'chinwag:overview-positions';
+const LEGACY_IDS_KEY = 'chinmeister:overview-layout';
+const LEGACY_POS_KEY = 'chinmeister:overview-positions';
 
 interface DashboardLayout {
   version: number;

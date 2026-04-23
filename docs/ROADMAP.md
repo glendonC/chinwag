@@ -8,9 +8,9 @@ What is built and what comes next. For product vision, positioning, and differen
 
 ### Connect, Remember, Coordinate
 
-`npx chinwag init` in a project, and every agent session shares a brain with the team.
+`npx chinmeister init` in a project, and every agent session shares a brain with the team.
 
-- **`chinwag init`:** Tool detection via registry, MCP config writing, team creation or join, Claude Code hooks and channel
+- **`chinmeister init`:** Tool detection via registry, MCP config writing, team creation or join, Claude Code hooks and channel
 - **Claude Code deep integration:** PreToolUse conflict blocking, PostToolUse edit tracking, SessionStart context injection, channel push with state diffing
 - **Shared project memory:** Save and get with categories, deduplication, count-based auto-prune (500 per team)
 - **Agent operations dashboard (TUI):** Active agents, file conflicts, recent sessions, team knowledge, 5s polling
@@ -20,7 +20,7 @@ What is built and what comes next. For product vision, positioning, and differen
 ### Tool Integration
 
 - **Tool catalog API** (`GET /tools/catalog`): AI dev tools, served from worker
-- **`chinwag add <tool>`:** One-command MCP config from the CLI
+- **`chinmeister add <tool>`:** One-command MCP config from the CLI
 - **TUI discover screen:** Configured tools, recommendations, category browsing
 
 ### Chat (secondary)
@@ -33,15 +33,15 @@ Membership checks on all team endpoints, team ID entropy, rate limits, input val
 
 ### Landing page and web dashboard
 
-- **chinwag.dev:** Responsive site, Open Graph and Twitter meta, install command
-- **Dashboard** ([chinwag.dev/dashboard](https://chinwag.dev/dashboard)): Authenticated workflow view, embeddable in IDE panels, per-project and cross-project summaries (`GET /me/teams`, `GET /me/dashboard`)
+- **chinmeister.com:** Responsive site, Open Graph and Twitter meta, install command
+- **Dashboard** ([chinmeister.com/dashboard](https://chinmeister.com/dashboard)): Authenticated workflow view, embeddable in IDE panels, per-project and cross-project summaries (`GET /me/teams`, `GET /me/dashboard`)
 
 ### Process management (two-tier agent model)
 
 Managed CLI agents with full lifecycle control, connected IDE agents with coordination only.
 
 - **`lib/process-manager.js`:** Spawn CLI agents via node-pty, track PIDs, kill/restart
-- **`chinwag run "task description"`:** Spawn a managed agent with a task from CLI
+- **`chinmeister run "task description"`:** Spawn a managed agent with a task from CLI
 - **`[n]` new agent flow in TUI dashboard:** Pick tool, enter task, spawn
 - **`[x]` stop on managed agents in dashboard**
 - **Managed vs connected agent distinction:** Agent type, spawn source, PID tracking
@@ -75,8 +75,8 @@ The core works. Before adding surface area, make it bulletproof.
 - [x] Replace polling with WebSocket push (channel and dashboard receive real-time delta events from TeamDO; HTTP polling retained as fallback and reconciliation safety net)
 - [ ] CORS origin checking (currently `*`; tighten when dashboard auth hardens)
 - [ ] Tool usage telemetry: record which tools users configure to prioritize integrations
-- [ ] Publish `chinwag` CLI and `chinwag-mcp` packages to npm
-- [ ] End-to-end test: `npm install -g chinwag` → `npx chinwag init` → agent connection
+- [ ] Publish `chinmeister` CLI and `chinmeister-mcp` packages to npm
+- [ ] End-to-end test: `npm install -g chinmeister` → `npx chinmeister init` → agent connection
 
 ### Phase 2 — Workflow Intelligence: from data to action
 
@@ -110,7 +110,7 @@ The analytics backbone is shipped. Now close the loop — insights should drive 
 - [ ] Hook-based pause/resume for Claude Code agents (PreToolUse hook returns pause signal)
 - [ ] Advisory stop signals for connected IDE agents (message via MCP context that agents read and follow)
 - [ ] Agent output streaming in TUI (split pane or dedicated view for managed agent stdout)
-- [ ] `chinwag spawn` for headless/background agents (no terminal needed, output logged)
+- [ ] `chinmeister spawn` for headless/background agents (no terminal needed, output logged)
 - [ ] `node-pty` capture for web-spawned managed agents (replace detached stdio:ignore spawn with terminal capture)
 
 ---
@@ -125,4 +125,4 @@ Revisit once intelligence foundation is solid and adoption signals are clear.
 
 ## Non-goals
 
-See [VISION.md](VISION.md#what-chinwag-is-not).
+See [VISION.md](VISION.md#what-chinmeister-is-not).

@@ -65,7 +65,7 @@ vi.mock('../../dist/diff-state.js', () => ({
   diffState: vi.fn().mockReturnValue([]),
 }));
 
-vi.mock('@chinwag/shared/session-registry.js', () => ({
+vi.mock('@chinmeister/shared/session-registry.js', () => ({
   isProcessAlive: vi.fn().mockReturnValue(true),
   pingAgentTerminal: vi.fn(),
 }));
@@ -165,7 +165,7 @@ describe('channel.js entry point coverage', () => {
     await new Promise((r) => setTimeout(r, 50));
 
     expect(exitSpy).toHaveBeenCalledWith(0);
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No .chinwag file'));
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No .chinmeister file'));
   });
 
   it('exits 0 when host does not support channel capability', async () => {

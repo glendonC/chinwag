@@ -1,16 +1,16 @@
 import { execFileSync } from 'child_process';
 import { existsSync, readFileSync, unlinkSync } from 'fs';
-import { writeFileAtomicSync } from '@chinwag/shared/fs-atomic.js';
+import { writeFileAtomicSync } from '@chinmeister/shared/fs-atomic.js';
 import { join } from 'path';
 import { homedir } from 'os';
-import { safeAgentId, isProcessAlive } from '@chinwag/shared/session-registry.js';
+import { safeAgentId, isProcessAlive } from '@chinmeister/shared/session-registry.js';
 import { escapeAppleScriptString } from './utils/shell.js';
-import { formatError, createLogger } from '@chinwag/shared';
-import { EXEC_TIMEOUT_MS, KILL_GRACE_MS } from '@chinwag/shared/constants.js';
+import { formatError, createLogger } from '@chinmeister/shared';
+import { EXEC_TIMEOUT_MS, KILL_GRACE_MS } from '@chinmeister/shared/constants.js';
 
 const log = createLogger('terminal-spawner');
 
-const PIDS_DIR = join(homedir(), '.chinwag', 'pids');
+const PIDS_DIR = join(homedir(), '.chinmeister', 'pids');
 
 // ── Terminal environment detection ────────────────────
 // Detects terminal CAPABILITY, not brand. Grouped by how we spawn into them.
@@ -110,8 +110,8 @@ export function buildTerminalCommand(launch: TerminalLaunch): string {
   // Wrap in a function so the setup commands are hidden from the user.
   // They see "clear" then the tool starts cleanly.
   const setup = [
-    `export CHINWAG_TOOL=${shellQuote(toolId)}`,
-    `export CHINWAG_AGENT_ID=${shellQuote(agentId)}`,
+    `export CHINMEISTER_TOOL=${shellQuote(toolId)}`,
+    `export CHINMEISTER_AGENT_ID=${shellQuote(agentId)}`,
     `mkdir -p ${shellQuote(PIDS_DIR)}`,
     `echo $$ > ${shellQuote(join(PIDS_DIR, `${safe}.pid`))}`,
   ];
@@ -139,15 +139,15 @@ function spawnInTmux(shellCommand: string, cwd?: string): SpawnResult {
 }
 
 function spawnInIdeTerminal(shellCommand: string, cwd?: string, toolName?: string): SpawnResult {
-  // Write a launch request that the chinwag VS Code/Cursor extension picks up.
-  // The extension watches ~/.chinwag/launch-queue.json and creates an integrated terminal.
-  const launchQueuePath = join(homedir(), '.chinwag', 'launch-queue.json');
+  // Write a launch request that the chinmeister VS Code/Cursor extension picks up.
+  // The extension watches ~/.chinmeister/launch-queue.json and creates an integrated terminal.
+  const launchQueuePath = join(homedir(), '.chinmeister', 'launch-queue.json');
   try {
     writeFileAtomicSync(
       launchQueuePath,
       JSON.stringify({
         command: shellCommand,
-        name: toolName || 'chinwag agent',
+        name: toolName || 'chinmeister agent',
         cwd: cwd || process.cwd(),
       }),
     );

@@ -6,18 +6,18 @@ import {
 } from '../lifecycle.js';
 
 // Mock isProcessAlive since it's used by the parent watcher
-vi.mock('@chinwag/shared/session-registry.js', () => ({
+vi.mock('@chinmeister/shared/session-registry.js', () => ({
   deleteSessionRecord: vi.fn(),
   getCurrentTtyPath: vi.fn().mockReturnValue(null),
   isProcessAlive: vi.fn().mockReturnValue(true),
   resolveSessionAgentId: vi.fn(({ fallbackAgentId }) => fallbackAgentId),
-  SESSION_COMMAND_MARKER: 'chinwag-mcp',
+  SESSION_COMMAND_MARKER: 'chinmeister-mcp',
   writeSessionRecord: vi.fn(),
   setTerminalTitle: vi.fn(),
   pingAgentTerminal: vi.fn(),
 }));
 
-import { isProcessAlive } from '@chinwag/shared/session-registry.js';
+import { isProcessAlive } from '@chinmeister/shared/session-registry.js';
 
 describe('setupShutdownHandlers', () => {
   let team, state, onDisconnectWs;

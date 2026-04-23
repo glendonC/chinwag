@@ -6,7 +6,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { AgentInfo } from '../../process-manager.js';
 import type { ManagedTool, ManagedToolState } from '../../managed-agents.js';
 import type { CombinedAgentRow } from '../view.js';
-import type { ChinwagConfig } from '../../config.js';
+import type { ChinmeisterConfig } from '../../config.js';
 import type { NoticeTone } from '../reducer.js';
 
 import { useManagedAgents } from './useManagedAgents.js';
@@ -16,7 +16,7 @@ import { useAgentSpawning } from './useAgentSpawning.js';
 import { useAgentActions } from './useAgentActions.js';
 
 interface UseAgentLifecycleParams {
-  config: ChinwagConfig | null;
+  config: ChinmeisterConfig | null;
   teamId: string | null;
   projectRoot: string;
   stdout: { columns?: number; rows?: number } | null;

@@ -1,7 +1,10 @@
 // Team analytics: member-level analytics.
 
 import { createLogger } from '../../../lib/logger.js';
-import type { MemberAnalytics, MemberDailyLineTrend } from '@chinwag/shared/contracts/analytics.js';
+import type {
+  MemberAnalytics,
+  MemberDailyLineTrend,
+} from '@chinmeister/shared/contracts/analytics.js';
 
 const log = createLogger('TeamDO.analytics');
 

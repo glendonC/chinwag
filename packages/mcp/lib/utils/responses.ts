@@ -1,7 +1,7 @@
 // Standard MCP tool response builders and error extraction helpers.
 // Centralizes the response shape so tool handlers stay focused on logic.
 
-import { formatError, getHttpStatus } from '@chinwag/shared/error-utils.js';
+import { formatError, getHttpStatus } from '@chinmeister/shared/error-utils.js';
 
 export { getHttpStatus };
 
@@ -47,7 +47,7 @@ export function noTeam(context?: {
     };
   }
   return {
-    content: [{ type: 'text', text: 'Not in a team. Join one first with chinwag_join_team.' }],
+    content: [{ type: 'text', text: 'Not in a team. Join one first with chinmeister_join_team.' }],
     isError: true,
   };
 }

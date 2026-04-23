@@ -49,7 +49,7 @@ export function DashboardGuards({
         </Text>
         <Text>{''}</Text>
         <Text dimColor>
-          {error.includes('chinwag init')
+          {error.includes('chinmeister init')
             ? 'Set up this project first, then relaunch.'
             : error.includes('expired')
               ? 'Your auth token is no longer valid.'
@@ -57,7 +57,7 @@ export function DashboardGuards({
         </Text>
         <HintRow
           hints={[
-            ...(error.includes('expired') || error.includes('.chinwag')
+            ...(error.includes('expired') || error.includes('.chinmeister')
               ? []
               : [{ commandKey: 'r', label: 'retry', color: 'cyan' }]),
             { commandKey: 'q', label: 'quit', color: 'gray' },

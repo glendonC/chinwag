@@ -6,7 +6,7 @@ import type {
   ToolDailyTrend,
   DurationBucket,
   EditVelocityTrend,
-} from '@chinwag/shared/contracts/analytics.js';
+} from '@chinmeister/shared/contracts/analytics.js';
 
 const log = createLogger('TeamDO.analytics');
 

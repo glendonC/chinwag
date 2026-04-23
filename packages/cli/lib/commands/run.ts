@@ -21,12 +21,12 @@ import {
 } from '../launcher-preferences.js';
 import { getProjectContext } from '../project.js';
 import { hasError } from '../utils/type-guards.js';
-import { formatError, createLogger } from '@chinwag/shared';
+import { formatError, createLogger } from '@chinmeister/shared';
 
 const log = createLogger('run');
 
 function printUsage(): void {
-  process.stderr.write('Usage: chinwag run [--tool <tool-id>] "task description"\n');
+  process.stderr.write('Usage: chinmeister run [--tool <tool-id>] "task description"\n');
 }
 
 function printAvailableTools(tools: ManagedTool[]): void {
@@ -107,19 +107,21 @@ export async function runManagedAgentCommand(argv: string[] = []): Promise<numbe
   }
 
   if (!configExists()) {
-    process.stderr.write('No config found. Run `npx chinwag init` first.\n');
+    process.stderr.write('No config found. Run `npx chinmeister init` first.\n');
     return 1;
   }
 
   const config = loadConfig();
   if (!config?.token) {
-    process.stderr.write('Invalid config. Run `npx chinwag init` again.\n');
+    process.stderr.write('Invalid config. Run `npx chinmeister init` again.\n');
     return 1;
   }
 
   const project = getProjectContext(process.cwd());
   if (!project) {
-    process.stderr.write('No .chinwag file found. Run `npx chinwag init` in this project first.\n');
+    process.stderr.write(
+      'No .chinmeister file found. Run `npx chinmeister init` in this project first.\n',
+    );
     return 1;
   }
   if (hasError(project)) {

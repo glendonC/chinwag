@@ -1,7 +1,7 @@
 /**
  * CLI-specific API response types.
  *
- * Types that already exist in @chinwag/shared/contracts.js are imported there.
+ * Types that already exist in @chinmeister/shared/contracts.js are imported there.
  * This file covers responses used only by the CLI that aren't in the shared contracts.
  */
 

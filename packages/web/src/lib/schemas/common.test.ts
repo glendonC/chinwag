@@ -67,7 +67,7 @@ describe('dashboardSummarySchema', () => {
     const parsed = dashboardSummarySchema.parse({
       teams: [
         validSummary({
-          team_name: 'chinwag',
+          team_name: 'chinmeister',
           conflict_count: 2,
           total_members: 7,
           live_sessions: 3,
@@ -77,7 +77,7 @@ describe('dashboardSummarySchema', () => {
       ],
     });
     const t = parsed.teams[0];
-    expect(t.team_name).toBe('chinwag');
+    expect(t.team_name).toBe('chinmeister');
     expect(t.conflict_count).toBe(2);
     expect(t.total_members).toBe(7);
     expect(t.live_sessions).toBe(3);

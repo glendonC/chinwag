@@ -63,7 +63,7 @@ export function registerTools(server: McpServer, deps: ToolDeps): void {
 export function registerResources(server: McpServer, profile: EnvironmentProfile): void {
   server.resource(
     'profile',
-    'chinwag://profile',
+    'chinmeister://profile',
     {
       description:
         'Your agent profile -- languages, frameworks, tools detected from your environment.',
@@ -72,7 +72,7 @@ export function registerResources(server: McpServer, profile: EnvironmentProfile
     async () => ({
       contents: [
         {
-          uri: 'chinwag://profile',
+          uri: 'chinmeister://profile',
           mimeType: 'application/json',
           text: JSON.stringify(profile, null, 2),
         },

@@ -7,8 +7,8 @@ import {
   type SessionRecordInput,
   writeCompletedSession,
   writeSessionRecord,
-} from '@chinwag/shared/session-registry.js';
-import { BUDGET_DEFAULTS, type BudgetConfig } from '@chinwag/shared/budget-config.js';
+} from '@chinmeister/shared/session-registry.js';
+import { BUDGET_DEFAULTS, type BudgetConfig } from '@chinmeister/shared/budget-config.js';
 import { generateAgentId, getConfiguredAgentId } from './identity.js';
 import { createLogger } from './utils/logger.js';
 import { getErrorMessage } from './utils/responses.js';
@@ -123,8 +123,8 @@ export interface McpState {
   toolCalls: Array<{ tool: string; at: number }>;
   /**
    * Resolved context-budget for the session.
-   * Populated at bootstrap from team `.chinwag` and user `~/.chinwag/config.json`.
-   * Mutated by `chinwag_configure_budget` for runtime overrides.
+   * Populated at bootstrap from team `.chinmeister` and user `~/.chinmeister/config.json`.
+   * Mutated by `chinmeister_configure_budget` for runtime overrides.
    */
   budgets: BudgetConfig;
 }

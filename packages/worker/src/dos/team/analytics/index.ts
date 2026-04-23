@@ -28,7 +28,7 @@
  * compile time until they're wired.
  */
 
-import type { UserAnalytics } from '@chinwag/shared/contracts/analytics.js';
+import type { UserAnalytics } from '@chinmeister/shared/contracts/analytics.js';
 
 import { getAnalytics } from './core.js';
 import {

@@ -79,7 +79,7 @@ describe('dashboard view helpers', () => {
         { id: 'cursor', name: 'Cursor' },
       ],
       memoryFilter: 'decision',
-      projectDir: 'chinwag',
+      projectDir: 'chinmeister',
       context: {
         members: [
           {
@@ -120,7 +120,7 @@ describe('dashboard view helpers', () => {
       { id: 'm1', tags: ['decision'], text: 'Use TeamDO for coordination' },
     ]);
     expect(view.showRecent).toBe(false);
-    expect(view.projectDir).toBe('chinwag');
+    expect(view.projectDir).toBe('chinmeister');
   });
 
   it('merges managed agents with matching backend sessions', () => {

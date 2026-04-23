@@ -190,7 +190,7 @@ describe('DashboardGuards', () => {
       const { DashboardGuards } = await loadGuardsModule();
       const result = DashboardGuards({
         cols: 80,
-        error: 'Run chinwag init to set up this project',
+        error: 'Run chinmeister init to set up this project',
         context: null,
         connState: 'error',
         connDetail: null,

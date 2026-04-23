@@ -20,7 +20,7 @@ describe('session-registry write paths (real fs)', () => {
   let homeDir: string;
 
   beforeEach(() => {
-    homeDir = join(tmpdir(), `chinwag-session-${process.pid}-${Date.now()}`);
+    homeDir = join(tmpdir(), `chinmeister-session-${process.pid}-${Date.now()}`);
   });
 
   afterEach(() => {
@@ -55,7 +55,7 @@ describe('session-registry write paths (real fs)', () => {
         { pid: 1, tool: 'test', cwd: '/', tty: null },
         { homeDir },
       );
-      expect(path).toBe(join(homeDir, '.chinwag', 'sessions', 'agent-1.json'));
+      expect(path).toBe(join(homeDir, '.chinmeister', 'sessions', 'agent-1.json'));
     });
 
     it('preserves optional fields like createdAt and commandMarker', () => {
@@ -67,13 +67,13 @@ describe('session-registry write paths (real fs)', () => {
           cwd: '/',
           tty: null,
           createdAt: 12345,
-          commandMarker: 'chinwag-mcp',
+          commandMarker: 'chinmeister-mcp',
         },
         { homeDir },
       );
       const written = JSON.parse(readFileSync(path, 'utf-8').trim());
       expect(written.createdAt).toBe(12345);
-      expect(written.commandMarker).toBe('chinwag-mcp');
+      expect(written.commandMarker).toBe('chinmeister-mcp');
     });
 
     it('includes a trailing newline so the file is line-oriented', () => {
@@ -88,7 +88,7 @@ describe('session-registry write paths (real fs)', () => {
     it('creates the sessions directory with 0o700 permissions', () => {
       writeSessionRecord('agent', { pid: 1, tool: 'test', cwd: '/', tty: null }, { homeDir });
       if (process.platform !== 'win32') {
-        const mode = statSync(join(homeDir, '.chinwag', 'sessions')).mode & 0o777;
+        const mode = statSync(join(homeDir, '.chinmeister', 'sessions')).mode & 0o777;
         expect(mode).toBe(0o700);
       }
     });

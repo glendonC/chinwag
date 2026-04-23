@@ -11,10 +11,10 @@ import type { UseIntegrationDoctorReturn } from './integrations.js';
 import type { UseComposerReturn } from './composer.js';
 import type { UseMemoryManagerReturn } from './memory.js';
 import type { CommandSuggestion } from './context.jsx';
-import type { ChinwagConfig } from '../config.js';
+import type { ChinmeisterConfig } from '../config.js';
 
 interface DashboardHandlerParams {
-  config: ChinwagConfig | null;
+  config: ChinmeisterConfig | null;
   state: DashboardState;
   dispatch: Dispatch<DashboardAction>;
   flash: (msg: string, opts?: { tone?: NoticeTone; autoClearMs?: number }) => void;

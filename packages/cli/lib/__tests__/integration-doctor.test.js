@@ -5,17 +5,17 @@ import path from 'node:path';
 import {
   configureHostIntegration,
   scanHostIntegrations,
-} from '@chinwag/shared/integration-doctor.js';
+} from '@chinmeister/shared/integration-doctor.js';
 import {
   AGENT_SURFACES,
   HOST_INTEGRATIONS,
   buildAgentSurfaceCatalogEntries,
-} from '@chinwag/shared/integration-model.js';
+} from '@chinmeister/shared/integration-model.js';
 
 let tmpDir;
 
 beforeEach(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chinwag-integration-'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chinmeister-integration-'));
 });
 
 afterEach(() => {
@@ -71,7 +71,7 @@ describe('shared integration doctor', () => {
       fs.readFileSync(path.join(tmpDir, '.claude', 'settings.json'), 'utf-8'),
     );
     expect(content.hooks.SessionStart[0].hooks[0].command).toBe(
-      'npx -y chinwag hook session-start',
+      'npx -y chinmeister hook session-start',
     );
   });
 });

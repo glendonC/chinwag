@@ -1,4 +1,4 @@
-// chinwag_join_team tool handler.
+// chinmeister_join_team tool handler.
 
 import { basename } from 'path';
 import * as z from 'zod/v4';
@@ -31,7 +31,7 @@ const joinTeamSchema = z.object({
     .string()
     .max(TEAM_ID_MAX_LENGTH)
     .regex(/^[a-zA-Z0-9_-]+$/)
-    .describe('Team ID (e.g., t_a7x9k2m). Found in the .chinwag file at the repo root.'),
+    .describe('Team ID (e.g., t_a7x9k2m). Found in the .chinmeister file at the repo root.'),
 });
 type JoinTeamArgs = z.infer<typeof joinTeamSchema>;
 
@@ -40,10 +40,10 @@ export function registerTeamTool(
   { team, state, profile }: Pick<ToolDeps, 'team' | 'state' | 'profile'>,
 ): void {
   addTool(
-    'chinwag_join_team',
+    'chinmeister_join_team',
     {
       description:
-        'Join a chinwag team for multi-agent coordination. Agents on the same team can see what each other is working on and detect file conflicts before they happen.',
+        'Join a chinmeister team for multi-agent coordination. Agents on the same team can see what each other is working on and detect file conflicts before they happen.',
       inputSchema: joinTeamSchema,
     },
     async (args) => {

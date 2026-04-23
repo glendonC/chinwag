@@ -5,7 +5,7 @@ export function createHeaderUi({
   mobileUtilityToggle,
   mobileUtilityBackdrop,
 }) {
-  const selectedCommand = commandEl?.textContent?.trim() || 'npx chinwag init';
+  const selectedCommand = commandEl?.textContent?.trim() || 'npx chinmeister init';
 
   function setMobileUtilityOpen(isOpen) {
     if (!floatingUi) {
