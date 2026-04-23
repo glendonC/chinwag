@@ -82,10 +82,32 @@ The core works. Before adding surface area, make it bulletproof.
 
 The analytics backbone is shipped. Now close the loop — insights should drive actions, not just display numbers.
 
+**Reports surface (the chassis for the action layer):**
+
+- [ ] Foundational reports — `Failures` (where agents keep failing and why), `Collisions` (where agents step on each other and where tool handoffs break), `Project Primer` (what a new person needs to know about this project's AI workflow). Scheduled cadences plus run-on-demand. Observability only; no remediation actions yet.
+- [ ] Report runner: scheduled execution via Cloudflare Workers cron, results persisted per team in TeamDO, findings surfaced in `ReportsView`.
+- [ ] Custom reports: user-composed pipelines over the same infrastructure (`kind: 'custom'` is already reserved in the catalog).
+
+**Autopilot (remediation on top of the Reports chassis):**
+
+After the foundational reports ship, the same pipeline gains one-click `state`/`export`/`spawn` actions (see ARCHITECTURE.md § From insights to actions). Priority-ordered:
+
+- [ ] Memory Hygiene — prune stale memories, promote frequently-hit ones. First Autopilot report.
+- [ ] Doc Drift — files changed across tools without doc updates. `spawn` drafts doc updates via the user's agent.
+- [ ] Test Gap (failure-weighted) — prioritize by failure rate, not coverage percentage.
+- [ ] Retry Hotspot — files agents retry on. `spawn` refactors or writes a memory.
+- [ ] Dead Code — files no agent has touched in 90 days.
+
 **Agent-level:**
 
 - [ ] Session detail view: click into any session to see conversation, edit timeline, files, outcome, cost
 - [ ] Git attribution: link commits to agent sessions by correlating `git log --since` with session windows
+
+**Project-level:**
+
+- [ ] Project lenses: security, test, architecture, documentation views with action buttons (the repo-axis surface — one view per `.chinmeister`)
+- [ ] Memory gaps: directories with activity but no relevant memories
+- [ ] Memory stale: pruning candidates surfaced as one-click `state` actions
 
 **Developer-level:**
 
@@ -102,7 +124,6 @@ The analytics backbone is shipped. Now close the loop — insights should drive 
 **Cross-cutting:**
 
 - [ ] Actionable insights: every analytics section connects to something you can do — spawn an agent, switch a model, prune stale memories
-- [ ] Project lenses: security, test, architecture, documentation views with action buttons
 - [ ] Proactive alerts: threshold-based notifications for metric changes
 
 ### Phase 3 — Advanced control
@@ -121,7 +142,7 @@ Revisit once intelligence foundation is solid and adoption signals are clear.
 
 - **Multi-project memory:** User-level preferences and patterns that span projects
 - **Deeper tool hooks:** As tools beyond Claude Code add hook-like capabilities, deepen integration and analytics coverage
-- **Weekly digest:** Auto-generated summary of key metrics, changes, and recommendations — delivered as an MCP tool response or notification
+- **Async management — notifications and digests:** The horizon beyond Phase 2. Push notifications (APNs / web push / email) for session anomalies, conflict alerts, and report findings. Scheduled daily/weekly digests of personal and team agentic-dev performance. Preferences and push tokens live per-user in DatabaseDO; fan-out is a new router subscribing to TeamDO broadcast events. See ARCHITECTURE.md § Notifications and digests (planned) for the reserved architecture.
 
 ## Non-goals
 

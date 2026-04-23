@@ -32,6 +32,8 @@ Cross-vendor, cross-developer, real-time agent coordination.
 - **File locking and activity tracking.** Claim files, report activity, detect conflicts.
 - **Cross-machine coordination.** Works across developers on different machines through the shared backend.
 
+Coordination and the workflow intelligence below are not two products. The same session record that powers conflict detection is the atomic unit of analytics, and the same Reports surface that surfaces an insight fires the action that closes the loop back to the agent.
+
 ### Workflow Intelligence
 
 Four levels of visibility into how you develop with AI — from individual agent sessions to a single codebase to your personal workflow to your entire team.
@@ -43,6 +45,12 @@ Four levels of visibility into how you develop with AI — from individual agent
 **Developer-level: your personal AI performance.** Your workflow across all projects and tools in one view. Are your sessions improving over time? Which tools and models work best for which types of work? Where does your codebase need attention? chinmeister gives you a feedback loop that individual tools can't — because it sees across all of them.
 
 **Team-level: manage your team's AI workflow.** See how your team develops with AI. Per-member performance, agent utilization across the team, coordination health, shared knowledge lifecycle. Understand where the team is effective and where agents struggle — not as surveillance, but as the same kind of visibility any engineering team has into their development process.
+
+Intelligence connects to action. Every finding surfaced in chinmeister carries a one-click remediation: `state` (chinmeister mutates its own data — prune a memory, add a routing rule), `export` (chinmeister drafts a file or PR body for review), or `spawn` (chinmeister hands a pre-loaded context to your agent, which executes in your environment). The dashboard is a cockpit, not a display.
+
+### The horizon: async awareness
+
+Today, you see workflow intelligence by opening a dashboard. The next step is for the dashboard to find you. Push notifications for session anomalies and report findings. Scheduled digests of personal and team agentic-dev performance, delivered on your phone — so you know how your agents did overnight without having to go look, and so team leads can feel the shape of their team's AI workflow without staring at graphs. Same data, same Reports surface, different delivery.
 
 ## How it works
 

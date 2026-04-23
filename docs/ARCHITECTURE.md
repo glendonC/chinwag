@@ -35,17 +35,24 @@ flowchart TB
     TE[TeamDO]
     DB[DatabaseDO]
     LO[LobbyDO / RoomDO]
+    RPT[Reports runner<br/>cron + findings]
     KV[(KV: token lookups)]
     MCP -->|HTTPS| W
     W --> TE
     W --> DB
     W --> LO
     W --> KV
+    TE --> RPT
+    RPT -->|spawn action| MCP
+    RPT -.->|notification fan-out planned| DB
   end
 
   H[Web dashboard]
   H -.->|optional| W
+  H -->|approve action| RPT
 ```
+
+The dashed arrow back from the Reports runner to MCP is the closed loop: a finding surfaces in the Reports surface, the user approves a `spawn` action in the dashboard, the Reports runner pushes a pre-loaded context to the user's MCP server, and the agent executes in the user's environment. Notification fan-out (planned) consumes the same finding stream and dispatches via per-user preferences in DatabaseDO — see `### Notifications and digests (planned)` below.
 
 <details>
 <summary>Plain-text diagram (same idea)</summary>
@@ -385,6 +392,47 @@ chinmeister captures session-level data that powers workflow analytics and long-
 5. **Conversation intelligence (managed agents).** After a managed session ends, chinmeister parses the agent's conversation logs and uploads normalized events — user and assistant messages with sequence, timestamps, and character counts. The backend stores these in `conversation_events` and runs analytics: sentiment distribution, topic classification, message length trends, and crucially, correlation between conversation patterns and session outcomes. Tool-specific parsers (isolated behind a generic `ConversationEvent[]` interface) handle each tool's log format; the analytics layer is tool-agnostic.
 6. **Integration depth determines data richness.** Hook-enabled tools provide granular, automatic data on every edit. MCP-only tools provide coordination data and voluntary reporting. Managed tools get the deepest tier: conversation-level analytics. The intelligence layer works with all, surfacing richer insights where richer data is available.
 
+### Analytics Extraction Architecture
+
+The data extraction layer itself is intelligent, not just the data it produces. Static hand-written parsers rot within months as tools update their formats — so extraction is a six-layer stack, each independently useful, each making the next layer less critical over time.
+
+Each tool is described by a `DataCapabilities` record (see `packages/shared/`) that names what it can report:
+
+```ts
+interface DataCapabilities {
+  conversationLogs?: boolean;
+  tokenUsage?: boolean;
+  toolCallLogs?: boolean;
+  costSource?: 'derived' | 'litellm' | 'credits' | null;
+  tokenFormat?: 'anthropic' | 'openai' | null;
+  hooks?: boolean;
+  commitTracking?: boolean;
+}
+```
+
+**Token normalization** accounts for incompatible semantics between providers. Anthropic reports cached tokens _additively_ (total_input = input + cache_read + cache_creation). OpenAI reports them _nested_ (input_tokens includes cached_input_tokens; non-cached = input − cached). Aider uses litellm, which is opaque and pre-calculates cost. The canonical `NormalizedTokens` schema ({input, output, cache_read, cache_creation}) is what all downstream analytics assume.
+
+**The six layers:**
+
+1. **Unified Hook Protocol** (real-time, highest reliability). Claude Code (26+ events), Cursor (19+ events), and Windsurf (12 events) all have hooks with near-identical naming. One unified handler normalizes across them. Captures edits, tool calls, commits, and conflict checks.
+2. **Declarative Spec Engine** (post-session log parsing, self-healing). JSON specs describe _what_ to extract; a generic engine handles _how_. Adding a new tool is writing a spec file, not TypeScript. Specs live in `packages/cli/lib/extraction/specs/`. Handles conversation logs, tokens, and tool calls for tools without hook-level access (Codex, Aider, Cline).
+3. **MCP Session Metadata** (universal baseline, all tools). Every MCP-connected tool automatically reports session start/end, duration, model, edits, conflicts, memories, outcome. This is the floor — a tool with zero hooks and zero logs still gets the ~17 tool-agnostic widgets.
+4. **Health Monitor + AI-Assisted Healing** (prevents rot). Per-spec extraction health is tracked. If a format change drops extraction below threshold, an LLM re-discovers the spec using a maker-checker pattern (two independent calls must agree), validates against samples, and hot-swaps if validation passes. Escalates unknown failures rather than deploying bad specs.
+5. **Optional MCP Telemetry Tools** (bonus capture). Cooperative agents can voluntarily call `chinmeister_record_tokens`/`chinmeister_record_tool_call`. Captures 10-30% of sessions for tools without hooks or logs. Zero downside.
+6. **Native OTLP Consumption** (Claude Code, planned). Claude Code emits OpenTelemetry when `CLAUDE_CODE_ENABLE_TELEMETRY=1`. Direct consumption is the highest-leverage single integration for Claude Code power users.
+
+**The composability principle:** no single layer covers everything. But together, they cover every tool at its maximum capability — and as tools add hooks or structured logs, coverage improves by writing one JSON spec or registering one hook handler. No widget code changes, no schema migrations.
+
+### From insights to actions
+
+Workflow intelligence isn't passive. Every finding surfaced in the Reports surface carries an action — a one-click remediation classified as:
+
+- **`state`** — chinmeister mutates its own data (prune a memory, add a routing rule). Runs on the backend, no agent required.
+- **`export`** — chinmeister drafts a file or PR body for the user to review. No repo writes.
+- **`spawn`** — chinmeister hands a pre-loaded context to the user's trusted agent (Claude Code, Cursor, Codex, etc.) via MCP. The agent executes in the user's environment with their existing credits; chinmeister's backend never writes to user repos.
+
+This split keeps the cost model honest (subscription covers analysis, user's existing AI-vendor bill covers remediation), keeps security clean (chinmeister proposes; the user's trusted agent executes), and gives chinmeister the scheduling superpower — reports can run on cron while the user is offline.
+
 ### Chat (Secondary)
 
 Chat is available but secondary to the agent coordination focus. It exists because the infrastructure supports it, not because it's core to the product.
@@ -460,6 +508,17 @@ Applies to chat messages and status text. Two layers:
 ### Error Handling
 
 Workers return structured JSON errors: `{error: "message"}` with appropriate HTTP status codes. The CLI and MCP server display error messages. No stack traces leak to clients.
+
+### Notifications and digests (planned)
+
+The next horizon for workflow intelligence is async management — push notifications and daily/weekly digests of session and team performance, so developers can stay aware of their agents without staring at a dashboard. Reserving the architecture now so future additions don't bend the existing invariants:
+
+- **Storage.** Notification preferences and push tokens live in **DatabaseDO**, not TeamDO. They are per-user and cross-team, which matches DatabaseDO's existing ownership of user records, sessions, and developer metrics.
+- **Trigger surface.** Reports findings and threshold-based anomaly rules are the primary triggers. A notification router (new module) subscribes to TeamDO broadcast events, filters by per-user preferences pulled from DatabaseDO, and dispatches to the user's configured channels.
+- **Scheduling.** The existing Cloudflare Workers cron (already used by the Reports runner) schedules digest generation; output flows through the same notification router.
+- **Mobile.** "Mobile" means push-via-existing-channels (APNs / web push / email) from the existing three surfaces. It does **not** mean a fourth native surface — the "three surfaces, one backend" invariant holds. A native mobile app is explicitly not planned.
+
+This subsection is a placeholder, not a design. Concrete spec lands when the first foundational Reports ship and give us real findings to notify against.
 
 ## Technology Choices
 
