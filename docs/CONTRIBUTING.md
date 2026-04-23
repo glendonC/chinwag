@@ -36,7 +36,7 @@ We do not tolerate harassment, personal attacks, or exclusionary behavior. Maint
 ### Clone and install
 
 ```bash
-git clone https://github.com/glendonchin/chinmeister.git
+git clone https://github.com/glendonC/chinmeister.git
 cd chinmeister
 npm install
 ```
@@ -132,7 +132,7 @@ If you are unsure which package your change belongs in, follow where the behavio
 
 ### Reporting bugs
 
-[Open a bug report](https://github.com/glendonchin/chinmeister/issues/new) with:
+[Open a bug report](https://github.com/glendonC/chinmeister/issues/new) with:
 
 - What you expected to happen
 - What actually happened
@@ -141,7 +141,7 @@ If you are unsure which package your change belongs in, follow where the behavio
 
 ### Suggesting features
 
-[Open a feature request](https://github.com/glendonchin/chinmeister/issues/new) with:
+[Open a feature request](https://github.com/glendonC/chinmeister/issues/new) with:
 
 - The problem you are trying to solve
 - Your proposed solution
@@ -149,7 +149,7 @@ If you are unsure which package your change belongs in, follow where the behavio
 
 ### Your first contribution
 
-Look for issues labeled [`good first issue`](https://github.com/glendonchin/chinmeister/labels/good%20first%20issue). These are scoped, well-defined tasks designed to be approachable.
+Look for issues labeled [`good first issue`](https://github.com/glendonC/chinmeister/labels/good%20first%20issue). These are scoped, well-defined tasks designed to be approachable.
 
 Good first contributions also include:
 
@@ -199,12 +199,13 @@ curl -X POST http://localhost:8787/auth/init -H 'CF-Connecting-IP: 127.0.0.1'
 Current automated test commands:
 
 ```bash
-npm run test:cli
-npm run test:mcp
-npm run test:worker
-npm run test:web
-npm run test
+npm run test              # All packages (turbo)
+npm run test:worker       # Worker only (workerd runtime)
+npm run test:e2e:web      # Web end-to-end (Playwright)
+npm run test:coverage     # All packages with coverage
 ```
+
+Per-package runs use the npm workspace flag, e.g. `npm run test --workspace=packages/cli`.
 
 ### React versions
 
