@@ -123,7 +123,7 @@ export {
 
 // --- CORS ---
 
-const PROD_ORIGINS = new Set(['https://chinwag.dev', 'https://www.chinwag.dev']);
+const PROD_ORIGINS = new Set(['https://chinmeister.com', 'https://www.chinmeister.com']);
 const DEV_ORIGINS = new Set([
   'http://localhost:8788',
   'http://localhost:3000',
@@ -145,7 +145,7 @@ function isLoopbackOrigin(origin: string): boolean {
 }
 
 function getAllowedOrigin(origin: string, environment: string): string {
-  if (!origin) return 'https://chinwag.dev';
+  if (!origin) return 'https://chinmeister.com';
   if (PROD_ORIGINS.has(origin)) return origin;
   if (environment !== 'production' && DEV_ORIGINS.has(origin)) return origin;
   if (isLoopbackOrigin(origin)) return origin;

@@ -6,7 +6,7 @@ import type {
   HourlyEffectiveness,
   OutcomeTagCount,
   ToolHandoff,
-} from '@chinwag/shared/contracts/analytics.js';
+} from '@chinmeister/shared/contracts/analytics.js';
 
 const log = createLogger('TeamDO.analytics');
 

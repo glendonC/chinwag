@@ -12,7 +12,7 @@ import type {
   AuditStalenessEntry,
   FilesByWorkTypeEntry,
   FilesNewVsRevisited,
-} from '@chinwag/shared/contracts/analytics.js';
+} from '@chinmeister/shared/contracts/analytics.js';
 
 const log = createLogger('TeamDO.analytics');
 
@@ -117,7 +117,7 @@ export function queryFileChurn(sql: SqlStorage, days: number): FileChurnEntry[] 
 }
 
 // Groups by agent_id (per-session agent instance), NOT handle (per-user). The
-// primary chinwag use case is one user running multiple agents across tools
+// primary chinmeister use case is one user running multiple agents across tools
 // (Claude Code + Cursor + Windsurf) — those agents share a handle but have
 // distinct agent_ids. Grouping by handle would silently return zero in exactly
 // the scenario this widget exists to surface. Grouping by agent_id catches

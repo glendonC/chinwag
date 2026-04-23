@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// chinwag channel — pushes real-time team state changes into Claude Code sessions.
+// chinmeister channel — pushes real-time team state changes into Claude Code sessions.
 // This is a separate MCP server process that declares the claude/channel capability.
 //
 // Architecture: WebSocket-first with HTTP reconciliation fallback.
@@ -18,7 +18,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { getApiUrl } from './dist/api.js';
 import { diffState } from './dist/diff-state.js';
-import { isProcessAlive, pingAgentTerminal } from '@chinwag/shared/session-registry.js';
+import { isProcessAlive, pingAgentTerminal } from '@chinmeister/shared/session-registry.js';
 import { createChannelWebSocket } from './dist/channel-ws.js';
 import { createReconciler } from './dist/channel-reconcile.js';
 import { bootstrap } from './dist/bootstrap.js';
@@ -29,7 +29,7 @@ let PKG = { version: '0.0.0' };
 try {
   PKG = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
 } catch (err) {
-  console.error('[chinwag-channel]', err?.message || 'failed to read package.json');
+  console.error('[chinmeister-channel]', err?.message || 'failed to read package.json');
 }
 
 async function main() {
@@ -40,23 +40,23 @@ async function main() {
     configMode: 'simple',
     identityMode: 'resolve',
     onMissing: 'require-config',
-    logPrefix: 'chinwag-channel',
+    logPrefix: 'chinmeister-channel',
   });
   const { runtime, agentId, client, team, teamId } = ctx;
   const toolName = runtime.hostTool;
 
   // Channel capability check (not part of bootstrap — channel-specific logic)
   if (!runtime.capabilities.includes('channel')) {
-    console.error(`[chinwag-channel] Parent host is ${toolName}; channel disabled.`);
+    console.error(`[chinmeister-channel] Parent host is ${toolName}; channel disabled.`);
     process.exit(0);
     return;
   }
   console.error(
-    `[chinwag-channel] Runtime: ${toolName} via ${runtime.transport}, Agent ID: ${agentId}`,
+    `[chinmeister-channel] Runtime: ${toolName} via ${runtime.transport}, Agent ID: ${agentId}`,
   );
 
   const server = new Server(
-    { name: 'chinwag-channel', version: PKG.version },
+    { name: 'chinmeister-channel', version: PKG.version },
     {
       capabilities: {
         experimental: { 'claude/channel': {} },
@@ -66,7 +66,7 @@ async function main() {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('[chinwag-channel] Channel server running');
+  console.error('[chinmeister-channel] Channel server running');
 
   // MCP server (index.js) handles joining and agent presence.
   // Channel only observes via watcher WebSocket + reconciliation.
@@ -75,9 +75,9 @@ async function main() {
   const stucknessAlerted = new Map();
 
   const logger = {
-    info: (msg) => console.error(`[chinwag-channel] ${msg}`),
-    warn: (msg) => console.error(`[chinwag-channel] ${msg}`),
-    error: (msg) => console.error(`[chinwag-channel] ${msg}`),
+    info: (msg) => console.error(`[chinmeister-channel] ${msg}`),
+    warn: (msg) => console.error(`[chinmeister-channel] ${msg}`),
+    error: (msg) => console.error(`[chinmeister-channel] ${msg}`),
   };
 
   // WebSocket: real-time delta events from TeamDO
@@ -158,13 +158,13 @@ async function pushEvent(server, agentId, content) {
     if (shouldRequestAttention(content)) {
       pingAgentTerminal(agentId);
     }
-    console.error(`[chinwag-channel] Pushed: ${content}`);
+    console.error(`[chinmeister-channel] Pushed: ${content}`);
   } catch (err) {
-    console.error(`[chinwag-channel] Push failed: ${err.message}`);
+    console.error(`[chinmeister-channel] Push failed: ${err.message}`);
   }
 }
 
 main().catch((err) => {
-  console.error('[chinwag-channel] Fatal error:', err);
+  console.error('[chinmeister-channel] Fatal error:', err);
   process.exit(1);
 });

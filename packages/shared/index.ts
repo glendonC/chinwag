@@ -13,7 +13,7 @@ export {
   resolveRuntimeProfile,
   resolveRuntimeTargets,
   toWebSocketOrigin,
-  type ChinwagRuntimeProfile,
+  type ChinmeisterRuntimeProfile,
   type RuntimeProfileOptions,
   type RuntimeTargets,
 } from './runtime-profile.js';
@@ -51,7 +51,7 @@ export {
   saveConfig,
   deleteConfig,
   validateConfigShape,
-  type ChinwagConfig,
+  type ChinmeisterConfig,
   type ConfigPathOptions,
   type ConfigPaths,
 } from './config.js';
@@ -114,8 +114,8 @@ export { normalizeDashboardDeltaEvent, applyDelta, type DashboardLimits } from '
 // integration-doctor
 export {
   commandExists,
-  buildChinwagCliArgs,
-  buildChinwagHookCommand,
+  buildChinmeisterCliArgs,
+  buildChinmeisterHookCommand,
   detectHostIntegrations,
   formatIntegrationScanResults,
   summarizeIntegrationScan,

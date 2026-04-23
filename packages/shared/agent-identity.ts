@@ -57,7 +57,11 @@ function getArgValue(flag: string, argv = process.argv): string | null {
 
 function inferToolFromCommand(command = ''): string | null {
   const normalized = command.toLowerCase();
-  if (!normalized || normalized.includes('chinwag-mcp') || normalized.includes('chinwag-channel')) {
+  if (
+    !normalized ||
+    normalized.includes('chinmeister-mcp') ||
+    normalized.includes('chinmeister-channel')
+  ) {
     return null;
   }
 
@@ -109,7 +113,7 @@ export function inferToolFromClientInfo(clientName: string): string | null {
 function getRuntimeTransport(defaultTransport = 'mcp', options: DetectRuntimeOptions = {}): string {
   return (
     getArgValue('--transport', options.argv) ||
-    process.env.CHINWAG_TRANSPORT ||
+    process.env.CHINMEISTER_TRANSPORT ||
     options.defaultTransport ||
     defaultTransport
   );
@@ -141,8 +145,8 @@ export function detectRuntimeIdentity(
   options: DetectRuntimeOptions = {},
 ): RuntimeIdentity {
   const argv = options.argv || process.argv;
-  const explicitTool = getArgValue('--tool', argv) || process.env.CHINWAG_TOOL || null;
-  const explicitSurface = getArgValue('--surface', argv) || process.env.CHINWAG_SURFACE || null;
+  const explicitTool = getArgValue('--tool', argv) || process.env.CHINMEISTER_TOOL || null;
+  const explicitSurface = getArgValue('--surface', argv) || process.env.CHINMEISTER_SURFACE || null;
   const readProcessInfo = options.readProcessInfoFn || defaultReadProcessInfo;
   const maxParentHops = options.maxParentHops ?? DEFAULT_MAX_PARENT_HOPS;
 
@@ -223,7 +227,7 @@ export function generateSessionAgentId(
 export function getConfiguredAgentId(
   toolNameOrRuntime: string | RuntimeIdentityLike | null = null,
 ): string | null {
-  const agentId = process.env.CHINWAG_AGENT_ID?.trim();
+  const agentId = process.env.CHINMEISTER_AGENT_ID?.trim();
   if (!agentId || agentId.length > 60) return null;
   const toolName = normalizeToolName(toolNameOrRuntime);
   if (toolName && !agentId.startsWith(`${toolName}:`)) return null;

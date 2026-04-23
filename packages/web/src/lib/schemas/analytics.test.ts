@@ -20,7 +20,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import * as SharedAnalytics from '@chinwag/shared/contracts/analytics.js';
+import * as SharedAnalytics from '@chinmeister/shared/contracts/analytics.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WEB_SCHEMA_FILE = resolve(__dirname, 'analytics.ts');

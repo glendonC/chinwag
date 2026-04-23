@@ -1,4 +1,4 @@
-import { findTeamFile } from '@chinwag/shared/team-utils.js';
+import { findTeamFile } from '@chinmeister/shared/team-utils.js';
 
 interface ProjectContext {
   filePath: string;

@@ -25,9 +25,9 @@ describe('tool-call-categories', () => {
       expect(TOOL_CALL_CATEGORIES.Bash).toBe('exec');
     });
 
-    it('classifies chinwag memory tools under the memory namespace', () => {
-      expect(TOOL_CALL_CATEGORIES.chinwag_save_memory).toBe('memory');
-      expect(TOOL_CALL_CATEGORIES.chinwag_search_memory).toBe('memory');
+    it('classifies chinmeister memory tools under the memory namespace', () => {
+      expect(TOOL_CALL_CATEGORIES.chinmeister_save_memory).toBe('memory');
+      expect(TOOL_CALL_CATEGORIES.chinmeister_search_memory).toBe('memory');
     });
   });
 
@@ -56,7 +56,7 @@ describe('tool-call-categories', () => {
       expect(classifyToolCall('Read')).toBe('research');
       expect(classifyToolCall('Edit')).toBe('edit');
       expect(classifyToolCall('Bash')).toBe('exec');
-      expect(classifyToolCall('chinwag_save_memory')).toBe('memory');
+      expect(classifyToolCall('chinmeister_save_memory')).toBe('memory');
     });
 
     it('returns "other" for unknown tools', () => {

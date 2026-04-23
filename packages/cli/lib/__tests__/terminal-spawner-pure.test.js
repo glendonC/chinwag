@@ -119,8 +119,8 @@ describe('buildTerminalCommand', () => {
       task: 'refactor auth',
     });
 
-    expect(cmd).toContain('CHINWAG_TOOL=');
-    expect(cmd).toContain('CHINWAG_AGENT_ID=');
+    expect(cmd).toContain('CHINMEISTER_TOOL=');
+    expect(cmd).toContain('CHINMEISTER_AGENT_ID=');
     expect(cmd).toContain('cd');
     expect(cmd).toContain('clear');
     expect(cmd).toContain('claude');
@@ -182,7 +182,7 @@ describe('readPidFile', () => {
   let tmpDir;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chinwag-pid-test-'));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chinmeister-pid-test-'));
   });
 
   afterEach(() => {
@@ -191,7 +191,7 @@ describe('readPidFile', () => {
 
   it('returns null for non-existent pid file', () => {
     const result = readPidFile('nonexistent:agent:id');
-    // readPidFile looks in ~/.chinwag/pids/ -- may or may not find it
+    // readPidFile looks in ~/.chinmeister/pids/ -- may or may not find it
     // The key behavior is it doesn't throw
     expect(result === null || typeof result === 'number').toBe(true);
   });

@@ -2,7 +2,7 @@
  * Process registry: the central Map of managed processes, lookup functions,
  * status tracking, update notifications, and cleanup of completed entries.
  */
-import { formatError, createLogger } from '@chinwag/shared';
+import { formatError, createLogger } from '@chinmeister/shared';
 import { summarizeOutput } from './output.js';
 import type { ManagedProcess, AgentInfo } from './types.js';
 

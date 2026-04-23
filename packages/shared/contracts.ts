@@ -2,8 +2,8 @@
  * Barrel re-export — all contract types available from a single import.
  *
  * Prefer direct domain imports for new code:
- *   import type { TeamMember } from '@chinwag/shared/contracts/team.js';
- *   import type { UserAnalytics } from '@chinwag/shared/contracts/analytics.js';
+ *   import type { TeamMember } from '@chinmeister/shared/contracts/team.js';
+ *   import type { UserAnalytics } from '@chinmeister/shared/contracts/analytics.js';
  *
  * This file preserves backward compatibility for existing consumers.
  */

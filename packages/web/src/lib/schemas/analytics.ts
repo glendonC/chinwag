@@ -1,5 +1,5 @@
 // Team and user analytics schemas.
-// Base shapes imported from @chinwag/shared/contracts/analytics.js;
+// Base shapes imported from @chinmeister/shared/contracts/analytics.js;
 // client-specific .default() values applied for resilient UI rendering.
 
 import { z } from 'zod';
@@ -55,7 +55,7 @@ import {
   commitStatsSchema as baseCommitStatsSchema,
   memberDailyLineTrendSchema as baseMemberDailyLineTrendSchema,
   projectLinesTrendSchema as baseProjectLinesTrendSchema,
-} from '@chinwag/shared/contracts/analytics.js';
+} from '@chinmeister/shared/contracts/analytics.js';
 
 // ── Team analytics ──────────────────────────────────
 

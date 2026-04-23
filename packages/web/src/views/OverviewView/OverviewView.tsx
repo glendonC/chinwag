@@ -200,7 +200,7 @@ function ProjectFilter({
 
 // ── Single-project hint (floating pill, bottom-center of content column) ──
 
-const SINGLE_PROJECT_HINT_KEY = 'chinwag:single-project-hint-dismissed';
+const SINGLE_PROJECT_HINT_KEY = 'chinmeister:single-project-hint-dismissed';
 
 // Module-level stable reference for the Live widgets' `locks` prop. Inline
 // `[]` rebuilds the array every render and defeats the memo on
@@ -605,7 +605,7 @@ export default function OverviewView() {
           hint={
             teamsError || (
               <>
-                Run <code>npx chinwag init</code> in a repo to add one.
+                Run <code>npx chinmeister init</code> in a repo to add one.
               </>
             )
           }

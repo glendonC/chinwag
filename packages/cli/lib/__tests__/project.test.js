@@ -7,7 +7,7 @@ import { getProjectContext } from '../project.js';
 let tmpDir;
 
 beforeEach(() => {
-  tmpDir = mkdtempSync(join(tmpdir(), 'chinwag-project-test-'));
+  tmpDir = mkdtempSync(join(tmpdir(), 'chinmeister-project-test-'));
 });
 
 afterEach(() => {
@@ -15,13 +15,13 @@ afterEach(() => {
 });
 
 describe('getProjectContext', () => {
-  it('returns null when no .chinwag file exists', () => {
+  it('returns null when no .chinmeister file exists', () => {
     expect(getProjectContext(tmpDir)).toBeNull();
   });
 
-  it('returns project context when .chinwag exists', () => {
+  it('returns project context when .chinmeister exists', () => {
     writeFileSync(
-      join(tmpDir, '.chinwag'),
+      join(tmpDir, '.chinmeister'),
       JSON.stringify({
         team: 't_abc1230000000000',
         name: 'my-project',
@@ -35,11 +35,11 @@ describe('getProjectContext', () => {
     expect(ctx.root).toBe(tmpDir);
   });
 
-  it('walks up parent directories to find .chinwag', () => {
+  it('walks up parent directories to find .chinmeister', () => {
     const subDir = join(tmpDir, 'src', 'lib');
     mkdirSync(subDir, { recursive: true });
     writeFileSync(
-      join(tmpDir, '.chinwag'),
+      join(tmpDir, '.chinmeister'),
       JSON.stringify({
         team: 't_aabbccddee001122',
         name: 'parent-project',

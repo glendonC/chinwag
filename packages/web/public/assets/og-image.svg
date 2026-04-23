@@ -40,7 +40,7 @@
     <path fill="#8ec0a4" d="M8 12 24 12 28 8 12 8z"/>
   </g>
 
-  <!-- "chinwag" wordmark -->
+  <!-- "chinmeister" wordmark -->
   <text
     x="600" y="410"
     text-anchor="middle"
@@ -49,7 +49,7 @@
     font-size="64"
     letter-spacing="-3"
     fill="#181411"
-  >chinwag</text>
+  >chinmeister</text>
 
   <!-- Tagline -->
   <text

@@ -2,7 +2,7 @@
  * Post-session conversation collector.
  *
  * After a managed CLI agent session exits, reads the tool's log files via the
- * declarative spec engine and uploads parsed events to the chinwag backend for
+ * declarative spec engine and uploads parsed events to the chinmeister backend for
  * conversation, token, and tool-call analytics.
  *
  * The earlier version kept hand-written fallback parsers for Claude Code JSONL
@@ -15,10 +15,10 @@
  *
  * Runs asynchronously after session end — never blocks process cleanup.
  */
-import { createLogger } from '@chinwag/shared';
-import { getDataCapabilities } from '@chinwag/shared/tool-registry.js';
+import { createLogger } from '@chinmeister/shared';
+import { getDataCapabilities } from '@chinmeister/shared/tool-registry.js';
 import { recordAttempt } from '../extraction/health.js';
-import type { ChinwagConfig } from '@chinwag/shared/config.js';
+import type { ChinmeisterConfig } from '@chinmeister/shared/config.js';
 import { api } from '../api.js';
 import { extract } from '../extraction/engine.js';
 import { loadSpec } from '../extraction/loader.js';
@@ -141,7 +141,7 @@ type Capability = 'conversationLogs' | 'tokenUsage' | 'toolCallLogs';
  */
 async function collect<T>(params: {
   proc: ManagedProcess;
-  config: ChinwagConfig | null;
+  config: ChinmeisterConfig | null;
   teamId: string | null;
   sessionId: string | null;
   capability: Capability;
@@ -181,7 +181,7 @@ async function collect<T>(params: {
  */
 export async function collectConversation(
   proc: ManagedProcess,
-  config: ChinwagConfig | null,
+  config: ChinmeisterConfig | null,
   teamId: string | null,
   sessionId: string | null,
 ): Promise<void> {
@@ -210,7 +210,7 @@ export async function collectConversation(
  */
 export async function collectTokenUsage(
   proc: ManagedProcess,
-  config: ChinwagConfig | null,
+  config: ChinmeisterConfig | null,
   teamId: string | null,
   sessionId: string | null,
 ): Promise<void> {
@@ -245,7 +245,7 @@ export async function collectTokenUsage(
  */
 export async function collectToolCalls(
   proc: ManagedProcess,
-  config: ChinwagConfig | null,
+  config: ChinmeisterConfig | null,
   teamId: string | null,
   sessionId: string | null,
 ): Promise<void> {

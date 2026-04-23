@@ -1,5 +1,5 @@
 import { useMemo, type CSSProperties } from 'react';
-import { WORK_TYPES } from '@chinwag/shared/analytics/work-type.js';
+import { WORK_TYPES } from '@chinmeister/shared/analytics/work-type.js';
 import { workTypeColor } from '../../../widgets/utils.js';
 import styles from './DirectoryShare.module.css';
 

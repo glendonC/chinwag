@@ -3,7 +3,7 @@
 // extended analytics — living as a shared lib keeps one source of truth for
 // the shape the client expects under `UserAnalytics.data_coverage`.
 
-import { getToolsWithCapability } from '@chinwag/shared/tool-registry.js';
+import { getToolsWithCapability } from '@chinmeister/shared/tool-registry.js';
 
 export interface DataCoverage {
   tools_reporting: string[];

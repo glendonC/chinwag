@@ -3,15 +3,15 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir, platform } from 'node:os';
 import { join } from 'node:path';
-import { installChinwagHooks } from '../install.js';
+import { installChinmeisterHooks } from '../install.js';
 import { resolveGitHookLocation } from '../paths.js';
-import { CHINWAG_HOOK_MARKER, RUNNER_SCRIPT, GUARD_SCRIPT } from '../templates.js';
+import { CHINMEISTER_HOOK_MARKER, RUNNER_SCRIPT, GUARD_SCRIPT } from '../templates.js';
 
 /** Unique tmp dir per test. Isolation over cleanup efficiency. */
 function tmpRepo() {
   return join(
     tmpdir(),
-    `chinwag-hooks-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    `chinmeister-hooks-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
   );
 }
 
@@ -53,7 +53,7 @@ describe('resolveGitHookLocation', () => {
   });
 });
 
-describe('installChinwagHooks', () => {
+describe('installChinmeisterHooks', () => {
   let dir;
   beforeEach(() => {
     dir = tmpRepo();
@@ -62,22 +62,22 @@ describe('installChinwagHooks', () => {
 
   it('skips outside a git repo', () => {
     mkdirSync(dir, { recursive: true });
-    const res = installChinwagHooks(dir);
+    const res = installChinmeisterHooks(dir);
     expect(res.status).toBe('skipped-not-a-repo');
   });
 
   it('installs a fresh pre-commit + guard plugin in a clean repo', () => {
     initGitRepo(dir);
-    const res = installChinwagHooks(dir);
+    const res = installChinmeisterHooks(dir);
     expect(res.status).toBe('installed');
     expect(res.preservedOriginal).toBe(false);
 
     const hooksDir = join(dir, '.git', 'hooks');
     const preCommit = join(hooksDir, 'pre-commit');
-    const guard = join(hooksDir, 'pre-commit.d', '50-chinwag-guard.js');
+    const guard = join(hooksDir, 'pre-commit.d', '50-chinmeister-guard.js');
 
-    expect(readFileSync(preCommit, 'utf-8')).toContain(CHINWAG_HOOK_MARKER);
-    expect(readFileSync(guard, 'utf-8')).toContain(CHINWAG_HOOK_MARKER);
+    expect(readFileSync(preCommit, 'utf-8')).toContain(CHINMEISTER_HOOK_MARKER);
+    expect(readFileSync(guard, 'utf-8')).toContain(CHINMEISTER_HOOK_MARKER);
 
     if (platform() !== 'win32') {
       // 0o100755 = regular file + rwxr-xr-x. Check the executable bit.
@@ -92,20 +92,20 @@ describe('installChinwagHooks', () => {
     mkdirSync(join(dir, '.git', 'hooks'), { recursive: true });
     writeFileSync(preCommit, '#!/bin/sh\necho user hook\n', { mode: 0o755 });
 
-    const res = installChinwagHooks(dir);
+    const res = installChinmeisterHooks(dir);
     expect(res.status).toBe('installed');
     expect(res.preservedOriginal).toBe(true);
     expect(existsSync(`${preCommit}.orig`)).toBe(true);
     expect(readFileSync(`${preCommit}.orig`, 'utf-8')).toContain('echo user hook');
-    expect(readFileSync(preCommit, 'utf-8')).toContain(CHINWAG_HOOK_MARKER);
+    expect(readFileSync(preCommit, 'utf-8')).toContain(CHINMEISTER_HOOK_MARKER);
   });
 
   it('re-running reports upgraded and does NOT create a second .orig', () => {
     initGitRepo(dir);
     // First install — clean
-    installChinwagHooks(dir);
+    installChinmeisterHooks(dir);
     // Second install — should upgrade in place
-    const res = installChinwagHooks(dir);
+    const res = installChinmeisterHooks(dir);
     expect(res.status).toBe('upgraded');
     expect(existsSync(join(dir, '.git', 'hooks', 'pre-commit.orig'))).toBe(false);
   });
@@ -113,11 +113,13 @@ describe('installChinwagHooks', () => {
   it('honours core.hooksPath and installs into the custom directory', () => {
     initGitRepo(dir);
     execFileSync('git', ['config', 'core.hooksPath', '.githooks'], { cwd: dir });
-    const res = installChinwagHooks(dir);
+    const res = installChinmeisterHooks(dir);
     expect(res.status).toBe('installed');
     expect(res.customHooksPath).toBe(true);
     expect(existsSync(join(dir, '.githooks', 'pre-commit'))).toBe(true);
-    expect(existsSync(join(dir, '.githooks', 'pre-commit.d', '50-chinwag-guard.js'))).toBe(true);
+    expect(existsSync(join(dir, '.githooks', 'pre-commit.d', '50-chinmeister-guard.js'))).toBe(
+      true,
+    );
   });
 });
 
@@ -126,7 +128,7 @@ describe('chain-runner behaviour (executes the installed script)', () => {
   beforeEach(() => {
     dir = tmpRepo();
     initGitRepo(dir);
-    installChinwagHooks(dir);
+    installChinmeisterHooks(dir);
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -161,9 +163,9 @@ describe('chain-runner behaviour (executes the installed script)', () => {
       `#!/usr/bin/env node\nrequire('node:fs').writeFileSync(${JSON.stringify(sentinel)}, 'x');\n`,
       { mode: 0o755 },
     );
-    // Remove chinwag-guard for this test so the exit code reflects the
+    // Remove chinmeister-guard for this test so the exit code reflects the
     // scripted plugins only (guard would otherwise fail-open at exit 0).
-    rmSync(join(pluginsDir, '50-chinwag-guard.js'));
+    rmSync(join(pluginsDir, '50-chinmeister-guard.js'));
 
     const result = spawnSync(process.execPath, [join(hooksDir, 'pre-commit')], {
       encoding: 'utf-8',
@@ -176,11 +178,11 @@ describe('chain-runner behaviour (executes the installed script)', () => {
 describe('template shape (sanity checks on the shipped scripts)', () => {
   it('runner starts with a node shebang and the marker', () => {
     expect(RUNNER_SCRIPT.startsWith('#!/usr/bin/env node')).toBe(true);
-    expect(RUNNER_SCRIPT).toContain(CHINWAG_HOOK_MARKER);
+    expect(RUNNER_SCRIPT).toContain(CHINMEISTER_HOOK_MARKER);
   });
 
-  it('guard plugin respects CHINWAG_GUARD=off (documented contract)', () => {
-    expect(GUARD_SCRIPT).toContain('process.env.CHINWAG_GUARD');
+  it('guard plugin respects CHINMEISTER_GUARD=off (documented contract)', () => {
+    expect(GUARD_SCRIPT).toContain('process.env.CHINMEISTER_GUARD');
     expect(GUARD_SCRIPT).toContain("'advisory'");
     expect(GUARD_SCRIPT).toContain("'block'");
   });
@@ -192,14 +194,14 @@ describe('guard plugin fail-open paths (runs the shipped script)', () => {
   beforeEach(() => {
     dir = tmpRepo();
     initGitRepo(dir);
-    installChinwagHooks(dir);
-    guardPath = join(dir, '.git', 'hooks', 'pre-commit.d', '50-chinwag-guard.js');
+    installChinmeisterHooks(dir);
+    guardPath = join(dir, '.git', 'hooks', 'pre-commit.d', '50-chinmeister-guard.js');
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
   /**
    * Spawn the guard plugin in `dir` with a HOME pointing at `fakeHome`
-   * (so the script's ~/.chinwag/config.json lookup can be controlled
+   * (so the script's ~/.chinmeister/config.json lookup can be controlled
    * without touching the developer's real config). Returns the
    * spawnSync result.
    */
@@ -216,29 +218,29 @@ describe('guard plugin fail-open paths (runs the shipped script)', () => {
         // Point at a nonsense base URL so a leaky test can't accidentally
         // hit the production API. Fail-open paths should exit before any
         // fetch attempt anyway.
-        CHINWAG_API_BASE: 'http://127.0.0.1:1', // unreachable
+        CHINMEISTER_API_BASE: 'http://127.0.0.1:1', // unreachable
         ...env,
       },
     });
   }
 
-  it('exit 0 when CHINWAG_GUARD=off, no config reads performed', () => {
-    const result = runGuard({ env: { CHINWAG_GUARD: 'off' } });
+  it('exit 0 when CHINMEISTER_GUARD=off, no config reads performed', () => {
+    const result = runGuard({ env: { CHINMEISTER_GUARD: 'off' } });
     expect(result.status).toBe(0);
   });
 
-  it('exit 0 when no ~/.chinwag/config.json (fail-open)', () => {
+  it('exit 0 when no ~/.chinmeister/config.json (fail-open)', () => {
     const result = runGuard();
     expect(result.status).toBe(0);
   });
 
-  it('exit 0 when no .chinwag in the repo (fail-open)', () => {
+  it('exit 0 when no .chinmeister in the repo (fail-open)', () => {
     // Give the fake home a valid config so the first gate passes, then
-    // rely on the missing .chinwag to short-circuit.
+    // rely on the missing .chinmeister to short-circuit.
     const fakeHome = join(dir, 'fake-home');
-    mkdirSync(join(fakeHome, '.chinwag'), { recursive: true });
+    mkdirSync(join(fakeHome, '.chinmeister'), { recursive: true });
     writeFileSync(
-      join(fakeHome, '.chinwag', 'config.json'),
+      join(fakeHome, '.chinmeister', 'config.json'),
       JSON.stringify({ token: 't', handle: 'a', color: 'cyan' }),
     );
     const result = runGuard({ fakeHome });
@@ -247,12 +249,12 @@ describe('guard plugin fail-open paths (runs the shipped script)', () => {
 
   it('exit 0 when nothing is staged (no work to check)', () => {
     const fakeHome = join(dir, 'fake-home');
-    mkdirSync(join(fakeHome, '.chinwag'), { recursive: true });
+    mkdirSync(join(fakeHome, '.chinmeister'), { recursive: true });
     writeFileSync(
-      join(fakeHome, '.chinwag', 'config.json'),
+      join(fakeHome, '.chinmeister', 'config.json'),
       JSON.stringify({ token: 't', handle: 'a', color: 'cyan' }),
     );
-    writeFileSync(join(dir, '.chinwag'), JSON.stringify({ team: 't_test', name: 'test' }));
+    writeFileSync(join(dir, '.chinmeister'), JSON.stringify({ team: 't_test', name: 'test' }));
     const result = runGuard({ fakeHome });
     expect(result.status).toBe(0);
   });

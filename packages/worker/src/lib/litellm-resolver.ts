@@ -8,7 +8,7 @@
  * Design rules (all discovered by probing the real JSON, not guessed):
  *
  *  1. Never rename between dash-separated forms (`claude-3-5-sonnet` is LiteLLM's
- *     canonical shape; `claude-sonnet-3-5` is chinwag's *display* canonical and
+ *     canonical shape; `claude-sonnet-3-5` is chinmeister's *display* canonical and
  *     does NOT exist in LiteLLM). This resolver stays in LiteLLM space end-to-end.
  *  2. Always try candidates in order of specificity (most specific first), so a
  *     dated key wins over a bare family key when both exist. This matters for

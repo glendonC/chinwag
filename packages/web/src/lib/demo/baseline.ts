@@ -5,7 +5,7 @@
 // model_outcomes aggregation, and so on. Scenarios layer overrides on top
 // of this baseline.
 
-import { classifyWorkType } from '@chinwag/shared/analytics/work-type.js';
+import { classifyWorkType } from '@chinmeister/shared/analytics/work-type.js';
 import type { UserAnalytics } from '../apiSchemas.js';
 import {
   TOOL_PROFILES,
@@ -77,7 +77,7 @@ const DIRECTORIES = [
 
 // Demo volume mix per canonical work type. Keys come from the shared
 // WORK_TYPES enum — the shares are the only tunable piece here, since
-// the category list itself is defined in @chinwag/shared/analytics/work-type.
+// the category list itself is defined in @chinmeister/shared/analytics/work-type.
 // Keep the shares summed to ~1.0 so allocateIntegerShares divides the
 // period totals cleanly.
 const WORK_TYPE_MIX: Array<{ work_type: string; share: number }> = [
@@ -873,7 +873,7 @@ export function createBaselineAnalytics(): UserAnalytics {
     {
       id: 'mem-5',
       text_preview:
-        'DO RPC not fetch — except TeamDO.fetch for WebSocket upgrade, which sets X-Chinwag-Verified: 1 header.',
+        'DO RPC not fetch — except TeamDO.fetch for WebSocket upgrade, which sets X-Chinmeister-Verified: 1 header.',
       access_count: 12,
       last_accessed_at: new Date(Date.now() - 28 * 3600_000).toISOString(),
     },
@@ -1140,7 +1140,7 @@ export function createBaselineAnalytics(): UserAnalytics {
       sessions: Math.round(tool_call_sessions * 0.18),
     },
     {
-      tool: 'mcp__chinwag__chinwag_search_memory',
+      tool: 'mcp__chinmeister__chinmeister_search_memory',
       calls: Math.round(total_calls * 0.006),
       errors: 2,
       error_rate: 0.009,
@@ -1148,7 +1148,7 @@ export function createBaselineAnalytics(): UserAnalytics {
       sessions: Math.round(tool_call_sessions * 0.42),
     },
     {
-      tool: 'mcp__chinwag__chinwag_update_activity',
+      tool: 'mcp__chinmeister__chinmeister_update_activity',
       calls: Math.round(total_calls * 0.004),
       errors: 1,
       error_rate: 0.006,

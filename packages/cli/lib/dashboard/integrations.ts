@@ -3,8 +3,8 @@ import {
   configureHostIntegration,
   scanHostIntegrations,
   summarizeIntegrationScan,
-} from '@chinwag/shared/integration-doctor.js';
-import type { IntegrationScanResult } from '@chinwag/shared/integration-doctor.js';
+} from '@chinmeister/shared/integration-doctor.js';
+import type { IntegrationScanResult } from '@chinmeister/shared/integration-doctor.js';
 import type { NoticeTone } from './reducer.js';
 
 interface UseIntegrationDoctorParams {

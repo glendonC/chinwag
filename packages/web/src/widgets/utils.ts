@@ -4,12 +4,12 @@ import type {
   HourlyBucket,
   UserAnalytics,
 } from '../lib/apiSchemas.js';
-import { getDataCapabilities } from '@chinwag/shared/tool-registry.js';
-import { WORK_TYPES, type WorkType } from '@chinwag/shared/analytics/work-type.js';
+import { getDataCapabilities } from '@chinmeister/shared/tool-registry.js';
+import { WORK_TYPES, type WorkType } from '@chinmeister/shared/analytics/work-type.js';
 
 // ── Work types ────────────────────────────────────
 
-// Canonical list + classifier live in @chinwag/shared/analytics/work-type.
+// Canonical list + classifier live in @chinmeister/shared/analytics/work-type.
 // Re-export here so the rest of the web package can keep importing from
 // widgets/utils without chasing the upstream path.
 export { WORK_TYPES };

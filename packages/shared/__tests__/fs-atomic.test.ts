@@ -16,7 +16,7 @@ describe('writeFileAtomicSync', () => {
   let dir: string;
 
   beforeEach(() => {
-    dir = join(tmpdir(), `chinwag-atomic-${process.pid}-${Date.now()}`);
+    dir = join(tmpdir(), `chinmeister-atomic-${process.pid}-${Date.now()}`);
     mkdirSync(dir, { recursive: true });
   });
 

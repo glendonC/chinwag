@@ -9,7 +9,7 @@ vi.mock('../context.js', () => ({
   clearContextCache: vi.fn(),
 }));
 
-vi.mock('@chinwag/shared/session-registry.js', () => ({
+vi.mock('@chinmeister/shared/session-registry.js', () => ({
   setTerminalTitle: vi.fn(),
 }));
 
@@ -56,9 +56,9 @@ describe('model report race condition', () => {
     );
 
     // Fire three concurrent calls with a model
-    const call1 = collector.callTool('chinwag_get_team_context', { model: 'claude-opus-4-6' });
-    const call2 = collector.callTool('chinwag_get_team_context', { model: 'claude-opus-4-6' });
-    const call3 = collector.callTool('chinwag_get_team_context', { model: 'claude-opus-4-6' });
+    const call1 = collector.callTool('chinmeister_get_team_context', { model: 'claude-opus-4-6' });
+    const call2 = collector.callTool('chinmeister_get_team_context', { model: 'claude-opus-4-6' });
+    const call3 = collector.callTool('chinmeister_get_team_context', { model: 'claude-opus-4-6' });
 
     // All three should proceed without waiting for reportModel
     await Promise.all([call1, call2, call3]);
@@ -76,19 +76,19 @@ describe('model report race condition', () => {
 
     // A fourth call with the SAME model should NOT call reportModel again
     team.reportModel.mockClear();
-    await collector.callTool('chinwag_get_team_context', { model: 'claude-opus-4-6' });
+    await collector.callTool('chinmeister_get_team_context', { model: 'claude-opus-4-6' });
     expect(team.reportModel).not.toHaveBeenCalled();
   });
 
   it('reports again when a different model is provided', async () => {
     team.reportModel.mockResolvedValue({ ok: true });
 
-    await collector.callTool('chinwag_get_team_context', { model: 'gpt-4o' });
+    await collector.callTool('chinmeister_get_team_context', { model: 'gpt-4o' });
     await new Promise((r) => setTimeout(r, 10));
     expect(state.modelReported).toBe('gpt-4o');
 
     // A call with a DIFFERENT model should trigger a new report
-    await collector.callTool('chinwag_get_team_context', { model: 'claude-opus-4-6' });
+    await collector.callTool('chinmeister_get_team_context', { model: 'claude-opus-4-6' });
     await new Promise((r) => setTimeout(r, 10));
     expect(team.reportModel).toHaveBeenCalledTimes(2);
     expect(state.modelReported).toBe('claude-opus-4-6');
@@ -103,7 +103,7 @@ describe('model report race condition', () => {
         }),
     );
 
-    await collector.callTool('chinwag_get_team_context', { model: 'gpt-4o' });
+    await collector.callTool('chinmeister_get_team_context', { model: 'gpt-4o' });
 
     // State should NOT be set yet (report is still in-flight)
     expect(state.modelReported).toBeNull();
@@ -121,7 +121,7 @@ describe('model report race condition', () => {
       .mockRejectedValueOnce(new Error('network error'))
       .mockRejectedValueOnce(new Error('network error'));
 
-    await collector.callTool('chinwag_get_team_context', { model: 'gpt-4o' });
+    await collector.callTool('chinmeister_get_team_context', { model: 'gpt-4o' });
 
     // Wait for the full retry cycle (1s delay between attempts + buffer)
     await new Promise((r) => setTimeout(r, 1200));
@@ -131,7 +131,7 @@ describe('model report race condition', () => {
 
     // Second call should spawn a fresh report
     team.reportModel.mockResolvedValueOnce({ ok: true });
-    await collector.callTool('chinwag_get_team_context', { model: 'gpt-4o' });
+    await collector.callTool('chinmeister_get_team_context', { model: 'gpt-4o' });
     await new Promise((r) => setTimeout(r, 10));
 
     expect(team.reportModel).toHaveBeenCalledTimes(3); // 2 retries + 1 fresh
@@ -139,14 +139,14 @@ describe('model report race condition', () => {
   });
 
   it('does not report when model is not provided', async () => {
-    await collector.callTool('chinwag_get_team_context', {});
+    await collector.callTool('chinmeister_get_team_context', {});
     expect(team.reportModel).not.toHaveBeenCalled();
     expect(state.modelReported).toBeNull();
   });
 
   it('does not report when not in a team', async () => {
     state.teamId = null;
-    await collector.callTool('chinwag_get_team_context', { model: 'claude-opus-4-6' });
+    await collector.callTool('chinmeister_get_team_context', { model: 'claude-opus-4-6' });
     expect(team.reportModel).not.toHaveBeenCalled();
   });
 
@@ -160,7 +160,7 @@ describe('model report race condition', () => {
     );
 
     // The tool call should resolve immediately even though reportModel is pending
-    const result = await collector.callTool('chinwag_get_team_context', {
+    const result = await collector.callTool('chinmeister_get_team_context', {
       model: 'claude-opus-4-6',
     });
     expect(result.content).toBeDefined();

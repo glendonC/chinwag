@@ -2,14 +2,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const { sharedConfigMock } = vi.hoisted(() => ({
   sharedConfigMock: {
-    CONFIG_DIR: '/home/testuser/.chinwag',
-    CONFIG_FILE: '/home/testuser/.chinwag/config.json',
-    LOCAL_CONFIG_DIR: '/home/testuser/.chinwag/local',
-    LOCAL_CONFIG_FILE: '/home/testuser/.chinwag/local/config.json',
+    CONFIG_DIR: '/home/testuser/.chinmeister',
+    CONFIG_FILE: '/home/testuser/.chinmeister/config.json',
+    LOCAL_CONFIG_DIR: '/home/testuser/.chinmeister/local',
+    LOCAL_CONFIG_FILE: '/home/testuser/.chinmeister/local/config.json',
     getConfigPaths: vi.fn(() => ({
       profile: 'prod',
-      configDir: '/home/testuser/.chinwag',
-      configFile: '/home/testuser/.chinwag/config.json',
+      configDir: '/home/testuser/.chinmeister',
+      configFile: '/home/testuser/.chinmeister/config.json',
     })),
     configExists: vi.fn(() => true),
     loadConfig: vi.fn(() => ({ token: 'tok_test' })),
@@ -18,7 +18,7 @@ const { sharedConfigMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('@chinwag/shared/config.js', () => sharedConfigMock);
+vi.mock('@chinmeister/shared/config.js', () => sharedConfigMock);
 
 import * as cliConfig from '../config.js';
 

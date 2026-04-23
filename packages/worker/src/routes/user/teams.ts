@@ -41,7 +41,7 @@ export const handleChatUpgrade = authedRoute(async ({ request, user, env }) => {
   return roomStub.fetch(
     new Request(roomUrl.toString(), {
       headers: {
-        'X-Chinwag-Verified': '1',
+        'X-Chinmeister-Verified': '1',
         Upgrade: request.headers.get('Upgrade') || '',
         Connection: request.headers.get('Connection') || '',
         'Sec-WebSocket-Key': request.headers.get('Sec-WebSocket-Key') || '',

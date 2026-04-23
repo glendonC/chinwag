@@ -9,7 +9,7 @@
 //  - Claude Code: https://docs.anthropic.com/en/docs/claude-code/hooks
 //  - Windsurf:    https://docs.windsurf.com/windsurf/cascade/hooks
 
-import { getMcpToolById } from '@chinwag/shared/tool-registry.js';
+import { getMcpToolById } from '@chinmeister/shared/tool-registry.js';
 
 export interface HookArgs {
   subcommand: string | null;

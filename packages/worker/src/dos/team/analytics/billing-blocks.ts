@@ -1,9 +1,9 @@
 // Anthropic 5-hour billing-window blocks. Ported from ccusage
-// `_session-blocks.ts` (MIT) into chinwag's snake_case contract shape
+// `_session-blocks.ts` (MIT) into chinmeister's snake_case contract shape
 // and Durable Object query path.
 //
 // Motivation: Anthropic Pro's rate-limit window is 5 hours from the
-// first prompt. Chinwag's daily token aggregates can't answer "how much
+// first prompt. Chinmeister's daily token aggregates can't answer "how much
 // of my current window have I burned, and when does it reset?" — the
 // question a Pro user hits two hours into a heavy refactor. This module
 // groups token-bearing conversation events into 5-hour blocks, flags
@@ -18,7 +18,7 @@ import type {
   BurnRate,
   SessionBlock,
   TokenCounts,
-} from '@chinwag/shared/contracts/billing-blocks.js';
+} from '@chinmeister/shared/contracts/billing-blocks.js';
 
 export const DEFAULT_SESSION_DURATION_HOURS = 5;
 const MS_PER_HOUR = 60 * 60 * 1000;
@@ -277,7 +277,7 @@ export function projectActiveBlock(
  * session the caller ran inside this team, not just one agent's.
  *
  * A 30-day lookback is hard-coded (the same "recent" horizon as every
- * other chinwag analytics query). Active-block detection only cares
+ * other chinmeister analytics query). Active-block detection only cares
  * about wall-clock proximity to `now`, so an older horizon would just
  * add dead history without changing the live answer.
  *

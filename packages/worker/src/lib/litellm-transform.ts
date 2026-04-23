@@ -1,4 +1,4 @@
-// Shared LiteLLM-to-chinwag transformation helpers.
+// Shared LiteLLM-to-chinmeister transformation helpers.
 //
 // The same work happens in two environments:
 //   1. Build time — scripts/fetch-pricing-seed.ts regenerates the committed

@@ -41,11 +41,11 @@ export default function ConnectView({ error: initialError = null }: Props) {
   const runtime = getRuntimeTargets();
   const isLocalProfile = runtime.profile === 'local';
   const dashboardCommand = isLocalProfile
-    ? 'CHINWAG_PROFILE=local npx chinwag dashboard'
-    : 'npx chinwag dashboard';
+    ? 'CHINMEISTER_PROFILE=local npx chinmeister dashboard'
+    : 'npx chinmeister dashboard';
   const tokenCommand = isLocalProfile
-    ? 'CHINWAG_PROFILE=local npx chinwag token'
-    : 'npx chinwag token';
+    ? 'CHINMEISTER_PROFILE=local npx chinmeister token'
+    : 'npx chinmeister token';
   const [tokenInput, setTokenInput] = useState<string>('');
   const [githubError, setGithubError] = useState<string | null>(null);
   const [tokenError, setTokenError] = useState<string | null>(null);
@@ -121,7 +121,7 @@ export default function ConnectView({ error: initialError = null }: Props) {
             <p className={styles.authHint}>
               {isLocalProfile
                 ? 'Local profile: isolated auth, local worker, no production data.'
-                : 'Production profile: connects to the live chinwag service.'}
+                : 'Production profile: connects to the live chinmeister service.'}
             </p>
 
             <a className={styles.githubButton} href={`${getApiUrl()}/auth/github`}>
@@ -147,7 +147,7 @@ export default function ConnectView({ error: initialError = null }: Props) {
           </div>
 
           <div className={styles.cliBlock}>
-            <p className={styles.authHint}>Run this in any repo that uses chinwag:</p>
+            <p className={styles.authHint}>Run this in any repo that uses chinmeister:</p>
 
             <button className={styles.commandBox} onClick={copyCommand} title="Copy to clipboard">
               <code className={styles.commandText}>

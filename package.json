@@ -1,5 +1,5 @@
 {
-  "name": "chinwag-monorepo",
+  "name": "chinmeister-monorepo",
   "private": true,
   "type": "module",
   "packageManager": "npm@10.9.2",

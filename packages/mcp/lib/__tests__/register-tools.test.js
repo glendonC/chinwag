@@ -123,31 +123,31 @@ describe('registerTools', () => {
     // The count is derived so we fail loudly when someone adds a tool without
     // updating the expectation — don't hard-code the number.
     const expected = [
-      'chinwag_scan_integrations',
-      'chinwag_configure_integration',
-      'chinwag_join_team',
-      'chinwag_update_activity',
-      'chinwag_check_conflicts',
-      'chinwag_get_team_context',
-      'chinwag_save_memory',
-      'chinwag_update_memory',
-      'chinwag_search_memory',
-      'chinwag_delete_memory',
-      'chinwag_delete_memories_batch',
-      'chinwag_claim_files',
-      'chinwag_release_files',
-      'chinwag_send_message',
-      'chinwag_report_outcome',
-      'chinwag_report_commits',
-      'chinwag_record_tokens',
-      'chinwag_record_edit',
-      'chinwag_record_tool_call',
-      'chinwag_configure_budget',
-      'chinwag_apply_consolidation',
-      'chinwag_review_consolidation_proposals',
-      'chinwag_review_formation_observations',
-      'chinwag_run_formation_sweep',
-      'chinwag_unmerge_memory',
+      'chinmeister_scan_integrations',
+      'chinmeister_configure_integration',
+      'chinmeister_join_team',
+      'chinmeister_update_activity',
+      'chinmeister_check_conflicts',
+      'chinmeister_get_team_context',
+      'chinmeister_save_memory',
+      'chinmeister_update_memory',
+      'chinmeister_search_memory',
+      'chinmeister_delete_memory',
+      'chinmeister_delete_memories_batch',
+      'chinmeister_claim_files',
+      'chinmeister_release_files',
+      'chinmeister_send_message',
+      'chinmeister_report_outcome',
+      'chinmeister_report_commits',
+      'chinmeister_record_tokens',
+      'chinmeister_record_edit',
+      'chinmeister_record_tool_call',
+      'chinmeister_configure_budget',
+      'chinmeister_apply_consolidation',
+      'chinmeister_review_consolidation_proposals',
+      'chinmeister_review_formation_observations',
+      'chinmeister_run_formation_sweep',
+      'chinmeister_unmerge_memory',
     ];
     expect(server._tools.size).toBe(expected.length);
     for (const name of expected) {
@@ -158,14 +158,16 @@ describe('registerTools', () => {
   describe('integration doctor tools', () => {
     it('scans local integration health without requiring team membership', async () => {
       state.teamId = null;
-      const result = await server.callTool('chinwag_scan_integrations', {});
+      const result = await server.callTool('chinmeister_scan_integrations', {});
       expect(integrationDoctor.scanHostIntegrations).toHaveBeenCalledWith(process.cwd());
       expect(result.isError).not.toBe(true);
       expect(result.content[0].text).toMatch(/Cursor \[connected\] — needs_setup/);
     });
 
     it('configures a local integration and reports refreshed status', async () => {
-      const result = await server.callTool('chinwag_configure_integration', { host_id: 'cursor' });
+      const result = await server.callTool('chinmeister_configure_integration', {
+        host_id: 'cursor',
+      });
       expect(integrationDoctor.configureHostIntegration).toHaveBeenCalledWith(
         process.cwd(),
         'cursor',
@@ -180,7 +182,9 @@ describe('registerTools', () => {
       integrationDoctor.configureHostIntegration.mockReturnValueOnce({
         error: 'Unknown host integration: nope',
       });
-      const result = await server.callTool('chinwag_configure_integration', { host_id: 'nope' });
+      const result = await server.callTool('chinmeister_configure_integration', {
+        host_id: 'nope',
+      });
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toMatch(/Unknown host integration/);
     });
@@ -190,17 +194,17 @@ describe('registerTools', () => {
 
   describe('tools require team membership', () => {
     const toolsRequiringTeam = [
-      'chinwag_update_activity',
-      'chinwag_check_conflicts',
-      'chinwag_get_team_context',
-      'chinwag_save_memory',
-      'chinwag_update_memory',
-      'chinwag_search_memory',
-      'chinwag_delete_memory',
-      'chinwag_claim_files',
-      'chinwag_release_files',
-      'chinwag_send_message',
-      'chinwag_report_outcome',
+      'chinmeister_update_activity',
+      'chinmeister_check_conflicts',
+      'chinmeister_get_team_context',
+      'chinmeister_save_memory',
+      'chinmeister_update_memory',
+      'chinmeister_search_memory',
+      'chinmeister_delete_memory',
+      'chinmeister_claim_files',
+      'chinmeister_release_files',
+      'chinmeister_send_message',
+      'chinmeister_report_outcome',
     ];
 
     for (const toolName of toolsRequiringTeam) {
@@ -213,12 +217,12 @@ describe('registerTools', () => {
     }
   });
 
-  // --- chinwag_join_team ---
+  // --- chinmeister_join_team ---
 
-  describe('chinwag_join_team', () => {
+  describe('chinmeister_join_team', () => {
     it('joins team, sets state, starts heartbeat and session', async () => {
       state.teamId = null;
-      const result = await server.callTool('chinwag_join_team', { team_id: 't_newteam' });
+      const result = await server.callTool('chinmeister_join_team', { team_id: 't_newteam' });
 
       expect(result.content[0].text).toMatch(/Joined team t_newteam/);
       expect(state.teamId).toBe('t_newteam');
@@ -236,7 +240,7 @@ describe('registerTools', () => {
       const oldInterval = setInterval(() => {}, 100_000);
       state.heartbeatInterval = oldInterval;
 
-      await server.callTool('chinwag_join_team', { team_id: 't_new' });
+      await server.callTool('chinmeister_join_team', { team_id: 't_new' });
 
       expect(state.heartbeatInterval).not.toBe(oldInterval);
       clearInterval(state.heartbeatInterval);
@@ -247,7 +251,7 @@ describe('registerTools', () => {
       state.teamId = 't_old';
       state.sessionId = 'sess_old';
 
-      await server.callTool('chinwag_join_team', { team_id: 't_new' });
+      await server.callTool('chinmeister_join_team', { team_id: 't_new' });
 
       expect(team.endSession).toHaveBeenCalledWith('t_old', 'sess_old');
       expect(team.leaveTeam).toHaveBeenCalledWith('t_old');
@@ -258,7 +262,7 @@ describe('registerTools', () => {
       err.status = 401;
       team.joinTeam.mockRejectedValue(err);
 
-      const result = await server.callTool('chinwag_join_team', { team_id: 't_bad' });
+      const result = await server.callTool('chinmeister_join_team', { team_id: 't_bad' });
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toMatch(/Authentication expired/);
     });
@@ -266,25 +270,25 @@ describe('registerTools', () => {
     it('returns generic error message on non-401 errors', async () => {
       team.joinTeam.mockRejectedValue(new Error('Team not found'));
 
-      const result = await server.callTool('chinwag_join_team', { team_id: 't_nope' });
+      const result = await server.callTool('chinmeister_join_team', { team_id: 't_nope' });
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toBe('Team not found');
     });
 
     it('still succeeds when startSession fails', async () => {
       team.startSession.mockRejectedValue(new Error('session error'));
-      const result = await server.callTool('chinwag_join_team', { team_id: 't_ok' });
+      const result = await server.callTool('chinmeister_join_team', { team_id: 't_ok' });
       expect(result.content[0].text).toMatch(/session start failed/i);
       expect(state.sessionId).toBeNull();
       clearInterval(state.heartbeatInterval);
     });
   });
 
-  // --- chinwag_update_activity ---
+  // --- chinmeister_update_activity ---
 
-  describe('chinwag_update_activity', () => {
+  describe('chinmeister_update_activity', () => {
     it('updates activity and returns confirmation', async () => {
-      const result = await server.callTool('chinwag_update_activity', {
+      const result = await server.callTool('chinmeister_update_activity', {
         files: ['src/auth.js'],
         summary: 'Refactoring auth',
       });
@@ -298,7 +302,7 @@ describe('registerTools', () => {
 
     it('includes team preamble in response', async () => {
       teamPreamble.mockResolvedValue('[Team: alice: auth.js]\n\n');
-      const result = await server.callTool('chinwag_update_activity', {
+      const result = await server.callTool('chinmeister_update_activity', {
         files: ['x.js'],
         summary: 'test',
       });
@@ -306,12 +310,12 @@ describe('registerTools', () => {
     });
   });
 
-  // --- chinwag_check_conflicts ---
+  // --- chinmeister_check_conflicts ---
 
-  describe('chinwag_check_conflicts', () => {
+  describe('chinmeister_check_conflicts', () => {
     it('returns "no conflicts" when none found', async () => {
       team.checkConflicts.mockResolvedValue({ conflicts: [], locked: [] });
-      const result = await server.callTool('chinwag_check_conflicts', { files: ['a.js'] });
+      const result = await server.callTool('chinmeister_check_conflicts', { files: ['a.js'] });
       expect(result.content[0].text).toMatch(/No conflicts/);
     });
 
@@ -327,7 +331,7 @@ describe('registerTools', () => {
         ],
         locked: [],
       });
-      const result = await server.callTool('chinwag_check_conflicts', { files: ['auth.js'] });
+      const result = await server.callTool('chinmeister_check_conflicts', { files: ['auth.js'] });
       expect(result.content[0].text).toMatch(/bob \(cursor\) is working on auth\.js/);
     });
 
@@ -336,7 +340,7 @@ describe('registerTools', () => {
         conflicts: [],
         locked: [{ file: 'db.js', held_by: 'alice', tool: 'unknown' }],
       });
-      const result = await server.callTool('chinwag_check_conflicts', { files: ['db.js'] });
+      const result = await server.callTool('chinmeister_check_conflicts', { files: ['db.js'] });
       expect(result.content[0].text).toMatch(/db\.js is locked by alice/);
     });
 
@@ -352,7 +356,7 @@ describe('registerTools', () => {
         ],
         locked: [],
       });
-      const result = await server.callTool('chinwag_check_conflicts', { files: ['x.js'] });
+      const result = await server.callTool('chinmeister_check_conflicts', { files: ['x.js'] });
       const text = result.content[0].text;
       expect(text).toMatch(/bob is working on x\.js/);
       expect(text).not.toMatch(/unknown/);
@@ -371,7 +375,7 @@ describe('registerTools', () => {
         ],
       });
 
-      const result = await server.callTool('chinwag_check_conflicts', { files: ['shared.js'] });
+      const result = await server.callTool('chinmeister_check_conflicts', { files: ['shared.js'] });
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toMatch(/offline/);
       expect(result.content[0].text).toMatch(/bob \(cursor\) was working on shared\.js/);
@@ -381,9 +385,9 @@ describe('registerTools', () => {
       team.checkConflicts.mockRejectedValue(new Error('Network error'));
       getCachedContext.mockReturnValue(null);
 
-      const result = await server.callTool('chinwag_check_conflicts', { files: ['a.js'] });
+      const result = await server.callTool('chinmeister_check_conflicts', { files: ['a.js'] });
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toMatch(/offline.*Could not reach chinwag/);
+      expect(result.content[0].text).toMatch(/offline.*Could not reach chinmeister/);
     });
 
     it('returns auth error on 401 instead of offline fallback', async () => {
@@ -391,7 +395,7 @@ describe('registerTools', () => {
       err.status = 401;
       team.checkConflicts.mockRejectedValue(err);
 
-      const result = await server.callTool('chinwag_check_conflicts', { files: ['a.js'] });
+      const result = await server.callTool('chinmeister_check_conflicts', { files: ['a.js'] });
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toMatch(/Authentication expired/);
     });
@@ -408,24 +412,26 @@ describe('registerTools', () => {
         ],
       });
 
-      const result = await server.callTool('chinwag_check_conflicts', { files: ['different.js'] });
+      const result = await server.callTool('chinmeister_check_conflicts', {
+        files: ['different.js'],
+      });
       expect(result.isError).toBeUndefined();
       expect(result.content[0].text).toMatch(/No overlapping files were found in cache/);
     });
   });
 
-  // --- chinwag_get_team_context ---
+  // --- chinmeister_get_team_context ---
 
-  describe('chinwag_get_team_context', () => {
+  describe('chinmeister_get_team_context', () => {
     it('returns "no agents" when members list is empty', async () => {
       refreshContext.mockResolvedValue({ members: [] });
-      const result = await server.callTool('chinwag_get_team_context');
+      const result = await server.callTool('chinmeister_get_team_context');
       expect(result.content[0].text).toMatch(/No other agents connected/);
     });
 
     it('returns "no context" error when API unreachable and no cache', async () => {
       refreshContext.mockResolvedValue(null);
-      const result = await server.callTool('chinwag_get_team_context');
+      const result = await server.callTool('chinmeister_get_team_context');
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toMatch(/No team context available/);
     });
@@ -444,7 +450,7 @@ describe('registerTools', () => {
           },
         ],
       });
-      const result = await server.callTool('chinwag_get_team_context');
+      const result = await server.callTool('chinmeister_get_team_context');
       const text = result.content[0].text;
       expect(text).toMatch(/alice \(active, cursor\): working on auth\.js, db\.js/);
       expect(text).toMatch(/"Fixing auth"/);
@@ -454,7 +460,7 @@ describe('registerTools', () => {
       refreshContext.mockResolvedValue({
         members: [{ handle: 'bob', status: 'active', tool: 'unknown' }],
       });
-      const result = await server.callTool('chinwag_get_team_context');
+      const result = await server.callTool('chinmeister_get_team_context');
       expect(result.content[0].text).toMatch(/bob \(active\): idle/);
     });
 
@@ -463,7 +469,7 @@ describe('registerTools', () => {
         members: [],
         locks: [{ file_path: 'auth.js', owner_handle: 'alice', tool: 'cursor', minutes_held: 5.2 }],
       });
-      const result = await server.callTool('chinwag_get_team_context');
+      const result = await server.callTool('chinmeister_get_team_context');
       const text = result.content[0].text;
       expect(text).toMatch(/Locked files:/);
       expect(text).toMatch(/auth\.js.*alice \(cursor\).*5m/);
@@ -474,7 +480,7 @@ describe('registerTools', () => {
         members: [],
         messages: [{ from_handle: 'bob', from_tool: 'aider', text: 'Rebased, please pull' }],
       });
-      const result = await server.callTool('chinwag_get_team_context');
+      const result = await server.callTool('chinmeister_get_team_context');
       const text = result.content[0].text;
       expect(text).toMatch(/Messages:/);
       expect(text).toMatch(/bob \(aider\): Rebased, please pull/);
@@ -485,7 +491,7 @@ describe('registerTools', () => {
         members: [],
         memories: [{ tags: ['gotcha'], text: 'Redis required on port 6379' }],
       });
-      const result = await server.callTool('chinwag_get_team_context');
+      const result = await server.callTool('chinmeister_get_team_context');
       const text = result.content[0].text;
       expect(text).toMatch(/Project knowledge:/);
       expect(text).toMatch(/Redis required on port 6379 \[gotcha\]/);
@@ -495,17 +501,17 @@ describe('registerTools', () => {
       refreshContext.mockResolvedValue({
         members: [{ handle: 'bob', status: 'idle', tool: 'unknown' }],
       });
-      const result = await server.callTool('chinwag_get_team_context');
+      const result = await server.callTool('chinmeister_get_team_context');
       expect(result.content[0].text).toMatch(/bob \(idle\)/);
       expect(result.content[0].text).not.toMatch(/unknown/);
     });
   });
 
-  // --- chinwag_save_memory ---
+  // --- chinmeister_save_memory ---
 
-  describe('chinwag_save_memory', () => {
+  describe('chinmeister_save_memory', () => {
     it('saves memory and returns confirmation', async () => {
-      const result = await server.callTool('chinwag_save_memory', {
+      const result = await server.callTool('chinmeister_save_memory', {
         text: 'Tests need Redis',
         tags: ['config', 'redis'],
       });
@@ -517,7 +523,7 @@ describe('registerTools', () => {
     });
 
     it('saves memory without tags', async () => {
-      const result = await server.callTool('chinwag_save_memory', {
+      const result = await server.callTool('chinmeister_save_memory', {
         text: 'Important fact',
       });
       expect(team.saveMemory).toHaveBeenCalledWith('t_test123', 'Important fact', undefined);
@@ -526,7 +532,7 @@ describe('registerTools', () => {
 
     it('returns error on failure', async () => {
       team.saveMemory.mockRejectedValue(new Error('Rate limit exceeded'));
-      const result = await server.callTool('chinwag_save_memory', {
+      const result = await server.callTool('chinmeister_save_memory', {
         text: 'test',
       });
       expect(result.isError).toBe(true);
@@ -534,11 +540,11 @@ describe('registerTools', () => {
     });
   });
 
-  // --- chinwag_search_memory ---
+  // --- chinmeister_search_memory ---
 
-  describe('chinwag_update_memory', () => {
+  describe('chinmeister_update_memory', () => {
     it('updates memory text and tags', async () => {
-      const result = await server.callTool('chinwag_update_memory', {
+      const result = await server.callTool('chinmeister_update_memory', {
         id: 'mem_123',
         text: 'Updated memory',
         tags: ['decision', 'api'],
@@ -551,7 +557,7 @@ describe('registerTools', () => {
     });
   });
 
-  describe('chinwag_search_memory', () => {
+  describe('chinmeister_search_memory', () => {
     it('returns formatted results when memories found', async () => {
       team.searchMemories.mockResolvedValue({
         memories: [
@@ -559,7 +565,7 @@ describe('registerTools', () => {
           { id: 'mem2', text: 'No console.log in MCP', tags: ['gotcha'], handle: 'bob' },
         ],
       });
-      const result = await server.callTool('chinwag_search_memory', { query: 'port' });
+      const result = await server.callTool('chinmeister_search_memory', { query: 'port' });
       const text = result.content[0].text;
       expect(text).toMatch(/Use port 6379 \[config\].*mem1.*alice/);
       expect(text).toMatch(/No console\.log in MCP \[gotcha\].*mem2.*bob/);
@@ -567,13 +573,13 @@ describe('registerTools', () => {
 
     it('returns "no memories" when none found', async () => {
       team.searchMemories.mockResolvedValue({ memories: [] });
-      const result = await server.callTool('chinwag_search_memory', { query: 'nonexistent' });
+      const result = await server.callTool('chinmeister_search_memory', { query: 'nonexistent' });
       expect(result.content[0].text).toMatch(/No memories found/);
     });
 
     it('passes query, tags, and limit to handler', async () => {
       team.searchMemories.mockResolvedValue({ memories: [] });
-      await server.callTool('chinwag_search_memory', {
+      await server.callTool('chinmeister_search_memory', {
         query: 'redis',
         tags: ['config'],
         limit: 5,
@@ -590,7 +596,7 @@ describe('registerTools', () => {
 
     it('works with no parameters (empty search)', async () => {
       team.searchMemories.mockResolvedValue({ memories: [] });
-      await server.callTool('chinwag_search_memory', {});
+      await server.callTool('chinmeister_search_memory', {});
       // Search applies the resolved budget cap even when the agent omits `limit`,
       // so context stays bounded by team/user/runtime config. Default is 20.
       expect(team.searchMemories).toHaveBeenCalledWith(
@@ -604,36 +610,38 @@ describe('registerTools', () => {
     });
   });
 
-  // --- chinwag_delete_memory ---
+  // --- chinmeister_delete_memory ---
 
-  describe('chinwag_delete_memory', () => {
+  describe('chinmeister_delete_memory', () => {
     it('deletes memory and confirms', async () => {
       team.deleteMemory.mockResolvedValue({ ok: true });
-      const result = await server.callTool('chinwag_delete_memory', { id: 'mem_abc' });
+      const result = await server.callTool('chinmeister_delete_memory', { id: 'mem_abc' });
       expect(result.content[0].text).toMatch(/mem_abc deleted/);
     });
 
     it('returns error when deleteMemory returns an error', async () => {
       team.deleteMemory.mockResolvedValue({ error: 'Not found' });
-      const result = await server.callTool('chinwag_delete_memory', { id: 'mem_nope' });
+      const result = await server.callTool('chinmeister_delete_memory', { id: 'mem_nope' });
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toMatch(/Failed to delete.*Not found/);
     });
 
     it('returns error on thrown exception', async () => {
       team.deleteMemory.mockRejectedValue(new Error('Server error'));
-      const result = await server.callTool('chinwag_delete_memory', { id: 'mem_err' });
+      const result = await server.callTool('chinmeister_delete_memory', { id: 'mem_err' });
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toBe('Server error');
     });
   });
 
-  // --- chinwag_claim_files ---
+  // --- chinmeister_claim_files ---
 
-  describe('chinwag_claim_files', () => {
+  describe('chinmeister_claim_files', () => {
     it('returns claimed files', async () => {
       team.claimFiles.mockResolvedValue({ claimed: ['auth.js', 'db.js'], blocked: [] });
-      const result = await server.callTool('chinwag_claim_files', { files: ['auth.js', 'db.js'] });
+      const result = await server.callTool('chinmeister_claim_files', {
+        files: ['auth.js', 'db.js'],
+      });
       expect(result.content[0].text).toMatch(/Claimed: auth\.js, db\.js/);
     });
 
@@ -642,7 +650,7 @@ describe('registerTools', () => {
         claimed: [],
         blocked: [{ file: 'locked.js', held_by: 'bob', tool: 'cursor' }],
       });
-      const result = await server.callTool('chinwag_claim_files', { files: ['locked.js'] });
+      const result = await server.callTool('chinmeister_claim_files', { files: ['locked.js'] });
       expect(result.content[0].text).toMatch(/Blocked: locked\.js.*held by bob \(cursor\)/);
     });
 
@@ -651,7 +659,7 @@ describe('registerTools', () => {
         claimed: [],
         blocked: [{ file: 'locked.js', held_by: 'bob', tool: 'unknown' }],
       });
-      const result = await server.callTool('chinwag_claim_files', { files: ['locked.js'] });
+      const result = await server.callTool('chinmeister_claim_files', { files: ['locked.js'] });
       const text = result.content[0].text;
       expect(text).toMatch(/held by bob/);
       expect(text).not.toMatch(/unknown/);
@@ -662,7 +670,7 @@ describe('registerTools', () => {
         claimed: ['free.js'],
         blocked: [{ file: 'taken.js', held_by: 'alice', tool: 'aider' }],
       });
-      const result = await server.callTool('chinwag_claim_files', {
+      const result = await server.callTool('chinmeister_claim_files', {
         files: ['free.js', 'taken.js'],
       });
       const text = result.content[0].text;
@@ -671,33 +679,33 @@ describe('registerTools', () => {
     });
   });
 
-  // --- chinwag_release_files ---
+  // --- chinmeister_release_files ---
 
-  describe('chinwag_release_files', () => {
+  describe('chinmeister_release_files', () => {
     it('releases specific files', async () => {
-      const result = await server.callTool('chinwag_release_files', { files: ['auth.js'] });
+      const result = await server.callTool('chinmeister_release_files', { files: ['auth.js'] });
       expect(team.releaseFiles).toHaveBeenCalledWith('t_test123', ['auth.js']);
       expect(result.content[0].text).toMatch(/Released: auth\.js/);
     });
 
     it('releases all locks when files is omitted', async () => {
-      const result = await server.callTool('chinwag_release_files', {});
+      const result = await server.callTool('chinmeister_release_files', {});
       expect(team.releaseFiles).toHaveBeenCalledWith('t_test123', undefined);
       expect(result.content[0].text).toMatch(/All locks released/);
     });
   });
 
-  // --- chinwag_send_message ---
+  // --- chinmeister_send_message ---
 
-  describe('chinwag_send_message', () => {
+  describe('chinmeister_send_message', () => {
     it('sends broadcast message', async () => {
-      const result = await server.callTool('chinwag_send_message', { text: 'Rebasing now' });
+      const result = await server.callTool('chinmeister_send_message', { text: 'Rebasing now' });
       expect(team.sendMessage).toHaveBeenCalledWith('t_test123', 'Rebasing now', undefined);
       expect(result.content[0].text).toMatch(/Message sent to team: Rebasing now/);
     });
 
     it('sends targeted message', async () => {
-      const result = await server.callTool('chinwag_send_message', {
+      const result = await server.callTool('chinmeister_send_message', {
         text: 'Check your tests',
         target: 'cursor:abc123',
       });
@@ -711,7 +719,7 @@ describe('registerTools', () => {
 
     it('returns error on failure', async () => {
       team.sendMessage.mockRejectedValue(new Error('Message too long'));
-      const result = await server.callTool('chinwag_send_message', { text: 'x' });
+      const result = await server.callTool('chinmeister_send_message', { text: 'x' });
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toBe('Message too long');
     });

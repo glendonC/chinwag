@@ -16,7 +16,7 @@ import type {
   FilesByWorkTypeEntry,
   FilesNewVsRevisited,
   ScopeComplexityBucket,
-} from '@chinwag/shared/contracts/analytics.js';
+} from '@chinmeister/shared/contracts/analytics.js';
 import type { TeamResult } from './types.js';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -80,7 +80,7 @@ export function projectHeatmap(acc: HeatmapAcc): FileHeatmapEntry[] {
 //
 // Each team's DO returns its own uncapped DISTINCT-file count. The
 // user-scope sum treats every team as a separate repo with its own file
-// tree, which matches chinwag's one-team-per-project model. A user with
+// tree, which matches chinmeister's one-team-per-project model. A user with
 // matching paths across two teams (e.g., `src/index.ts` in each) sees the
 // file counted once per team — semantically correct because they are
 // different files in different projects.

@@ -16,7 +16,7 @@ import { safeParse } from '../../lib/safe-parse.js';
 
 const log = createLogger('TeamDO.consolidation');
 
-// Graphiti uses 0.6 as a recall gate; we lift to 0.85 because chinwag has
+// Graphiti uses 0.6 as a recall gate; we lift to 0.85 because chinmeister has
 // a smaller corpus where the cost of wrong merges is concentrated. Real
 // near-dup territory for bge-small-en-v1.5 is 0.92+, but the structural
 // gate (Jaccard) and tag-agreement gate are the actual decision points.

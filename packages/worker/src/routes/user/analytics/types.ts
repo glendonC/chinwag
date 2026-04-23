@@ -5,7 +5,7 @@
 // shapes the final slice. TeamResult is typed against the shared contract
 // so modules get real typing — no Record<string, unknown> smuggling.
 
-import type { UserAnalytics } from '@chinwag/shared/contracts/analytics.js';
+import type { UserAnalytics } from '@chinmeister/shared/contracts/analytics.js';
 
 /**
  * Result from a single team's getAnalyticsForOwner call. Either an error

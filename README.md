@@ -1,20 +1,20 @@
-# chinwag
+# chinmeister
 
 The vendor-neutral control layer for agentic development. One command connects all your AI coding tools into a unified system: shared memory, live coordination, conflict prevention, workflow visibility.
 
 ## Quick start
 
 ```bash
-npx chinwag init
+npx chinmeister init
 ```
 
-This detects your AI tools (Claude Code, Cursor, Windsurf, VS Code, Codex, Aider, JetBrains, Amazon Q), writes MCP configs, and creates a team for your project. After init, your agents automatically coordinate through chinwag.
+This detects your AI tools (Claude Code, Cursor, Windsurf, VS Code, Codex, Aider, JetBrains, Amazon Q), writes MCP configs, and creates a team for your project. After init, your agents automatically coordinate through chinmeister.
 
-**Running the `chinwag` command.** `npx chinwag …` always works. The shorter `chinwag …` form is available after a global install: `npm install -g chinwag` (adds the binary to your PATH).
+**Running the `chinmeister` command.** `npx chinmeister …` always works. The shorter `chinmeister …` form is available after a global install: `npm install -g chinmeister` (adds the binary to your PATH).
 
 ## What it does
 
-- **Connect** — `npx chinwag init` detects tools and writes configs. `npx chinwag add <tool>` expands.
+- **Connect** — `npx chinmeister init` detects tools and writes configs. `npx chinmeister add <tool>` expands.
 - **Remember** — Agents share a brain. What one agent learns, every agent knows next session.
 - **Coordinate** — Live awareness of every agent. Conflict prevention enforced on Claude Code, advisory on others.
 - **Discover** — Browse AI dev tools from one catalog. See what fits your stack. Add with one action.
@@ -22,17 +22,17 @@ This detects your AI tools (Claude Code, Cursor, Windsurf, VS Code, Codex, Aider
 
 ## Teams
 
-The `.chinwag` file gets committed to git. When a teammate runs `npx chinwag init`, they auto-join the same team. Every agent across every teammate shares memory and gets conflict prevention.
+The `.chinmeister` file gets committed to git. When a teammate runs `npx chinmeister init`, they auto-join the same team. Every agent across every teammate shares memory and gets conflict prevention.
 
 ## Commands
 
 ```bash
-npx chinwag init              # Setup: account + team + tool configs
-npx chinwag add <tool>        # Add a specific tool
-npx chinwag add --list        # Browse all tools
-npx chinwag token             # Print the active auth token
-npx chinwag dashboard         # Open web dashboard
-npx chinwag                   # TUI: dashboard, discover, chat, settings
+npx chinmeister init              # Setup: account + team + tool configs
+npx chinmeister add <tool>        # Add a specific tool
+npx chinmeister add --list        # Browse all tools
+npx chinmeister token             # Print the active auth token
+npx chinmeister dashboard         # Open web dashboard
+npx chinmeister                   # TUI: dashboard, discover, chat, settings
 ```
 
 ## Architecture
@@ -49,7 +49,7 @@ npm run dev:web           # Web dashboard only
 npm run deploy            # Deploy worker to production
 ```
 
-`npm run dev:local` keeps local development isolated from production by using the local worker, the local dashboard, and `~/.chinwag/local/config.json`. See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for setup and code style.
+`npm run dev:local` keeps local development isolated from production by using the local worker, the local dashboard, and `~/.chinmeister/local/config.json`. See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for setup and code style.
 
 ## Security
 

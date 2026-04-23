@@ -12,7 +12,7 @@
 import { readFile, readdir, stat } from 'fs/promises';
 import { join, resolve } from 'path';
 import { homedir, platform } from 'os';
-import { createLogger } from '@chinwag/shared';
+import { createLogger } from '@chinmeister/shared';
 import type {
   ParserSpec,
   FileDiscovery,
@@ -217,7 +217,7 @@ async function discoverFixed(
 
 /**
  * Guard against queries that could do anything other than SELECT. Specs ship
- * with chinwag and AI-healed specs must pass the validator, but cheap
+ * with chinmeister and AI-healed specs must pass the validator, but cheap
  * defense-in-depth is free: reject anything with a statement terminator, any
  * DDL/DML keyword, or PRAGMA/ATTACH/DETACH. Comments are stripped first so a
  * `-- DROP TABLE foo` comment is not flagged.

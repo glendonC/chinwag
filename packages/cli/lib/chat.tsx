@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef, useReducer, useCallback } from 'rea
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import { getInkColor } from './colors.js';
-import type { ChinwagConfig } from './config.js';
+import type { ChinmeisterConfig } from './config.js';
 import { getRuntimeTargets } from './api.js';
-import { formatError, createLogger } from '@chinwag/shared';
+import { formatError, createLogger } from '@chinmeister/shared';
 import {
   ERROR_DISPLAY_MS,
   MAX_RECONNECT_DELAY_MS,
@@ -117,7 +117,7 @@ interface ChatUser {
 }
 
 interface ChatProps {
-  config: ChinwagConfig | null;
+  config: ChinmeisterConfig | null;
   user: ChatUser | null;
   navigate: (to: string) => void;
 }
@@ -303,7 +303,7 @@ export function Chat({ config, user, navigate }: ChatProps): React.ReactNode {
   });
 
   if (!config?.token)
-    return <Text color="red">Not signed in. Run chinwag init to get started.</Text>;
+    return <Text color="red">Not signed in. Run chinmeister init to get started.</Text>;
 
   const visibleMessages = messages.slice(-VISIBLE_MESSAGE_COUNT);
 

@@ -1,6 +1,6 @@
 // Billing block contract — response shape for the 5-hour Anthropic
 // rate-limit window endpoints. Ported from ccusage (_session-blocks.ts)
-// into chinwag's snake_case schema convention so it matches every other
+// into chinmeister's snake_case schema convention so it matches every other
 // analytics payload.
 //
 // Clients render "3h 22m until reset · 64% tokens burned" from this

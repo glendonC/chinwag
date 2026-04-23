@@ -311,7 +311,9 @@ describe('hook.js entry point coverage', () => {
 
     expect(team.joinTeam).toHaveBeenCalled();
     expect(team.getTeamContext).toHaveBeenCalled();
-    expect(stdoutWriteSpy).toHaveBeenCalledWith(expect.stringContaining('chinwag team context'));
+    expect(stdoutWriteSpy).toHaveBeenCalledWith(
+      expect.stringContaining('chinmeister team context'),
+    );
     expect(exitSpy).toHaveBeenCalledWith(0);
   });
 

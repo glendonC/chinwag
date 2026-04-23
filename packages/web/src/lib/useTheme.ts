@@ -9,7 +9,7 @@ interface UseThemeReturn {
   setTheme: (value: ThemePreference) => void;
 }
 
-const STORAGE_KEY = 'chinwag-theme';
+const STORAGE_KEY = 'chinmeister-theme';
 const darkMQ = window.matchMedia('(prefers-color-scheme: dark)');
 
 function getSystemTheme(): ResolvedTheme {

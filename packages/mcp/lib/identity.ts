@@ -5,4 +5,4 @@ export {
   generateSessionAgentId,
   getConfiguredAgentId,
   inferToolFromClientInfo,
-} from '@chinwag/shared/agent-identity.js';
+} from '@chinmeister/shared/agent-identity.js';

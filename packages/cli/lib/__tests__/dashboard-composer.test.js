@@ -65,8 +65,8 @@ async function loadComposerModule(apiOverrides = {}) {
     },
   }));
 
-  // Mock @chinwag/shared
-  vi.doMock('@chinwag/shared', () => ({
+  // Mock @chinmeister/shared
+  vi.doMock('@chinmeister/shared', () => ({
     formatError: (err) => (err instanceof Error ? err.message : String(err)),
     createLogger: () => ({
       info: vi.fn(),

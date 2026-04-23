@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { Box, Text } from 'ink';
-import type { IntegrationScanResult } from '@chinwag/shared/integration-doctor.js';
+import type { IntegrationScanResult } from '@chinmeister/shared/integration-doctor.js';
 
 interface IntegrationSummary {
   text: string;
@@ -23,7 +23,7 @@ export function DetectedToolsList({
   if (detected.length === 0) {
     return (
       <Box marginBottom={1}>
-        <Text dimColor>No tools detected. Run `npx chinwag init` first.</Text>
+        <Text dimColor>No tools detected. Run `npx chinmeister init` first.</Text>
       </Box>
     );
   }

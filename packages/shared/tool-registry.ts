@@ -50,7 +50,7 @@ export interface ToolCatalog {
  * Adding a new capability = one field here + one parser in the extraction engine.
  */
 export interface DataCapabilities {
-  /** Tool writes conversation logs that chinwag can parse for message-level analytics. */
+  /** Tool writes conversation logs that chinmeister can parse for message-level analytics. */
   conversationLogs?: boolean;
   /** Tool exposes token/usage data (input tokens, output tokens) in its logs. */
   tokenUsage?: boolean;

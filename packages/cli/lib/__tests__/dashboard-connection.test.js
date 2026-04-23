@@ -13,11 +13,11 @@ function classifyError(err) {
   const msg = err.message || '';
   const status = err.status;
   if (status === 401)
-    return { state: 'offline', detail: 'Session expired. Re-run chinwag init.', fatal: true };
+    return { state: 'offline', detail: 'Session expired. Re-run chinmeister init.', fatal: true };
   if (status === 403)
     return { state: 'offline', detail: 'Access denied. You may have been removed from this team.' };
   if (status === 404)
-    return { state: 'offline', detail: 'Team not found. The .chinwag file may be stale.' };
+    return { state: 'offline', detail: 'Team not found. The .chinmeister file may be stale.' };
   if (status === 429) return { state: 'reconnecting', detail: 'Rate limited. Retrying shortly.' };
   if (status >= 500) return { state: 'reconnecting', detail: 'Server error. Retrying...' };
   if (status === 408 || msg.includes('timed out'))
@@ -96,13 +96,13 @@ describe('classifyError', () => {
   });
 
   it('classifies ENOTFOUND as offline', () => {
-    const result = classifyError({ message: 'getaddrinfo ENOTFOUND api.chinwag.dev' });
+    const result = classifyError({ message: 'getaddrinfo ENOTFOUND api.chinmeister.com' });
     expect(result.state).toBe('offline');
     expect(result.detail).toContain('Cannot reach server');
   });
 
   it('classifies EAI_AGAIN as offline', () => {
-    const result = classifyError({ message: 'getaddrinfo EAI_AGAIN api.chinwag.dev' });
+    const result = classifyError({ message: 'getaddrinfo EAI_AGAIN api.chinmeister.com' });
     expect(result.state).toBe('offline');
     expect(result.detail).toContain('Cannot reach server');
   });

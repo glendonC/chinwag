@@ -1,10 +1,10 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { useState, useRef } from 'react';
 import { api } from '../api.js';
-import type { ChinwagConfig } from '../config.js';
+import type { ChinmeisterConfig } from '../config.js';
 import type { MemoryEntry } from './view.js';
 import type { NoticeTone } from './reducer.js';
-import { formatError, createLogger } from '@chinwag/shared';
+import { formatError, createLogger } from '@chinmeister/shared';
 
 const log = createLogger('dashboard-memory');
 
@@ -12,7 +12,7 @@ const log = createLogger('dashboard-memory');
 const DELETE_FEEDBACK_MS = 2000;
 
 interface UseMemoryManagerParams {
-  config: ChinwagConfig | null;
+  config: ChinmeisterConfig | null;
   teamId: string | null;
   bumpRefreshKey: () => void;
   flash: (text: string, options?: { tone?: NoticeTone; autoClearMs?: number }) => void;

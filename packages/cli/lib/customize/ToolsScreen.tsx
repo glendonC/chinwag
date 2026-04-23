@@ -4,7 +4,7 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import { DetectedToolsList } from '../tool-display.jsx';
-import type { IntegrationScanResult } from '@chinwag/shared/integration-doctor.js';
+import type { IntegrationScanResult } from '@chinmeister/shared/integration-doctor.js';
 
 interface FlashMessage {
   type: string;
@@ -42,7 +42,7 @@ export function ToolsScreen({
       {detected.length === 0 && (
         <Box marginBottom={1}>
           <Text dimColor>Run </Text>
-          <Text color="cyan">npx chinwag add &lt;tool&gt;</Text>
+          <Text color="cyan">npx chinmeister add &lt;tool&gt;</Text>
           <Text dimColor> to connect a tool.</Text>
         </Box>
       )}

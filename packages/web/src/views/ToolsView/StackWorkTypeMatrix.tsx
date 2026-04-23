@@ -3,7 +3,7 @@
 // Cell: % of that tool's sessions doing that type of work, with
 // background intensity scaled by session count.
 //
-// Only chinwag can render this because it requires seeing every tool
+// Only chinmeister can render this because it requires seeing every tool
 // and every session on the same work classification.
 //
 // TODO(tech-context): once sessions.framework + file-extension language

@@ -2,10 +2,10 @@ import { detectTerminalEnvironment } from './terminal-spawner.js';
 import type { SpawnResult } from './terminal-spawner.js';
 import { execFileSync } from 'child_process';
 import { shellQuote, escapeAppleScriptString } from './utils/shell.js';
-import { writeFileAtomicSync } from '@chinwag/shared/fs-atomic.js';
+import { writeFileAtomicSync } from '@chinmeister/shared/fs-atomic.js';
 import { join } from 'path';
 import { homedir } from 'os';
-import { formatError, createLogger } from '@chinwag/shared';
+import { formatError, createLogger } from '@chinmeister/shared';
 import { EXEC_TIMEOUT_MS } from './constants/timings.js';
 
 const log = createLogger('open-command');
@@ -16,7 +16,7 @@ export function openCommandInTerminal(command: string, cwd: string = process.cwd
   // IDE terminal — write to launch queue so the command runs in-IDE
   if (env.type === 'ide-terminal') {
     try {
-      const queuePath = join(homedir(), '.chinwag', 'launch-queue.json');
+      const queuePath = join(homedir(), '.chinmeister', 'launch-queue.json');
       writeFileAtomicSync(
         queuePath,
         JSON.stringify({

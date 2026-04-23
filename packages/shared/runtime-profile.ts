@@ -1,4 +1,4 @@
-export type ChinwagRuntimeProfile = 'prod' | 'local';
+export type ChinmeisterRuntimeProfile = 'prod' | 'local';
 
 export interface RuntimeProfileOptions {
   profile?: string | null | undefined;
@@ -8,7 +8,7 @@ export interface RuntimeProfileOptions {
 }
 
 export interface RuntimeTargets {
-  profile: ChinwagRuntimeProfile;
+  profile: ChinmeisterRuntimeProfile;
   apiUrl: string;
   dashboardUrl: string;
   dashboardOrigin: string;
@@ -17,20 +17,20 @@ export interface RuntimeTargets {
   teamWsOrigin: string;
 }
 
-export const PROD_RUNTIME_PROFILE: ChinwagRuntimeProfile = 'prod';
-export const LOCAL_RUNTIME_PROFILE: ChinwagRuntimeProfile = 'local';
+export const PROD_RUNTIME_PROFILE: ChinmeisterRuntimeProfile = 'prod';
+export const LOCAL_RUNTIME_PROFILE: ChinmeisterRuntimeProfile = 'local';
 
-export const DEFAULT_API_URL = 'https://chinwag-api.glendonchin.workers.dev';
-export const DEFAULT_DASHBOARD_URL = 'https://chinwag.dev/dashboard';
+export const DEFAULT_API_URL = 'https://chinmeister-api.glendonchin.workers.dev';
+export const DEFAULT_DASHBOARD_URL = 'https://chinmeister.com/dashboard';
 export const LOCAL_API_URL = 'http://localhost:8787';
 export const LOCAL_DASHBOARD_URL = 'http://localhost:56790/dashboard.html';
 
-const DASHBOARD_PATHS: Record<ChinwagRuntimeProfile, string> = {
+const DASHBOARD_PATHS: Record<ChinmeisterRuntimeProfile, string> = {
   prod: '/dashboard',
   local: '/dashboard.html',
 };
 
-const PROFILE_ALIASES: Record<string, ChinwagRuntimeProfile> = {
+const PROFILE_ALIASES: Record<string, ChinmeisterRuntimeProfile> = {
   prod: PROD_RUNTIME_PROFILE,
   production: PROD_RUNTIME_PROFILE,
   local: LOCAL_RUNTIME_PROFILE,
@@ -48,8 +48,8 @@ function isLoopbackHost(hostname: string): boolean {
 }
 
 export function normalizeRuntimeProfile(
-  value: string | ChinwagRuntimeProfile | null | undefined,
-): ChinwagRuntimeProfile | null {
+  value: string | ChinmeisterRuntimeProfile | null | undefined,
+): ChinmeisterRuntimeProfile | null {
   if (!value) return null;
   return PROFILE_ALIASES[String(value).trim().toLowerCase()] || null;
 }
@@ -63,13 +63,13 @@ export function isLoopbackUrl(value: string | null | undefined): boolean {
   }
 }
 
-export function getDefaultDashboardPath(profile: ChinwagRuntimeProfile): string {
+export function getDefaultDashboardPath(profile: ChinmeisterRuntimeProfile): string {
   return DASHBOARD_PATHS[profile];
 }
 
 export function coerceDashboardUrl(
   value: string,
-  profile: ChinwagRuntimeProfile = PROD_RUNTIME_PROFILE,
+  profile: ChinmeisterRuntimeProfile = PROD_RUNTIME_PROFILE,
 ): string {
   const parsed = new URL(value);
   if (!parsed.pathname || parsed.pathname === '/') {
@@ -78,7 +78,9 @@ export function coerceDashboardUrl(
   return parsed.toString();
 }
 
-export function resolveRuntimeProfile(options: RuntimeProfileOptions = {}): ChinwagRuntimeProfile {
+export function resolveRuntimeProfile(
+  options: RuntimeProfileOptions = {},
+): ChinmeisterRuntimeProfile {
   const explicit = normalizeRuntimeProfile(options.profile);
   if (explicit) return explicit;
 

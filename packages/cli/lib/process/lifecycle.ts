@@ -4,7 +4,7 @@
 import { createRequire } from 'module';
 import type { IPty } from 'node-pty';
 import { shellQuote } from '../utils/shell.js';
-import { formatError, createLogger } from '@chinwag/shared';
+import { formatError, createLogger } from '@chinmeister/shared';
 import { KILL_GRACE_MS, DEFAULT_COLS, DEFAULT_ROWS } from '../constants/timings.js';
 import { appendOutput } from './output.js';
 import {

@@ -91,7 +91,7 @@ let refreshInFlight: Promise<void> | null = null;
 function baseHeaders(token: string): Record<string, string> {
   return {
     Authorization: `Bearer ${token}`,
-    'User-Agent': 'chinwag-pricing-refresh',
+    'User-Agent': 'chinmeister-pricing-refresh',
     Accept: 'application/vnd.github+json',
   };
 }
@@ -134,7 +134,7 @@ async function fetchAtSha(
 ): Promise<FetchResult> {
   const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,
-    'User-Agent': 'chinwag-pricing-refresh',
+    'User-Agent': 'chinmeister-pricing-refresh',
     Accept: 'application/json',
   };
   if (prevEtag) headers['If-None-Match'] = prevEtag;

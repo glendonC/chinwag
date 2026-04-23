@@ -7,7 +7,7 @@ import { extract } from '../extraction/engine.js';
 function fixtureRoot() {
   return join(
     tmpdir(),
-    `chinwag-engine-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    `chinmeister-engine-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
   );
 }
 

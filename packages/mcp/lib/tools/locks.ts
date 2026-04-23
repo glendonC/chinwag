@@ -1,4 +1,4 @@
-// chinwag_claim_files and chinwag_release_files tool handlers.
+// chinmeister_claim_files and chinmeister_release_files tool handlers.
 
 import * as z from 'zod/v4';
 import { safeArray, withTimeout } from '../utils/responses.js';
@@ -42,7 +42,7 @@ export function registerLockTools(
   const { team, state } = deps;
 
   addTool(
-    'chinwag_claim_files',
+    'chinmeister_claim_files',
     {
       description:
         'Claim advisory locks on files or scopes you are about to edit. Accepts concrete paths (src/auth/tokens.ts) or glob patterns (src/auth/**/*.ts) in the same array. Other agents will be warned if they try to edit a file that matches any of your active claims. Locks auto-release when your session ends or when ttl_seconds expires.',
@@ -78,7 +78,7 @@ export function registerLockTools(
   );
 
   addTool(
-    'chinwag_release_files',
+    'chinmeister_release_files',
     {
       description:
         'Release advisory locks on files you previously claimed. Call this when you are done editing files so other agents can work on them.',

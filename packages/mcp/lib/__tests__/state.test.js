@@ -131,7 +131,7 @@ describe('createAgentState (Proxy-based state guard)', () => {
     const state = createAgentState(makeInitial());
     expect(() => {
       /** @type {any} */ (state).bogusKey = 'value';
-    }).toThrow('[chinwag] AgentState: unexpected property "bogusKey"');
+    }).toThrow('[chinmeister] AgentState: unexpected property "bogusKey"');
   });
 
   it('throws for typo-like keys (temId instead of teamId)', () => {
@@ -165,7 +165,7 @@ describe('createAgentState (Proxy-based state guard)', () => {
     const state = createAgentState(makeInitial());
     expect(() => {
       delete (/** @type {any} */ (state).teamId);
-    }).toThrow('[chinwag] AgentState: cannot delete property "teamId"');
+    }).toThrow('[chinmeister] AgentState: cannot delete property "teamId"');
   });
 
   it('throws when deleting an undeclared property', () => {

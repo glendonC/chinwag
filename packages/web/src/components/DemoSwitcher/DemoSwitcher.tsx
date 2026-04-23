@@ -33,10 +33,10 @@ export default function DemoSwitcher() {
     function handler() {
       setVisible(shouldShowDemoSwitcher());
     }
-    window.addEventListener('chinwag:demo-scenario-changed', handler);
+    window.addEventListener('chinmeister:demo-scenario-changed', handler);
     window.addEventListener('popstate', handler);
     return () => {
-      window.removeEventListener('chinwag:demo-scenario-changed', handler);
+      window.removeEventListener('chinmeister:demo-scenario-changed', handler);
       window.removeEventListener('popstate', handler);
     };
   }, []);

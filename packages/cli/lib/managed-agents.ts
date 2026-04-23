@@ -1,11 +1,11 @@
-import { generateSessionAgentId } from '@chinwag/shared/agent-identity.js';
+import { generateSessionAgentId } from '@chinmeister/shared/agent-identity.js';
 import { commandExists } from './mcp-config.js';
 import { MCP_TOOLS, getMcpToolById } from './tools.js';
 import type {
   McpTool,
   ToolAvailabilityCheck,
   ToolFailurePattern,
-} from '@chinwag/shared/tool-registry.js';
+} from '@chinmeister/shared/tool-registry.js';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import type { SpawnAgentLaunch } from './process-manager.js';
@@ -87,7 +87,7 @@ export function createManagedAgentLaunch({
     throw new Error('Working directory is required');
   }
   if (!token) {
-    throw new Error('Missing chinwag auth token');
+    throw new Error('Missing chinmeister auth token');
   }
 
   const agentId = generateSessionAgentId(token, tool.id);
@@ -105,8 +105,8 @@ export function createManagedAgentLaunch({
     rows,
     env: {
       ...process.env,
-      CHINWAG_TOOL: tool.id,
-      CHINWAG_AGENT_ID: agentId,
+      CHINMEISTER_TOOL: tool.id,
+      CHINMEISTER_AGENT_ID: agentId,
     },
   };
 }
@@ -119,7 +119,7 @@ export function createTerminalAgentLaunch({
 }: CreateTerminalAgentLaunchParams): TerminalLaunch {
   if (!tool?.id || !tool?.cmd) throw new Error('Missing managed agent tool metadata');
   if (!cwd) throw new Error('Working directory is required');
-  if (!token) throw new Error('Missing chinwag auth token');
+  if (!token) throw new Error('Missing chinmeister auth token');
 
   const agentId = generateSessionAgentId(token, tool.id);
   const fullTool = MCP_TOOLS.find((t) => t.id === tool.id);

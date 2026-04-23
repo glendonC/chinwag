@@ -43,12 +43,12 @@ export const TOOL_CALL_CATEGORIES: Record<string, ToolCallCategory> = {
   BashOutput: 'exec',
   KillShell: 'exec',
 
-  // ── Memory (chinwag's MCP namespace) ──────────────
-  chinwag_save_memory: 'memory',
-  chinwag_search_memory: 'memory',
-  chinwag_update_memory: 'memory',
-  chinwag_delete_memory: 'memory',
-  chinwag_delete_memories_batch: 'memory',
+  // ── Memory (chinmeister's MCP namespace) ──────────────
+  chinmeister_save_memory: 'memory',
+  chinmeister_search_memory: 'memory',
+  chinmeister_update_memory: 'memory',
+  chinmeister_delete_memory: 'memory',
+  chinmeister_delete_memories_batch: 'memory',
 };
 
 /**

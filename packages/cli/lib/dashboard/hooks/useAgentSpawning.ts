@@ -6,7 +6,7 @@ import { spawnAgent, registerExternalAgent } from '../../process-manager.js';
 import { spawnInTerminal, detectTerminalEnvironment } from '../../terminal-spawner.js';
 import { createManagedAgentLaunch, createTerminalAgentLaunch } from '../../managed-agents.js';
 import type { ManagedTool } from '../../managed-agents.js';
-import type { ChinwagConfig } from '../../config.js';
+import type { ChinmeisterConfig } from '../../config.js';
 import type { NoticeTone } from '../reducer.js';
 import type { UseToolAvailabilityReturn } from './useToolAvailability.js';
 
@@ -15,7 +15,7 @@ interface SpawnOptions {
 }
 
 interface UseAgentSpawningParams {
-  config: ChinwagConfig | null;
+  config: ChinmeisterConfig | null;
   projectRoot: string;
   stdout: { columns?: number; rows?: number } | null;
   flash: (text: string, options?: { tone?: NoticeTone }) => void;

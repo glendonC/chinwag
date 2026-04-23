@@ -1,4 +1,4 @@
-// Shared constants for the chinwag MCP server.
+// Shared constants for the chinmeister MCP server.
 // All magic numbers live here — import by name, never hardcode.
 //
 // Mirrors the worker's constants.js pattern: grouped by domain,
@@ -68,7 +68,7 @@ export function nextReconnectDelay(
   return { jitteredDelay, nextDelay };
 }
 
-// --- Shared constants (re-exported from @chinwag/shared) ---
+// --- Shared constants (re-exported from @chinmeister/shared) ---
 export {
   MAX_SUMMARY_LENGTH,
   MAX_MEMORY_TEXT_LENGTH,
@@ -81,7 +81,7 @@ export {
   LOCK_CLAIM_MAX_FILES,
   MEMORY_SEARCH_MAX_LIMIT,
   RECONCILE_INTERVAL_MS,
-} from '@chinwag/shared/constants.js';
+} from '@chinmeister/shared/constants.js';
 
 // --- String length limits (MCP-specific) ---
 /** Max length for terminal tab title labels */

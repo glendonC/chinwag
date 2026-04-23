@@ -36,28 +36,28 @@ describe('WebSocket connection setup — validation', () => {
     expect(res.ok).toBe(true);
   });
 
-  it('rejects when X-Chinwag-Verified header has wrong value ("true" instead of "1")', async () => {
+  it('rejects when X-Chinmeister-Verified header has wrong value ("true" instead of "1")', async () => {
     const res = await team().fetch(
       new Request(`http://localhost/ws?agentId=${agentId}&ownerId=${ownerId}&role=agent`, {
-        headers: { 'X-Chinwag-Verified': 'true' },
+        headers: { 'X-Chinmeister-Verified': 'true' },
       }),
     );
     expect(res.status).toBe(403);
   });
 
-  it('rejects when X-Chinwag-Verified header is "0"', async () => {
+  it('rejects when X-Chinmeister-Verified header is "0"', async () => {
     const res = await team().fetch(
       new Request(`http://localhost/ws?agentId=${agentId}&ownerId=${ownerId}&role=agent`, {
-        headers: { 'X-Chinwag-Verified': '0' },
+        headers: { 'X-Chinmeister-Verified': '0' },
       }),
     );
     expect(res.status).toBe(403);
   });
 
-  it('rejects when X-Chinwag-Verified header is empty string', async () => {
+  it('rejects when X-Chinmeister-Verified header is empty string', async () => {
     const res = await team().fetch(
       new Request(`http://localhost/ws?agentId=${agentId}&ownerId=${ownerId}&role=agent`, {
-        headers: { 'X-Chinwag-Verified': '' },
+        headers: { 'X-Chinmeister-Verified': '' },
       }),
     );
     expect(res.status).toBe(403);
@@ -66,7 +66,7 @@ describe('WebSocket connection setup — validation', () => {
   it('rejects agent that was never joined', async () => {
     const res = await team().fetch(
       new Request(`http://localhost/ws?agentId=cursor:ghost&ownerId=user-ghost&role=agent`, {
-        headers: { 'X-Chinwag-Verified': '1' },
+        headers: { 'X-Chinmeister-Verified': '1' },
       }),
     );
     expect(res.status).toBe(403);
@@ -77,7 +77,7 @@ describe('WebSocket connection setup — validation', () => {
   it('rejects agent with mismatched ownerId', async () => {
     const res = await team().fetch(
       new Request(`http://localhost/ws?agentId=${agentId}&ownerId=wrong-owner&role=agent`, {
-        headers: { 'X-Chinwag-Verified': '1' },
+        headers: { 'X-Chinmeister-Verified': '1' },
       }),
     );
     expect(res.status).toBe(403);
@@ -86,7 +86,7 @@ describe('WebSocket connection setup — validation', () => {
   it('rejects when agentId is empty string', async () => {
     const res = await team().fetch(
       new Request(`http://localhost/ws?agentId=&ownerId=${ownerId}&role=agent`, {
-        headers: { 'X-Chinwag-Verified': '1' },
+        headers: { 'X-Chinmeister-Verified': '1' },
       }),
     );
     // Empty string is falsy, so this triggers the 400 path
@@ -96,7 +96,7 @@ describe('WebSocket connection setup — validation', () => {
   it('rejects when ownerId is empty string', async () => {
     const res = await team().fetch(
       new Request(`http://localhost/ws?agentId=${agentId}&ownerId=&role=agent`, {
-        headers: { 'X-Chinwag-Verified': '1' },
+        headers: { 'X-Chinmeister-Verified': '1' },
       }),
     );
     expect(res.status).toBe(400);
@@ -111,7 +111,7 @@ describe('WebSocket fetch endpoint — path routing', () => {
   it('returns 404 for /ws/extra path', async () => {
     const res = await team().fetch(
       new Request('http://localhost/ws/extra', {
-        headers: { 'X-Chinwag-Verified': '1' },
+        headers: { 'X-Chinmeister-Verified': '1' },
       }),
     );
     expect(res.status).toBe(404);
@@ -120,7 +120,7 @@ describe('WebSocket fetch endpoint — path routing', () => {
   it('returns 404 for root path /', async () => {
     const res = await team().fetch(
       new Request('http://localhost/', {
-        headers: { 'X-Chinwag-Verified': '1' },
+        headers: { 'X-Chinmeister-Verified': '1' },
       }),
     );
     expect(res.status).toBe(404);
@@ -129,7 +129,7 @@ describe('WebSocket fetch endpoint — path routing', () => {
   it('returns 404 for empty path', async () => {
     const res = await team().fetch(
       new Request('http://localhost', {
-        headers: { 'X-Chinwag-Verified': '1' },
+        headers: { 'X-Chinmeister-Verified': '1' },
       }),
     );
     expect(res.status).toBe(404);
@@ -138,7 +138,7 @@ describe('WebSocket fetch endpoint — path routing', () => {
   it('returns 404 for /health path', async () => {
     const res = await team().fetch(
       new Request('http://localhost/health', {
-        headers: { 'X-Chinwag-Verified': '1' },
+        headers: { 'X-Chinmeister-Verified': '1' },
       }),
     );
     expect(res.status).toBe(404);
@@ -152,7 +152,7 @@ describe('WebSocket fetch endpoint — path routing', () => {
   it('missing both agentId and ownerId returns 400', async () => {
     const res = await team().fetch(
       new Request('http://localhost/ws', {
-        headers: { 'X-Chinwag-Verified': '1' },
+        headers: { 'X-Chinmeister-Verified': '1' },
       }),
     );
     expect(res.status).toBe(400);
@@ -161,7 +161,7 @@ describe('WebSocket fetch endpoint — path routing', () => {
   it('missing ownerId returns 400 with descriptive message', async () => {
     const res = await team().fetch(
       new Request('http://localhost/ws?agentId=cursor:test', {
-        headers: { 'X-Chinwag-Verified': '1' },
+        headers: { 'X-Chinmeister-Verified': '1' },
       }),
     );
     expect(res.status).toBe(400);
@@ -172,7 +172,7 @@ describe('WebSocket fetch endpoint — path routing', () => {
   it('missing agentId returns 400', async () => {
     const res = await team().fetch(
       new Request('http://localhost/ws?ownerId=user-test', {
-        headers: { 'X-Chinwag-Verified': '1' },
+        headers: { 'X-Chinmeister-Verified': '1' },
       }),
     );
     expect(res.status).toBe(400);

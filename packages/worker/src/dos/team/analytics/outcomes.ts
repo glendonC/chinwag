@@ -9,19 +9,19 @@ import type {
   WorkTypeDistribution,
   ToolWorkTypeBreakdown,
   WorkTypeOutcome,
-} from '@chinwag/shared/contracts/analytics.js';
+} from '@chinmeister/shared/contracts/analytics.js';
 // The JS classifier and the canonical WORK_TYPES list live in shared so
 // the web package, demo fixtures, and the worker all agree on the same
 // enum. The SQL CASE below must stay in lockstep with that JS classifier
 // — any rule change goes in both places, and work-type.test.js pins
 // behavior for a canonical set of paths.
-export { classifyWorkType, WORK_TYPES } from '@chinwag/shared/analytics/work-type.js';
-export type { WorkType } from '@chinwag/shared/analytics/work-type.js';
+export { classifyWorkType, WORK_TYPES } from '@chinmeister/shared/analytics/work-type.js';
+export type { WorkType } from '@chinmeister/shared/analytics/work-type.js';
 
 const log = createLogger('TeamDO.analytics');
 
 // SQL CASE expression for classifying file paths into work types. Must
-// stay semantically equivalent to classifyWorkType() in @chinwag/shared.
+// stay semantically equivalent to classifyWorkType() in @chinmeister/shared.
 // Test patterns go first (most specific), then docs/styling/frontend/backend/config, else other.
 export const WORK_TYPE_CASE = `
   CASE

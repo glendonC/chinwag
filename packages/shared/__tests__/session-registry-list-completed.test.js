@@ -7,7 +7,7 @@ import { listCompletedSessions, writeCompletedSession } from '../session-registr
 function makeHomeRoot() {
   return join(
     tmpdir(),
-    `chinwag-session-list-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    `chinmeister-session-list-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
   );
 }
 
@@ -16,7 +16,7 @@ describe('listCompletedSessions', () => {
 
   beforeEach(() => {
     homeDir = makeHomeRoot();
-    mkdirSync(join(homeDir, '.chinwag', 'sessions'), { recursive: true });
+    mkdirSync(join(homeDir, '.chinmeister', 'sessions'), { recursive: true });
   });
 
   afterEach(() => rmSync(homeDir, { recursive: true, force: true }));
@@ -77,7 +77,7 @@ describe('listCompletedSessions', () => {
     );
     // Write a malformed file alongside — the sweep must keep going.
     writeFileSync(
-      join(homeDir, '.chinwag', 'sessions', 'agent-bad.completed.json'),
+      join(homeDir, '.chinmeister', 'sessions', 'agent-bad.completed.json'),
       'not json at all',
     );
 
@@ -100,8 +100,11 @@ describe('listCompletedSessions', () => {
       { homeDir },
     );
     // Unrelated files (session records, misc) must not be returned.
-    writeFileSync(join(homeDir, '.chinwag', 'sessions', 'agent-a.session.json'), '{"pid":1234}');
-    writeFileSync(join(homeDir, '.chinwag', 'sessions', 'README.md'), 'notes');
+    writeFileSync(
+      join(homeDir, '.chinmeister', 'sessions', 'agent-a.session.json'),
+      '{"pid":1234}',
+    );
+    writeFileSync(join(homeDir, '.chinmeister', 'sessions', 'README.md'), 'notes');
 
     const listed = listCompletedSessions({ homeDir });
     expect(listed).toHaveLength(1);
@@ -110,7 +113,7 @@ describe('listCompletedSessions', () => {
 
   it('drops records missing required identifiers', () => {
     writeFileSync(
-      join(homeDir, '.chinwag', 'sessions', 'agent-x.completed.json'),
+      join(homeDir, '.chinmeister', 'sessions', 'agent-x.completed.json'),
       JSON.stringify({ agentId: 'agent-x' }), // missing sessionId / teamId
     );
     expect(listCompletedSessions({ homeDir })).toEqual([]);

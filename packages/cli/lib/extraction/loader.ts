@@ -2,8 +2,8 @@
  * Spec loader. Checks user/healed specs first, then bundled specs.
  *
  * Load priority:
- * 1. ~/.chinwag/specs/{toolId}.json (user-modified or AI-healed)
- * 2. {bundled}/specs/{toolId}.json (shipped with chinwag)
+ * 1. ~/.chinmeister/specs/{toolId}.json (user-modified or AI-healed)
+ * 2. {bundled}/specs/{toolId}.json (shipped with chinmeister)
  *
  * The cache is invalidated for a tool when a healed spec is written,
  * allowing hot-swap without process restart.
@@ -17,7 +17,7 @@ import type { ParserSpec } from './types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BUNDLED_SPECS_DIR = join(__dirname, 'specs');
-const USER_SPECS_DIR = join(homedir(), '.chinwag', 'specs');
+const USER_SPECS_DIR = join(homedir(), '.chinmeister', 'specs');
 
 const cache = new Map<string, ParserSpec>();
 

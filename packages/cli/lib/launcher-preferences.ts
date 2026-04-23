@@ -1,7 +1,7 @@
 import { loadConfig, saveConfig } from './config.js';
-import type { ChinwagConfig } from './config.js';
+import type { ChinmeisterConfig } from './config.js';
 
-interface LauncherConfig extends ChinwagConfig {
+interface LauncherConfig extends ChinmeisterConfig {
   launcherPreferences?: {
     managedToolByScope?: Record<string, string>;
   };

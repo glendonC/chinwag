@@ -457,7 +457,7 @@ describe('websocket store', () => {
 
       MockWebSocket.instances[0].onmessage?.({ data: 'not valid json {{{' });
 
-      expect(warnSpy).toHaveBeenCalledWith('[chinwag] Malformed WS event:', expect.any(String));
+      expect(warnSpy).toHaveBeenCalledWith('[chinmeister] Malformed WS event:', expect.any(String));
     });
   });
 

@@ -14,7 +14,7 @@ import { enrichTokenUsageWithPricing } from '../../lib/pricing-enrich.js';
 import { authedRoute } from '../../lib/middleware.js';
 import { MAX_DASHBOARD_TEAMS } from '../../lib/constants.js';
 import { buildDataCoverage } from '../../lib/data-coverage.js';
-import { userAnalyticsSchema } from '@chinwag/shared/contracts/analytics.js';
+import { userAnalyticsSchema } from '@chinmeister/shared/contracts/analytics.js';
 import { DO_CALL_TIMEOUT_MS, withTimeout } from './helpers.js';
 
 import { ANALYTICS_MAX_DAYS, CROSS_TEAM_MAX_DAYS } from './analytics/constants.js';

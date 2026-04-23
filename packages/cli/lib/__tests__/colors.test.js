@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { getInkColor, getColorList } from '../colors.js';
 
 describe('getInkColor', () => {
-  it('maps known chinwag colors to Ink colors', () => {
+  it('maps known chinmeister colors to Ink colors', () => {
     expect(getInkColor('red')).toBe('red');
     expect(getInkColor('cyan')).toBe('cyan');
     expect(getInkColor('yellow')).toBe('yellow');

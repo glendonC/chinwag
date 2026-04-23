@@ -28,7 +28,7 @@ export const MOCK_RUNS: MockRun[] = [
   {
     id: 'run-fa-003',
     reportId: 'failure-analysis',
-    project: 'chinwag',
+    project: 'chinmeister',
     status: 'complete',
     path: 'primary',
     startedAt: daysAgo(3, 14),
@@ -40,7 +40,7 @@ export const MOCK_RUNS: MockRun[] = [
   {
     id: 'run-fa-002',
     reportId: 'failure-analysis',
-    project: 'chinwag',
+    project: 'chinmeister',
     status: 'complete',
     path: 'primary',
     startedAt: daysAgo(17, 9),
@@ -54,7 +54,7 @@ export const MOCK_RUNS: MockRun[] = [
   {
     id: 'run-ca-002',
     reportId: 'coordination-audit',
-    project: 'chinwag',
+    project: 'chinmeister',
     status: 'complete',
     path: 'primary',
     startedAt: daysAgo(5, 11),
@@ -66,7 +66,7 @@ export const MOCK_RUNS: MockRun[] = [
   {
     id: 'run-ca-001',
     reportId: 'coordination-audit',
-    project: 'chinwag',
+    project: 'chinmeister',
     status: 'queued',
     path: 'primary',
     startedAt: minutesAgo(8),
@@ -76,7 +76,7 @@ export const MOCK_RUNS: MockRun[] = [
   {
     id: 'run-cl-002',
     reportId: 'cost-leak',
-    project: 'chinwag',
+    project: 'chinmeister',
     status: 'complete',
     path: 'primary',
     startedAt: daysAgo(1, 16),
@@ -88,7 +88,7 @@ export const MOCK_RUNS: MockRun[] = [
   {
     id: 'run-cl-001',
     reportId: 'cost-leak',
-    project: 'chinwag',
+    project: 'chinmeister',
     status: 'complete',
     path: 'primary',
     startedAt: daysAgo(8, 12),
@@ -102,7 +102,7 @@ export const MOCK_RUNS: MockRun[] = [
   {
     id: 'run-ct-001',
     reportId: 'cross-tool-effectiveness',
-    project: 'chinwag',
+    project: 'chinmeister',
     status: 'complete',
     path: 'primary',
     startedAt: daysAgo(6, 13),
@@ -116,7 +116,7 @@ export const MOCK_RUNS: MockRun[] = [
   {
     id: 'run-te-002',
     reportId: 'test-edit-gap',
-    project: 'chinwag',
+    project: 'chinmeister',
     status: 'running',
     path: 'primary',
     startedAt: minutesAgo(3),
@@ -124,7 +124,7 @@ export const MOCK_RUNS: MockRun[] = [
   {
     id: 'run-te-001',
     reportId: 'test-edit-gap',
-    project: 'chinwag',
+    project: 'chinmeister',
     status: 'complete',
     path: 'primary',
     startedAt: daysAgo(16, 10),
@@ -138,7 +138,7 @@ export const MOCK_RUNS: MockRun[] = [
   {
     id: 'run-ad-001',
     reportId: 'architecture-drift',
-    project: 'chinwag',
+    project: 'chinmeister',
     status: 'complete',
     path: 'primary',
     startedAt: daysAgo(11, 15),
@@ -152,7 +152,7 @@ export const MOCK_RUNS: MockRun[] = [
   {
     id: 'run-ff-001',
     reportId: 'failure-forensics',
-    project: 'chinwag',
+    project: 'chinmeister',
     status: 'complete',
     path: 'primary',
     startedAt: hoursAgo(1),
@@ -166,7 +166,7 @@ export const MOCK_RUNS: MockRun[] = [
   {
     id: 'run-mh-001',
     reportId: 'memory-hygiene',
-    project: 'chinwag',
+    project: 'chinmeister',
     status: 'complete',
     path: 'primary',
     startedAt: daysAgo(4, 9),
@@ -178,7 +178,7 @@ export const MOCK_RUNS: MockRun[] = [
   {
     id: 'run-mh-000',
     reportId: 'memory-hygiene',
-    project: 'chinwag',
+    project: 'chinmeister',
     status: 'failed',
     path: 'primary',
     startedAt: daysAgo(32, 14),

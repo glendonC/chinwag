@@ -4,7 +4,7 @@
 // DatabaseDO pricing cache. The handler calls `project` then enrichment
 // then passes the final object into the response.
 
-import type { TokenUsageStats } from '@chinwag/shared/contracts/analytics.js';
+import type { TokenUsageStats } from '@chinmeister/shared/contracts/analytics.js';
 import type { TeamResult } from './types.js';
 
 interface TokenTotalBucket {

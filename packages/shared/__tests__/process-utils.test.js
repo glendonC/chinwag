@@ -18,7 +18,7 @@ describe('process-utils', () => {
 
   afterEach(() => {
     Object.defineProperty(process, 'platform', { value: originalPlatform });
-    delete process.env.CHINWAG_DEBUG;
+    delete process.env.CHINMEISTER_DEBUG;
   });
 
   // ---------------------------------------------------------------------------
@@ -125,8 +125,8 @@ describe('process-utils', () => {
       expect(result).toBeNull();
     });
 
-    it('logs debug info when CHINWAG_DEBUG is set and ps fails', () => {
-      process.env.CHINWAG_DEBUG = '1';
+    it('logs debug info when CHINMEISTER_DEBUG is set and ps fails', () => {
+      process.env.CHINMEISTER_DEBUG = '1';
       const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
       execFileSync.mockImplementation(() => {
         throw new Error('ps failed');
@@ -140,8 +140,8 @@ describe('process-utils', () => {
       spy.mockRestore();
     });
 
-    it('does not log when CHINWAG_DEBUG is not set and ps fails', () => {
-      delete process.env.CHINWAG_DEBUG;
+    it('does not log when CHINMEISTER_DEBUG is not set and ps fails', () => {
+      delete process.env.CHINMEISTER_DEBUG;
       const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
       execFileSync.mockImplementation(() => {
         throw new Error('ps failed');
@@ -272,8 +272,8 @@ describe('process-utils', () => {
       expect(result).toBe('/dev/ttys005');
     });
 
-    it('logs debug info when CHINWAG_DEBUG is set and ps fails', () => {
-      process.env.CHINWAG_DEBUG = '1';
+    it('logs debug info when CHINMEISTER_DEBUG is set and ps fails', () => {
+      process.env.CHINMEISTER_DEBUG = '1';
       const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
       execFileSync.mockImplementation(() => {
         throw new Error('tty lookup failed');
@@ -287,8 +287,8 @@ describe('process-utils', () => {
       spy.mockRestore();
     });
 
-    it('does not log when CHINWAG_DEBUG is not set and ps fails', () => {
-      delete process.env.CHINWAG_DEBUG;
+    it('does not log when CHINMEISTER_DEBUG is not set and ps fails', () => {
+      delete process.env.CHINMEISTER_DEBUG;
       const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
       execFileSync.mockImplementation(() => {
         throw new Error('tty lookup failed');
@@ -348,8 +348,8 @@ describe('process-utils', () => {
       expect(result).toBe('node --max-old-space-size=4096 app.js');
     });
 
-    it('logs debug info when CHINWAG_DEBUG is set and ps fails', () => {
-      process.env.CHINWAG_DEBUG = '1';
+    it('logs debug info when CHINMEISTER_DEBUG is set and ps fails', () => {
+      process.env.CHINMEISTER_DEBUG = '1';
       const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
       execFileSync.mockImplementation(() => {
         throw new Error('command lookup failed');
@@ -363,8 +363,8 @@ describe('process-utils', () => {
       spy.mockRestore();
     });
 
-    it('does not log when CHINWAG_DEBUG is not set and ps fails', () => {
-      delete process.env.CHINWAG_DEBUG;
+    it('does not log when CHINMEISTER_DEBUG is not set and ps fails', () => {
+      delete process.env.CHINMEISTER_DEBUG;
       const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
       execFileSync.mockImplementation(() => {
         throw new Error('command lookup failed');
@@ -377,7 +377,7 @@ describe('process-utils', () => {
     });
 
     it('handles non-Error thrown values in debug log', () => {
-      process.env.CHINWAG_DEBUG = '1';
+      process.env.CHINMEISTER_DEBUG = '1';
       const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
       execFileSync.mockImplementation(() => {
         throw 'string error';

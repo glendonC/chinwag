@@ -137,13 +137,13 @@ export function useCommandSuggestions({
         ? [{ name: '/fix', description: 'Open the main setup fix flow' }]
         : []),
       { name: '/recheck', description: 'Refresh available tools and integration health' },
-      { name: '/doctor', description: 'Scan local Chinwag integration health' },
+      { name: '/doctor', description: 'Scan local Chinmeister integration health' },
       ...(integrations.integrationIssues.length > 0
         ? [{ name: '/repair', description: 'Repair detected integration issues' }]
         : []),
       ...(hasMemories ? [{ name: '/knowledge', description: 'View shared knowledge' }] : []),
       ...(hasLiveAgents ? [{ name: '/history', description: 'View past agent activity' }] : []),
-      { name: '/web', description: 'Open chinwag in browser' },
+      { name: '/web', description: 'Open chinmeister in browser' },
       ...(selectedAgent && isAgentAddressable(selectedAgent)
         ? [{ name: '/message', description: `Message ${selectedAgent._display}` }]
         : []),

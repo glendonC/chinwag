@@ -1,5 +1,5 @@
 import type { Env } from '../types.js';
-import { resolveRuntimeTargets } from '@chinwag/shared/runtime-profile.js';
+import { resolveRuntimeTargets } from '@chinmeister/shared/runtime-profile.js';
 import { TOOL_CATALOG } from '../catalog.js';
 import { getCategoryNames } from '../lib/categories.js';
 import { getDB, getLobby, rpc } from '../lib/env.js';
@@ -122,7 +122,7 @@ export const handleStats = publicRoute(async ({ request, env }) => {
 
 /**
  * Public pricing-health endpoint. Returns the freshness of the LiteLLM
- * snapshot chinwag uses to compute costs, plus any recent failure reason.
+ * snapshot chinmeister uses to compute costs, plus any recent failure reason.
  * Operators curl this to see if the 6h refresh cron is alive without
  * SSHing into DatabaseDO. Data is not sensitive — it's all about
  * publicly-sourced LiteLLM pricing, not user data.
@@ -261,7 +261,7 @@ export const handleGithubCallback = publicRoute(async ({ request, env }) => {
     headers: {
       Authorization: `Bearer ${tokenData.access_token}`,
       Accept: 'application/json',
-      'User-Agent': 'chinwag',
+      'User-Agent': 'chinmeister',
     },
   });
 
@@ -399,7 +399,7 @@ export const handleGithubLinkCallback = publicRoute(async ({ request, env }) => 
     headers: {
       Authorization: `Bearer ${tokenData.access_token}`,
       Accept: 'application/json',
-      'User-Agent': 'chinwag',
+      'User-Agent': 'chinmeister',
     },
   });
 

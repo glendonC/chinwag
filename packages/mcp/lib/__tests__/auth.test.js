@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-vi.mock('@chinwag/shared/config.js', () => ({
-  CONFIG_DIR: '/tmp/test-chinwag',
-  CONFIG_FILE: '/tmp/test-chinwag/config.json',
+vi.mock('@chinmeister/shared/config.js', () => ({
+  CONFIG_DIR: '/tmp/test-chinmeister',
+  CONFIG_FILE: '/tmp/test-chinmeister/config.json',
 }));
 
 vi.mock('../api.js', () => ({

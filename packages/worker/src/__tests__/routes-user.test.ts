@@ -515,7 +515,7 @@ describe('GET /me/teams', () => {
 // --- GET /me/analytics ---
 //
 // These tests exercise the runtime-validated response pipeline so schema
-// drift between the worker handler and @chinwag/shared/contracts fails
+// drift between the worker handler and @chinmeister/shared/contracts fails
 // loud in dev/CI. Without at least one path hitting the route, the
 // json({ schema }) wiring is silently inert.
 

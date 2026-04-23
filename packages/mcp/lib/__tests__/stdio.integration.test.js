@@ -213,18 +213,18 @@ describe('mcp stdio integration', () => {
 
   it('joins a team, reports activity, detects conflicts, and round-trips memory', async () => {
     const fakeApi = await startFakeApiServer();
-    const homeDir = mkdtempSync(join(tmpdir(), 'chinwag-mcp-home-'));
-    const repoDir = mkdtempSync(join(tmpdir(), 'chinwag-mcp-repo-'));
+    const homeDir = mkdtempSync(join(tmpdir(), 'chinmeister-mcp-home-'));
+    const repoDir = mkdtempSync(join(tmpdir(), 'chinmeister-mcp-repo-'));
     tempDirs.push(homeDir, repoDir);
 
-    const configDir = join(homeDir, '.chinwag', 'local');
+    const configDir = join(homeDir, '.chinmeister', 'local');
     mkdirSync(configDir, { recursive: true });
     writeFileSync(
       join(configDir, 'config.json'),
       JSON.stringify({ token: 'tok_stdio', handle: 'alice', color: 'cyan' }, null, 2) + '\n',
     );
 
-    const client = new Client({ name: 'chinwag-stdio-test', version: '1.0.0' });
+    const client = new Client({ name: 'chinmeister-stdio-test', version: '1.0.0' });
     const transport = new StdioClientTransport({
       command: 'node',
       args: [MCP_ENTRY],
@@ -232,8 +232,8 @@ describe('mcp stdio integration', () => {
       env: {
         HOME: homeDir,
         PATH: process.env.PATH,
-        CHINWAG_PROFILE: 'local',
-        CHINWAG_API_URL: fakeApi.baseUrl,
+        CHINMEISTER_PROFILE: 'local',
+        CHINMEISTER_API_URL: fakeApi.baseUrl,
       },
       stderr: 'pipe',
     });
@@ -242,14 +242,14 @@ describe('mcp stdio integration', () => {
       await client.connect(transport);
 
       const joinResult = await client.callTool({
-        name: 'chinwag_join_team',
+        name: 'chinmeister_join_team',
         arguments: { team_id: 't_abcdef0123456789' },
       });
       expect(textFromResult(joinResult)).toContain('Joined team t_abcdef0123456789');
       expect(fakeApi.state.joined).toBe(true);
 
       const activityResult = await client.callTool({
-        name: 'chinwag_update_activity',
+        name: 'chinmeister_update_activity',
         arguments: {
           files: ['src/auth.js'],
           summary: 'Implementing auth flow',
@@ -258,7 +258,7 @@ describe('mcp stdio integration', () => {
       expect(textFromResult(activityResult)).toContain('Activity updated');
 
       const conflictResult = await client.callTool({
-        name: 'chinwag_check_conflicts',
+        name: 'chinmeister_check_conflicts',
         arguments: {
           files: ['src/auth.js'],
         },
@@ -268,7 +268,7 @@ describe('mcp stdio integration', () => {
       );
 
       const saveResult = await client.callTool({
-        name: 'chinwag_save_memory',
+        name: 'chinmeister_save_memory',
         arguments: {
           text: 'Auth work depends on src/auth.js conventions',
           tags: ['auth', 'decision'],
@@ -280,7 +280,7 @@ describe('mcp stdio integration', () => {
       expect(savedId).toBeTruthy();
 
       const searchResult = await client.callTool({
-        name: 'chinwag_search_memory',
+        name: 'chinmeister_search_memory',
         arguments: {
           query: 'Auth work depends',
         },
@@ -289,7 +289,7 @@ describe('mcp stdio integration', () => {
       expect(textFromResult(searchResult)).toContain('alice');
 
       const updateResult = await client.callTool({
-        name: 'chinwag_update_memory',
+        name: 'chinmeister_update_memory',
         arguments: {
           id: savedId,
           text: 'Auth work follows the shared auth.js conventions',
@@ -299,7 +299,7 @@ describe('mcp stdio integration', () => {
       expect(textFromResult(updateResult)).toContain(`Memory ${savedId} updated`);
 
       const searchUpdatedResult = await client.callTool({
-        name: 'chinwag_search_memory',
+        name: 'chinmeister_search_memory',
         arguments: {
           query: 'shared auth.js',
         },
@@ -307,13 +307,13 @@ describe('mcp stdio integration', () => {
       expect(textFromResult(searchUpdatedResult)).toContain('shared auth.js conventions');
 
       const deleteResult = await client.callTool({
-        name: 'chinwag_delete_memory',
+        name: 'chinmeister_delete_memory',
         arguments: { id: savedId },
       });
       expect(textFromResult(deleteResult)).toContain(`Memory ${savedId} deleted`);
 
       const emptySearchResult = await client.callTool({
-        name: 'chinwag_search_memory',
+        name: 'chinmeister_search_memory',
         arguments: {
           query: 'shared auth.js',
         },

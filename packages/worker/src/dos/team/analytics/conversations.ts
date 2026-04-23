@@ -1,7 +1,7 @@
 // Conversation analytics: conversation-to-edit correlation.
 
 import { createLogger } from '../../../lib/logger.js';
-import type { ConversationEditCorrelation } from '@chinwag/shared/contracts/analytics.js';
+import type { ConversationEditCorrelation } from '@chinmeister/shared/contracts/analytics.js';
 
 const log = createLogger('TeamDO.analytics');
 

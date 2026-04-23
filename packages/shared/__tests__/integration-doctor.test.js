@@ -13,8 +13,8 @@ vi.mock('node:child_process', () => ({
 
 import {
   commandExists,
-  buildChinwagCliArgs,
-  buildChinwagHookCommand,
+  buildChinmeisterCliArgs,
+  buildChinmeisterHookCommand,
   detectHostIntegrations,
   formatIntegrationScanResults,
   summarizeIntegrationScan,
@@ -50,15 +50,15 @@ describe('integration-doctor', () => {
     });
   });
 
-  describe('re-exported buildChinwagCliArgs', () => {
+  describe('re-exported buildChinmeisterCliArgs', () => {
     it('builds basic args with subcommand', () => {
-      expect(buildChinwagCliArgs('mcp')).toEqual(['-y', 'chinwag', 'mcp']);
+      expect(buildChinmeisterCliArgs('mcp')).toEqual(['-y', 'chinmeister', 'mcp']);
     });
 
     it('includes --tool when hostId is provided', () => {
-      expect(buildChinwagCliArgs('mcp', { hostId: 'cursor' })).toEqual([
+      expect(buildChinmeisterCliArgs('mcp', { hostId: 'cursor' })).toEqual([
         '-y',
-        'chinwag',
+        'chinmeister',
         'mcp',
         '--tool',
         'cursor',
@@ -66,9 +66,9 @@ describe('integration-doctor', () => {
     });
 
     it('includes --surface when surfaceId is provided', () => {
-      expect(buildChinwagCliArgs('mcp', { surfaceId: 'cline' })).toEqual([
+      expect(buildChinmeisterCliArgs('mcp', { surfaceId: 'cline' })).toEqual([
         '-y',
-        'chinwag',
+        'chinmeister',
         'mcp',
         '--surface',
         'cline',
@@ -76,38 +76,34 @@ describe('integration-doctor', () => {
     });
 
     it('includes both --tool and --surface', () => {
-      expect(buildChinwagCliArgs('channel', { hostId: 'vscode', surfaceId: 'continue' })).toEqual([
-        '-y',
-        'chinwag',
-        'channel',
-        '--tool',
-        'vscode',
-        '--surface',
-        'continue',
-      ]);
+      expect(
+        buildChinmeisterCliArgs('channel', { hostId: 'vscode', surfaceId: 'continue' }),
+      ).toEqual(['-y', 'chinmeister', 'channel', '--tool', 'vscode', '--surface', 'continue']);
     });
   });
 
-  describe('re-exported buildChinwagHookCommand', () => {
+  describe('re-exported buildChinmeisterHookCommand', () => {
     it('builds basic hook command for claude-code', () => {
-      expect(buildChinwagHookCommand('check-conflict')).toBe('npx -y chinwag hook check-conflict');
+      expect(buildChinmeisterHookCommand('check-conflict')).toBe(
+        'npx -y chinmeister hook check-conflict',
+      );
     });
 
     it('includes --tool when hostId is not claude-code', () => {
-      expect(buildChinwagHookCommand('check-conflict', { hostId: 'cursor' })).toBe(
-        'npx -y chinwag hook check-conflict --tool cursor',
+      expect(buildChinmeisterHookCommand('check-conflict', { hostId: 'cursor' })).toBe(
+        'npx -y chinmeister hook check-conflict --tool cursor',
       );
     });
 
     it('omits --tool when hostId is claude-code (default)', () => {
-      expect(buildChinwagHookCommand('report-edit', { hostId: 'claude-code' })).toBe(
-        'npx -y chinwag hook report-edit',
+      expect(buildChinmeisterHookCommand('report-edit', { hostId: 'claude-code' })).toBe(
+        'npx -y chinmeister hook report-edit',
       );
     });
 
     it('includes --surface when surfaceId is provided', () => {
-      expect(buildChinwagHookCommand('session-start', { surfaceId: 'cline' })).toBe(
-        'npx -y chinwag hook session-start --surface cline',
+      expect(buildChinmeisterHookCommand('session-start', { surfaceId: 'cline' })).toBe(
+        'npx -y chinmeister hook session-start --surface cline',
       );
     });
   });
@@ -381,7 +377,7 @@ describe('integration-doctor', () => {
   // Re-exported writeMcpConfig
   // ---------------------------------------------------------------------------
   describe('re-exported writeMcpConfig', () => {
-    it('writes chinwag MCP entry to config file', () => {
+    it('writes chinmeister MCP entry to config file', () => {
       readFileSync.mockReturnValue('{}');
 
       const result = writeMcpConfig('/project', '.cursor/mcp.json', { hostId: 'cursor' });
@@ -389,10 +385,10 @@ describe('integration-doctor', () => {
       expect(writeFileSync).toHaveBeenCalled();
 
       const writtenContent = JSON.parse(writeFileSync.mock.calls[0][1].trim());
-      expect(writtenContent.mcpServers.chinwag).toBeDefined();
-      expect(writtenContent.mcpServers.chinwag.command).toBe('npx');
-      expect(writtenContent.mcpServers.chinwag.args).toContain('--tool');
-      expect(writtenContent.mcpServers.chinwag.args).toContain('cursor');
+      expect(writtenContent.mcpServers.chinmeister).toBeDefined();
+      expect(writtenContent.mcpServers.chinmeister.command).toBe('npx');
+      expect(writtenContent.mcpServers.chinmeister.args).toContain('--tool');
+      expect(writtenContent.mcpServers.chinmeister.args).toContain('cursor');
     });
 
     it('returns error when writeFileSync throws', () => {
@@ -505,15 +501,15 @@ describe('integration-doctor', () => {
 
       const correctMcpConfig = {
         mcpServers: {
-          chinwag: { command: 'npx', args: ['-y', 'chinwag', 'mcp'] },
-          'chinwag-channel': { command: 'npx', args: ['-y', 'chinwag', 'channel'] },
+          chinmeister: { command: 'npx', args: ['-y', 'chinmeister', 'mcp'] },
+          'chinmeister-channel': { command: 'npx', args: ['-y', 'chinmeister', 'channel'] },
         },
       };
       const correctHooksConfig = {
         hooks: {
-          PreToolUse: [{ hooks: [{ command: 'npx -y chinwag hook check-conflict' }] }],
-          PostToolUse: [{ hooks: [{ command: 'npx -y chinwag hook report-edit' }] }],
-          SessionStart: [{ hooks: [{ command: 'npx -y chinwag hook session-start' }] }],
+          PreToolUse: [{ hooks: [{ command: 'npx -y chinmeister hook check-conflict' }] }],
+          PostToolUse: [{ hooks: [{ command: 'npx -y chinmeister hook report-edit' }] }],
+          SessionStart: [{ hooks: [{ command: 'npx -y chinmeister hook session-start' }] }],
         },
       };
 
@@ -561,8 +557,8 @@ describe('integration-doctor', () => {
 
       const correctMcpConfig = {
         mcpServers: {
-          chinwag: { command: 'npx', args: ['-y', 'chinwag', 'mcp'] },
-          'chinwag-channel': { command: 'npx', args: ['-y', 'chinwag', 'channel'] },
+          chinmeister: { command: 'npx', args: ['-y', 'chinmeister', 'mcp'] },
+          'chinmeister-channel': { command: 'npx', args: ['-y', 'chinmeister', 'channel'] },
         },
       };
 

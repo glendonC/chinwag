@@ -4,8 +4,8 @@ import {
   formatIntegrationScanResults,
   scanHostIntegrations,
   summarizeIntegrationScan,
-} from '@chinwag/shared/integration-doctor.js';
-import type { IntegrationScanResult } from '@chinwag/shared/integration-doctor.js';
+} from '@chinmeister/shared/integration-doctor.js';
+import type { IntegrationScanResult } from '@chinmeister/shared/integration-doctor.js';
 
 const ok = chalk.green('✔');
 const warn = chalk.yellow('!');
@@ -62,7 +62,7 @@ export async function runDoctor(argv: string[] = []): Promise<void> {
   const initialScan = scanHostIntegrations(cwd);
 
   console.log('');
-  console.log(`  ${chalk.cyan.bold('chinwag doctor')}`);
+  console.log(`  ${chalk.cyan.bold('chinmeister doctor')}`);
   console.log(`  ${dim('integration health and repair')}`);
   console.log('');
   console.log(

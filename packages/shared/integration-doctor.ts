@@ -12,8 +12,8 @@ export { commandExists, detectHostIntegrations } from './integration-detector.js
 
 // Re-export config-writing logic
 export {
-  buildChinwagCliArgs,
-  buildChinwagHookCommand,
+  buildChinmeisterCliArgs,
+  buildChinmeisterHookCommand,
   writeMcpConfig,
   writeHooksConfig,
   writeCursorHooksConfig,

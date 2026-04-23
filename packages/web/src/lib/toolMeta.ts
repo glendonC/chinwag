@@ -6,7 +6,7 @@
 // registry's `name` field so changes propagate from one source. Brand
 // colors and icon paths stay here since they're display-specific.
 
-import { MCP_TOOLS } from '@chinwag/shared/tool-registry.js';
+import { MCP_TOOLS } from '@chinmeister/shared/tool-registry.js';
 
 export interface ToolMetaEntry {
   label: string;

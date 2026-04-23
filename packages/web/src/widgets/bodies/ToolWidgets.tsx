@@ -168,11 +168,11 @@ function ToolHandoffsWidget({ analytics }: WidgetBodyProps) {
   if (th.length === 0) {
     const toolCount = analytics.tool_comparison.length;
     // One tool connected: the empty state earns its keep by nudging the
-    // user toward the coordination substrate chinwag actually provides.
+    // user toward the coordination substrate chinmeister actually provides.
     // Two-plus tools connected with zero handoffs is a truthful negative.
     const message =
       toolCount <= 1
-        ? 'Add a second tool with `chinwag add <tool>` to see how agents hand off files.'
+        ? 'Add a second tool with `chinmeister add <tool>` to see how agents hand off files.'
         : 'No cross-tool handoffs yet — agents are staying within one tool.';
     return <SectionEmpty>{message}</SectionEmpty>;
   }

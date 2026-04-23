@@ -1,7 +1,7 @@
 # Test-only wrangler config — local KV, mock AI binding.
 # The AI binding provides a local mock so moderation's fail-safe
 # doesn't block all content in tests.
-name = "chinwag-api-test"
+name = "chinmeister-api-test"
 main = "src/index.js"
 compatibility_date = "2024-12-01"
 

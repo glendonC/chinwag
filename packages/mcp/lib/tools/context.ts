@@ -1,4 +1,4 @@
-// chinwag_get_team_context tool handler.
+// chinmeister_get_team_context tool handler.
 
 import * as z from 'zod/v4';
 import { refreshContext, offlinePrefix } from '../context.js';
@@ -28,7 +28,7 @@ export function registerContextTool(
   const { team, state } = deps;
 
   addTool(
-    'chinwag_get_team_context',
+    'chinmeister_get_team_context',
     {
       description:
         'Get the full state of your team: who is online, what everyone is working on, and any file overlaps. Use this to orient yourself before starting work.',

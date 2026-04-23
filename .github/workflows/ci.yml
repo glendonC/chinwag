@@ -39,7 +39,7 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm ci
       # Run coverage for shared, mcp, cli, web via turbo (parallel)
-      - run: npx turbo run test:coverage --filter=@chinwag/shared --filter=chinwag-mcp --filter=chinwag --filter=chinwag-web
+      - run: npx turbo run test:coverage --filter=@chinmeister/shared --filter=chinmeister-mcp --filter=chinmeister --filter=chinmeister-web
       # Worker tests run separately (workerd runtime via @cloudflare/vitest-pool-workers)
       - run: npm run test:worker
       # E2E tests need playwright
@@ -77,7 +77,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       # Build and deploy web
       - run: npm run build --workspace=packages/web
-      - run: npx wrangler pages deploy dist --project-name=chinwag
+      - run: npx wrangler pages deploy dist --project-name=chinmeister
         working-directory: packages/web
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -43,8 +43,8 @@ describe('agent-identity', () => {
       expect(result.detectionConfidence).toBe(1);
     });
 
-    it('detects tool from CHINWAG_TOOL env var', () => {
-      process.env.CHINWAG_TOOL = 'windsurf';
+    it('detects tool from CHINMEISTER_TOOL env var', () => {
+      process.env.CHINMEISTER_TOOL = 'windsurf';
       const result = detectRuntimeIdentity('unknown', {
         argv: ['node', 'script.js'],
         readProcessInfoFn: () => null,
@@ -54,8 +54,8 @@ describe('agent-identity', () => {
       expect(result.detectionSource).toBe('explicit');
     });
 
-    it('argv --tool takes precedence over CHINWAG_TOOL env', () => {
-      process.env.CHINWAG_TOOL = 'windsurf';
+    it('argv --tool takes precedence over CHINMEISTER_TOOL env', () => {
+      process.env.CHINMEISTER_TOOL = 'windsurf';
       const result = detectRuntimeIdentity('unknown', {
         argv: ['node', 'script.js', '--tool', 'cursor'],
         readProcessInfoFn: () => null,
@@ -73,8 +73,8 @@ describe('agent-identity', () => {
       expect(result.agentSurface).toBe('cline');
     });
 
-    it('detects surface from CHINWAG_SURFACE env var', () => {
-      process.env.CHINWAG_SURFACE = 'continue';
+    it('detects surface from CHINMEISTER_SURFACE env var', () => {
+      process.env.CHINMEISTER_SURFACE = 'continue';
       const result = detectRuntimeIdentity('unknown', {
         argv: ['node', 'script.js'],
         readProcessInfoFn: () => null,
@@ -92,8 +92,8 @@ describe('agent-identity', () => {
       expect(result.transport).toBe('managed-cli');
     });
 
-    it('detects transport from CHINWAG_TRANSPORT env var', () => {
-      process.env.CHINWAG_TRANSPORT = 'managed-cli';
+    it('detects transport from CHINMEISTER_TRANSPORT env var', () => {
+      process.env.CHINMEISTER_TRANSPORT = 'managed-cli';
       const result = detectRuntimeIdentity('unknown', {
         argv: ['node', 'script.js'],
         readProcessInfoFn: () => null,
@@ -104,7 +104,7 @@ describe('agent-identity', () => {
 
     it('walks parent process tree to detect tool', () => {
       const processTree = {
-        100: { ppid: 50, command: '/usr/bin/node chinwag-mcp' },
+        100: { ppid: 50, command: '/usr/bin/node chinmeister-mcp' },
         50: { ppid: 25, command: '/opt/bin/cursor --some-flag' },
         25: { ppid: 1, command: 'init' },
       };
@@ -115,7 +115,7 @@ describe('agent-identity', () => {
         readProcessInfoFn: readFn,
         parentPid: 100,
       });
-      // chinwag-mcp is skipped, cursor should match
+      // chinmeister-mcp is skipped, cursor should match
       expect(result.hostTool).toBe('cursor');
       expect(result.detectionSource).toBe('parent-process');
       expect(result.detectionConfidence).toBe(0.7);
@@ -159,10 +159,10 @@ describe('agent-identity', () => {
       expect(readFn).toHaveBeenCalledTimes(3);
     });
 
-    it('skips chinwag-mcp and chinwag-channel commands in process tree', () => {
+    it('skips chinmeister-mcp and chinmeister-channel commands in process tree', () => {
       const processTree = {
-        100: { ppid: 50, command: 'node chinwag-mcp serve' },
-        50: { ppid: 25, command: 'node chinwag-channel start' },
+        100: { ppid: 50, command: 'node chinmeister-mcp serve' },
+        50: { ppid: 25, command: 'node chinmeister-channel start' },
         25: { ppid: 1, command: 'claude --some-flag' },
       };
       const readFn = (pid) => processTree[pid] || null;
@@ -365,52 +365,52 @@ describe('agent-identity', () => {
 
   describe('getConfiguredAgentId', () => {
     afterEach(() => {
-      delete process.env.CHINWAG_AGENT_ID;
+      delete process.env.CHINMEISTER_AGENT_ID;
     });
 
-    it('returns null when CHINWAG_AGENT_ID is not set', () => {
-      delete process.env.CHINWAG_AGENT_ID;
+    it('returns null when CHINMEISTER_AGENT_ID is not set', () => {
+      delete process.env.CHINMEISTER_AGENT_ID;
       expect(getConfiguredAgentId()).toBeNull();
     });
 
-    it('returns null when CHINWAG_AGENT_ID is empty', () => {
-      process.env.CHINWAG_AGENT_ID = '';
+    it('returns null when CHINMEISTER_AGENT_ID is empty', () => {
+      process.env.CHINMEISTER_AGENT_ID = '';
       expect(getConfiguredAgentId()).toBeNull();
     });
 
-    it('returns null when CHINWAG_AGENT_ID is whitespace only', () => {
-      process.env.CHINWAG_AGENT_ID = '   ';
+    it('returns null when CHINMEISTER_AGENT_ID is whitespace only', () => {
+      process.env.CHINMEISTER_AGENT_ID = '   ';
       expect(getConfiguredAgentId()).toBeNull();
     });
 
-    it('returns null when CHINWAG_AGENT_ID exceeds 60 chars', () => {
-      process.env.CHINWAG_AGENT_ID = 'a'.repeat(61);
+    it('returns null when CHINMEISTER_AGENT_ID exceeds 60 chars', () => {
+      process.env.CHINMEISTER_AGENT_ID = 'a'.repeat(61);
       expect(getConfiguredAgentId()).toBeNull();
     });
 
     it('returns the agent ID when valid and no tool constraint', () => {
-      process.env.CHINWAG_AGENT_ID = 'cursor:abc123def456';
+      process.env.CHINMEISTER_AGENT_ID = 'cursor:abc123def456';
       expect(getConfiguredAgentId()).toBe('cursor:abc123def456');
     });
 
     it('returns the agent ID when tool prefix matches', () => {
-      process.env.CHINWAG_AGENT_ID = 'cursor:abc123def456';
+      process.env.CHINMEISTER_AGENT_ID = 'cursor:abc123def456';
       expect(getConfiguredAgentId('cursor')).toBe('cursor:abc123def456');
     });
 
     it('returns null when tool prefix does not match', () => {
-      process.env.CHINWAG_AGENT_ID = 'cursor:abc123def456';
+      process.env.CHINMEISTER_AGENT_ID = 'cursor:abc123def456';
       expect(getConfiguredAgentId('windsurf')).toBeNull();
     });
 
     it('accepts runtime identity objects for tool name', () => {
-      process.env.CHINWAG_AGENT_ID = 'vscode:abc';
+      process.env.CHINMEISTER_AGENT_ID = 'vscode:abc';
       expect(getConfiguredAgentId({ hostTool: 'vscode' })).toBe('vscode:abc');
       expect(getConfiguredAgentId({ hostTool: 'cursor' })).toBeNull();
     });
 
-    it('trims whitespace from CHINWAG_AGENT_ID', () => {
-      process.env.CHINWAG_AGENT_ID = '  cursor:abc  ';
+    it('trims whitespace from CHINMEISTER_AGENT_ID', () => {
+      process.env.CHINMEISTER_AGENT_ID = '  cursor:abc  ';
       expect(getConfiguredAgentId('cursor')).toBe('cursor:abc');
     });
   });
@@ -504,8 +504,8 @@ describe('agent-identity', () => {
       expect(result.detectionSource).toBe('explicit');
     });
 
-    it('CHINWAG_TOOL env takes precedence over clientInfoName', () => {
-      process.env.CHINWAG_TOOL = 'codex';
+    it('CHINMEISTER_TOOL env takes precedence over clientInfoName', () => {
+      process.env.CHINMEISTER_TOOL = 'codex';
       const result = detectRuntimeIdentity('unknown', {
         argv: ['node', 'script.js'],
         readProcessInfoFn: () => null,

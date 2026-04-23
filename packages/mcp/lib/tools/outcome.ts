@@ -1,4 +1,4 @@
-// chinwag_report_outcome tool handler.
+// chinmeister_report_outcome tool handler.
 
 import * as z from 'zod/v4';
 import { withTimeout } from '../utils/responses.js';
@@ -27,7 +27,7 @@ export function registerOutcomeTool(
   const { team, state } = deps;
 
   addTool(
-    'chinwag_report_outcome',
+    'chinmeister_report_outcome',
     {
       description:
         'Report the outcome of your current session before it ends. Call this when you finish a task (completed), give up (abandoned), or encounter unrecoverable errors (failed). This powers workflow analytics that help developers understand and improve their AI-assisted development.',

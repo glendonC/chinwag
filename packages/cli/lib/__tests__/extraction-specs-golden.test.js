@@ -26,7 +26,7 @@ const SPECS_DIR = resolve(__dirname, '../extraction/specs');
 function fixtureRoot() {
   return join(
     tmpdir(),
-    `chinwag-golden-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    `chinmeister-golden-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
   );
 }
 

@@ -2,19 +2,19 @@
  * SpecHealth tracking.
  *
  * Tracks extraction success/failure rates per tool in a rolling window.
- * Persisted to ~/.chinwag/spec-health.json so health survives restarts.
+ * Persisted to ~/.chinmeister/spec-health.json so health survives restarts.
  * The healer reads health to decide when to trigger re-discovery.
  */
 
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
-import { createLogger } from '@chinwag/shared';
-import { writeFileAtomicSync } from '@chinwag/shared/fs-atomic.js';
+import { createLogger } from '@chinmeister/shared';
+import { writeFileAtomicSync } from '@chinmeister/shared/fs-atomic.js';
 
 const log = createLogger('spec-health');
 
-const HEALTH_DIR = join(homedir(), '.chinwag');
+const HEALTH_DIR = join(homedir(), '.chinmeister');
 const HEALTH_FILE = join(HEALTH_DIR, 'spec-health.json');
 const ROLLING_WINDOW = 20;
 const FAILURE_THRESHOLD = 0.5;

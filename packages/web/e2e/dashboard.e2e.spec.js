@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const API_HOST = 'https://chinwag-api.glendonchin.workers.dev';
+const API_HOST = 'https://chinmeister-api.glendonchin.workers.dev';
 
 function createDashboardState() {
   return {
@@ -208,7 +208,7 @@ test.beforeEach(async ({ page }) => {
     class MockWebSocket {
       constructor(url) {
         this.url = url;
-        window.__chinwagMockWs = this;
+        window.__chinmeisterMockWs = this;
         setTimeout(() => this.onopen?.(), 0);
       }
 
@@ -261,7 +261,7 @@ test('edits and deletes memory, then applies a live memory delta', async ({ page
   await expect(page.getByText('Alpha memory updated from Playwright')).toHaveCount(0);
 
   await page.evaluate(() => {
-    window.__chinwagMockWs.onmessage?.({
+    window.__chinmeisterMockWs.onmessage?.({
       data: JSON.stringify({
         type: 'memory',
         id: 'mem_live',

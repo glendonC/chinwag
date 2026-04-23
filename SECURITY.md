@@ -1,14 +1,14 @@
 # Security Policy
 
-chinwag takes security seriously. This document describes how to report vulnerabilities, what's in scope, and how we handle disclosures.
+chinmeister takes security seriously. This document describes how to report vulnerabilities, what's in scope, and how we handle disclosures.
 
 ## Reporting a Vulnerability
 
 **Do not open a public issue for security vulnerabilities.**
 
-**Preferred:** Use [GitHub Private Vulnerability Reporting](https://github.com/glendonchin/chinwag/security/advisories/new) to submit a report directly through GitHub. This keeps the conversation private and lets us coordinate a fix before public disclosure.
+**Preferred:** Use [GitHub Private Vulnerability Reporting](https://github.com/glendonchin/chinmeister/security/advisories/new) to submit a report directly through GitHub. This keeps the conversation private and lets us coordinate a fix before public disclosure.
 
-**Fallback:** Email **security@chinwag.dev** with the details below.
+**Fallback:** Email **security@chinmeister.com** with the details below.
 
 ### What to Include
 
@@ -20,7 +20,7 @@ chinwag takes security seriously. This document describes how to report vulnerab
 
 ## Scope and Threat Model
 
-### What chinwag trusts
+### What chinmeister trusts
 
 | Trust boundary              | Reasoning                                                                                                                                 |
 | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
@@ -28,7 +28,7 @@ chinwag takes security seriously. This document describes how to report vulnerab
 | The host operating system   | CLI runs on the user's machine; OS-level compromise is out of scope                                                                       |
 | Node.js runtime             | CLI requires Node 22+; vulnerabilities in Node itself should be reported upstream                                                         |
 
-### What chinwag does NOT trust
+### What chinmeister does NOT trust
 
 | Boundary                 | Implication                                                                                                            |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
@@ -63,15 +63,15 @@ chinwag takes security seriously. This document describes how to report vulnerab
 
 ## Supported Versions
 
-chinwag is deployed as a single live service. Security fixes are applied to the current production deployment.
+chinmeister is deployed as a single live service. Security fixes are applied to the current production deployment.
 
-| Component           | Version                      | Supported |
-| ------------------- | ---------------------------- | --------- |
-| Worker API          | Production (latest deploy)   | Yes       |
-| CLI (`npx chinwag`) | Latest published npm version | Yes       |
-| Web (chinwag.dev)   | Production (latest deploy)   | Yes       |
+| Component               | Version                      | Supported |
+| ----------------------- | ---------------------------- | --------- |
+| Worker API              | Production (latest deploy)   | Yes       |
+| CLI (`npx chinmeister`) | Latest published npm version | Yes       |
+| Web (chinmeister.com)   | Production (latest deploy)   | Yes       |
 
-Older CLI versions are not actively supported. Users running `npx chinwag` always get the latest version.
+Older CLI versions are not actively supported. Users running `npx chinmeister` always get the latest version.
 
 ## Response Timeline
 
@@ -89,7 +89,7 @@ Older CLI versions are not actively supported. Users running `npx chinwag` alway
 - **Medium** (information disclosure, minor access control): Patch within 30 days
 - **Low** (hardening improvements): Addressed in next regular release cycle
 
-These are targets, not guarantees. chinwag is maintained by a small team. We will communicate openly if timelines slip.
+These are targets, not guarantees. chinmeister is maintained by a small team. We will communicate openly if timelines slip.
 
 ## Disclosure Policy
 
@@ -119,7 +119,7 @@ If at any point you are uncertain whether your research complies with this polic
 
 ## Security Architecture Notes
 
-For context on how chinwag's security works under the hood:
+For context on how chinmeister's security works under the hood:
 
 - **Transport:** All connections use TLS. The CLI connects via `wss://` (WebSocket Secure) and `https://`. Cloudflare terminates TLS at the edge.
 - **Authentication:** UUID bearer tokens, generated at account creation, stored in Cloudflare KV for fast lookup. One token per user, with optional refresh rotation. WebSocket connections use short-lived single-use tickets (30s TTL) issued via `POST /auth/ws-ticket` to keep bearer tokens out of URLs, which may be logged by proxies or intermediaries.

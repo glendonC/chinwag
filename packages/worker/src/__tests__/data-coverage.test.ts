@@ -17,7 +17,7 @@ describe('buildDataCoverage', () => {
   });
 
   it('lists tokenUsage-capable tools as reporting', () => {
-    // claude-code is the load-bearing tokenUsage tool for chinwag today; if
+    // claude-code is the load-bearing tokenUsage tool for chinmeister today; if
     // this assertion ever flips, the cost widget's entire design premise
     // needs revisiting.
     const cov = buildDataCoverage(new Set(['claude-code']));

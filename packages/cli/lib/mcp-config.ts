@@ -1,5 +1,5 @@
 // Shared helpers for writing MCP config files and detecting tools.
-// Used by both `chinwag init` and `chinwag add`.
+// Used by both `chinmeister init` and `chinmeister add`.
 
 import {
   commandExists,
@@ -9,13 +9,13 @@ import {
   summarizeIntegrationScan,
   writeHooksConfig as writeHostHooksConfig,
   writeMcpConfig as writeHostMcpConfig,
-} from '@chinwag/shared/integration-doctor.js';
+} from '@chinmeister/shared/integration-doctor.js';
 import type {
   ConfigureResult,
   IntegrationScanResult,
   WriteResult,
-} from '@chinwag/shared/integration-doctor.js';
-import type { HostIntegration } from '@chinwag/shared/integration-model.js';
+} from '@chinmeister/shared/integration-doctor.js';
+import type { HostIntegration } from '@chinmeister/shared/integration-model.js';
 
 export { commandExists };
 

@@ -86,8 +86,8 @@ export class RoomDO extends DurableObject<Env> {
     }
 
     // Handle and color are set by the Worker after authentication -- not user-supplied.
-    // The X-Chinwag-Verified header confirms this request came from our Worker, not an external caller.
-    if (request.headers.get('X-Chinwag-Verified') !== '1') {
+    // The X-Chinmeister-Verified header confirms this request came from our Worker, not an external caller.
+    if (request.headers.get('X-Chinmeister-Verified') !== '1') {
       return new Response('Forbidden', { status: 403 });
     }
 

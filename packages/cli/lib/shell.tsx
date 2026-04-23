@@ -206,7 +206,7 @@ export function ControlShell({
     return (
       <Box flexDirection="column" paddingX={2} paddingTop={1}>
         <Text color="yellow" bold>
-          chinwag needs a larger terminal
+          chinmeister needs a larger terminal
         </Text>
         <Text dimColor>
           Current size: {cols} x {rows}
@@ -216,7 +216,7 @@ export function ControlShell({
         </Text>
         <Text>{''}</Text>
         <Text>Resize the terminal pane or reduce the terminal font size.</Text>
-        <Text dimColor>chinwag cannot force-resize the host terminal for you.</Text>
+        <Text dimColor>chinmeister cannot force-resize the host terminal for you.</Text>
         <Text>{''}</Text>
         <Text dimColor>[q] quit</Text>
       </Box>

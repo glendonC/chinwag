@@ -81,7 +81,7 @@ describe('createManagedAgentLaunch validation', () => {
         cwd: '/repo',
         token: '',
       }),
-    ).toThrow('Missing chinwag auth token');
+    ).toThrow('Missing chinmeister auth token');
   });
 
   it('generates a valid agent ID', () => {
@@ -93,8 +93,8 @@ describe('createManagedAgentLaunch validation', () => {
     });
 
     expect(launch.agentId).toMatch(/^claude-code:[0-9a-f]+:[0-9a-f]+$/);
-    expect(launch.env.CHINWAG_TOOL).toBe('claude-code');
-    expect(launch.env.CHINWAG_AGENT_ID).toBe(launch.agentId);
+    expect(launch.env.CHINMEISTER_TOOL).toBe('claude-code');
+    expect(launch.env.CHINMEISTER_AGENT_ID).toBe(launch.agentId);
   });
 
   it('trims whitespace from task', () => {
@@ -167,7 +167,7 @@ describe('createTerminalAgentLaunch', () => {
         cwd: '/repo',
         token: '',
       }),
-    ).toThrow('Missing chinwag auth token');
+    ).toThrow('Missing chinmeister auth token');
   });
 });
 

@@ -79,7 +79,7 @@ describe('auth store', () => {
   describe('localStorage sync', () => {
     it('getStoredToken reads from localStorage', async () => {
       const { authActions } = await loadAuthModule();
-      localStorage.setItem('chinwag_token', 'stored_tok');
+      localStorage.setItem('chinmeister_token', 'stored_tok');
 
       expect(authActions.getStoredToken()).toBe('stored_tok');
     });
@@ -96,7 +96,7 @@ describe('auth store', () => {
 
       await authActions.authenticate('tok_persist');
 
-      expect(localStorage.getItem('chinwag_token')).toBe('tok_persist');
+      expect(localStorage.getItem('chinmeister_token')).toBe('tok_persist');
     });
 
     it('logout removes token from localStorage', async () => {
@@ -106,7 +106,7 @@ describe('auth store', () => {
 
       authActions.logout();
 
-      expect(localStorage.getItem('chinwag_token')).toBeNull();
+      expect(localStorage.getItem('chinmeister_token')).toBeNull();
     });
   });
 
@@ -129,7 +129,7 @@ describe('auth store', () => {
 
       await expect(authActions.authenticate('bad_token')).rejects.toThrow('Unauthorized');
       expect(authActions.getState()).toMatchObject({ token: null, user: null });
-      expect(localStorage.getItem('chinwag_token')).toBeNull();
+      expect(localStorage.getItem('chinmeister_token')).toBeNull();
     });
 
     it('sets token before the API call so auth header is available', async () => {
@@ -158,7 +158,7 @@ describe('auth store', () => {
       authActions.logout();
 
       expect(authActions.getState()).toMatchObject({ token: null, user: null });
-      expect(localStorage.getItem('chinwag_token')).toBeNull();
+      expect(localStorage.getItem('chinmeister_token')).toBeNull();
     });
 
     it('is safe to call multiple times', async () => {

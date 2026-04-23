@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const configExistsMock = vi.fn();
 const getConfigPathsMock = vi.fn(() => ({
   profile: 'prod',
-  configDir: '/home/testuser/.chinwag',
-  configFile: '/home/testuser/.chinwag/config.json',
+  configDir: '/home/testuser/.chinmeister',
+  configFile: '/home/testuser/.chinmeister/config.json',
 }));
 const loadConfigMock = vi.fn();
 
@@ -24,8 +24,8 @@ describe('runToken', () => {
     getConfigPathsMock.mockReset();
     getConfigPathsMock.mockReturnValue({
       profile: 'prod',
-      configDir: '/home/testuser/.chinwag',
-      configFile: '/home/testuser/.chinwag/config.json',
+      configDir: '/home/testuser/.chinmeister',
+      configFile: '/home/testuser/.chinmeister/config.json',
     });
     loadConfigMock.mockReset();
     stdoutWriteSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);

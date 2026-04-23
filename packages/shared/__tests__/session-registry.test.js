@@ -43,8 +43,8 @@ describe('session-registry', () => {
   // SESSION_COMMAND_MARKER
   // ---------------------------------------------------------------------------
   describe('SESSION_COMMAND_MARKER', () => {
-    it('equals "chinwag-mcp"', () => {
-      expect(SESSION_COMMAND_MARKER).toBe('chinwag-mcp');
+    it('equals "chinmeister-mcp"', () => {
+      expect(SESSION_COMMAND_MARKER).toBe('chinmeister-mcp');
     });
   });
 
@@ -53,18 +53,18 @@ describe('session-registry', () => {
   // ---------------------------------------------------------------------------
   describe('getSessionsDir', () => {
     it('returns sessions dir under the given home dir', () => {
-      expect(getSessionsDir('/home/alice')).toBe('/home/alice/.chinwag/sessions');
+      expect(getSessionsDir('/home/alice')).toBe('/home/alice/.chinmeister/sessions');
     });
 
     it('uses default homedir when not provided', () => {
       const dir = getSessionsDir();
-      expect(dir).toMatch(/\.chinwag\/sessions$/);
+      expect(dir).toMatch(/\.chinmeister\/sessions$/);
     });
 
     it('handles home dir with trailing slash', () => {
       // join normalizes this
       const dir = getSessionsDir('/home/alice/');
-      expect(dir).toBe('/home/alice/.chinwag/sessions');
+      expect(dir).toBe('/home/alice/.chinmeister/sessions');
     });
   });
 
@@ -111,12 +111,12 @@ describe('session-registry', () => {
   describe('getSessionFilePath', () => {
     it('returns path with safe agent ID and .json extension', () => {
       const path = getSessionFilePath('cursor:abc', '/home/alice');
-      expect(path).toBe('/home/alice/.chinwag/sessions/cursor_abc.json');
+      expect(path).toBe('/home/alice/.chinmeister/sessions/cursor_abc.json');
     });
 
     it('sanitizes special characters in agent ID for the file name', () => {
       const path = getSessionFilePath('agent/with.special:chars', '/tmp');
-      expect(path).toBe('/tmp/.chinwag/sessions/agent_with_special_chars.json');
+      expect(path).toBe('/tmp/.chinmeister/sessions/agent_with_special_chars.json');
     });
   });
 
@@ -216,10 +216,10 @@ describe('session-registry', () => {
     it('returns true when process is alive and command includes commandMarker', () => {
       expect(
         isSessionRecordAlive(
-          { pid: 1234, commandMarker: 'chinwag-mcp' },
+          { pid: 1234, commandMarker: 'chinmeister-mcp' },
           {
             processAlive: () => true,
-            processCommand: () => 'node chinwag-mcp serve',
+            processCommand: () => 'node chinmeister-mcp serve',
           },
         ),
       ).toBe(true);
@@ -228,7 +228,7 @@ describe('session-registry', () => {
     it('returns false when process is alive but command does not include commandMarker', () => {
       expect(
         isSessionRecordAlive(
-          { pid: 1234, commandMarker: 'chinwag-mcp' },
+          { pid: 1234, commandMarker: 'chinmeister-mcp' },
           {
             processAlive: () => true,
             processCommand: () => '/bin/bash',
@@ -240,7 +240,7 @@ describe('session-registry', () => {
     it('returns false when processCommand returns null', () => {
       expect(
         isSessionRecordAlive(
-          { pid: 1234, commandMarker: 'chinwag-mcp' },
+          { pid: 1234, commandMarker: 'chinmeister-mcp' },
           {
             processAlive: () => true,
             processCommand: () => null,
@@ -258,7 +258,7 @@ describe('session-registry', () => {
     it('returns false when processCommand returns empty string and marker is set', () => {
       expect(
         isSessionRecordAlive(
-          { pid: 1234, commandMarker: 'chinwag-mcp' },
+          { pid: 1234, commandMarker: 'chinmeister-mcp' },
           {
             processAlive: () => true,
             processCommand: () => '',
@@ -307,7 +307,7 @@ describe('session-registry', () => {
       readFileSync.mockReturnValue(JSON.stringify({ agentId: 'test', pid: 1 }));
       readSessionRecord('my:agent', { homeDir: '/home/user' });
       expect(readFileSync).toHaveBeenCalledWith(
-        '/home/user/.chinwag/sessions/my_agent.json',
+        '/home/user/.chinmeister/sessions/my_agent.json',
         'utf-8',
       );
     });
@@ -359,7 +359,7 @@ describe('session-registry', () => {
     it('deletes from the correct path based on agent ID', () => {
       unlinkSync.mockImplementation(() => {});
       deleteSessionRecord('cursor:abc', { homeDir: '/home/user' });
-      expect(unlinkSync).toHaveBeenCalledWith('/home/user/.chinwag/sessions/cursor_abc.json');
+      expect(unlinkSync).toHaveBeenCalledWith('/home/user/.chinmeister/sessions/cursor_abc.json');
     });
 
     it('returns false when unlinkSync throws a generic error', () => {
@@ -818,7 +818,7 @@ describe('session-registry', () => {
   describe('completed session records', () => {
     it('sanitizes agentId in the completion file path', () => {
       expect(getCompletedSessionPath('weird/agent?name', '/tmp')).toBe(
-        '/tmp/.chinwag/sessions/weird_agent_name.completed.json',
+        '/tmp/.chinmeister/sessions/weird_agent_name.completed.json',
       );
     });
 
@@ -851,7 +851,7 @@ describe('session-registry', () => {
     it('deletes the completion file and returns true', () => {
       unlinkSync.mockReturnValue(undefined);
       expect(deleteCompletedSession('agent-1', { homeDir: '/tmp' })).toBe(true);
-      expect(unlinkSync).toHaveBeenCalledWith('/tmp/.chinwag/sessions/agent-1.completed.json');
+      expect(unlinkSync).toHaveBeenCalledWith('/tmp/.chinmeister/sessions/agent-1.completed.json');
     });
 
     it('returns false and does not crash when ENOENT on delete', () => {

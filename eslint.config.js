@@ -189,7 +189,7 @@ export default [
     },
   },
 
-  // Guardrail: cross-package imports must go through @chinwag/shared, never
+  // Guardrail: cross-package imports must go through @chinmeister/shared, never
   // via relative paths that reach out of the current package root. Relative
   // paths break when packages move, bypass the exports map (no subpath
   // restriction, no type-only resolution), and allow one test to quietly
@@ -211,7 +211,7 @@ export default [
                 '**/../worker/**',
               ],
               message:
-                'Cross-package imports must use the package name (e.g. @chinwag/shared/...). Relative paths that escape the current package are forbidden.',
+                'Cross-package imports must use the package name (e.g. @chinmeister/shared/...). Relative paths that escape the current package are forbidden.',
             },
           ],
         },

@@ -1,12 +1,12 @@
-// Base reports that ship with chinwag.
+// Base reports that ship with chinmeister.
 //
-// These 8 are starter recipes — each one is a fixed selection of chinwag
+// These 8 are starter recipes — each one is a fixed selection of chinmeister
 // data points (sessions, memory access, conversation events, conflicts,
 // file claims, tool calls, commits, costs) wired into a question worth
 // asking. Each report is produced internally by a pipeline of one or
 // more agents; users see a generated report, not the agents. The
 // product story is not "we built 8 reports." The product story is
-// "chinwag's substrate is the only place this data lives, and here are
+// "chinmeister's substrate is the only place this data lives, and here are
 // 8 pre-composed views of it."
 //
 // Four of the eight run as pure worker-side aggregation over captured
@@ -17,9 +17,9 @@
 // split to users — it's a runtime execution detail.
 //
 // Custom reports (future): users will compose their own pipelines by
-// selecting which chinwag data points to track and what question to ask
+// selecting which chinmeister data points to track and what question to ask
 // of them. The differentiator is the substrate, not the LLM — any model
-// can analyze; only chinwag has the cross-tool, cross-session,
+// can analyze; only chinmeister has the cross-tool, cross-session,
 // cross-developer data to feed it. When that ships, custom reports live
 // alongside these base ones in the same catalog shape.
 
@@ -30,7 +30,7 @@ export type ReportCategory = 'analysis' | 'management';
 /** Number of agents in the pipeline that powers a report — 1 (solo), 2 (plan+challenge), or 3+ (swarm) */
 export type AgentCount = 1 | 2 | 3;
 
-/** Base = ships with chinwag. Custom = user-composed (future). */
+/** Base = ships with chinmeister. Custom = user-composed (future). */
 export type ReportKind = 'base' | 'custom';
 
 export interface ReportDef {
@@ -53,7 +53,7 @@ export interface ReportDef {
    * null for trigger-based or on-demand reports that have no calendar cadence.
    */
   cadenceDays: number | null;
-  /** chinwag palette color name (red, cyan, yellow, etc.) — resolved via getColorHex */
+  /** chinmeister palette color name (red, cyan, yellow, etc.) — resolved via getColorHex */
   colorName: string;
   /** Pipeline stages this report runs internally */
   stages: string[];

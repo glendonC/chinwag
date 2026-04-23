@@ -262,7 +262,7 @@ function buildPreview(text: string): string {
   const PREVIEW_MAX = 160;
   if (trimmed.length <= PREVIEW_MAX) return trimmed;
 
-  // Try first sentence — most chinwag memories lead with a one-line summary
+  // Try first sentence — most chinmeister memories lead with a one-line summary
   const sentenceMatch = trimmed.match(/^[^.!?]{20,200}[.!?]/);
   if (sentenceMatch && sentenceMatch[0].length <= PREVIEW_MAX) {
     return sentenceMatch[0].trim();
@@ -295,7 +295,7 @@ function halflifeForTags(tags: string[]): number {
 /**
  * Compute the decay-aware score for a memory.
  *   score = exp(-age_days / halflife) * (1 + log(1 + access_count))
- * The access boost rescues old-but-frequently-used memories (chinwag's
+ * The access boost rescues old-but-frequently-used memories (chinmeister's
  * answer to the "we use pnpm" stable-fact starvation case). Multiplier
  * with the existing relevance signal is left to the caller.
  */

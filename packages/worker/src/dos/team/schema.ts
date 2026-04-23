@@ -728,7 +728,7 @@ const migrations: Migration[] = [
       // default search. Different semantics, kept separate.
       //
       // We deliberately do NOT add `expired_at` (DB-action time) at this
-      // point. Chinwag has no callers that distinguish ingestion time from
+      // point. Chinmeister has no callers that distinguish ingestion time from
       // fact-validity time today; when one appears, add the column then.
       addColumnIfMissing(
         sql,

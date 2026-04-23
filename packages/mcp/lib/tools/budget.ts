@@ -1,8 +1,8 @@
-// chinwag_configure_budget tool handler.
+// chinmeister_configure_budget tool handler.
 //
 // Runtime override for per-session context budgets. The resolved budget at
-// bootstrap is the merge of hardcoded defaults + team `.chinwag` + user
-// `~/.chinwag/config.json`. This tool lets an agent (or human via their agent)
+// bootstrap is the merge of hardcoded defaults + team `.chinmeister` + user
+// `~/.chinmeister/config.json`. This tool lets an agent (or human via their agent)
 // override any field for the remainder of the session.
 //
 // Overrides are session-local: they do not persist to disk and reset when the
@@ -14,7 +14,7 @@ import {
   resolveBudgets,
   type BudgetConfig,
   type CoordinationBroadcast,
-} from '@chinwag/shared/budget-config.js';
+} from '@chinmeister/shared/budget-config.js';
 import { loadTeamBudgets } from '../team.js';
 import { loadConfig } from '../config.js';
 import { MEMORY_SEARCH_MAX_LIMIT } from '../constants.js';
@@ -38,7 +38,7 @@ const configureBudgetSchema = z.object({
     .enum(['full', 'silent'])
     .optional()
     .describe(
-      'Whether chinwag_update_activity broadcasts to teammates. "silent" keeps work local.',
+      'Whether chinmeister_update_activity broadcasts to teammates. "silent" keeps work local.',
     ),
   reset: z
     .boolean()
@@ -59,7 +59,7 @@ function formatBudget(b: BudgetConfig): string {
 /**
  * Re-resolve team + user budgets at runtime. Used on `reset: true` to rewind
  * to the non-runtime layer without remembering the original bootstrap value —
- * this means picking up any edits to `.chinwag` or `~/.chinwag/config.json`
+ * this means picking up any edits to `.chinmeister` or `~/.chinmeister/config.json`
  * made since startup, which is usually what a user wants.
  */
 function resolveBaseline(): BudgetConfig {
@@ -72,10 +72,10 @@ export function registerBudgetTool(addTool: AddToolFn, deps: Pick<ToolDeps, 'sta
   const { state } = deps;
 
   addTool(
-    'chinwag_configure_budget',
+    'chinmeister_configure_budget',
     {
       description:
-        'Adjust per-session context budget for chinwag tools. Runtime overrides only — changes revert when the session ends. Call with no arguments to read the current resolved budget. Pass `reset: true` to clear runtime overrides.',
+        'Adjust per-session context budget for chinmeister tools. Runtime overrides only — changes revert when the session ends. Call with no arguments to read the current resolved budget. Pass `reset: true` to clear runtime overrides.',
       inputSchema: configureBudgetSchema,
     },
     async (args: Record<string, unknown>) => {

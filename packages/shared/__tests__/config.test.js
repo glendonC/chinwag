@@ -132,20 +132,20 @@ describe('config', () => {
   // CONFIG_DIR / CONFIG_FILE constants
   // ---------------------------------------------------------------------------
   describe('CONFIG_DIR and CONFIG_FILE', () => {
-    it('CONFIG_DIR points to ~/.chinwag', () => {
-      expect(CONFIG_DIR).toBe('/home/testuser/.chinwag');
+    it('CONFIG_DIR points to ~/.chinmeister', () => {
+      expect(CONFIG_DIR).toBe('/home/testuser/.chinmeister');
     });
 
-    it('CONFIG_FILE points to ~/.chinwag/config.json', () => {
-      expect(CONFIG_FILE).toBe('/home/testuser/.chinwag/config.json');
+    it('CONFIG_FILE points to ~/.chinmeister/config.json', () => {
+      expect(CONFIG_FILE).toBe('/home/testuser/.chinmeister/config.json');
     });
 
-    it('LOCAL_CONFIG_DIR points to ~/.chinwag/local', () => {
-      expect(LOCAL_CONFIG_DIR).toBe('/home/testuser/.chinwag/local');
+    it('LOCAL_CONFIG_DIR points to ~/.chinmeister/local', () => {
+      expect(LOCAL_CONFIG_DIR).toBe('/home/testuser/.chinmeister/local');
     });
 
-    it('LOCAL_CONFIG_FILE points to ~/.chinwag/local/config.json', () => {
-      expect(LOCAL_CONFIG_FILE).toBe('/home/testuser/.chinwag/local/config.json');
+    it('LOCAL_CONFIG_FILE points to ~/.chinmeister/local/config.json', () => {
+      expect(LOCAL_CONFIG_FILE).toBe('/home/testuser/.chinmeister/local/config.json');
     });
   });
 
@@ -161,8 +161,8 @@ describe('config', () => {
       });
     });
 
-    it('uses the local config path when CHINWAG_PROFILE=local', () => {
-      vi.stubEnv('CHINWAG_PROFILE', 'local');
+    it('uses the local config path when CHINMEISTER_PROFILE=local', () => {
+      vi.stubEnv('CHINMEISTER_PROFILE', 'local');
       expect(getConfigPaths()).toEqual({
         profile: 'local',
         configDir: LOCAL_CONFIG_DIR,
@@ -171,7 +171,7 @@ describe('config', () => {
     });
 
     it('infers the local config path from a loopback API override', () => {
-      vi.stubEnv('CHINWAG_API_URL', 'http://localhost:8787');
+      vi.stubEnv('CHINMEISTER_API_URL', 'http://localhost:8787');
       expect(getConfigPaths()).toEqual({
         profile: 'local',
         configDir: LOCAL_CONFIG_DIR,
@@ -179,13 +179,13 @@ describe('config', () => {
       });
     });
 
-    it('infers local from CHINWAG_DASHBOARD_URL pointing to loopback', () => {
-      vi.stubEnv('CHINWAG_DASHBOARD_URL', 'http://localhost:56790/dashboard.html');
+    it('infers local from CHINMEISTER_DASHBOARD_URL pointing to loopback', () => {
+      vi.stubEnv('CHINMEISTER_DASHBOARD_URL', 'http://localhost:56790/dashboard.html');
       expect(getConfigPaths().profile).toBe('local');
     });
 
-    it('infers local from CHINWAG_WS_URL pointing to loopback', () => {
-      vi.stubEnv('CHINWAG_WS_URL', 'ws://localhost:8787/ws/chat');
+    it('infers local from CHINMEISTER_WS_URL pointing to loopback', () => {
+      vi.stubEnv('CHINMEISTER_WS_URL', 'ws://localhost:8787/ws/chat');
       expect(getConfigPaths().profile).toBe('local');
     });
 
@@ -195,7 +195,7 @@ describe('config', () => {
     });
 
     it('explicit profile option takes precedence over env vars', () => {
-      vi.stubEnv('CHINWAG_PROFILE', 'local');
+      vi.stubEnv('CHINMEISTER_PROFILE', 'local');
       expect(getConfigPaths({ profile: 'prod' }).profile).toBe('prod');
     });
 
@@ -375,7 +375,7 @@ describe('config', () => {
   // ---------------------------------------------------------------------------
   describe('saveConfig', () => {
     it('writes to the local config path when the local profile is active', () => {
-      vi.stubEnv('CHINWAG_PROFILE', 'local');
+      vi.stubEnv('CHINMEISTER_PROFILE', 'local');
 
       saveConfig({ token: 'tok_local' });
 
@@ -453,7 +453,7 @@ describe('config', () => {
   // ---------------------------------------------------------------------------
   describe('deleteConfig', () => {
     it('deletes from the active config path', () => {
-      vi.stubEnv('CHINWAG_PROFILE', 'local');
+      vi.stubEnv('CHINMEISTER_PROFILE', 'local');
       existsSync.mockReturnValue(true);
 
       deleteConfig();
@@ -484,7 +484,7 @@ describe('config', () => {
     });
 
     it('uses explicit profile option over env var', () => {
-      vi.stubEnv('CHINWAG_PROFILE', 'local');
+      vi.stubEnv('CHINMEISTER_PROFILE', 'local');
       existsSync.mockReturnValue(true);
 
       deleteConfig({ profile: 'prod' });

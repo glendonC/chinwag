@@ -61,10 +61,10 @@ describe('ProjectsWidget — team name binding', () => {
     const r = render(
       Projects,
       makeProps({
-        summaries: [{ team_id: 't1', team_name: 'chinwag' }],
+        summaries: [{ team_id: 't1', team_name: 'chinmeister' }],
       }),
     );
-    expect(r.container.textContent).toContain('chinwag');
+    expect(r.container.textContent).toContain('chinmeister');
     r.unmount();
   });
 
@@ -90,7 +90,7 @@ describe('ProjectsWidget — column headers + view button', () => {
     const r = render(
       Projects,
       makeProps({
-        summaries: [{ team_id: 't1', team_name: 'chinwag', memory_count: 5 }],
+        summaries: [{ team_id: 't1', team_name: 'chinmeister', memory_count: 5 }],
       }),
     );
     const text = r.container.textContent;
@@ -110,7 +110,7 @@ describe('ProjectsWidget — column headers + view button', () => {
     const r = render(
       Projects,
       makeProps({
-        summaries: [{ team_id: 't1', team_name: 'chinwag' }],
+        summaries: [{ team_id: 't1', team_name: 'chinmeister' }],
       }),
     );
     expect(r.container.textContent).toContain('View');
@@ -124,7 +124,7 @@ describe('ProjectsWidget — metric cells', () => {
     const r = render(
       Projects,
       makeProps({
-        summaries: [{ team_id: 't1', team_name: 'chinwag', memory_count: 1234 }],
+        summaries: [{ team_id: 't1', team_name: 'chinmeister', memory_count: 1234 }],
       }),
     );
     expect(r.container.textContent).toContain('1,234');
@@ -142,7 +142,7 @@ describe('ProjectsWidget — metric cells', () => {
         summaries: [
           {
             team_id: 't1',
-            team_name: 'chinwag',
+            team_name: 'chinmeister',
             memory_count: 0,
             conflicts_7d: 0,
           },
@@ -161,7 +161,7 @@ describe('ProjectsWidget — metric cells', () => {
     const r = render(
       Projects,
       makeProps({
-        summaries: [{ team_id: 't1', team_name: 'chinwag', memory_count: 5 }],
+        summaries: [{ team_id: 't1', team_name: 'chinmeister', memory_count: 5 }],
       }),
     );
     expect(r.container.textContent).toContain('—');
@@ -175,7 +175,7 @@ describe('ProjectsWidget — tools cell', () => {
     const r = render(
       Projects,
       makeProps({
-        summaries: [{ team_id: 't1', team_name: 'chinwag', hosts_configured: [] }],
+        summaries: [{ team_id: 't1', team_name: 'chinmeister', hosts_configured: [] }],
       }),
     );
     expect(r.container.textContent).toContain('—');
@@ -190,7 +190,7 @@ describe('ProjectsWidget — tools cell', () => {
         summaries: [
           {
             team_id: 't1',
-            team_name: 'chinwag',
+            team_name: 'chinmeister',
             hosts_configured: [
               { host_tool: 'claude-code', joins: 50 },
               { host_tool: 'cursor', joins: 30 },
@@ -218,7 +218,7 @@ describe('ProjectsWidget — tools cell', () => {
         summaries: [
           {
             team_id: 't1',
-            team_name: 'chinwag',
+            team_name: 'chinmeister',
             hosts_configured: [
               { host_tool: 'claude-code', joins: 50 },
               { host_tool: 'cursor', joins: 30 },
@@ -237,7 +237,7 @@ describe('ProjectsWidget — tools cell', () => {
             summary: null,
             session_minutes: 1,
             seconds_since_update: 0,
-            teamName: 'chinwag',
+            teamName: 'chinmeister',
           },
         ],
       }),

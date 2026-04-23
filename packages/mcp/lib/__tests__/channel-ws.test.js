@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createChannelWebSocket } from '../channel-ws.js';
 
 // Mock shared dashboard-ws
-vi.mock('@chinwag/shared/dashboard-ws.js', () => ({
+vi.mock('@chinmeister/shared/dashboard-ws.js', () => ({
   applyDelta: vi.fn((ctx, event) => ({ ...ctx, _lastEvent: event })),
   normalizeDashboardDeltaEvent: vi.fn((e) => e),
 }));

@@ -10,7 +10,7 @@
 // shorter delta window.
 
 import { createLogger } from '../../../lib/logger.js';
-import type { PeriodComparison, PeriodMetrics } from '@chinwag/shared/contracts/analytics.js';
+import type { PeriodComparison, PeriodMetrics } from '@chinmeister/shared/contracts/analytics.js';
 
 const log = createLogger('TeamDO.analytics');
 

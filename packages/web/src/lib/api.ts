@@ -1,13 +1,13 @@
-// chinwag API client
+// chinmeister API client
 // Pure utility — no store imports to avoid circular deps.
 
-import { createJsonApiClient } from '@chinwag/shared/api-client.js';
-import { resolveRuntimeTargets, type RuntimeTargets } from '@chinwag/shared/runtime-profile.js';
+import { createJsonApiClient } from '@chinmeister/shared/api-client.js';
+import { resolveRuntimeTargets, type RuntimeTargets } from '@chinmeister/shared/runtime-profile.js';
 
 export function getRuntimeTargets(): RuntimeTargets {
   return resolveRuntimeTargets({
-    profile: import.meta.env.VITE_CHINWAG_PROFILE,
-    apiUrl: import.meta.env.VITE_CHINWAG_API_URL,
+    profile: import.meta.env.VITE_CHINMEISTER_PROFILE,
+    apiUrl: import.meta.env.VITE_CHINMEISTER_API_URL,
   });
 }
 

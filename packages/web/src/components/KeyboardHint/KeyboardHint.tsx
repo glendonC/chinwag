@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useDismissible } from '../../hooks/useDismissible.js';
 import styles from './KeyboardHint.module.css';
 
-const STORAGE_KEY = 'chinwag:hint:arrow-nav-v2';
+const STORAGE_KEY = 'chinmeister:hint:arrow-nav-v2';
 
 interface Props {
   dismissed: boolean;

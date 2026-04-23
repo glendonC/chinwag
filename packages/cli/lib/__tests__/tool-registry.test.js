@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MCP_TOOLS } from '@chinwag/shared/tool-registry.js';
+import { MCP_TOOLS } from '@chinmeister/shared/tool-registry.js';
 
 describe('shared MCP tool registry', () => {
   it('uses unique ids for every configurable tool', () => {
@@ -17,7 +17,7 @@ describe('shared MCP tool registry', () => {
       // Non-MCP tools (e.g. Copilot) legitimately live in the registry for
       // clientInfo attribution without supporting MCP configuration. The
       // invariant we actually want: claiming `mcpCompatible` implies being
-      // `mcpConfigurable` (can't say "works with MCP" if `chinwag add` has
+      // `mcpConfigurable` (can't say "works with MCP" if `chinmeister add` has
       // nothing to write).
       if (tool.catalog?.mcpCompatible) {
         expect(tool.catalog?.mcpConfigurable, `${tool.id}`).toBe(true);

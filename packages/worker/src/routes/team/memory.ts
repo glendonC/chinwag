@@ -6,7 +6,7 @@ import { teamJsonRoute, teamRoute, doResult } from '../../lib/middleware.js';
 import { createLogger } from '../../lib/logger.js';
 import { requireString, validateTagsArray, withTeamRateLimit } from '../../lib/validation.js';
 import { generateEmbedding } from '../../lib/ai.js';
-import { detectSecrets } from '@chinwag/shared/secret-detector.js';
+import { detectSecrets } from '@chinmeister/shared/secret-detector.js';
 import { isLiteralQuery } from '../../dos/team/memory.js';
 import {
   MAX_MEMORY_TEXT_LENGTH,

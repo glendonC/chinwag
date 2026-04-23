@@ -11,7 +11,7 @@ import type { DashboardState } from './reducer.js';
 import type { UseAgentLifecycleReturn } from './agents.js';
 import type { UseComposerReturn } from './composer.js';
 import type { UseMemoryManagerReturn } from './memory.js';
-import type { IntegrationScanResult } from '@chinwag/shared/integration-doctor.js';
+import type { IntegrationScanResult } from '@chinmeister/shared/integration-doctor.js';
 
 interface CommandSuggestion {
   name: string;

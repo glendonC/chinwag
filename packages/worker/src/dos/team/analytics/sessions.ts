@@ -9,7 +9,7 @@ import type {
   FileOverlapStats,
   FirstEditStats,
   ScopeComplexityBucket,
-} from '@chinwag/shared/contracts/analytics.js';
+} from '@chinmeister/shared/contracts/analytics.js';
 
 const log = createLogger('TeamDO.analytics');
 
@@ -19,7 +19,7 @@ export function queryRetryPatterns(sql: SqlStorage, days: number): RetryPattern[
     // top-N cannot be swallowed by a single noisy agent. Adds cross-agent
     // (COUNT DISTINCT handle) and cross-tool (GROUP_CONCAT DISTINCT host_tool)
     // aggregates — the cross-tool column is the substrate-unique angle that
-    // elevates D1: only chinwag sees the same file retried across Claude Code
+    // elevates D1: only chinmeister sees the same file retried across Claude Code
     // + Cursor + Windsurf. `latest_outcome` still picks the most recent
     // session's outcome across all agents so "resolved" means the file's
     // current state regardless of who last touched it.

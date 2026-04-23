@@ -12,7 +12,7 @@ import type { DatabaseDO } from './dos/database/index.js';
 import type { LobbyDO } from './lobby.js';
 import type { RoomDO } from './room.js';
 import type { TeamDO } from './dos/team/index.js';
-import type { BudgetConfig } from '@chinwag/shared/budget-config.js';
+import type { BudgetConfig } from '@chinmeister/shared/budget-config.js';
 
 // ── DO Result pattern ──
 // Every DO method returns { ok: true, ...data } on success or { error: string } on failure.

@@ -162,7 +162,7 @@ describe('RenderErrorBoundary', () => {
     );
 
     expect(spy).toHaveBeenCalledWith(
-      expect.stringContaining('[chinwag] ProjectView error:'),
+      expect.stringContaining('[chinmeister] ProjectView error:'),
       expect.any(Error),
       expect.anything(),
     );

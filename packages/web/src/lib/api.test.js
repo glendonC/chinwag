@@ -30,7 +30,7 @@ describe('web API client', () => {
   });
 
   it('uses the Vite API override and auth header', async () => {
-    vi.stubEnv('VITE_CHINWAG_API_URL', 'http://localhost:8787');
+    vi.stubEnv('VITE_CHINMEISTER_API_URL', 'http://localhost:8787');
     fetch.mockResolvedValue(mockJsonResponse({ teams: [] }));
 
     await api('GET', '/me/teams', null, 'web-token');
@@ -54,9 +54,9 @@ describe('web API client', () => {
 
     await api('GET', '/me/teams', null, 'web-token');
 
-    expect(getApiUrl()).toBe('https://chinwag-api.glendonchin.workers.dev');
+    expect(getApiUrl()).toBe('https://chinmeister-api.glendonchin.workers.dev');
     expect(fetch).toHaveBeenCalledWith(
-      'https://chinwag-api.glendonchin.workers.dev/me/teams',
+      'https://chinmeister-api.glendonchin.workers.dev/me/teams',
       expect.objectContaining({
         method: 'GET',
       }),
@@ -64,7 +64,7 @@ describe('web API client', () => {
   });
 
   it('uses the local profile defaults without an explicit API override', () => {
-    vi.stubEnv('VITE_CHINWAG_PROFILE', 'local');
+    vi.stubEnv('VITE_CHINMEISTER_PROFILE', 'local');
 
     expect(getApiUrl()).toBe('http://localhost:8787');
   });
@@ -72,7 +72,7 @@ describe('web API client', () => {
   it('uses DEFAULT_API_URL regardless of hostname when no local profile is set', () => {
     stubHostname('127.0.0.1');
 
-    expect(getApiUrl()).toBe('https://chinwag-api.glendonchin.workers.dev');
+    expect(getApiUrl()).toBe('https://chinmeister-api.glendonchin.workers.dev');
   });
 
   it('uses web-specific parse errors for non-JSON responses', async () => {
@@ -94,7 +94,7 @@ describe('web API client', () => {
       mockJsonResponse(
         {
           error: 'Project summary is temporarily unavailable.',
-          failed_teams: [{ team_id: 't_one', team_name: 'chinwag' }],
+          failed_teams: [{ team_id: 't_one', team_name: 'chinmeister' }],
         },
         503,
       ),
@@ -104,7 +104,7 @@ describe('web API client', () => {
       message: 'Project summary is temporarily unavailable.',
       status: 503,
       data: {
-        failed_teams: [{ team_id: 't_one', team_name: 'chinwag' }],
+        failed_teams: [{ team_id: 't_one', team_name: 'chinmeister' }],
       },
     });
   });

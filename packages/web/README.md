@@ -1,8 +1,8 @@
-# chinwag web
+# chinmeister web
 
 The web package contains two surfaces:
 
-- `index.html`: the public landing page on `chinwag.dev`
+- `index.html`: the public landing page on `chinmeister.com`
 - `dashboard.html` + `src/`: the authenticated React dashboard
 
 ## Install
@@ -19,7 +19,7 @@ This package is part of the root npm workspaces, so the root install is enough.
 npm run dev:local
 ```
 
-That starts the worker, provisions isolated local auth in `~/.chinwag/local/config.json`, and starts the local dashboard on `http://localhost:56790/dashboard.html`.
+That starts the worker, provisions isolated local auth in `~/.chinmeister/local/config.json`, and starts the local dashboard on `http://localhost:56790/dashboard.html`.
 
 If you only need the web app:
 
@@ -30,7 +30,7 @@ npm run dev:web
 To point the Vite app at the local profile manually:
 
 ```bash
-VITE_CHINWAG_PROFILE=local npm run dev:web
+VITE_CHINMEISTER_PROFILE=local npm run dev:web
 ```
 
 Other useful commands:

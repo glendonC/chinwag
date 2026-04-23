@@ -129,7 +129,7 @@ function SectionHead({ label }: { label: string }): ReactNode {
 // already-commensurable percentile axes (all are percentile ranks, all are
 // "higher = better" post-normalization in rank.ts). Weights are opinionated
 // — Effectiveness tilts to completion+reliability because coordination is
-// chinwag's product stance; Productivity tilts to output because volume is
+// chinmeister's product stance; Productivity tilts to output because volume is
 // what shows up in a dev's day-to-day. Weights render on the page so the
 // rubric isn't hidden.
 const COMPOSITES = [

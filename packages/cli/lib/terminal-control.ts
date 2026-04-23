@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { createLogger } from '@chinwag/shared';
+import { createLogger } from '@chinmeister/shared';
 
 const log = createLogger('terminal-control');
 
@@ -54,7 +54,7 @@ function writeEscape(sequence: string): void {
 }
 
 function sanitizeTitle(title: string | undefined): string {
-  return String(title || 'chinwag')
+  return String(title || 'chinmeister')
     .replaceAll(ESC, '')
     .replaceAll(BELL, '')
     .trim();

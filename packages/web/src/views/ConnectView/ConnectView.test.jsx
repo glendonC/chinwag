@@ -41,12 +41,12 @@ async function loadConnectView({
   hash = '',
   runtimeTargets = {
     profile: 'prod',
-    apiUrl: 'https://test.chinwag.dev',
-    dashboardUrl: 'https://chinwag.dev/dashboard',
-    dashboardOrigin: 'https://chinwag.dev',
+    apiUrl: 'https://test.chinmeister.com',
+    dashboardUrl: 'https://chinmeister.com/dashboard',
+    dashboardOrigin: 'https://chinmeister.com',
     dashboardPath: '/dashboard',
-    chatWsUrl: 'wss://test.chinwag.dev/ws/chat',
-    teamWsOrigin: 'wss://test.chinwag.dev',
+    chatWsUrl: 'wss://test.chinmeister.com/ws/chat',
+    teamWsOrigin: 'wss://test.chinmeister.com',
   },
 } = {}) {
   vi.resetModules();
@@ -215,8 +215,8 @@ describe('ConnectView', () => {
     const { container, unmount } = renderComponent(ConnectView, {});
 
     expect(container.textContent).toContain('Local profile');
-    expect(container.textContent).toContain('CHINWAG_PROFILE=local npx chinwag dashboard');
-    expect(container.textContent).toContain('CHINWAG_PROFILE=local npx chinwag token');
+    expect(container.textContent).toContain('CHINMEISTER_PROFILE=local npx chinmeister dashboard');
+    expect(container.textContent).toContain('CHINMEISTER_PROFILE=local npx chinmeister token');
 
     unmount();
   });

@@ -28,20 +28,20 @@ describe('CORS', () => {
   it('OPTIONS returns CORS headers', async () => {
     const res = await SELF.fetch('http://localhost/me', {
       method: 'OPTIONS',
-      headers: { Origin: 'https://chinwag.dev' },
+      headers: { Origin: 'https://chinmeister.com' },
     });
     expect(res.status).toBe(200);
-    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://chinwag.dev');
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://chinmeister.com');
     expect(res.headers.get('Access-Control-Allow-Methods')).toContain('GET');
     expect(res.headers.get('Access-Control-Allow-Methods')).toContain('POST');
     expect(res.headers.get('Access-Control-Allow-Headers')).toContain('Authorization');
   });
 
-  it('reflects allowed origin for chinwag.dev', async () => {
+  it('reflects allowed origin for chinmeister.com', async () => {
     const res = await SELF.fetch('http://localhost/stats', {
-      headers: { Origin: 'https://chinwag.dev' },
+      headers: { Origin: 'https://chinmeister.com' },
     });
-    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://chinwag.dev');
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://chinmeister.com');
   });
 
   it('reflects allowed origin for local web dev server (dashboard static)', async () => {

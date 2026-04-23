@@ -1,4 +1,4 @@
-// State diffing algorithm for the chinwag channel server.
+// State diffing algorithm for the chinmeister channel server.
 // Compares two snapshots of team context and returns human-readable event strings
 // for meaningful changes (new agents, file edits, conflicts, memories, locks, messages).
 

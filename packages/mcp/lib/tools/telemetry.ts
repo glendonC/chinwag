@@ -1,4 +1,4 @@
-// Optional MCP telemetry tools: chinwag_record_tokens and chinwag_record_tool_call.
+// Optional MCP telemetry tools: chinmeister_record_tokens and chinmeister_record_tool_call.
 //
 // These are "bonus capture" tools — some cooperative agents will call them
 // voluntarily. For tools without hooks or logs, this captures 10-30% of
@@ -59,10 +59,10 @@ export function registerTelemetryTools(
   const { team, state } = deps;
 
   addTool(
-    'chinwag_record_tokens',
+    'chinmeister_record_tokens',
     {
       description:
-        'Record token usage from an API call. Call this after each LLM response to help chinwag track cost and efficiency across tools. Optional but improves analytics accuracy.',
+        'Record token usage from an API call. Call this after each LLM response to help chinmeister track cost and efficiency across tools. Optional but improves analytics accuracy.',
       inputSchema: recordTokensSchema,
     },
     withTeam(deps, async (args, { preamble }) => {
@@ -96,10 +96,10 @@ export function registerTelemetryTools(
   );
 
   addTool(
-    'chinwag_record_edit',
+    'chinmeister_record_edit',
     {
       description:
-        "Record that you edited a file. Call this each time you modify a source file so chinwag's edit count and per-file churn metrics stay accurate for tools without hook capture (Aider, Codex, Cline, Continue, JetBrains, Amazon Q). Claude Code, Cursor, and Windsurf already capture edits via hooks — don't double-report from those. Optional but closes the silent-zero gap; calling on every edit is correct.",
+        "Record that you edited a file. Call this each time you modify a source file so chinmeister's edit count and per-file churn metrics stay accurate for tools without hook capture (Aider, Codex, Cline, Continue, JetBrains, Amazon Q). Claude Code, Cursor, and Windsurf already capture edits via hooks — don't double-report from those. Optional but closes the silent-zero gap; calling on every edit is correct.",
       inputSchema: recordEditSchema,
     },
     withTeam(deps, async (args, { preamble }) => {
@@ -131,10 +131,10 @@ export function registerTelemetryTools(
   );
 
   addTool(
-    'chinwag_record_tool_call',
+    'chinmeister_record_tool_call',
     {
       description:
-        'Record a tool call for analytics. Call this after executing a tool to help chinwag track tool usage patterns, error rates, and one-shot success rate. Optional but improves analytics accuracy.',
+        'Record a tool call for analytics. Call this after executing a tool to help chinmeister track tool usage patterns, error rates, and one-shot success rate. Optional but improves analytics accuracy.',
       inputSchema: recordToolCallSchema,
     },
     withTeam(deps, async (args, { preamble }) => {

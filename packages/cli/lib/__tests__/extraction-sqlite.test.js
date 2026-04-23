@@ -11,7 +11,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 function fixtureRoot() {
   return join(
     tmpdir(),
-    `chinwag-sqlite-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    `chinmeister-sqlite-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
   );
 }
 

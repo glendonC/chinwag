@@ -1,7 +1,7 @@
 // Token analytics: token usage stats by model and tool.
 
 import { createLogger } from '../../../lib/logger.js';
-import type { TokenUsageStats } from '@chinwag/shared/contracts/analytics.js';
+import type { TokenUsageStats } from '@chinmeister/shared/contracts/analytics.js';
 import type { WindowTokenAggregate } from '../../../lib/pricing-enrich.js';
 
 const log = createLogger('TeamDO.analytics');

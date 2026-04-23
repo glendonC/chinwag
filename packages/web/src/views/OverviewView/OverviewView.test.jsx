@@ -120,14 +120,17 @@ describe('OverviewView states', () => {
   it('shows unavailable state when projects exist but overview summaries are missing', async () => {
     const OverviewView = await loadOverviewView({
       pollingState: {
-        dashboardData: { teams: [], failed_teams: [{ team_id: 't_one', team_name: 'chinwag' }] },
+        dashboardData: {
+          teams: [],
+          failed_teams: [{ team_id: 't_one', team_name: 'chinmeister' }],
+        },
         dashboardStatus: 'ready',
         pollError: null,
         pollErrorData: null,
         lastUpdate: null,
       },
       teamState: {
-        teams: [{ team_id: 't_one', team_name: 'chinwag' }],
+        teams: [{ team_id: 't_one', team_name: 'chinmeister' }],
         teamsError: null,
         selectTeam: vi.fn(),
       },

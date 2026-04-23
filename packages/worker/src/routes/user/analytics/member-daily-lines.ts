@@ -5,7 +5,7 @@
 // memberAnalyticsSchema's LIMIT 50, so the two fields agree on which
 // teammates exist in the drill.
 
-import type { MemberDailyLineTrend } from '@chinwag/shared/contracts/analytics.js';
+import type { MemberDailyLineTrend } from '@chinmeister/shared/contracts/analytics.js';
 import type { TeamResult } from './types.js';
 
 interface MemberDailyBucket {

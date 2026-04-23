@@ -1,10 +1,10 @@
 {
-  "name": "chinwag",
+  "name": "chinmeister",
   "version": "0.1.0",
   "description": "Vendor-neutral control layer for agentic development — shared memory, coordination, MCP-first",
   "type": "module",
   "bin": {
-    "chinwag": "./dist/cli.js"
+    "chinmeister": "./dist/cli.js"
   },
   "scripts": {
     "build": "esbuild cli.tsx --bundle --platform=node --format=esm --banner:js='#!/usr/bin/env node' --outfile=dist/cli.js --sourcemap --external:ink --external:react --external:ink-text-input --external:node-pty --external:better-sqlite3 --resolve-extensions=.ts,.tsx,.js,.jsx,.json",
@@ -15,9 +15,9 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@chinwag/shared": "file:../shared",
+    "@chinmeister/shared": "file:../shared",
     "chalk": "^5.6.2",
-    "chinwag-mcp": "file:../mcp",
+    "chinmeister-mcp": "file:../mcp",
     "ink": "^5.1.0",
     "ink-text-input": "^6.0.0",
     "node-pty": "^1.1.0",

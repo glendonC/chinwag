@@ -63,7 +63,7 @@ describe('openWebDashboard', () => {
 
   it('uses the local dashboard URL when the local profile is active', () => {
     Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
-    vi.stubEnv('CHINWAG_PROFILE', 'local');
+    vi.stubEnv('CHINMEISTER_PROFILE', 'local');
 
     const result = openWebDashboard('tok');
 

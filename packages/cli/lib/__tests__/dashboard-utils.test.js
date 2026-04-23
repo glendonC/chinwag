@@ -76,7 +76,7 @@ describe('getVisibleWindow', () => {
 describe('formatProjectPath', () => {
   it('replaces home directory with tilde', () => {
     const home = homedir();
-    expect(formatProjectPath(`${home}/projects/chinwag`)).toBe('~/projects/chinwag');
+    expect(formatProjectPath(`${home}/projects/chinmeister`)).toBe('~/projects/chinmeister');
   });
 
   it('returns non-home paths unchanged', () => {

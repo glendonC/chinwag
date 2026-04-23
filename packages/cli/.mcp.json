@@ -1,15 +1,15 @@
 {
   "mcpServers": {
-    "chinwag": {
+    "chinmeister": {
       "command": "npx",
       "args": [
-        "chinwag-mcp"
+        "chinmeister-mcp"
       ]
     },
-    "chinwag-channel": {
+    "chinmeister-channel": {
       "command": "npx",
       "args": [
-        "chinwag-channel"
+        "chinmeister-channel"
       ]
     }
   }

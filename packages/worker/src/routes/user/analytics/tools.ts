@@ -13,7 +13,7 @@ import type {
   ToolDistribution,
   ToolHandoff,
   ToolWorkTypeBreakdown,
-} from '@chinwag/shared/contracts/analytics.js';
+} from '@chinmeister/shared/contracts/analytics.js';
 import type { TeamResult } from './types.js';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;

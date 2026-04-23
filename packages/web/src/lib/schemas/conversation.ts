@@ -1,5 +1,5 @@
 // Conversation intelligence schemas.
-// Base shapes imported from @chinwag/shared/contracts/conversation.js;
+// Base shapes imported from @chinmeister/shared/contracts/conversation.js;
 // client-specific .default() values applied for resilient UI rendering.
 
 import { z } from 'zod';
@@ -10,7 +10,7 @@ import {
   sentimentOutcomeCorrelationSchema as baseSentimentOutcomeCorrelationSchema,
   conversationToolCoverageSchema as baseConversationToolCoverageSchema,
   conversationAnalyticsSchema as baseConversationAnalyticsSchema,
-} from '@chinwag/shared/contracts/conversation.js';
+} from '@chinmeister/shared/contracts/conversation.js';
 
 const sentimentDistributionSchema = baseSentimentDistributionSchema.extend({
   count: z.number().default(0),

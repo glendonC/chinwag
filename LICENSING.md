@@ -1,12 +1,12 @@
 # Licensing
 
-chinwag is **dual-licensed**. Client-side packages are open source (MIT).
+chinmeister is **dual-licensed**. Client-side packages are open source (MIT).
 Backend packages are source-available under BSL 1.1 and convert to
 Apache 2.0 (open source) on 2030-04-10.
 
 > "Source-available" is not the same as "open source." BSL 1.1 is not
 > on the [OSI's approved license list](https://opensource.org/licenses).
-> Half of chinwag (the client tools) is open source today; the other
+> Half of chinmeister (the client tools) is open source today; the other
 > half (the backend) will be open source in 2030.
 
 ## MIT License (open source)
@@ -58,14 +58,14 @@ strategic surface — shouldn't the wire protocol be protected?
 
 We chose MIT deliberately:
 
-- chinwag's moat is the **coordination network**, not the protocol.
+- chinmeister's moat is the **coordination network**, not the protocol.
   A protocol-compatible alternative backend is a separate island
-  with zero users, not a substitute for chinwag.
+  with zero users, not a substitute for chinmeister.
 - The contracts are trivially reverse-engineerable from the MCP
   server's stdio and the public API surface. A more restrictive
   license doesn't prevent clean-room implementation; it just adds
   friction for legitimate third-party integrations.
-- Making the contracts MIT signals that chinwag welcomes external
+- Making the contracts MIT signals that chinmeister welcomes external
   clients, alternative implementations, and protocol-level ecosystem
   contributions. This is consistent with the product direction around
   tool discovery and integration.
@@ -84,12 +84,12 @@ We chose MIT deliberately:
 - **You cannot take the BSL code and run it as a competing commercial
   service** while the BSL grant is in effect. In 2030 this restriction
   expires.
-- **chinwag is not "open source" as a whole.** If accurate language
+- **chinmeister is not "open source" as a whole.** If accurate language
   matters for your compliance, procurement, or philosophy, the correct
-  way to describe chinwag is _"dual-licensed: open source client,
+  way to describe chinmeister is _"dual-licensed: open source client,
   source-available backend (converting to open source in 2030)."_
 
 ## Questions
 
 For commercial licensing arrangements that differ from the terms
-above, contact hello@chinwag.dev.
+above, contact hello@chinmeister.com.

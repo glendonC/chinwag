@@ -18,21 +18,21 @@ import {
   deleteCompletedSession,
   listCompletedSessions,
   type CompletedSession,
-} from '@chinwag/shared/session-registry.js';
-import { createLogger } from '@chinwag/shared';
+} from '@chinmeister/shared/session-registry.js';
+import { createLogger } from '@chinmeister/shared';
 import { onProcessExit } from '../../process/registry.js';
 import {
   collectConversation,
   collectTokenUsage,
   collectToolCalls,
 } from '../../process/conversation-collector.js';
-import type { ChinwagConfig } from '../../config.js';
+import type { ChinmeisterConfig } from '../../config.js';
 import type { ManagedProcess } from '../../process/types.js';
 
 const log = createLogger('collector-subscription');
 
 interface UseCollectorSubscriptionParams {
-  config: ChinwagConfig | null;
+  config: ChinmeisterConfig | null;
   teamId: string | null;
 }
 
@@ -58,7 +58,7 @@ interface RunCollectorsOverrides {
 
 export async function runCollectorsForProcess(
   proc: ManagedProcess,
-  config: ChinwagConfig,
+  config: ChinmeisterConfig,
   overrides: RunCollectorsOverrides = {},
 ): Promise<void> {
   const readFn = overrides.readCompletedSessionFn || readCompletedSession;
@@ -151,7 +151,7 @@ function synthesizeProcessFromRecord(record: CompletedSession): ManagedProcess {
 /**
  * One-shot sweep of orphaned completion records on dashboard mount. Closes
  * the external-agent cost-coverage gap: a user running `claude-code` outside
- * chinwag's managed flow still produces `<agentId>.completed.json` via MCP
+ * chinmeister's managed flow still produces `<agentId>.completed.json` via MCP
  * cleanup, but the dashboard never observes the exit and the collectors
  * never run. Sweeping on mount means any later dashboard session — even
  * days after the external run — picks up the stranded record and uploads.

@@ -18,7 +18,7 @@ import { extract } from '../extraction/engine.js';
 function fixtureRoot() {
   return join(
     tmpdir(),
-    `chinwag-codex-spec-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    `chinmeister-codex-spec-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
   );
 }
 

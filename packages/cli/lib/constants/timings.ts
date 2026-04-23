@@ -6,9 +6,9 @@ import {
   RECONCILE_INTERVAL_MS as _RECONCILE_INTERVAL_MS,
   KILL_GRACE_MS as _KILL_GRACE_MS,
   EXEC_TIMEOUT_MS as _EXEC_TIMEOUT_MS,
-} from '@chinwag/shared/constants.js';
+} from '@chinmeister/shared/constants.js';
 
-// ── Shared constants (re-exported from @chinwag/shared) ──
+// ── Shared constants (re-exported from @chinmeister/shared) ──
 export const RECONCILE_INTERVAL_MS = _RECONCILE_INTERVAL_MS;
 export const KILL_GRACE_MS = _KILL_GRACE_MS;
 export const EXEC_TIMEOUT_MS = _EXEC_TIMEOUT_MS;

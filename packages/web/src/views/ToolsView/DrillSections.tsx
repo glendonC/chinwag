@@ -9,7 +9,10 @@
 //   - ScopeComplexitySection  — files-touched distribution
 
 import type { CSSProperties } from 'react';
-import { classifyToolCall, type ToolCallCategory } from '@chinwag/shared/tool-call-categories.js';
+import {
+  classifyToolCall,
+  type ToolCallCategory,
+} from '@chinmeister/shared/tool-call-categories.js';
 import {
   PREVIEW_INTERNAL_USAGE,
   PREVIEW_SESSION_SHAPES,

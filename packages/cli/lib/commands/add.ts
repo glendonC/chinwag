@@ -1,4 +1,4 @@
-// chinwag add <tool> — write MCP config for a specific tool from the registry.
+// chinmeister add <tool> — write MCP config for a specific tool from the registry.
 // Pure stdout output, no TUI.
 
 import { MCP_TOOLS } from '../tools.js';
@@ -7,7 +7,7 @@ import { configureTool } from '../mcp-config.js';
 export async function runAdd(toolArg?: string): Promise<void> {
   if (!toolArg) {
     console.log('');
-    console.log('  Usage: npx chinwag add <tool>');
+    console.log('  Usage: npx chinmeister add <tool>');
     console.log('');
     printAvailable();
     return;
