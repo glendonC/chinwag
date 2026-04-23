@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, type CSSProperties, type ReactNode } from 'react';
 import clsx from 'clsx';
 import { getToolMeta } from '../../lib/toolMeta.js';
 import { formatDuration } from '../../lib/utils.js';
@@ -28,6 +28,14 @@ interface Props {
   onBack: () => void;
   onOpenProject: (teamId: string) => void;
   onOpenTools: () => void;
+  /** Back-button label. Defaults to "Overview"; Project-hosted drills
+   *  pass "Project". */
+  backLabel?: string;
+  /** Host-provided scope control rendered in the detail-view header. On
+   *  Overview this is the ProjectFilter so the user can change which
+   *  projects feed live data mid-drill; on Project this is a scope-up
+   *  link that navigates to the same drill at cross-project scope. */
+  scopeControl?: ReactNode;
 }
 
 export default function LiveNowView({
@@ -37,6 +45,8 @@ export default function LiveNowView({
   initialTab,
   onBack,
   onOpenProject,
+  backLabel = 'Overview',
+  scopeControl,
 }: Props) {
   const focusRowRef = useRef<HTMLButtonElement>(null);
 
@@ -100,10 +110,11 @@ export default function LiveNowView({
   if (totalAgents === 0) {
     return (
       <DetailView
-        backLabel="Overview"
+        backLabel={backLabel}
         onBack={onBack}
         title="live"
         subtitle="No one working right now across your projects."
+        actions={scopeControl}
         tabs={[]}
         tabControl={tabControl}
         idPrefix="live"
@@ -146,10 +157,11 @@ export default function LiveNowView({
 
   return (
     <DetailView
-      backLabel="Overview"
+      backLabel={backLabel}
       onBack={onBack}
       title="live"
       subtitle={liveSubtitle}
+      actions={scopeControl}
       tabs={tabs}
       tabControl={tabControl}
       idPrefix="live"

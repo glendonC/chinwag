@@ -18,7 +18,10 @@ import {
 
 import { forceRefresh } from '../../lib/stores/polling.js';
 import { teamActions } from '../../lib/stores/teams.js';
-import { navigate } from '../../lib/router.js';
+import { navigate, navigateWithQuery, setQueryParam, useQueryParam } from '../../lib/router.js';
+import { useDetailDrill } from '../../hooks/useDetailDrill.js';
+import LiveNowView from '../OverviewView/LiveNowView.js';
+import UsageDetailView from '../OverviewView/UsageDetailView.js';
 import StatusState from '../../components/StatusState/StatusState.jsx';
 import ViewHeader from '../../components/ViewHeader/ViewHeader.jsx';
 import StatTabs from '../../components/StatTabs/StatTabs.js';
@@ -67,6 +70,41 @@ function useMediaQuery(query: string): boolean {
     return window.matchMedia(query).matches;
   }, [query]);
   return useSyncExternalStore(subscribe, getSnapshot, () => false);
+}
+
+// ── Scope-up affordance ─────────────────────────
+
+/**
+ * One-click escape from a project-scoped drill back to the same drill at
+ * cross-project scope. Reuses overviewStyles.projectFilterTrigger so the
+ * pill weight matches the ProjectFilter that appears in the Overview
+ * drill's actions slot. Visual parity across hosts keeps the drill
+ * header's rhythm honest.
+ */
+function ScopeUpButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className={overviewStyles.projectFilterTrigger}
+      onClick={onClick}
+      title="View this drill across all projects"
+    >
+      Across all projects
+      <svg
+        width="10"
+        height="10"
+        viewBox="0 0 10 10"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M3 7 L7 3 M4 3 L7 3 L7 6" />
+      </svg>
+    </button>
+  );
 }
 
 // ── Tab definitions ─────────────────────────────
@@ -124,6 +162,83 @@ export default function ProjectView(_props: Props) {
   const trendsLayout = useProjectTabLayout('trends', TRENDS_DEFAULT_LAYOUT);
   const currentLayout = activeTab === 'activity' ? activityLayout : trendsLayout;
 
+  // Visually-hidden live region for screen-reader announcements when
+  // widgets are added, removed, cleared, or restored via undo. Using state
+  // (not a ref) so React re-renders the message into the DOM where the
+  // live region picks it up. Mirrors OverviewView's announcement pipe.
+  const [announcement, setAnnouncement] = useState('');
+  const announce = useCallback((text: string) => {
+    // Reset first so identical messages get re-announced.
+    setAnnouncement('');
+    requestAnimationFrame(() => setAnnouncement(text));
+  }, []);
+
+  // Trigger for scroll-into-view + border-sweep highlight on the newly-added
+  // widget. Cleared 2.5s later so adding the same widget twice in rapid
+  // succession retriggers the effect.
+  const [recentlyAddedId, setRecentlyAddedId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!recentlyAddedId) return;
+    const t = setTimeout(() => setRecentlyAddedId(null), 2500);
+    return () => clearTimeout(t);
+  }, [recentlyAddedId]);
+
+  // Layout mutations wrapped with announcement + highlight trigger. Kept
+  // outside the useProjectTabLayout hook so the shared layout store stays
+  // free of a11y concerns; callers that want naked mutations can still
+  // reach them via currentLayout.*.
+  const toggleWidget = useCallback(
+    (id: string) => {
+      const def = getWidget(id);
+      const wasActive = currentLayout.widgetIds.includes(id);
+      currentLayout.toggleWidget(id);
+      if (def) announce(wasActive ? `Removed ${def.name}` : `Added ${def.name}`);
+      if (!wasActive) setRecentlyAddedId(id);
+    },
+    [currentLayout, announce],
+  );
+  const removeWidget = useCallback(
+    (id: string) => {
+      const def = getWidget(id);
+      currentLayout.removeWidget(id);
+      if (def) announce(`Removed ${def.name}`);
+    },
+    [currentLayout, announce],
+  );
+  const clearAll = useCallback(() => {
+    currentLayout.clearAll();
+    announce('Cleared all widgets');
+  }, [currentLayout, announce]);
+
+  // Detail drills. Clicking a live-agent row in LiveWidgets sets
+  // ?live=agent_id; clicking a usage stat in UsageWidgets sets ?usage=tab.
+  // Mirrors OverviewView so the same widget bodies drill into the same
+  // surfaces regardless of scope. Project passes project-scoped data
+  // (liveAgents, locks, analytics) to the detail views. The auxiliary
+  // `live-tab` param carries a sub-tab deep link (conflicts / files) and
+  // must clear with the parent param when closing.
+  const live = useDetailDrill('live');
+  const liveTabParam = useQueryParam('live-tab');
+  const liveShifted = live.shifted;
+  const focusAgentId = live.param && live.param.length > 0 ? live.param : null;
+  const closeLive = useCallback(() => {
+    setQueryParam('live-tab', null);
+    live.close();
+  }, [live]);
+  const usage = useDetailDrill('usage');
+  const usageShifted = usage.shifted;
+
+  // Escape closes whichever detail view is open.
+  const activeClose = liveShifted ? closeLive : usageShifted ? usage.close : null;
+  useEffect(() => {
+    if (!activeClose) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') activeClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [activeClose]);
+
   // ── Drag context for the active tab (catalog drop + reorder) ──
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -166,10 +281,14 @@ export default function ProjectView(_props: Props) {
       if (activeId.startsWith('catalog:')) {
         const data = active.data.current as CatalogDragPayload | undefined;
         if (!data) return;
+        const def = getWidget(data.widgetId);
+        if (!def) return;
         const insertIndex =
           overId === GRID_DROPPABLE_ID ? slots.length : slots.findIndex((s) => s.id === overId);
         if (insertIndex < 0) return;
         currentLayout.addWidgetAt(data.widgetId, insertIndex);
+        announce(`Added ${def.name}`);
+        setRecentlyAddedId(data.widgetId);
         return;
       }
 
@@ -180,7 +299,7 @@ export default function ProjectView(_props: Props) {
       if (oldIndex < 0 || newIndex < 0) return;
       currentLayout.reorderWidgets(arrayMove(ids, oldIndex, newIndex));
     },
-    [currentLayout],
+    [currentLayout, announce],
   );
 
   const handleDragCancel = useCallback(() => {
@@ -206,7 +325,7 @@ export default function ProjectView(_props: Props) {
     editingRef.current = editing;
   }, [editing]);
   useEffect(() => {
-    if (isMobile || !isAnalytical) return;
+    if (isMobile || !isAnalytical || liveShifted || usageShifted) return;
     const handler = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
       const target = e.target as HTMLElement | null;
@@ -233,7 +352,7 @@ export default function ProjectView(_props: Props) {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isMobile, isAnalytical]);
+  }, [isMobile, isAnalytical, liveShifted, usageShifted]);
 
   const handleDeleteMemory = useCallback(
     async (id: string) => {
@@ -323,11 +442,14 @@ export default function ProjectView(_props: Props) {
         if (target.isContentEditable) return;
       }
       const undone = currentLayout.undo();
-      if (undone) e.preventDefault();
+      if (undone) {
+        e.preventDefault();
+        announce('Undid last layout change');
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [currentLayout]);
+  }, [currentLayout, announce]);
 
   // ── Loading guard ──
   if (isLoading) {
@@ -376,137 +498,201 @@ export default function ProjectView(_props: Props) {
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <div className={styles.page}>
-        <ViewHeader eyebrow="Project" title={activeTeam?.team_name || 'Project'} />
+      {liveShifted ? (
+        <LiveNowView
+          liveAgents={liveAgents}
+          locks={locks}
+          focusAgentId={focusAgentId}
+          initialTab={liveTabParam}
+          onBack={closeLive}
+          onOpenProject={(teamId) => {
+            closeLive();
+            if (teamId !== activeTeamId) {
+              selectTeam(teamId);
+            }
+          }}
+          onOpenTools={() => {
+            closeLive();
+            navigate('tools');
+          }}
+          backLabel="Project"
+          scopeControl={
+            <ScopeUpButton
+              onClick={() =>
+                navigateWithQuery('overview', {
+                  live: live.param ?? '',
+                  'live-tab': liveTabParam,
+                })
+              }
+            />
+          }
+        />
+      ) : usageShifted ? (
+        <UsageDetailView
+          analytics={analytics}
+          initialTab={usage.param}
+          onBack={usage.close}
+          rangeDays={rangeDays}
+          onRangeChange={setRangeDays}
+          backLabel="Project"
+          scopeControl={
+            <ScopeUpButton
+              onClick={() => navigateWithQuery('overview', { usage: usage.param ?? '' })}
+            />
+          }
+        />
+      ) : (
+        <div className={styles.page}>
+          <ViewHeader eyebrow="Project" title={activeTeam?.team_name || 'Project'} />
 
-        {/* Global alert chrome — visible across tabs */}
-        {conflicts.length > 0 && (
-          <button
-            type="button"
-            className={styles.conflictBanner}
-            onClick={() => setActiveTab('activity')}
-          >
-            <span className={styles.conflictText}>
-              {conflicts.length} {conflicts.length === 1 ? 'file' : 'files'} with overlapping edits
-            </span>
-            <span className={styles.conflictAction}>View</span>
-          </button>
-        )}
+          {/* Global alert chrome — visible across tabs */}
+          {conflicts.length > 0 && (
+            <button
+              type="button"
+              className={styles.conflictBanner}
+              onClick={() => setActiveTab('activity')}
+            >
+              <span className={styles.conflictText}>
+                {conflicts.length} {conflicts.length === 1 ? 'file' : 'files'} with overlapping
+                edits
+              </span>
+              <span className={styles.conflictAction}>View</span>
+            </button>
+          )}
 
-        {/* Tab nav — same StatTabs primitive used by detail-view stat strips */}
-        <section className={styles.header}>
-          <StatTabs
-            tabs={stats}
-            tabControl={{ activeTab, setActiveTab, hint, ref: statsRef }}
-            tablistLabel="Project sections"
-            idPrefix="project"
-          />
-        </section>
+          {/* Tab nav — same StatTabs primitive used by detail-view stat strips */}
+          <section className={styles.header}>
+            <StatTabs
+              tabs={stats}
+              tabControl={{ activeTab, setActiveTab, hint, ref: statsRef }}
+              tablistLabel="Project sections"
+              idPrefix="project"
+            />
+          </section>
 
-        {/* Customize bar (analytical tabs only) */}
-        {isAnalytical && (
-          <div className={overviewStyles.rangeRow}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              {!isMobile && (
-                <CustomizeButton
-                  active={catalogOpen}
-                  onClick={() => setCatalogOpen(!catalogOpen)}
-                  kbd="c"
-                />
-              )}
-              {activeTab === 'activity' && activeTeamId && (
-                <button
-                  type="button"
-                  className={styles.spawnBtn}
-                  onClick={() => setShowSpawn((v) => !v)}
-                  aria-expanded={showSpawn}
-                >
-                  {showSpawn ? 'Cancel' : 'Spawn agent'}
-                  <span className={styles.spawnBtnArrow}>
-                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                      {showSpawn ? (
-                        <path
-                          d="M3 3l6 6M9 3l-6 6"
-                          stroke="currentColor"
-                          strokeWidth="1.3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      ) : (
-                        <path
-                          d="M6 2.5v7M3 6.5l3 3 3-3"
-                          stroke="currentColor"
-                          strokeWidth="1.3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      )}
-                    </svg>
-                  </span>
-                </button>
-              )}
-            </div>
-            <RangePills value={rangeDays} onChange={setRangeDays} />
-          </div>
-        )}
-
-        {/* Inline spawn form (Activity tab only, toggled by the spawn pill) */}
-        {activeTab === 'activity' && showSpawn && activeTeamId && (
-          <SpawnForm
-            teamId={activeTeamId}
-            availableTools={availableSpawnTools}
-            onClose={() => setShowSpawn(false)}
-          />
-        )}
-
-        {/* Tab content */}
-        <section className={styles.vizArea}>
+          {/* Customize bar (analytical tabs only) */}
           {isAnalytical && (
-            <div className={styles.vizPanel} role="tabpanel" id={`project-panel-${activeTab}`}>
-              <div className={styles.gridBleed}>
-                <WidgetGrid
-                  slots={activeSlots}
-                  editing={editing && !isMobile}
-                  renderWidget={renderWidget}
-                  onReorder={currentLayout.reorderWidgets}
-                  onRemove={currentLayout.removeWidget}
-                  onSlotSize={currentLayout.setSlotSize}
+            <div className={overviewStyles.rangeRow}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                {!isMobile && (
+                  <CustomizeButton
+                    active={catalogOpen}
+                    onClick={() => setCatalogOpen(!catalogOpen)}
+                    kbd="c"
+                  />
+                )}
+                {activeTab === 'activity' && activeTeamId && (
+                  <button
+                    type="button"
+                    className={styles.spawnBtn}
+                    onClick={() => setShowSpawn((v) => !v)}
+                    aria-expanded={showSpawn}
+                  >
+                    {showSpawn ? 'Cancel' : 'Spawn agent'}
+                    <span className={styles.spawnBtnArrow}>
+                      <svg
+                        width="11"
+                        height="11"
+                        viewBox="0 0 12 12"
+                        fill="none"
+                        aria-hidden="true"
+                      >
+                        {showSpawn ? (
+                          <path
+                            d="M3 3l6 6M9 3l-6 6"
+                            stroke="currentColor"
+                            strokeWidth="1.3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        ) : (
+                          <path
+                            d="M6 2.5v7M3 6.5l3 3 3-3"
+                            stroke="currentColor"
+                            strokeWidth="1.3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        )}
+                      </svg>
+                    </span>
+                  </button>
+                )}
+              </div>
+              <RangePills value={rangeDays} onChange={setRangeDays} />
+            </div>
+          )}
+
+          {/* Inline spawn form (Activity tab only, toggled by the spawn pill) */}
+          {activeTab === 'activity' && showSpawn && activeTeamId && (
+            <SpawnForm
+              teamId={activeTeamId}
+              availableTools={availableSpawnTools}
+              onClose={() => setShowSpawn(false)}
+            />
+          )}
+
+          {/* Tab content */}
+          <section className={styles.vizArea}>
+            {isAnalytical && (
+              <div className={styles.vizPanel} role="tabpanel" id={`project-panel-${activeTab}`}>
+                <div className={styles.gridBleed}>
+                  <WidgetGrid
+                    slots={activeSlots}
+                    editing={editing && !isMobile}
+                    renderWidget={renderWidget}
+                    onReorder={currentLayout.reorderWidgets}
+                    onRemove={removeWidget}
+                    onSlotSize={currentLayout.setSlotSize}
+                    recentlyAddedId={recentlyAddedId}
+                  />
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'memory' && (
+              <div className={styles.vizPanel} role="tabpanel" id="project-panel-memory">
+                <ProjectMemoryTab
+                  memories={memories}
+                  memoryBreakdown={memoryBreakdown}
+                  onDeleteMemory={handleDeleteMemory}
                 />
               </div>
-            </div>
+            )}
+          </section>
+
+          {/* Customize panel (analytical tabs only) */}
+          {isAnalytical && (
+            <WidgetCatalog
+              open={catalogOpen}
+              onClose={() => setCatalogOpen(false)}
+              widgetIds={currentLayout.widgetIds}
+              toggleWidget={toggleWidget}
+              editing={editing}
+              setEditing={setEditing}
+              resetToDefault={currentLayout.resetToDefault}
+              clearAll={clearAll}
+              viewScope="project"
+              tabScope={activeTab}
+            />
           )}
 
-          {activeTab === 'memory' && (
-            <div className={styles.vizPanel} role="tabpanel" id="project-panel-memory">
-              <ProjectMemoryTab
-                memories={memories}
-                memoryBreakdown={memoryBreakdown}
-                onDeleteMemory={handleDeleteMemory}
-              />
-            </div>
+          {/* Floating exit affordance when rearranging without the catalog. */}
+          {editing && !catalogOpen && !isMobile && isAnalytical && (
+            <EditModePill onDone={() => setEditing(false)} />
           )}
-        </section>
 
-        {/* Customize panel (analytical tabs only) */}
-        {isAnalytical && (
-          <WidgetCatalog
-            open={catalogOpen}
-            onClose={() => setCatalogOpen(false)}
-            widgetIds={currentLayout.widgetIds}
-            toggleWidget={currentLayout.toggleWidget}
-            editing={editing}
-            setEditing={setEditing}
-            resetToDefault={currentLayout.resetToDefault}
-            clearAll={currentLayout.clearAll}
-            viewScope="project"
-          />
-        )}
-
-        {/* Floating exit affordance when rearranging without the catalog. */}
-        {editing && !catalogOpen && !isMobile && isAnalytical && (
-          <EditModePill onDone={() => setEditing(false)} />
-        )}
-      </div>
+          {/* Visually-hidden live region for layout-change announcements. */}
+          <div
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className={overviewStyles.srOnly}
+          >
+            {announcement}
+          </div>
+        </div>
+      )}
       <DragOverlay
         dropAnimation={null}
         modifiers={catalogDragging ? [snapChipToCursor] : undefined}

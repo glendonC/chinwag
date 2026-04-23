@@ -20,6 +20,26 @@ import {
 } from './widget-catalog.js';
 import styles from './WidgetCatalog.module.css';
 
+/**
+ * Which project tab the picker is hosted on. Drives the "for this tab" /
+ * "other widgets" partition. Memory is declared even though today's
+ * ProjectMemoryTab is not a widget grid — keeps the surface stable for the
+ * eventual conversion.
+ */
+export type TabScope = 'activity' | 'trends' | 'memory';
+
+/**
+ * Classify every widget into exactly one primary tab. Memory beats live to
+ * keep memory-safety (timeScope='live', category='memory') on the Memory
+ * tab where it belongs. Everything not captured by the first two clauses
+ * falls to Trends — the largest bucket by design.
+ */
+function primaryTabFor(widget: WidgetDef): TabScope {
+  if (widget.category === 'memory') return 'memory';
+  if (widget.timeScope === 'live' || widget.category === 'live') return 'activity';
+  return 'trends';
+}
+
 /** dnd-kit draggable id for a catalog row. Prefixed so other app draggables
  *  don't collide with catalog ids. */
 export const catalogDraggableId = (widgetId: string) => `catalog:${widgetId}`;
@@ -414,6 +434,7 @@ export function WidgetCatalog({
   resetToDefault,
   clearAll,
   viewScope,
+  tabScope,
 }: {
   open: boolean;
   onClose: () => void;
@@ -425,6 +446,9 @@ export function WidgetCatalog({
   clearAll: () => void;
   /** Which view is hosting the picker. Filters catalog to scope-matching widgets. */
   viewScope?: 'overview' | 'project';
+  /** Which project tab is active. Partitions the default list into "for this
+   *  tab" and "other widgets". Omit on Overview. */
+  tabScope?: TabScope;
 }) {
   const [activeCategory, setActiveCategory] = useState<'all' | WidgetCategory>('all');
   const [showFilter, setShowFilter] = useState<ShowFilter>('all');
@@ -490,6 +514,25 @@ export function WidgetCatalog({
       return true;
     });
   }, [searchQuery, activeCategory, showFilter, widgetIds, scopedCatalog]);
+
+  // Tab-aware partition. Only activates when a tab is declared AND the user
+  // hasn't narrowed the list another way (category pick, show filter,
+  // search). Explicit exploration overrides the tab-default ordering so the
+  // partition never fights the user's active intent.
+  const partitionActive =
+    !!tabScope && activeCategory === 'all' && showFilter === 'all' && !searchQuery.trim();
+  const { primaryWidgets, secondaryWidgets } = useMemo(() => {
+    if (!partitionActive || !tabScope) {
+      return { primaryWidgets: filteredWidgets, secondaryWidgets: [] as WidgetDef[] };
+    }
+    const primary: WidgetDef[] = [];
+    const secondary: WidgetDef[] = [];
+    for (const w of filteredWidgets) {
+      if (primaryTabFor(w) === tabScope) primary.push(w);
+      else secondary.push(w);
+    }
+    return { primaryWidgets: primary, secondaryWidgets: secondary };
+  }, [partitionActive, tabScope, filteredWidgets]);
 
   // Category counts (scope-gated so the "usage (12)" count matches what renders)
   const categoryCounts = useMemo(() => {
@@ -756,6 +799,41 @@ export function WidgetCatalog({
             <div className={styles.emptyState}>
               <span className={styles.emptyText}>No widgets match.</span>
             </div>
+          ) : partitionActive ? (
+            <>
+              {primaryWidgets.length > 0 && (
+                <>
+                  <div className={clsx(styles.sectionHeader, styles.sectionHeaderFirst)}>
+                    For this tab
+                  </div>
+                  {primaryWidgets.map((w) => (
+                    <CatalogRow
+                      key={w.id}
+                      widget={w}
+                      active={widgetIds.includes(w.id)}
+                      onToggle={() => toggleWidget(w.id)}
+                      onHover={(el) => handleRowHover(w.id, el)}
+                      onHoverEnd={() => handleRowHover(null)}
+                    />
+                  ))}
+                </>
+              )}
+              {secondaryWidgets.length > 0 && (
+                <>
+                  <div className={styles.sectionHeader}>Other widgets</div>
+                  {secondaryWidgets.map((w) => (
+                    <CatalogRow
+                      key={w.id}
+                      widget={w}
+                      active={widgetIds.includes(w.id)}
+                      onToggle={() => toggleWidget(w.id)}
+                      onHover={(el) => handleRowHover(w.id, el)}
+                      onHoverEnd={() => handleRowHover(null)}
+                    />
+                  ))}
+                </>
+              )}
+            </>
           ) : (
             filteredWidgets.map((w) => {
               const active = widgetIds.includes(w.id);

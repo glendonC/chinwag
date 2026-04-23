@@ -646,6 +646,9 @@ export default function OverviewView() {
               closeLive();
               navigate('tools');
             }}
+            scopeControl={
+              <ProjectFilter teams={teams} projectFilter={projectFilter} selectTeam={selectTeam} />
+            }
           />
         ) : usageShifted ? (
           <UsageDetailView
@@ -654,6 +657,9 @@ export default function OverviewView() {
             onBack={usage.close}
             rangeDays={rangeDays}
             onRangeChange={setRangeDays}
+            scopeControl={
+              <ProjectFilter teams={teams} projectFilter={projectFilter} selectTeam={selectTeam} />
+            }
           />
         ) : (
           <>

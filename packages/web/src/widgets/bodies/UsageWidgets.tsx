@@ -16,16 +16,14 @@ function openUsage(tab: string) {
 }
 
 /**
- * ProjectView doesn't mount UsageDetailView — only OverviewView does. A click
- * from the project-scope cost widget sets `?usage=cost` but nothing renders,
- * which reads as broken. Gating `onOpenDetail` on overview scope suppresses
- * the drill affordance on project view until a scoped detail surface exists.
- * Follow-up: add a project-scoped UsageDetailView rendered by ProjectView so
- * this restriction lifts.
+ * Both OverviewView and ProjectView now mount UsageDetailView in response to
+ * the `?usage=` query param, so the drill affordance is honored on either
+ * scope. Other views (tools, reports, settings) don't mount the detail view
+ * and should not surface the drill-in click.
  */
 function useIsDrillable(): boolean {
   const route = useRoute();
-  return route.view === 'overview';
+  return route.view === 'overview' || route.view === 'project';
 }
 
 // True when no day in the period was observed — distinct from "days were

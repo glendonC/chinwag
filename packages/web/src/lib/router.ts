@@ -97,6 +97,40 @@ export function navigateToTool(toolId: string): void {
   }
 }
 
+/**
+ * Navigate to a new view AND set query params in a single history entry.
+ * Used for mid-drill scope changes: project-scoped drills "scope up" to the
+ * overview drill by pushing `/dashboard?usage=cost` in one step, so the
+ * back button returns to the originating drill rather than walking through
+ * an intermediate overview-without-drill state.
+ *
+ * `query` keys with `null` values are omitted.
+ */
+export function navigateWithQuery(
+  view: Route['view'],
+  query: Record<string, string | null>,
+  teamId?: string | null,
+): void {
+  let path: string;
+  if (view === 'project' && teamId) path = `/dashboard/project/${teamId}`;
+  else if (view === 'tools') path = '/dashboard/tools';
+  else if (view === 'global') path = '/dashboard/global';
+  else if (view === 'reports') path = '/dashboard/reports';
+  else if (view === 'settings') path = '/dashboard/settings';
+  else path = '/dashboard';
+
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== null) params.set(key, value);
+  }
+  const qs = params.toString();
+  const next = qs ? `${path}?${qs}` : path;
+  if (window.location.pathname + window.location.search !== next) {
+    window.history.pushState(null, '', next);
+    emit();
+  }
+}
+
 /** Set or remove a query parameter, pushing a history entry. */
 export function setQueryParam(key: string, value: string | null): void {
   setQueryParams({ [key]: value });

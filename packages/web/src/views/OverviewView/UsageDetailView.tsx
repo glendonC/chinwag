@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import clsx from 'clsx';
 import {
   BreakdownList,
@@ -64,6 +64,15 @@ interface Props {
   onBack: () => void;
   rangeDays: RangeDays;
   onRangeChange: (next: RangeDays) => void;
+  /** Label for the back button. Defaults to "Overview" so existing callers
+   *  are unchanged; project-hosted drills pass "Project". */
+  backLabel?: string;
+  /** Host-provided scope control rendered in the header actions row before
+   *  the range pills. Overview slots in its ProjectFilter so mid-drill
+   *  filter changes refetch in place; Project slots in a scope-up link
+   *  that navigates to the same drill at cross-project scope. Omit to
+   *  render only the range pills. */
+  scopeControl?: ReactNode;
 }
 
 // Formatting helpers kept inline for the non-currency paths. USD goes
@@ -150,6 +159,8 @@ export default function UsageDetailView({
   onBack,
   rangeDays,
   onRangeChange,
+  backLabel = 'Overview',
+  scopeControl,
 }: Props) {
   const totals = useMemo(() => {
     const sessions = analytics.daily_trends.reduce((s, d) => s + d.sessions, 0);
@@ -245,11 +256,16 @@ export default function UsageDetailView({
 
   return (
     <DetailView
-      backLabel="Overview"
+      backLabel={backLabel}
       onBack={onBack}
       title="usage"
       subtitle={scopeSubtitle}
-      actions={<RangePills value={rangeDays} onChange={onRangeChange} options={RANGES} />}
+      actions={
+        <>
+          {scopeControl}
+          <RangePills value={rangeDays} onChange={onRangeChange} options={RANGES} />
+        </>
+      }
       tabs={tabs}
       tabControl={tabControl}
       idPrefix="usage"
