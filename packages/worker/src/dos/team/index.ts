@@ -149,6 +149,12 @@ import { broadcastToWatchers, broadcastToExecutors } from './broadcast.js';
 import { recordMetric as recordMetricFn } from './telemetry.js';
 import { ContextCache } from './context-cache.js';
 import { handleFetch, handleMessage, handleClose, handleError, type WsCtx } from './websocket.js';
+import {
+  type RpcCtx,
+  withMember as withMemberFn,
+  withOwner as withOwnerFn,
+  op as opFn,
+} from './rpc-context.js';
 import { getDB } from '../../lib/env.js';
 import { createLogger } from '../../lib/logger.js';
 
@@ -216,6 +222,19 @@ export class TeamDO extends DurableObject<Env> {
       broadcastToWatchers: (event, opts) => this.#broadcastToWatchers(event, opts),
       getContext: (agentId) => this.getContext(agentId),
       lastHeartbeatBroadcast: this.#lastHeartbeatBroadcast,
+    };
+  }
+
+  /** Dependency bag for RPC handlers. Same per-call literal pattern as
+   *  `#wsCtx()` — keeps closures tied to live class state. */
+  #rpcCtx(): RpcCtx {
+    return {
+      sql: this.sql,
+      ensureSchema: () => this.#ensureSchema(),
+      transact: this.#transact,
+      resolveOwnedAgentId: (id, ownerId) => this.#resolveOwnedAgentId(id, ownerId),
+      broadcastToWatchers: (event, opts) => this.#broadcastToWatchers(event, opts),
+      recordMetric: (metric) => this.#recordMetric(metric),
     };
   }
 
@@ -335,38 +354,22 @@ export class TeamDO extends DurableObject<Env> {
     return resolveOwnedAgentId(this.sql, agentId, ownerId);
   }
 
-  /**
-   * Common RPC wrapper: ensure schema, resolve agent, run callback.
-   * Eliminates the repeated NOT_MEMBER check across 18+ RPC methods.
-   */
+  // -- RPC wrappers --
+  //
+  // Thin delegators over the free functions in rpc-context.ts. Kept as
+  // private methods so the existing ~40 RPC method bodies keep their
+  // `this.#withMember(...)` / `this.#withOwner(...)` / `this.#op(...)`
+  // calls unchanged until per-domain extraction moves them out of the
+  // class entirely.
+
   #withMember<T>(
     agentId: string,
     ownerId: string | null,
     fn: (resolved: string) => T,
   ): T | DOError {
-    this.#ensureSchema();
-    const resolved = this.#resolveOwnedAgentId(agentId, ownerId);
-    if (!resolved) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
-    return fn(resolved);
+    return withMemberFn(this.#rpcCtx(), agentId, ownerId, fn);
   }
 
-  /**
-   * Member-scoped RPC wrapper that layers optional side effects on top of
-   * `#withMember`. Pattern used by ~18 RPC methods:
-   *
-   *   1. ensureSchema + NOT_MEMBER check (via #withMember)
-   *   2. Run `run(resolvedAgentId)` to produce a domain result.
-   *   3. If the result is NOT a DOError, fire the optional `broadcast` hook
-   *      (delta event to connected watchers) and/or the `metric` hook (bump a
-   *      telemetry counter). Error returns skip both by design — we never
-   *      broadcast a state change that didn't happen.
-   *
-   * Generic note: `isDOError(result)` narrows at runtime, but TS can't
-   * propagate the negation through generic `R`, so we cast once to
-   * `Exclude<R, DOError>` after the guard. The cast is safe because the guard
-   * just ran; it stays local to this helper so call sites keep a clean
-   * `R | DOError` signature.
-   */
   #op<R>(
     agentId: string,
     ownerId: string | null,
@@ -377,30 +380,11 @@ export class TeamDO extends DurableObject<Env> {
       metric?: (result: Exclude<R, DOError>) => string | null;
     } = {},
   ): R | DOError {
-    return this.#withMember(agentId, ownerId, (resolved) => {
-      const result = run(resolved);
-      if (isDOError(result)) return result;
-      const success = result as Exclude<R, DOError>;
-      const event = side.broadcast?.(success, resolved);
-      if (event) this.#broadcastToWatchers(event, side.broadcastOpts);
-      const metric = side.metric?.(success);
-      if (metric) this.#recordMetric(metric);
-      return result;
-    });
+    return opFn(this.#rpcCtx(), agentId, ownerId, run, side);
   }
 
-  /**
-   * Owner-scoped RPC wrapper for endpoints that do not resolve a specific
-   * agent (dashboard/summary calls). Confirms the caller owns at least one
-   * member in this team before running the callback.
-   */
   #withOwner<T>(ownerId: string, fn: () => T): T | DOError {
-    this.#ensureSchema();
-    const row = this.sql
-      .exec('SELECT 1 FROM members WHERE owner_id = ? LIMIT 1', ownerId)
-      .toArray();
-    if (row.length === 0) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
-    return fn();
+    return withOwnerFn(this.#rpcCtx(), ownerId, fn);
   }
 
   // --- Bound helper for submodules that need to record telemetry ---
