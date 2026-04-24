@@ -12,7 +12,7 @@
 // Mirrors the `WsCtx` pattern in websocket.ts: rebuilt per call, cheap
 // literal, closes over live class state via arrow bindings.
 
-import type { DOError } from '../../types.js';
+import type { DOError, Env } from '../../types.js';
 import { isDOError } from '../../lib/errors.js';
 
 type Transact = <T>(fn: () => T) => T;
@@ -20,6 +20,7 @@ type Transact = <T>(fn: () => T) => T;
 /** Dependency bag every RPC wrapper needs. */
 export interface RpcCtx {
   sql: SqlStorage;
+  env: Env;
   ensureSchema: () => void;
   transact: Transact;
   resolveOwnedAgentId: (agentId: string, ownerId: string | null) => string | null;

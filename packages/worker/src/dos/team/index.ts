@@ -47,36 +47,8 @@ import { queryTeamContext, queryTeamSummary } from './context.js';
 import { resolveOwnedAgentId } from './identity.js';
 import { runCleanup, collectHandleBackfills, type OrphanSummary } from './cleanup.js';
 import { heartbeat as heartbeatFn } from './membership.js';
-import {
-  saveMemory as saveMemoryFn,
-  searchMemories as searchMemoriesFn,
-  updateMemory as updateMemoryFn,
-  deleteMemory as deleteMemoryFn,
-  deleteMemoriesBatch as deleteMemoriesBatchFn,
-  type SearchFilters,
-  type BatchDeleteFilter,
-} from './memory.js';
-import {
-  consolidateMemories as consolidateMemoriesFn,
-  listConsolidationProposals as listConsolidationProposalsFn,
-  applyConsolidationProposal as applyConsolidationProposalFn,
-  rejectConsolidationProposal as rejectConsolidationProposalFn,
-  unmergeMemory as unmergeMemoryFn,
-} from './consolidation.js';
-import {
-  runFormationPass as runFormationPassFn,
-  runFormationOnRecent as runFormationOnRecentFn,
-  listFormationObservations as listFormationObservationsFn,
-  type FormationRecommendation,
-} from './formation.js';
-import {
-  createCategory as createCategoryFn,
-  listCategories as listCategoriesFn,
-  updateCategory as updateCategoryFn,
-  deleteCategory as deleteCategoryFn,
-  getCategoryNames as getCategoryNamesFn,
-  getPromotableTags as getPromotableTagsFn,
-} from './categories.js';
+import type { SearchFilters, BatchDeleteFilter } from './memory.js';
+import type { FormationRecommendation } from './formation.js';
 import {
   claimFiles as claimFilesFn,
   checkFileConflicts as checkFileConflictsFn,
@@ -88,7 +60,6 @@ import {
   type CommitInput,
   type SessionRecord,
   getSessionsInRange as getSessionsInRangeFn,
-  bumpActiveTime,
 } from './sessions.js';
 import {
   getAnalytics as getAnalyticsFn,
@@ -110,7 +81,6 @@ import {
   CONTEXT_CACHE_TTL_MS,
   CLEANUP_INTERVAL_MS,
   HEARTBEAT_BROADCAST_DEBOUNCE_MS,
-  METRIC_KEYS,
 } from '../../lib/constants.js';
 import {
   getConnectedAgentIds,
@@ -150,6 +120,29 @@ import {
   getConversationAnalyticsRpc,
   getSessionConversationStatsRpc,
 } from './rpc-conversations.js';
+import {
+  saveMemoryRpc,
+  searchMemoriesRpc,
+  updateMemoryRpc,
+  deleteMemoryRpc,
+  deleteMemoriesBatchRpc,
+  runConsolidationRpc,
+  listConsolidationProposalsRpc,
+  applyConsolidationProposalRpc,
+  rejectConsolidationProposalRpc,
+  unmergeMemoryRpc,
+  runFormationOnRecentRpc,
+  runFormationOnMemoryRpc,
+  listFormationObservationsRpc,
+} from './rpc-memory.js';
+import {
+  createCategoryRpc,
+  listCategoriesRpc,
+  getCategoryNamesRpc,
+  updateCategoryRpc,
+  deleteCategoryRpc,
+  getPromotableTagsRpc,
+} from './rpc-categories.js';
 import { getDB } from '../../lib/env.js';
 import { createLogger } from '../../lib/logger.js';
 
@@ -225,6 +218,7 @@ export class TeamDO extends DurableObject<Env> {
   #rpcCtx(): RpcCtx {
     return {
       sql: this.sql,
+      env: this.env,
       ensureSchema: () => this.#ensureSchema(),
       transact: this.#transact,
       resolveOwnedAgentId: (id, ownerId) => this.#resolveOwnedAgentId(id, ownerId),
@@ -385,9 +379,6 @@ export class TeamDO extends DurableObject<Env> {
   #withOwner<T>(ownerId: string, fn: () => T): T | DOError {
     return withOwnerFn(this.#rpcCtx(), ownerId, fn);
   }
-
-  // --- Bound helper for submodules that need to record telemetry ---
-  #boundRecordMetric = (metric: string): void => this.#recordMetric(metric);
 
   // -- Membership --
 
@@ -706,29 +697,18 @@ export class TeamDO extends DurableObject<Env> {
     ownerId: string | null = null,
     textHash: string | null = null,
     embedding: ArrayBuffer | null = null,
-  ): Promise<ReturnType<typeof saveMemoryFn> | DOError> {
-    // DUPLICATE results carry `error: string`, so #op's isDOError guard skips
-    // the broadcast for them automatically — no explicit filter needed here.
-    return this.#op(
+  ): Promise<ReturnType<typeof saveMemoryRpc> | DOError> {
+    return saveMemoryRpc(
+      this.#rpcCtx(),
       agentId,
+      text,
+      tags,
+      categories,
+      handle,
+      runtime,
       ownerId,
-      (resolved) =>
-        saveMemoryFn(
-          this.sql,
-          resolved,
-          text,
-          tags,
-          categories,
-          handle,
-          runtime,
-          this.#boundRecordMetric,
-          this.#transact,
-          textHash,
-          embedding,
-        ),
-      {
-        broadcast: () => ({ type: 'memory', text, tags }),
-      },
+      textHash,
+      embedding,
     );
   }
 
@@ -740,28 +720,17 @@ export class TeamDO extends DurableObject<Env> {
     limit = 20,
     ownerId: string | null = null,
     filters: Omit<SearchFilters, 'query' | 'tags' | 'categories' | 'limit'> = {},
-  ): Promise<ReturnType<typeof searchMemoriesFn> | DOError> {
-    return this.#withMember(agentId, ownerId, (resolved) => {
-      const result = searchMemoriesFn(this.sql, { query, tags, categories, limit, ...filters });
-      this.#recordMetric(METRIC_KEYS.MEMORIES_SEARCHED);
-      // Bump active_min on memory searches too. An agent doing pure research
-      // (grep memory, read, grep memory, read) would otherwise register zero
-      // active time even though it's working.
-      bumpActiveTime(this.sql, resolved);
-      // Increment per-session memory search counter
-      this.sql.exec(
-        `UPDATE sessions SET memories_searched = memories_searched + 1 WHERE agent_id = ? AND ended_at IS NULL`,
-        resolved,
-      );
-      if ('ok' in result && result.memories && result.memories.length > 0) {
-        this.#recordMetric(METRIC_KEYS.MEMORIES_SEARCH_HITS);
-        this.sql.exec(
-          `UPDATE sessions SET memories_search_hits = memories_search_hits + 1 WHERE agent_id = ? AND ended_at IS NULL`,
-          resolved,
-        );
-      }
-      return result;
-    });
+  ): Promise<ReturnType<typeof searchMemoriesRpc> | DOError> {
+    return searchMemoriesRpc(
+      this.#rpcCtx(),
+      agentId,
+      query,
+      tags,
+      categories,
+      limit,
+      ownerId,
+      filters,
+    );
   }
 
   async updateMemory(
@@ -771,9 +740,7 @@ export class TeamDO extends DurableObject<Env> {
     tags: string[] | undefined,
     ownerId: string | null = null,
   ): Promise<DOResult<{ ok: true }> | DOError> {
-    return this.#withMember(agentId, ownerId, (resolved) =>
-      updateMemoryFn(this.sql, resolved, memoryId, text, tags),
-    );
+    return updateMemoryRpc(this.#rpcCtx(), agentId, memoryId, text, tags, ownerId);
   }
 
   async deleteMemory(
@@ -781,7 +748,7 @@ export class TeamDO extends DurableObject<Env> {
     memoryId: string,
     ownerId: string | null = null,
   ): Promise<DOResult<{ ok: true }> | DOError> {
-    return this.#withMember(agentId, ownerId, () => deleteMemoryFn(this.sql, memoryId));
+    return deleteMemoryRpc(this.#rpcCtx(), agentId, memoryId, ownerId);
   }
 
   async deleteMemoriesBatch(
@@ -789,23 +756,21 @@ export class TeamDO extends DurableObject<Env> {
     filter: BatchDeleteFilter,
     ownerId: string | null = null,
   ): Promise<DOResult<{ ok: true; deleted: number }> | DOError> {
-    return this.#withMember(agentId, ownerId, () =>
-      deleteMemoriesBatchFn(this.sql, filter, this.#transact),
-    );
+    return deleteMemoriesBatchRpc(this.#rpcCtx(), agentId, filter, ownerId);
   }
 
   // -- Memory Consolidation (review queue, propose-only, reversible) --
 
-  async runConsolidation(): Promise<ReturnType<typeof consolidateMemoriesFn>> {
-    return consolidateMemoriesFn(this.sql);
+  async runConsolidation(): Promise<ReturnType<typeof runConsolidationRpc>> {
+    return runConsolidationRpc(this.#rpcCtx());
   }
 
   async listConsolidationProposals(
     agentId: string,
     limit: number = 50,
     ownerId: string | null = null,
-  ): Promise<ReturnType<typeof listConsolidationProposalsFn> | DOError> {
-    return this.#withMember(agentId, ownerId, () => listConsolidationProposalsFn(this.sql, limit));
+  ): Promise<ReturnType<typeof listConsolidationProposalsRpc> | DOError> {
+    return listConsolidationProposalsRpc(this.#rpcCtx(), agentId, limit, ownerId);
   }
 
   async applyConsolidationProposal(
@@ -813,9 +778,13 @@ export class TeamDO extends DurableObject<Env> {
     proposalId: string,
     reviewerHandle: string,
     ownerId: string | null = null,
-  ): Promise<ReturnType<typeof applyConsolidationProposalFn> | DOError> {
-    return this.#withMember(agentId, ownerId, () =>
-      applyConsolidationProposalFn(this.sql, proposalId, reviewerHandle),
+  ): Promise<ReturnType<typeof applyConsolidationProposalRpc> | DOError> {
+    return applyConsolidationProposalRpc(
+      this.#rpcCtx(),
+      agentId,
+      proposalId,
+      reviewerHandle,
+      ownerId,
     );
   }
 
@@ -824,9 +793,13 @@ export class TeamDO extends DurableObject<Env> {
     proposalId: string,
     reviewerHandle: string,
     ownerId: string | null = null,
-  ): Promise<ReturnType<typeof rejectConsolidationProposalFn> | DOError> {
-    return this.#withMember(agentId, ownerId, () =>
-      rejectConsolidationProposalFn(this.sql, proposalId, reviewerHandle),
+  ): Promise<ReturnType<typeof rejectConsolidationProposalRpc> | DOError> {
+    return rejectConsolidationProposalRpc(
+      this.#rpcCtx(),
+      agentId,
+      proposalId,
+      reviewerHandle,
+      ownerId,
     );
   }
 
@@ -834,8 +807,8 @@ export class TeamDO extends DurableObject<Env> {
     agentId: string,
     memoryId: string,
     ownerId: string | null = null,
-  ): Promise<ReturnType<typeof unmergeMemoryFn> | DOError> {
-    return this.#withMember(agentId, ownerId, () => unmergeMemoryFn(this.sql, memoryId));
+  ): Promise<ReturnType<typeof unmergeMemoryRpc> | DOError> {
+    return unmergeMemoryRpc(this.#rpcCtx(), agentId, memoryId, ownerId);
   }
 
   // -- Formation (shadow-mode auditor: classifies but never applies) --
@@ -843,21 +816,19 @@ export class TeamDO extends DurableObject<Env> {
   async runFormationOnRecent(
     limit: number = 20,
   ): Promise<{ ok: true; processed: number; skipped: number }> {
-    const result = await runFormationOnRecentFn(this.sql, this.env, limit);
-    return { ok: true, ...result };
+    return runFormationOnRecentRpc(this.#rpcCtx(), limit);
   }
 
   async runFormationOnMemory(memoryId: string): Promise<{ ok: true }> {
-    await runFormationPassFn(this.sql, this.env, memoryId);
-    return { ok: true };
+    return runFormationOnMemoryRpc(this.#rpcCtx(), memoryId);
   }
 
   async listFormationObservations(
     agentId: string,
     filter: { recommendation?: FormationRecommendation; limit?: number } = {},
     ownerId: string | null = null,
-  ): Promise<ReturnType<typeof listFormationObservationsFn> | DOError> {
-    return this.#withMember(agentId, ownerId, () => listFormationObservationsFn(this.sql, filter));
+  ): Promise<ReturnType<typeof listFormationObservationsRpc> | DOError> {
+    return listFormationObservationsRpc(this.#rpcCtx(), agentId, filter, ownerId);
   }
 
   // -- Memory Categories --
@@ -870,26 +841,21 @@ export class TeamDO extends DurableObject<Env> {
     embedding: ArrayBuffer | null = null,
     ownerId: string | null = null,
   ): Promise<DOResult<{ ok: true; id: string }> | DOError> {
-    return this.#withMember(agentId, ownerId, () =>
-      createCategoryFn(this.sql, name, description, color, embedding),
-    );
+    return createCategoryRpc(this.#rpcCtx(), agentId, name, description, color, embedding, ownerId);
   }
 
   async listCategories(
     agentId: string,
     ownerId: string | null = null,
-  ): Promise<ReturnType<typeof listCategoriesFn> | DOError> {
-    return this.#withMember(agentId, ownerId, () => listCategoriesFn(this.sql));
+  ): Promise<ReturnType<typeof listCategoriesRpc> | DOError> {
+    return listCategoriesRpc(this.#rpcCtx(), agentId, ownerId);
   }
 
   async getCategoryNames(
     agentId: string,
     ownerId: string | null = null,
   ): Promise<{ ok: true; names: string[] } | DOError> {
-    return this.#withMember(agentId, ownerId, () => ({
-      ok: true as const,
-      names: getCategoryNamesFn(this.sql),
-    }));
+    return getCategoryNamesRpc(this.#rpcCtx(), agentId, ownerId);
   }
 
   async updateCategory(
@@ -901,8 +867,15 @@ export class TeamDO extends DurableObject<Env> {
     embedding: ArrayBuffer | null | undefined,
     ownerId: string | null = null,
   ): Promise<DOResult<{ ok: true }> | DOError> {
-    return this.#withMember(agentId, ownerId, () =>
-      updateCategoryFn(this.sql, categoryId, name, description, color, embedding),
+    return updateCategoryRpc(
+      this.#rpcCtx(),
+      agentId,
+      categoryId,
+      name,
+      description,
+      color,
+      embedding,
+      ownerId,
     );
   }
 
@@ -911,15 +884,15 @@ export class TeamDO extends DurableObject<Env> {
     categoryId: string,
     ownerId: string | null = null,
   ): Promise<DOResult<{ ok: true }> | DOError> {
-    return this.#withMember(agentId, ownerId, () => deleteCategoryFn(this.sql, categoryId));
+    return deleteCategoryRpc(this.#rpcCtx(), agentId, categoryId, ownerId);
   }
 
   async getPromotableTags(
     agentId: string,
     threshold: number,
     ownerId: string | null = null,
-  ): Promise<ReturnType<typeof getPromotableTagsFn> | DOError> {
-    return this.#withMember(agentId, ownerId, () => getPromotableTagsFn(this.sql, threshold));
+  ): Promise<ReturnType<typeof getPromotableTagsRpc> | DOError> {
+    return getPromotableTagsRpc(this.#rpcCtx(), agentId, threshold, ownerId);
   }
 
   // -- File Locks --
