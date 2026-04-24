@@ -42,8 +42,22 @@
   --hairline: rgba(18, 19, 23, 0.08);
   --page-bg: #ffffff;
 
-  --accent: #1d46ff;
-  --accent-bg: rgba(29, 70, 255, 0.08);
+  /* Accent sourced from the logo's middle slab (lavender). Ties the
+   * brand mark to the UI accent so chinmeister reads as one object
+   * instead of a blue product stamped with a pastel logo. Lavender
+   * carries the horizontal/primary axis (stat tabs, top nav). */
+  --accent: #a896d4;
+  --accent-bg: rgba(168, 150, 212, 0.12);
+
+  /* Alt accent — logo's top slab (dusty pink). Carries the vertical/
+   * secondary axis (the sidebar question list). Splitting the axes
+   * onto two logo colors makes the two navigations visually distinct
+   * at a glance, mirrors how the logo stacks three different pastels,
+   * and avoids the "every pill is the same lavender" sameness. Pink
+   * is distinguishable from --warn (#ff9b3f amber-orange) and --danger
+   * (#ff6b57 red-orange) because it's dusty/rose, not saturated warm. */
+  --accent-alt: #d49aae;
+  --accent-alt-bg: rgba(212, 154, 174, 0.14);
   --success: #18b46f;
   --success-bg: rgba(24, 180, 111, 0.08);
   --warn: #ff9b3f;
@@ -94,8 +108,12 @@
   --hairline: rgba(240, 240, 242, 0.08);
   --page-bg: #0e0f11;
 
-  --accent: #5878ff;
-  --accent-bg: rgba(88, 120, 255, 0.1);
+  /* Dark-mode accents lift slightly brighter for contrast on the dark
+   * page bg. Matches the bump pattern used for --muted and --soft. */
+  --accent: #b9a8e0;
+  --accent-bg: rgba(185, 168, 224, 0.14);
+  --accent-alt: #e0b4c4;
+  --accent-alt-bg: rgba(224, 180, 196, 0.16);
   --success: #34d68a;
   --success-bg: rgba(52, 214, 138, 0.1);
   --warn: #ffb366;

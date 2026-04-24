@@ -3,7 +3,6 @@ import clsx from 'clsx';
 import {
   BreakdownList,
   BreakdownMeta,
-  DetailSection,
   DetailView,
   DirectoryConstellation,
   DirectoryColumns,
@@ -13,6 +12,8 @@ import {
   FileChurnScatter,
   FileConstellation,
   FileTreemap,
+  FocusedDetailView,
+  Metric,
   SmallMultiples,
   HeroStatRow,
   DeltaChip,
@@ -24,6 +25,7 @@ import {
   type DetailTabDef,
   type DivergingRowEntry,
   type DivergingSeries,
+  type FocusedQuestion,
   type HeroStatDef,
   type InteractiveDailyChurnEntry,
   type SmallMultipleItem,
@@ -36,7 +38,7 @@ import { WorkTypeStrip } from '../../components/WorkTypeStrip/index.js';
 import { useTabs } from '../../hooks/useTabs.js';
 import { arcPath } from '../../lib/svgArcs.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
-import { navigate } from '../../lib/router.js';
+import { navigate, setQueryParam, useQueryParam } from '../../lib/router.js';
 import { Sparkline } from '../../widgets/charts.js';
 import type { UserAnalytics } from '../../lib/apiSchemas.js';
 import { formatCost } from '../../widgets/utils.js';
@@ -279,6 +281,11 @@ function SessionsPanel({ analytics }: { analytics: UserAnalytics }) {
       .sort((a, b) => b.sessions - a.sessions);
   }, [analytics]);
 
+  // Active question id from `?q=` — read at the top so subsequent early
+  // returns don't violate hooks rules. FocusedDetailView tolerates null
+  // and falls back to the first question.
+  const activeId = useQueryParam('q');
+
   const durationDist = analytics.duration_distribution.filter((b) => b.count > 0);
 
   // Daily outcome strip — per-day stacked column (completed/abandoned/failed,
@@ -331,30 +338,143 @@ function SessionsPanel({ analytics }: { analytics: UserAnalytics }) {
         : firstEditMin.toFixed(1)
       : null;
 
-  return (
-    <>
-      {/* Top grid: hero stats (left) + tool share (right). Both sit at the
-          fold, establishing the session story: what happened (hero) and
-          where (by tool). Session duration lives below as its own full
-          width band since it answers a different question (how long). */}
-      {(hasHero || byTool.length > 0) && (
-        <div className={clsx(styles.topGrid, styles.topGridSessions)}>
-          {hasHero && (
-            <DetailSection label="Session health" className={styles.sectionHero}>
-              <HeroStatRow stats={heroStats} direction="column" />
-            </DetailSection>
-          )}
-          {byTool.length > 0 && (
-            <DetailSection label="By tool">
-              <ToolRing entries={byTool} total={totalSessions} />
-            </DetailSection>
-          )}
-        </div>
-      )}
+  // Editorial answers: one concrete sentence per section, computed from
+  // the same data the viz below renders. Numbers get <strong> so the
+  // answer can be scanned at a glance without losing prose voice.
+  // Answers lead with the finding, not the metric name ("73% completed",
+  // not "Completion rate: 73%"). Empty-data branches degrade to the
+  // honest subset rather than fabricating a narrative.
 
-      {/* Daily outcome strip — subsumes outcome split + daily trend */}
-      {analytics.daily_trends.length >= 2 && (
-        <DetailSection label="Daily outcome mix">
+  // Metric tones tie prose numbers to viz colors. Completion = positive
+  // (green dots), stall = warning (amber), neutral counts/times = ink.
+  // See Metric.tsx for the tone guide. Don't tone a number just because
+  // it's a number — tone only what has inherent good/bad direction.
+  const healthAnswer = (() => {
+    const rate = Math.round(cs.completion_rate);
+    const stalledRate = stuck.total_sessions > 0 ? Math.round(stuck.stuckness_rate) : null;
+    if (rate > 0 && stalledRate != null && stalledRate > 0) {
+      return (
+        <>
+          <Metric tone="positive">{rate}%</Metric> completed.{' '}
+          <Metric tone="warning">{stalledRate}%</Metric> stalled past 15 minutes.
+        </>
+      );
+    }
+    if (rate > 0) {
+      return (
+        <>
+          <Metric tone="positive">{rate}%</Metric> of {fmtCount(cs.total_sessions)} sessions
+          completed.
+        </>
+      );
+    }
+    return null;
+  })();
+
+  const byToolAnswer = (() => {
+    if (byTool.length === 0) return null;
+    if (byTool.length === 1) {
+      const only = byTool[0];
+      return (
+        <>
+          All sessions ran through <Metric>{getToolMeta(only.host_tool).label}</Metric> at{' '}
+          <Metric tone="positive">{Math.round(only.completion_rate)}%</Metric> completion.
+        </>
+      );
+    }
+    // Leader = highest completion rate among tools with meaningful volume
+    // (at least 5 sessions OR 10% of total, whichever is higher). Prevents
+    // a 1-session 100%-completion tool from pretending to lead.
+    const threshold = Math.max(5, Math.floor(totalSessions * 0.1));
+    const qualified = byTool.filter((t) => t.sessions >= threshold);
+    const leader = qualified.sort((a, b) => b.completion_rate - a.completion_rate)[0];
+    if (!leader) {
+      return <>Completion is close across the {byTool.length} tools in this window.</>;
+    }
+    return (
+      <>
+        <Metric>{getToolMeta(leader.host_tool).label}</Metric> leads at{' '}
+        <Metric tone="positive">{Math.round(leader.completion_rate)}%</Metric> completion across{' '}
+        <Metric>{fmtCount(leader.sessions)}</Metric> sessions.
+      </>
+    );
+  })();
+
+  const dailyAnswer = (() => {
+    if (analytics.daily_trends.length < 2) return null;
+    const peak = analytics.daily_trends.reduce((best, row) =>
+      row.sessions > best.sessions ? row : best,
+    );
+    if (peak.sessions === 0) return null;
+    return (
+      <>
+        Busiest day <Metric>{peak.day}</Metric> at{' '}
+        <Metric>{fmtCount(peak.sessions)} sessions</Metric>.
+      </>
+    );
+  })();
+
+  const durationAnswer = (() => {
+    if (durationDist.length === 0) return null;
+    const total = durationDist.reduce((s, b) => s + b.count, 0);
+    const shortBuckets = durationDist
+      .filter((b) => b.bucket === '0-5m' || b.bucket === '5-15m')
+      .reduce((s, b) => s + b.count, 0);
+    const shortPct = total > 0 ? Math.round((shortBuckets / total) * 100) : 0;
+    if (firstEditDisplay && shortPct > 0) {
+      return (
+        <>
+          First edit lands at <Metric>{firstEditDisplay} min</Metric> median.{' '}
+          <Metric>{shortPct}%</Metric> of sessions finish under 15 minutes.
+        </>
+      );
+    }
+    if (firstEditDisplay) {
+      return (
+        <>
+          First edit lands at <Metric>{firstEditDisplay} min</Metric> median.
+        </>
+      );
+    }
+    if (shortPct > 0) {
+      return (
+        <>
+          <Metric>{shortPct}%</Metric> of sessions finish under 15 minutes.
+        </>
+      );
+    }
+    return null;
+  })();
+
+  // Each question is a self-contained entry: id for URL, Q + A for the
+  // sidebar, viz as children. Declared top-down in the order the user
+  // would naturally read them — finding → where → when → how long.
+  // Entries without data drop out via the `if` guards so a new user
+  // with no tool-level data never sees a question that can't answer.
+  const questions: FocusedQuestion[] = [];
+  if (hasHero && healthAnswer) {
+    questions.push({
+      id: 'finishing',
+      question: 'Are sessions finishing?',
+      answer: healthAnswer,
+      children: <HeroStatRow stats={heroStats} direction="column" />,
+    });
+  }
+  if (byTool.length > 0 && byToolAnswer) {
+    questions.push({
+      id: 'by-tool',
+      question: 'Which tool finishes the job?',
+      answer: byToolAnswer,
+      children: <ToolRing entries={byTool} total={totalSessions} />,
+    });
+  }
+  if (analytics.daily_trends.length >= 2 && dailyAnswer) {
+    questions.push({
+      id: 'peak',
+      question: 'When did the week peak?',
+      answer: dailyAnswer,
+      children: (
+        <>
           <DailyOutcomeStrip trends={analytics.daily_trends} maxTotal={dailyMaxTotal} />
           <div className={styles.stripLegend}>
             <LegendDot color="var(--success)" label="completed" />
@@ -362,30 +482,29 @@ function SessionsPanel({ analytics }: { analytics: UserAnalytics }) {
             <LegendDot color="var(--danger)" label="failed" />
             <LegendHatch label="no outcome" />
           </div>
-        </DetailSection>
-      )}
+        </>
+      ),
+    });
+  }
+  if (durationDist.length > 0 && durationAnswer) {
+    questions.push({
+      id: 'duration',
+      question: 'How long do sessions run?',
+      answer: durationAnswer,
+      children: <DurationStrip buckets={durationDist} />,
+    });
+  }
 
-      {/* Session duration — full-width band. First-edit median rides
-          along as a small lead-in caption since both metrics answer
-          "how long did things take" (warmup vs total session length). */}
-      {durationDist.length > 0 && (
-        <DetailSection label="Session duration">
-          {firstEditDisplay && (
-            <p className={styles.durationLeadIn}>
-              <span className={styles.durationLeadValue}>{firstEditDisplay}</span>
-              <span className={styles.durationLeadUnit}>min</span>
-              <span className={styles.durationLeadLabel}>median to first edit</span>
-              {totalSessions > 0 && (
-                <span className={styles.durationLeadContext}>
-                  · across {fmtCount(totalSessions)} sessions
-                </span>
-              )}
-            </p>
-          )}
-          <DurationStrip buckets={durationDist} />
-        </DetailSection>
-      )}
-    </>
+  if (questions.length === 0) {
+    return <span className={styles.empty}>No sessions captured in this window.</span>;
+  }
+
+  return (
+    <FocusedDetailView
+      questions={questions}
+      activeId={activeId}
+      onSelect={(id) => setQueryParam('q', id)}
+    />
   );
 }
 
@@ -1026,7 +1145,6 @@ function EditsPanel({ analytics }: { analytics: UserAnalytics }) {
 
   const teamMode = byMember.length >= 2;
   const contributionEntries = teamMode ? byMember : byProject;
-  const contributionLabel = teamMode ? 'Contribution' : 'Project mix';
 
   const toolDailyStacked = useMemo<StackedAreaEntry[]>(() => {
     const rows = analytics.tool_daily ?? [];
@@ -1054,6 +1172,8 @@ function EditsPanel({ analytics }: { analytics: UserAnalytics }) {
     [analytics.tool_comparison],
   );
   const hasRing = toolRingRows.length > 0;
+
+  const editsActiveId = useQueryParam('q');
 
   if (total === 0) {
     return <span className={styles.empty}>No edits captured in this window.</span>;
@@ -1102,99 +1222,199 @@ function EditsPanel({ analytics }: { analytics: UserAnalytics }) {
     });
   }
 
-  return (
-    <>
-      {(heroStats.length > 0 || hasRing) && (
-        <div className={clsx(styles.topGrid, styles.topGridSessions)}>
-          {heroStats.length > 0 && (
-            <DetailSection label="Edit cadence" className={styles.sectionHero}>
-              <HeroStatRow stats={heroStats} direction="column" />
-            </DetailSection>
-          )}
-          {hasRing && (
-            <DetailSection label="Tool mix">
-              <EditsToolRing entries={toolRingRows} total={total} />
-            </DetailSection>
-          )}
-        </div>
-      )}
+  // Build per-question answers from data computed above. Tones: pace
+  // per-hour is neutral (it's context, not a verdict); peak/contribution
+  // numbers are neutral (names aren't good or bad); tool shares are
+  // neutral too since volume share isn't inherently positive.
+  const cadenceAnswer = (() => {
+    const rateStat = heroStats.find((h) => h.key === 'rate');
+    const rate = rateStat ? String(rateStat.value) : null;
+    if (rate && peak.edits > 0) {
+      return (
+        <>
+          <Metric>{rate}/hr</Metric> median pace. Peak day hit{' '}
+          <Metric>{fmtCount(peak.edits)} edits</Metric>.
+        </>
+      );
+    }
+    if (rate) {
+      return (
+        <>
+          <Metric>{rate}/hr</Metric> median pace across <Metric>{activeDays}</Metric> active days.
+        </>
+      );
+    }
+    if (peak.edits > 0) {
+      return (
+        <>
+          Peak day hit <Metric>{fmtCount(peak.edits)} edits</Metric>.
+        </>
+      );
+    }
+    return null;
+  })();
 
-      {(contributionEntries.length >= 2 || projectPulse.length > 0) && (
-        <div className={styles.topGrid}>
-          {contributionEntries.length >= 2 && (
-            <DetailSection label={contributionLabel}>
-              <TrueShareBars
-                entries={contributionEntries}
-                formatValue={(n) => `${fmtCount(n)} edits`}
-              />
-            </DetailSection>
-          )}
-          {projectPulse.length > 0 && (
-            <DetailSection label="Project rhythm">
-              <SmallMultiples items={projectPulse} />
-            </DetailSection>
-          )}
-        </div>
-      )}
+  const toolMixAnswer = (() => {
+    if (toolRingRows.length === 0) return null;
+    const sorted = [...toolRingRows].sort((a, b) => b.total_edits - a.total_edits);
+    const top = sorted[0];
+    const share = total > 0 ? Math.round((top.total_edits / total) * 100) : 0;
+    return (
+      <>
+        <Metric>{getToolMeta(top.host_tool).label}</Metric> drives <Metric>{share}%</Metric> of
+        edits.
+      </>
+    );
+  })();
 
-      {toolDailyStacked.length >= 1 && (
-        <DetailSection label="Daily rhythm">
-          <StackedArea
-            entries={toolDailyStacked}
-            unitLabel="edits per day"
-            ariaLabel="Edits per day, stacked by tool"
-          />
-        </DetailSection>
-      )}
+  const contributionAnswer = (() => {
+    if (contributionEntries.length === 0) return null;
+    const top = contributionEntries[0];
+    const topVal = typeof top.value === 'number' ? top.value : 0;
+    return (
+      <>
+        <Metric>{typeof top.label === 'string' ? top.label : top.key}</Metric> leads with{' '}
+        <Metric>{fmtCount(topVal)} edits</Metric>.
+      </>
+    );
+  })();
 
-      {rankedFiles.length > 0 && (
-        <section className={styles.landscapeBlock}>
-          <header className={styles.landscapeHead}>
-            <span className={styles.landscapeLabel}>Where work lands</span>
-            <span className={styles.landscapeHint}>
-              {selectedDir ? (
-                <>
-                  Scoped to <span className={styles.landscapeHintValue}>{selectedDir}</span>
-                  <button
-                    type="button"
-                    className={styles.landscapeClear}
-                    onClick={() => setSelectedDir(null)}
-                    aria-label="Clear directory filter"
-                  >
-                    × clear
-                  </button>
-                </>
-              ) : (
-                <>Click a directory on the right to scope the map</>
+  const projectRhythmAnswer = (() => {
+    if (projectPulse.length === 0) return null;
+    const top = projectPulse[0];
+    return (
+      <>
+        <Metric>{typeof top.label === 'string' ? top.label : top.key}</Metric> carries the strongest
+        daily cadence across <Metric>{projectPulse.length} projects</Metric>.
+      </>
+    );
+  })();
+
+  const dailyRhythmAnswer = (() => {
+    if (toolDailyStacked.length === 0) return null;
+    const sorted = [...toolDailyStacked].sort((a, b) => {
+      const aSum = a.series.reduce((s, p) => s + p.value, 0);
+      const bSum = b.series.reduce((s, p) => s + p.value, 0);
+      return bSum - aSum;
+    });
+    const top = sorted[0];
+    return (
+      <>
+        <Metric>{top.label}</Metric> accounts for the largest share of daily edit volume.
+      </>
+    );
+  })();
+
+  const landscapeAnswer = (() => {
+    if (rankedFiles.length === 0) return null;
+    const topFile = rankedFiles[0];
+    return (
+      <>
+        <Metric>{topFile.file.split('/').pop() ?? topFile.file}</Metric> leads the map at{' '}
+        <Metric>{fmtCount(topFile.touch_count)} touches</Metric>.
+      </>
+    );
+  })();
+
+  const questions: FocusedQuestion[] = [];
+  if (heroStats.length > 0 && cadenceAnswer) {
+    questions.push({
+      id: 'cadence',
+      question: 'How fast are edits coming?',
+      answer: cadenceAnswer,
+      children: <HeroStatRow stats={heroStats} direction="column" />,
+    });
+  }
+  if (hasRing && toolMixAnswer) {
+    questions.push({
+      id: 'tool-mix',
+      question: 'Which tool does most of the editing?',
+      answer: toolMixAnswer,
+      children: <EditsToolRing entries={toolRingRows} total={total} />,
+    });
+  }
+  if (contributionEntries.length >= 2 && contributionAnswer) {
+    questions.push({
+      id: 'contribution',
+      question: teamMode ? 'Who is doing the work?' : 'Which project is getting edits?',
+      answer: contributionAnswer,
+      children: (
+        <TrueShareBars entries={contributionEntries} formatValue={(n) => `${fmtCount(n)} edits`} />
+      ),
+    });
+  }
+  if (projectPulse.length >= 2 && projectRhythmAnswer) {
+    questions.push({
+      id: 'project-rhythm',
+      question: 'When is each project busy?',
+      answer: projectRhythmAnswer,
+      children: <SmallMultiples items={projectPulse} />,
+    });
+  }
+  if (toolDailyStacked.length >= 1 && dailyRhythmAnswer) {
+    questions.push({
+      id: 'daily-rhythm',
+      question: 'How does daily editing break down?',
+      answer: dailyRhythmAnswer,
+      children: (
+        <StackedArea
+          entries={toolDailyStacked}
+          unitLabel="edits per day"
+          ariaLabel="Edits per day, stacked by tool"
+        />
+      ),
+    });
+  }
+  if (rankedFiles.length > 0 && landscapeAnswer) {
+    questions.push({
+      id: 'landscape',
+      question: 'Where do edits land?',
+      answer: landscapeAnswer,
+      children: (
+        <div className={styles.landscapeGrid}>
+          <div className={styles.landscapePane}>
+            <span className={styles.landscapeSublabel}>File landscape</span>
+            <FileTreemap
+              entries={rankedFiles}
+              totalFiles={analytics.files_touched_total}
+              filterPrefix={selectedDir}
+            />
+          </div>
+          <div className={styles.landscapePane}>
+            <span className={styles.landscapeSublabel}>
+              Filter by directory
+              {selectedDir && (
+                <button
+                  type="button"
+                  className={styles.landscapeClear}
+                  onClick={() => setSelectedDir(null)}
+                  aria-label="Clear directory filter"
+                >
+                  × clear
+                </button>
               )}
             </span>
-          </header>
-          <div className={styles.landscapeGrid}>
-            <div className={styles.landscapePane}>
-              <span className={styles.landscapeSublabel}>File landscape</span>
-              <FileTreemap
-                entries={rankedFiles}
-                totalFiles={analytics.files_touched_total}
-                filterPrefix={selectedDir}
-              />
-            </div>
-            <div className={styles.landscapePane}>
-              <span className={styles.landscapeSublabel}>
-                Filter by directory
-                <span className={styles.landscapeArrow} aria-hidden="true">
-                  ←
-                </span>
-              </span>
-              <DirectoryColumns
-                files={rankedFiles}
-                selectedKey={selectedDir}
-                onSelect={setSelectedDir}
-              />
-            </div>
+            <DirectoryColumns
+              files={rankedFiles}
+              selectedKey={selectedDir}
+              onSelect={setSelectedDir}
+            />
           </div>
-        </section>
-      )}
-    </>
+        </div>
+      ),
+    });
+  }
+
+  if (questions.length === 0) {
+    return <span className={styles.empty}>No edits captured in this window.</span>;
+  }
+
+  return (
+    <FocusedDetailView
+      questions={questions}
+      activeId={editsActiveId}
+      onSelect={(id) => setQueryParam('q', id)}
+    />
   );
 }
 
@@ -1305,6 +1525,8 @@ function LinesPanel({ analytics }: { analytics: UserAnalytics }) {
       .sort((a, b) => b.totalAdded + b.totalRemoved - (a.totalAdded + a.totalRemoved));
   }, [analytics.per_project_lines]);
 
+  const linesActiveId = useQueryParam('q');
+
   if (totalAdded === 0 && totalRemoved === 0) {
     return <span className={styles.empty}>No line changes captured in this window.</span>;
   }
@@ -1339,50 +1561,146 @@ function LinesPanel({ analytics }: { analytics: UserAnalytics }) {
     });
   }
 
-  return (
+  // Tones: added lines → positive (green), removed → negative (red),
+  // net sign neutral (its own sign carries the semantic).
+  const churnAnswer = (
     <>
-      <DetailSection label="Code churn">
-        <HeroStatRow stats={heroStats} />
-      </DetailSection>
+      <Metric tone="positive">+{fmtCount(totalAdded)}</Metric> added,{' '}
+      <Metric tone="negative">−{fmtCount(totalRemoved)}</Metric> removed. Net{' '}
+      <Metric>
+        {netSign}
+        {fmtCount(Math.abs(net))}
+      </Metric>
+      .
+    </>
+  );
 
-      {series.length >= 2 && (
-        <DetailSection label="Daily growth · +added above, −removed below">
+  const dailyGrowthAnswer = (() => {
+    if (peakDay.score === 0) return null;
+    return (
+      <>
+        Peak churn on <Metric>{peakDay.day}</Metric> at{' '}
+        <Metric tone="positive">+{fmtCount(peakDay.added)}</Metric> /{' '}
+        <Metric tone="negative">−{fmtCount(peakDay.removed)}</Metric>.
+      </>
+    );
+  })();
+
+  const workTypeAnswer = (() => {
+    if (workTypeRows.length === 0) return null;
+    const top = workTypeRows[0];
+    const topChurn = top.added + top.removed;
+    return (
+      <>
+        <Metric>{top.label}</Metric> carries the biggest slice at{' '}
+        <Metric>{fmtCount(topChurn)} lines</Metric>.
+      </>
+    );
+  })();
+
+  const filesChurnAnswer = (() => {
+    if (topChurnFiles.length === 0) return null;
+    const top = topChurnFiles[0];
+    const topTotal = top.added + top.removed;
+    return (
+      <>
+        <Metric>{top.file.split('/').pop() ?? top.file}</Metric> tops the scatter at{' '}
+        <Metric>{fmtCount(topTotal)} lines</Metric> across{' '}
+        <Metric>{fmtCount(top.touches)} touches</Metric>.
+      </>
+    );
+  })();
+
+  const dailyChurnAnswer = (() => {
+    const memberAvailable = perMember.length >= 2;
+    const projectAvailable = perProject.length >= 2;
+    if (!memberAvailable && !projectAvailable) return null;
+    if (memberAvailable) {
+      const top = perMember[0];
+      const topTotal = top.totalAdded + top.totalRemoved;
+      return (
+        <>
+          <Metric>{top.handle}</Metric> leads churn volume at{' '}
+          <Metric>{fmtCount(topTotal)} lines</Metric>.
+        </>
+      );
+    }
+    const top = perProject[0];
+    const topTotal = top.totalAdded + top.totalRemoved;
+    return (
+      <>
+        <Metric>{top.team_name ?? top.team_id}</Metric> leads churn volume at{' '}
+        <Metric>{fmtCount(topTotal)} lines</Metric>.
+      </>
+    );
+  })();
+
+  const questions: FocusedQuestion[] = [
+    {
+      id: 'churn',
+      question: 'How much code is moving?',
+      answer: churnAnswer,
+      children: <HeroStatRow stats={heroStats} />,
+    },
+  ];
+  if (series.length >= 2 && dailyGrowthAnswer) {
+    questions.push({
+      id: 'daily-growth',
+      question: 'Which days grew the code base?',
+      answer: dailyGrowthAnswer,
+      children: (
+        <>
           <DivergingColumns data={series} />
           <div className={styles.stripLegend}>
             <LegendDot color="var(--success)" label="added" />
             <LegendDot color="var(--danger)" label="removed" />
           </div>
-        </DetailSection>
-      )}
+        </>
+      ),
+    });
+  }
+  if (workTypeRows.length > 0 && workTypeAnswer) {
+    questions.push({
+      id: 'by-work-type',
+      question: 'Where does the churn concentrate?',
+      answer: workTypeAnswer,
+      children: <DivergingRows entries={workTypeRows} />,
+    });
+  }
+  if (topChurnFiles.length > 0 && filesChurnAnswer) {
+    questions.push({
+      id: 'files-churn',
+      question: 'Which files churn the most?',
+      answer: filesChurnAnswer,
+      children: (
+        <FileChurnScatter
+          entries={topChurnFiles.map((f) => ({
+            file: f.file,
+            lines_added: f.added,
+            lines_removed: f.removed,
+            work_type: f.work_type,
+            touch_count: f.touches,
+          }))}
+          ariaLabel={`${topChurnFiles.length} files plotted by lines added vs lines removed`}
+        />
+      ),
+    });
+  }
+  if (dailyChurnAnswer) {
+    questions.push({
+      id: 'daily-churn',
+      question: 'Who is churning the code?',
+      answer: dailyChurnAnswer,
+      children: <DailyChurnSection memberEntries={perMember} projectEntries={perProject} />,
+    });
+  }
 
-      {workTypeRows.length > 0 && (
-        <DetailSection label="By work type">
-          <DivergingRows entries={workTypeRows} />
-        </DetailSection>
-      )}
-
-      {topChurnFiles.length > 0 && (
-        <DetailSection label="Files by churn">
-          <FileChurnScatter
-            entries={topChurnFiles.map((f) => ({
-              file: f.file,
-              lines_added: f.added,
-              lines_removed: f.removed,
-              work_type: f.work_type,
-              touch_count: f.touches,
-            }))}
-            ariaLabel={`${topChurnFiles.length} files plotted by lines added vs lines removed`}
-          />
-        </DetailSection>
-      )}
-
-      {/* Daily churn — stacked area per entity with a pivot selector.
-          Unifies the two separate "by teammate" / "by project" sections
-          behind one chart; selector at the top of the section switches
-          the dataset and the chart re-seeds its active set so toggles
-          from the prior pivot don't leak. */}
-      <DailyChurnSection memberEntries={perMember} projectEntries={perProject} />
-    </>
+  return (
+    <FocusedDetailView
+      questions={questions}
+      activeId={linesActiveId}
+      onSelect={(id) => setQueryParam('q', id)}
+    />
   );
 }
 
@@ -1458,8 +1776,10 @@ function DailyChurnSection({
   if (!memberAvailable && !projectAvailable) return null;
   const showSelector = memberAvailable && projectAvailable;
 
+  // No wrapping DetailSection — the caller is a FocusedQuestion which
+  // owns the title. Pivot bar + chart render bare.
   return (
-    <DetailSection label="daily churn">
+    <>
       {showSelector && (
         <div className={styles.pivotBar} role="tablist" aria-label="Breakdown pivot">
           <button
@@ -1488,7 +1808,7 @@ function DailyChurnSection({
         unitLabel="lines"
         ariaLabel={`Daily churn per ${pivot} with toggleable legend`}
       />
-    </DetailSection>
+    </>
   );
 }
 
@@ -1496,6 +1816,7 @@ function DailyChurnSection({
 
 function CostPanel({ analytics }: { analytics: UserAnalytics }) {
   const t = analytics.token_usage;
+  const costActiveId = useQueryParam('q');
   // Matches the KPI widget's gate — if the total is an em-dash at overview,
   // the detail shouldn't render $0.00. Three reasons fold in: zero token
   // sessions, stale pricing (pricing-enrich zeros total), or every observed
@@ -1514,65 +1835,128 @@ function CostPanel({ analytics }: { analytics: UserAnalytics }) {
   const maxModelCost = Math.max(1, ...byModel.map((m) => m.estimated_cost_usd ?? 0));
   const byTool = [...t.by_tool].sort((a, b) => b.input_tokens - a.input_tokens);
   const maxToolTokens = Math.max(1, ...byTool.map((m) => m.input_tokens + m.cache_read_tokens));
+  const totalCost = t.total_estimated_cost_usd ?? 0;
 
-  return (
-    <>
-      {byModel.length > 0 && (
-        <DetailSection label="By model">
-          <BreakdownList
-            items={byModel.map((m) => ({
-              key: m.agent_model,
-              label: m.agent_model,
-              fillPct: ((m.estimated_cost_usd ?? 0) / maxModelCost) * 100,
-              value: (
+  // Tones: cache hit rate is positive (higher cache share = lower cost),
+  // cost totals stay neutral (dollars in chinmeister's voice are context,
+  // not a verdict — we don't tell users their spend is "bad").
+  const byModelAnswer = (() => {
+    if (byModel.length === 0) return null;
+    const top = byModel[0];
+    return (
+      <>
+        <Metric>{top.agent_model}</Metric> accounts for{' '}
+        <Metric>{formatCost(top.estimated_cost_usd, 2)}</Metric> of{' '}
+        <Metric>{formatCost(totalCost, 2)}</Metric> total.
+      </>
+    );
+  })();
+
+  const byToolAnswer = (() => {
+    if (byTool.length === 0) return null;
+    const top = byTool[0];
+    const topTokens = top.input_tokens + top.cache_read_tokens;
+    return (
+      <>
+        <Metric>{getToolMeta(top.host_tool).label}</Metric> sends the most at{' '}
+        <Metric>{fmtCount(Math.round(topTokens / 1000))}k tokens</Metric>.
+      </>
+    );
+  })();
+
+  const cacheAnswer = (() => {
+    if (t.cache_hit_rate == null) return null;
+    const tone = t.cache_hit_rate >= 0.5 ? 'positive' : 'neutral';
+    const cachedK = Math.round(t.total_cache_read_tokens / 1000);
+    const totalK = Math.round((t.total_input_tokens + t.total_cache_read_tokens) / 1000);
+    return (
+      <>
+        <Metric tone={tone}>{fmtPct(t.cache_hit_rate, 1)}</Metric> of input tokens served from
+        cache. <Metric>{fmtCount(cachedK)}k</Metric> of <Metric>{fmtCount(totalK)}k</Metric>.
+      </>
+    );
+  })();
+
+  const questions: FocusedQuestion[] = [];
+  if (byModel.length > 0 && byModelAnswer) {
+    questions.push({
+      id: 'by-model',
+      question: 'Where is the spend going?',
+      answer: byModelAnswer,
+      children: (
+        <BreakdownList
+          items={byModel.map((m) => ({
+            key: m.agent_model,
+            label: m.agent_model,
+            fillPct: ((m.estimated_cost_usd ?? 0) / maxModelCost) * 100,
+            value: (
+              <>
+                {formatCost(m.estimated_cost_usd, 2)}
+                <BreakdownMeta> · {fmtCount(m.sessions)} sessions</BreakdownMeta>
+              </>
+            ),
+          }))}
+        />
+      ),
+    });
+  }
+  if (byTool.length > 0 && byToolAnswer) {
+    questions.push({
+      id: 'by-tool',
+      question: 'Which tool sends the most tokens?',
+      answer: byToolAnswer,
+      children: (
+        <BreakdownList
+          items={byTool.map((m) => {
+            const meta = getToolMeta(m.host_tool);
+            const tokens = m.input_tokens + m.cache_read_tokens;
+            return {
+              key: m.host_tool,
+              label: (
                 <>
-                  {formatCost(m.estimated_cost_usd, 2)}
-                  <BreakdownMeta> · {fmtCount(m.sessions)} sessions</BreakdownMeta>
+                  <ToolIcon tool={m.host_tool} size={14} />
+                  {meta.label}
                 </>
               ),
-            }))}
-          />
-        </DetailSection>
-      )}
-
-      {byTool.length > 0 && (
-        <DetailSection label="By tool (input + cache read)">
-          <BreakdownList
-            items={byTool.map((m) => {
-              const meta = getToolMeta(m.host_tool);
-              const tokens = m.input_tokens + m.cache_read_tokens;
-              return {
-                key: m.host_tool,
-                label: (
-                  <>
-                    <ToolIcon tool={m.host_tool} size={14} />
-                    {meta.label}
-                  </>
-                ),
-                fillPct: (tokens / maxToolTokens) * 100,
-                fillColor: meta.color,
-                value: `${fmtCount(Math.round(tokens / 1000))}k tok`,
-              };
-            })}
-          />
-        </DetailSection>
-      )}
-
-      {t.cache_hit_rate != null && (
-        <DetailSection label="Cache efficiency">
-          <div className={styles.outcomeLegend}>
-            <div className={styles.outcomeItem}>
-              <span className={styles.outcomeValue}>{fmtPct(t.cache_hit_rate, 1)}</span>
-              <span className={styles.outcomeLabel}>
-                {fmtCount(Math.round(t.total_cache_read_tokens / 1000))}k of{' '}
-                {fmtCount(Math.round((t.total_input_tokens + t.total_cache_read_tokens) / 1000))}k
-                input tokens served from cache
-              </span>
-            </div>
+              fillPct: (tokens / maxToolTokens) * 100,
+              fillColor: meta.color,
+              value: `${fmtCount(Math.round(tokens / 1000))}k tok`,
+            };
+          })}
+        />
+      ),
+    });
+  }
+  if (t.cache_hit_rate != null && cacheAnswer) {
+    questions.push({
+      id: 'cache',
+      question: 'Is caching pulling its weight?',
+      answer: cacheAnswer,
+      children: (
+        <div className={styles.outcomeLegend}>
+          <div className={styles.outcomeItem}>
+            <span className={styles.outcomeValue}>{fmtPct(t.cache_hit_rate, 1)}</span>
+            <span className={styles.outcomeLabel}>
+              {fmtCount(Math.round(t.total_cache_read_tokens / 1000))}k of{' '}
+              {fmtCount(Math.round((t.total_input_tokens + t.total_cache_read_tokens) / 1000))}k
+              input tokens served from cache
+            </span>
           </div>
-        </DetailSection>
-      )}
-    </>
+        </div>
+      ),
+    });
+  }
+
+  if (questions.length === 0) {
+    return <span className={styles.empty}>No cost data available in this window.</span>;
+  }
+
+  return (
+    <FocusedDetailView
+      questions={questions}
+      activeId={costActiveId}
+      onSelect={(id) => setQueryParam('q', id)}
+    />
   );
 }
 
@@ -1583,6 +1967,7 @@ function CostPerEditPanel({ analytics }: { analytics: UserAnalytics }) {
   const cpe = t.cost_per_edit;
   const byTool = t.by_tool;
   const toolCompare = new Map(analytics.tool_comparison.map((x) => [x.host_tool, x.total_edits]));
+  const cpeActiveId = useQueryParam('q');
 
   // Lock-step with the KPI: cost-per-edit inherits the cost total's
   // reliability gate (stale pricing, all-unpriced) plus its own null case.
@@ -1615,10 +2000,39 @@ function CostPerEditPanel({ analytics }: { analytics: UserAnalytics }) {
 
   const maxRate = Math.max(0.001, ...perTool.map((x) => x.rate ?? 0));
 
-  return (
+  if (perTool.length === 0) {
+    return <span className={styles.empty}>No per-tool cost data available in this window.</span>;
+  }
+
+  // Cheapest tool → positive tone (the answer to the question). Most
+  // expensive gets warning when it's notably above the cheapest.
+  const cheapest = perTool[0];
+  const priciest = perTool[perTool.length - 1];
+  const cheapestAnswer = (
     <>
-      {perTool.length > 0 && (
-        <DetailSection label="By tool · cheapest first">
+      <Metric>{getToolMeta(cheapest.host_tool).label}</Metric> edits cheapest at{' '}
+      <Metric tone="positive">{formatCost(cheapest.rate, 3)}</Metric> each
+      {perTool.length > 1 &&
+      priciest.rate &&
+      cheapest.rate &&
+      priciest.rate > cheapest.rate * 1.2 ? (
+        <>
+          , vs <Metric>{getToolMeta(priciest.host_tool).label}</Metric> at{' '}
+          <Metric tone="warning">{formatCost(priciest.rate, 3)}</Metric>.
+        </>
+      ) : (
+        '.'
+      )}
+    </>
+  );
+
+  const questions: FocusedQuestion[] = [
+    {
+      id: 'by-tool-cost',
+      question: 'Which tool gives the best dollar per edit?',
+      answer: cheapestAnswer,
+      children: (
+        <>
           <BreakdownList
             items={perTool.map((x) => {
               const meta = getToolMeta(x.host_tool);
@@ -1641,16 +2055,21 @@ function CostPerEditPanel({ analytics }: { analytics: UserAnalytics }) {
               };
             })}
           />
-        </DetailSection>
-      )}
+          <p className={styles.cpeCaveat}>
+            Per-tool rates are proportional estimates from input-token share, not model-joined exact
+            costs.
+          </p>
+        </>
+      ),
+    },
+  ];
 
-      <DetailSection label="Note">
-        <span className={styles.empty}>
-          Per-tool rates are proportional estimates from input-token share, not model-joined exact
-          costs.
-        </span>
-      </DetailSection>
-    </>
+  return (
+    <FocusedDetailView
+      questions={questions}
+      activeId={cpeActiveId}
+      onSelect={(id) => setQueryParam('q', id)}
+    />
   );
 }
 
@@ -1704,73 +2123,150 @@ function FilesTouchedPanel({ analytics }: { analytics: UserAnalytics }) {
   // the active segment clears. Scoped to the panel so navigation to other
   // tabs resets the filter without extra state plumbing.
   const [activeWorkType, setActiveWorkType] = useState<string | null>(null);
+  const filesActiveId = useQueryParam('q');
 
   if (filesTotal === 0 && files.length === 0) {
     return <span className={styles.empty}>No files touched in this window.</span>;
   }
 
-  // Filter label in the constellation section header tells the reader what
-  // they're looking at when the filter is engaged — "backend files" is the
-  // literal framing, with a clear-X affordance sitting next to it.
-  const constellationLabel = activeWorkType ? `Files — ${activeWorkType}` : 'Files';
-  const dirLabel = 'Directories';
+  // Tones: new-file share can read as positive expansion when it's the
+  // larger slice, otherwise neutral. File/directory counts stay neutral —
+  // "lots of files touched" isn't inherently good or bad without context.
+  const breadthAnswer = (() => {
+    if (filesTotal === 0) return null;
+    const topWT =
+      workTypeBreakdown.length > 0
+        ? [...workTypeBreakdown].sort((a, b) => b.file_count - a.file_count)[0]
+        : null;
+    if (topWT) {
+      return (
+        <>
+          <Metric>{fmtCount(filesTotal)}</Metric> distinct files touched.{' '}
+          <Metric>{topWT.work_type}</Metric> carries the biggest share at{' '}
+          <Metric>{fmtCount(topWT.file_count)}</Metric>.
+        </>
+      );
+    }
+    return (
+      <>
+        <Metric>{fmtCount(filesTotal)}</Metric> distinct files touched.
+      </>
+    );
+  })();
+
+  const nvrAnswer = (() => {
+    if (nvrTotal === 0) return null;
+    const newShare = Math.round((nvr.new_files / nvrTotal) * 100);
+    const tone = newShare >= 60 ? 'positive' : newShare <= 30 ? 'neutral' : 'neutral';
+    return (
+      <>
+        <Metric tone={tone}>{newShare}%</Metric> new, <Metric>{100 - newShare}%</Metric> revisited
+        across <Metric>{fmtCount(nvrTotal)}</Metric> files.
+      </>
+    );
+  })();
+
+  const constellationAnswer = (() => {
+    if (files.length === 0) return null;
+    const top = [...files].sort((a, b) => b.touch_count - a.touch_count)[0];
+    const completion = top.outcome_rate != null ? Math.round(top.outcome_rate) : null;
+    const fileName = top.file.split('/').pop() ?? top.file;
+    if (completion != null) {
+      const tone = completion >= 70 ? 'positive' : completion >= 40 ? 'warning' : 'negative';
+      return (
+        <>
+          <Metric>{fileName}</Metric> leads at <Metric>{fmtCount(top.touch_count)} touches</Metric>{' '}
+          and <Metric tone={tone}>{completion}%</Metric> completion.
+        </>
+      );
+    }
+    return (
+      <>
+        <Metric>{fileName}</Metric> is the hottest at{' '}
+        <Metric>{fmtCount(top.touch_count)} touches</Metric>.
+      </>
+    );
+  })();
+
+  const directoriesAnswer = (() => {
+    if (dirs.length === 0) return null;
+    const top = [...dirs].sort((a, b) => b.touch_count - a.touch_count)[0];
+    return (
+      <>
+        <Metric>{top.directory}</Metric> takes the most work with{' '}
+        <Metric>{fmtCount(top.file_count)} files</Metric> and{' '}
+        <Metric>{fmtCount(top.touch_count)} touches</Metric>.
+      </>
+    );
+  })();
+
+  const questions: FocusedQuestion[] = [];
+  if (breadthAnswer) {
+    questions.push({
+      id: 'breadth',
+      question: 'How much surface is being touched?',
+      answer: breadthAnswer,
+      children: (
+        <div className={styles.filesHero}>
+          <span className={styles.filesHeroValue}>{fmtCount(filesTotal)}</span>
+          {workTypeBreakdown.length > 0 && (
+            <WorkTypeStrip
+              entries={workTypeBreakdown}
+              variant="hero"
+              ariaLabel={`${filesTotal} distinct files by work type`}
+              activeWorkType={activeWorkType}
+              onSelect={setActiveWorkType}
+            />
+          )}
+        </div>
+      ),
+    });
+  }
+  if (nvrTotal > 0 && nvrAnswer) {
+    questions.push({
+      id: 'new-vs-revisited',
+      question: 'Expanding or returning?',
+      answer: nvrAnswer,
+      children: <NewVsRevisitedBar newFiles={nvr.new_files} revisited={nvr.revisited_files} />,
+    });
+  }
+  if (files.length > 0 && constellationAnswer) {
+    questions.push({
+      id: 'constellation',
+      question: 'Which files are hot?',
+      answer: constellationAnswer,
+      children: (
+        <FileConstellation
+          entries={files}
+          activeWorkType={activeWorkType}
+          ariaLabel={`${files.length} files plotted by touches × completion rate`}
+        />
+      ),
+    });
+  }
+  if (dirs.length > 0 && directoriesAnswer) {
+    questions.push({
+      id: 'directories',
+      question: 'Which directories take the most work?',
+      answer: directoriesAnswer,
+      children: (
+        <DirectoryConstellation
+          entries={dirs}
+          ariaLabel={`${dirs.length} directories plotted by breadth × depth`}
+        />
+      ),
+    });
+  }
+
+  if (questions.length === 0) {
+    return <span className={styles.empty}>No files touched in this window.</span>;
+  }
 
   return (
-    <>
-      {/* Hero: scalar breadth + work-type composition | new-vs-revisited
-          split. The strip's segments are tab-selectors threaded through
-          the File Constellation below — clicking `backend` filters the
-          scatter to backend dots without re-rendering the dataset. */}
-      <div className={styles.topGrid}>
-        <DetailSection label="Distinct files touched" className={styles.sectionHero}>
-          <div className={styles.filesHero}>
-            <span className={styles.filesHeroValue}>{fmtCount(filesTotal)}</span>
-            {workTypeBreakdown.length > 0 && (
-              <WorkTypeStrip
-                entries={workTypeBreakdown}
-                variant="hero"
-                ariaLabel={`${filesTotal} distinct files by work type`}
-                activeWorkType={activeWorkType}
-                onSelect={setActiveWorkType}
-              />
-            )}
-          </div>
-        </DetailSection>
-
-        {nvrTotal > 0 && (
-          <DetailSection label="New vs revisited">
-            <NewVsRevisitedBar newFiles={nvr.new_files} revisited={nvr.revisited_files} />
-          </DetailSection>
-        )}
-      </div>
-
-      {/* File Constellation — 2D scatter fusing activity (touch count) and
-          effectiveness (completion rate). Upper-right = solid hot files,
-          upper-left = one-shot wins, lower-right = problem files (this
-          quadrant subsumes the old "rework" list). Dots colored by
-          work-type; the hero strip filters visibility. */}
-      {files.length > 0 && (
-        <DetailSection label={constellationLabel}>
-          <FileConstellation
-            entries={files}
-            activeWorkType={activeWorkType}
-            ariaLabel={`${files.length} files plotted by touches × completion rate`}
-          />
-        </DetailSection>
-      )}
-
-      {/* Directory Constellation — breadth × depth per directory. Upper-right
-          = hot zones, upper-left = focused rework on few files, lower-right
-          = wide-and-shallow. Dot tint encodes completion rate. Replaces the
-          flat by-directory bar list; hierarchical context emerges by shape. */}
-      {dirs.length > 0 && (
-        <DetailSection label={dirLabel}>
-          <DirectoryConstellation
-            entries={dirs}
-            ariaLabel={`${dirs.length} directories plotted by breadth × depth`}
-          />
-        </DetailSection>
-      )}
-    </>
+    <FocusedDetailView
+      questions={questions}
+      activeId={filesActiveId}
+      onSelect={(id) => setQueryParam('q', id)}
+    />
   );
 }

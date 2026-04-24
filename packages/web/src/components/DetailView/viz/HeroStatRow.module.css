@@ -36,11 +36,14 @@
   min-width: 0;
 }
 
+/* Section heroes stay display-weighted but cap below the stat-tab size
+ * (2.25rem) so the row of tabs at the top retains its orientation role —
+ * a section's hero metric is subordinate to the tab that selected it. */
 .value {
   font-family: var(--display);
-  font-size: 3.4rem;
+  font-size: 2rem;
   font-weight: 200;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.03em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;

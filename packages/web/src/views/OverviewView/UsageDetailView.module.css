@@ -34,6 +34,16 @@
   color: var(--soft);
 }
 
+/* Cost-per-edit methodology caveat rendered under the viz. Mono +
+ * muted so it reads as a footnote, not a peer of the breakdown. */
+.cpeCaveat {
+  margin: 12px 0 0;
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  line-height: 1.4;
+}
+
 .trendFrame {
   width: 100%;
   height: 96px;
@@ -550,9 +560,9 @@
 
 .filesHeroValue {
   font-family: var(--display);
-  font-size: 4.2rem;
+  font-size: 2rem;
   font-weight: 200;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.03em;
   line-height: 1;
   color: var(--ink);
   font-variant-numeric: tabular-nums;

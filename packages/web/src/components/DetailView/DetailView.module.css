@@ -29,7 +29,10 @@
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  /* Tighter than the old 40px because DetailSection titles now carry
+   * their own visual weight — whitespace doesn't have to do all of the
+   * section demarcation. */
+  gap: 32px;
   animation: detailFadeIn 0.2s var(--motion) both;
 }
 
