@@ -9,31 +9,28 @@ import {
   type ReactNode,
 } from 'react';
 import clsx from 'clsx';
-import { useDndContext, useDndMonitor, useDroppable, type Modifier } from '@dnd-kit/core';
+import {
+  useDndContext,
+  useDndMonitor,
+  useDroppable,
+  type DraggableAttributes,
+  type DraggableSyntheticListeners,
+  type Modifier,
+} from '@dnd-kit/core';
 import { SortableContext, useSortable, type SortingStrategy } from '@dnd-kit/sortable';
 import { CSS, getEventCoordinates } from '@dnd-kit/utilities';
 
-import {
-  getWidget,
-  type WidgetSlot,
-  type WidgetColSpan,
-  type WidgetRowSpan,
-} from '../../widgets/widget-catalog.js';
+import { getWidget, type WidgetSlot, type WidgetRowSpan } from '../../widgets/widget-catalog.js';
 
 import styles from './WidgetGrid.module.css';
 
 export interface WidgetGridProps {
   slots: WidgetSlot[];
-  editing: boolean;
   renderWidget: (id: string) => ReactNode;
   onReorder: (ids: string[]) => void;
   onRemove: (id: string) => void;
-  onSlotSize: (id: string, size: { colSpan?: WidgetColSpan; rowSpan?: WidgetRowSpan }) => void;
   recentlyAddedId?: string | null;
 }
-
-const COL_SPAN_CHOICES: WidgetColSpan[] = [3, 4, 6, 8, 12];
-const ROW_SPAN_CHOICES: WidgetRowSpan[] = [2, 3, 4];
 
 /** Droppable id the grid container registers for catalog drops. The ancestor
  *  DndContext's onDragEnd reads this to distinguish "dropped on empty grid
@@ -92,12 +89,10 @@ export const snapChipToCursor: Modifier = ({ activatorEvent, draggingNodeRect, t
 
 interface SortableWidgetProps {
   slot: WidgetSlot;
-  editing: boolean;
   highlighted: boolean;
   isOver: boolean;
   children: ReactNode;
   onRemove: () => void;
-  onSlotSize: (size: { colSpan?: WidgetColSpan; rowSpan?: WidgetRowSpan }) => void;
 }
 
 /**
@@ -157,19 +152,11 @@ function useFitRowSpan(
   return rows;
 }
 
-function SortableWidget({
-  slot,
-  editing,
-  highlighted,
-  isOver,
-  children,
-  onRemove,
-  onSlotSize,
-}: SortableWidgetProps) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
-    id: slot.id,
-    disabled: !editing,
-  });
+function SortableWidget({ slot, highlighted, isOver, children, onRemove }: SortableWidgetProps) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } =
+    useSortable({
+      id: slot.id,
+    });
 
   const def = getWidget(slot.id);
   const widgetName = def?.name ?? 'widget';
@@ -215,25 +202,14 @@ function SortableWidget({
         // placeholder visibly tracks the drop target.
         <div className={styles.widgetGhost} aria-hidden="true" />
       ) : (
-        <div
-          ref={widgetRef}
-          className={clsx(styles.widget, editing && styles.widgetEditing, fit && styles.widgetFit)}
-          {...(editing ? attributes : {})}
-          {...(editing ? listeners : {})}
-        >
-          {editing && (
-            <div className={styles.editChrome}>
-              <SizeControl colSpan={slot.colSpan} rowSpan={slot.rowSpan} onChange={onSlotSize} />
-              <button
-                type="button"
-                className={styles.removeButton}
-                onClick={onRemove}
-                aria-label={`Remove ${widgetName}`}
-              >
-                Remove
-              </button>
-            </div>
-          )}
+        <div ref={widgetRef} className={clsx(styles.widget, fit && styles.widgetFit)}>
+          <WidgetControls
+            widgetName={widgetName}
+            onRemove={onRemove}
+            setActivatorNodeRef={setActivatorNodeRef}
+            dragListeners={listeners}
+            dragAttributes={attributes}
+          />
           {children}
         </div>
       )}
@@ -249,43 +225,94 @@ function SortableWidget({
   );
 }
 
-interface SizeControlProps {
-  colSpan: WidgetColSpan;
-  rowSpan: WidgetRowSpan;
-  onChange: (size: { colSpan?: WidgetColSpan; rowSpan?: WidgetRowSpan }) => void;
+interface WidgetControlsProps {
+  widgetName: string;
+  onRemove: () => void;
+  setActivatorNodeRef: (node: HTMLElement | null) => void;
+  dragListeners: DraggableSyntheticListeners;
+  dragAttributes: DraggableAttributes;
 }
 
-function SizeControl({ colSpan, rowSpan, onChange }: SizeControlProps) {
-  const nextColSpan = () => {
-    const idx = COL_SPAN_CHOICES.indexOf(colSpan);
-    const next = COL_SPAN_CHOICES[(idx + 1) % COL_SPAN_CHOICES.length];
-    onChange({ colSpan: next });
-  };
-  const nextRowSpan = () => {
-    const idx = ROW_SPAN_CHOICES.indexOf(rowSpan);
-    const next = ROW_SPAN_CHOICES[(idx + 1) % ROW_SPAN_CHOICES.length];
-    onChange({ rowSpan: next });
-  };
-  const stop = (e: React.MouseEvent | React.PointerEvent) => e.stopPropagation();
+/**
+ * Hover-revealed control cluster in a widget's top-right corner.
+ *
+ *   • Grip (left)  — drag to reorder. Sortable's activator node is the grip
+ *     button itself, so drag can only start from this element. The widget
+ *     body stays fully interactive (charts, drill-ins, text selection)
+ *     without competing for pointer events.
+ *   • Trash (right) — click to remove. Undoable via Cmd/Ctrl-Z (layout undo
+ *     is wired globally in the host view), so one-click delete is safe.
+ *
+ * The cluster is invisible by default and fades in on cell hover or
+ * focus-within. Hidden on mobile via the breakpoint in the CSS module.
+ */
+function WidgetControls({
+  widgetName,
+  onRemove,
+  setActivatorNodeRef,
+  dragListeners,
+  dragAttributes,
+}: WidgetControlsProps) {
   return (
-    <div className={styles.sizeControl} onPointerDown={stop} onClick={stop}>
+    <div className={styles.controls}>
       <button
+        ref={setActivatorNodeRef}
         type="button"
-        className={styles.sizeButton}
-        onClick={nextColSpan}
-        aria-label={`Width (currently spans ${colSpan} of 12 columns)`}
-        title={`Width: ${colSpan}/12 — click to cycle`}
+        className={styles.gripButton}
+        aria-label={`Move ${widgetName}`}
+        title="Drag to move"
+        {...dragListeners}
+        {...dragAttributes}
       >
-        w:{colSpan}
+        <svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true">
+          <circle cx="2.5" cy="3" r="1" />
+          <circle cx="2.5" cy="8" r="1" />
+          <circle cx="2.5" cy="13" r="1" />
+          <circle cx="7.5" cy="3" r="1" />
+          <circle cx="7.5" cy="8" r="1" />
+          <circle cx="7.5" cy="13" r="1" />
+        </svg>
       </button>
       <button
         type="button"
-        className={styles.sizeButton}
-        onClick={nextRowSpan}
-        aria-label={`Height (currently spans ${rowSpan} rows)`}
-        title={`Height: ${rowSpan} rows — click to cycle`}
+        className={styles.removeButton}
+        aria-label={`Remove ${widgetName}`}
+        title="Remove"
+        onClick={onRemove}
       >
-        h:{rowSpan}
+        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+          {/* lid */}
+          <path
+            d="M2.5 3.5 H11.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+          />
+          <path
+            d="M5.5 3.5 V2.5 a0.6 0.6 0 0 1 0.6 -0.6 H7.9 a0.6 0.6 0 0 1 0.6 0.6 V3.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinejoin="round"
+          />
+          {/* bin */}
+          <path
+            d="M3.6 3.5 L4.1 11.6 a0.9 0.9 0 0 0 0.9 0.9 H9 a0.9 0.9 0 0 0 0.9 -0.9 L10.4 3.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M6 6 V10 M8 6 V10"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+          />
+        </svg>
       </button>
     </div>
   );
@@ -309,14 +336,7 @@ function GridPlaceholder({ w, h }: { w: number; h: number }) {
   );
 }
 
-function WidgetGridInner({
-  slots,
-  editing,
-  renderWidget,
-  onRemove,
-  onSlotSize,
-  recentlyAddedId,
-}: WidgetGridProps) {
+function WidgetGridInner({ slots, renderWidget, onRemove, recentlyAddedId }: WidgetGridProps) {
   const { setNodeRef: setGridDroppableRef, isOver: gridIsOver } = useDroppable({
     id: GRID_DROPPABLE_ID,
   });
@@ -423,11 +443,9 @@ function WidgetGridInner({
             )}
             <SortableWidget
               slot={slot}
-              editing={editing}
               highlighted={highlightedId === slot.id}
               isOver={sortableOverId === slot.id}
               onRemove={() => onRemove(slot.id)}
-              onSlotSize={(size) => onSlotSize(slot.id, size)}
             >
               {renderWidget(slot.id)}
             </SortableWidget>

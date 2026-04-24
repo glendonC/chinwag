@@ -6,10 +6,10 @@
  * of a flat flex column) keeps a stat value vertically centered in a tall
  * cell and lets a list flush-fill, regardless of what the body returns.
  *
- * The visual frame (.widget, .widgetEditing, border sweep, edit chrome)
- * lives in components/WidgetGrid/WidgetGrid.module.css — that's the file
- * that owns the cell wrapper. This module owns only the *content* zones
- * inside the wrapper.
+ * The visual frame (.widget, border sweep, hover menu) lives in
+ * components/WidgetGrid/WidgetGrid.module.css — that's the file that owns
+ * the cell wrapper. This module owns only the *content* zones inside the
+ * wrapper.
  */
 
 .widgetHead {

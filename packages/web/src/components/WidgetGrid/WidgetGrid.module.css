@@ -57,9 +57,8 @@
  * corners, so we don't need JS to identify "which widget is on the
  * edge" (hard to do under grid-auto-flow:row dense anyway).
  *
- * Hidden in edit mode; the dashed outline on .widgetEditing already
- * communicates widget bounds and a second divider layer would read as
- * noise while dragging.
+ * Hidden during drag so the dashed drag-ghost and accent drop-target
+ * outlines read cleanly without a second divider layer.
  */
 .cell::after,
 .cell::before {
@@ -98,10 +97,13 @@
   );
 }
 
-/* Edit mode: suppress dividers so the dashed .widgetEditing outline
- * is the only boundary signal during drag-reorder. */
-.cell:has(.widgetEditing)::after,
-.cell:has(.widgetEditing)::before {
+/* During a sortable drag, hide dividers on both the source cell (which
+ * shows a dashed ghost) and the hovered drop-target cell (which shows an
+ * accent outline) so the two cell-edge signals don't read as noise. */
+.cell:has(.widgetGhost)::after,
+.cell:has(.widgetGhost)::before,
+.cellOver::after,
+.cellOver::before {
   display: none;
 }
 
@@ -209,23 +211,6 @@
  * it here globally.
  */
 
-/*
- * Edit mode: the whole widget is the grab target. Dashed outline + grab
- * cursor are the affordances. Interactive chrome (buttons, etc.) inside the
- * edit header use onPointerDown/onClick stopPropagation to keep clicks from
- * starting drags.
- */
-.widgetEditing {
-  outline: 1px dashed var(--soft);
-  outline-offset: -1px;
-  cursor: grab;
-  touch-action: none;
-}
-
-.widgetEditing:active {
-  cursor: grabbing;
-}
-
 /* Original-slot placeholder rendered while the widget is being dragged.
  * The actual widget renders in the parent view's DragOverlay (sized to
  * its measured cell dimensions, follows the cursor cleanly). This ghost
@@ -241,62 +226,82 @@
   pointer-events: none;
 }
 
-.editChrome {
+/* ── Hover controls ───────────────────────────
+ *
+ * Top-right pair of controls revealed on cell hover:
+ *   .gripButton   — drag handle; activator node for useSortable
+ *   .removeButton — click to remove (undoable via Cmd/Ctrl-Z)
+ *
+ * Hidden by default to keep widget chrome clean. Revealed on cell hover
+ * (pointer users) or focus-within (keyboard users). Hidden at the mobile
+ * breakpoint since touch drag-reorder needs its own UX pass.
+ */
+.controls {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  z-index: 3;
-}
-
-.sizeControl {
+  top: 10px;
+  right: 10px;
+  z-index: 4;
   display: inline-flex;
-  gap: 4px;
-  padding: 2px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
-  background: var(--surface, rgba(20, 20, 22, 0.75));
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
 }
 
-.sizeButton {
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  font-weight: 500;
-  color: var(--soft);
-  padding: 2px 8px;
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: transparent;
-  cursor: pointer;
-  letter-spacing: var(--tracking-stat);
+.cell:hover .controls,
+.controls:focus-within {
+  opacity: 1;
+  pointer-events: auto;
 }
 
-.sizeButton:hover {
-  color: var(--ink);
-}
-
+.gripButton,
 .removeButton {
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  font-weight: 500;
-  color: color-mix(in srgb, var(--danger) 10%, white);
-  letter-spacing: var(--tracking-stat);
-  text-transform: uppercase;
-  padding: 0 12px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid color-mix(in srgb, var(--danger) 55%, transparent);
-  border-radius: var(--radius-pill);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--danger) 88%, white) 0%,
-    var(--danger) 100%
-  );
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-2xs);
+  background: transparent;
+  color: var(--soft);
+  transition:
+    color 0.12s ease,
+    background 0.12s ease;
+}
+
+.gripButton {
+  cursor: grab;
+  touch-action: none;
+}
+
+.gripButton:active {
+  cursor: grabbing;
+}
+
+.gripButton:hover {
+  color: var(--ink);
+  background: var(--ghost);
+}
+
+.gripButton svg {
+  fill: currentColor;
+  display: block;
+}
+
+.removeButton {
   cursor: pointer;
+}
+
+.removeButton:hover {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.removeButton svg {
+  display: block;
 }
 
 /* ── Just-added border sweep ──────────────────── */
@@ -410,8 +415,9 @@
   }
 }
 
-/* Mobile: stack every widget full-width, one per row. The edit chrome hides
- * at this breakpoint because touch drag-reorder UX needs its own pass. */
+/* Mobile: stack every widget full-width, one per row. The hover controls
+ * hide at this breakpoint because touch drag-reorder UX needs its own
+ * pass. Removal on mobile is available through the catalog's toggle. */
 @media (max-width: 768px) {
   .grid {
     grid-template-columns: 1fr;
@@ -420,7 +426,7 @@
   .cell {
     grid-column: 1 / -1;
   }
-  .editChrome {
+  .controls {
     display: none;
   }
 }

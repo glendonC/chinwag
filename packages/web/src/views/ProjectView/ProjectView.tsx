@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useState, useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -23,7 +23,6 @@ import StatusState from '../../components/StatusState/StatusState.jsx';
 import ViewHeader from '../../components/ViewHeader/ViewHeader.jsx';
 import StatTabs from '../../components/StatTabs/StatTabs.js';
 import CustomizeButton from '../../components/CustomizeButton/CustomizeButton.jsx';
-import EditModePill from '../../components/EditModePill/EditModePill.js';
 import RangePills from '../../components/RangePills/RangePills.jsx';
 import {
   ShimmerText,
@@ -104,7 +103,6 @@ export default function ProjectView(_props: Props) {
 
   const { activeTab, setActiveTab, hint, ref: statsRef } = useTabs(PROJECT_TABS);
   const [rangeDays, setRangeDays] = useState<7 | 30 | 90>(30);
-  const [editing, setEditing] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [showSpawn, setShowSpawn] = useState(false);
 
@@ -188,23 +186,10 @@ export default function ProjectView(_props: Props) {
     setSortableDragging(null);
   }, []);
 
-  // `c` opens the customize menu, `r` toggles rearrange mode, `Esc`
-  // exits rearrange when the user is stranded without the catalog open.
-  // Gated to analytical tabs because that's where the Customize button
-  // itself renders — wiring the shortcuts on the Memory tab would
-  // surface controls whose affordance isn't visible.
-  //
-  // Refs (not deps) for `catalogOpen` / `editing` so toggling either
-  // doesn't re-mount the window listener — listener churn during a drag
-  // (e.g., the user hits R mid-flow) was a candidate jank source.
-  const catalogOpenRef = useRef(catalogOpen);
-  const editingRef = useRef(editing);
-  useEffect(() => {
-    catalogOpenRef.current = catalogOpen;
-  }, [catalogOpen]);
-  useEffect(() => {
-    editingRef.current = editing;
-  }, [editing]);
+  // `c` opens the customize menu on analytical tabs (where the
+  // Customize button itself renders). Per-widget resize/remove lives on
+  // the hover kebab, so there is no global rearrange mode and no `r`
+  // binding here.
   useEffect(() => {
     if (isMobile || !isAnalytical) return;
     const handler = (e: KeyboardEvent) => {
@@ -218,17 +203,6 @@ export default function ProjectView(_props: Props) {
       if (e.key === 'c' || e.key === 'C') {
         e.preventDefault();
         setCatalogOpen((p) => !p);
-        return;
-      }
-      if (!catalogOpenRef.current && (e.key === 'r' || e.key === 'R')) {
-        e.preventDefault();
-        setEditing((p) => !p);
-        return;
-      }
-      if (!catalogOpenRef.current && editingRef.current && e.key === 'Escape') {
-        e.preventDefault();
-        setEditing(false);
-        return;
       }
     };
     window.addEventListener('keydown', handler);
@@ -466,11 +440,9 @@ export default function ProjectView(_props: Props) {
               <div className={styles.gridBleed}>
                 <WidgetGrid
                   slots={activeSlots}
-                  editing={editing && !isMobile}
                   renderWidget={renderWidget}
                   onReorder={currentLayout.reorderWidgets}
                   onRemove={currentLayout.removeWidget}
-                  onSlotSize={currentLayout.setSlotSize}
                 />
               </div>
             </div>
@@ -494,17 +466,10 @@ export default function ProjectView(_props: Props) {
             onClose={() => setCatalogOpen(false)}
             widgetIds={currentLayout.widgetIds}
             toggleWidget={currentLayout.toggleWidget}
-            editing={editing}
-            setEditing={setEditing}
             resetToDefault={currentLayout.resetToDefault}
             clearAll={currentLayout.clearAll}
             viewScope="project"
           />
-        )}
-
-        {/* Floating exit affordance when rearranging without the catalog. */}
-        {editing && !catalogOpen && !isMobile && isAnalytical && (
-          <EditModePill onDone={() => setEditing(false)} />
         )}
       </div>
       <DragOverlay

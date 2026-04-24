@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
+import { useMemo, useState, useCallback, useEffect, useSyncExternalStore } from 'react';
 import clsx from 'clsx';
 import { useShallow } from 'zustand/react/shallow';
 import {
@@ -52,7 +52,6 @@ import InlineHint from '../../components/InlineHint/InlineHint.jsx';
 import StatusState from '../../components/StatusState/StatusState.jsx';
 import ViewHeader from '../../components/ViewHeader/ViewHeader.jsx';
 import CustomizeButton from '../../components/CustomizeButton/CustomizeButton.jsx';
-import EditModePill from '../../components/EditModePill/EditModePill.js';
 import RangePills from '../../components/RangePills/RangePills.jsx';
 import {
   ShimmerText,
@@ -64,6 +63,7 @@ import { useDemoScenario } from '../../hooks/useDemoScenario.js';
 import { getDemoData } from '../../lib/demo/index.js';
 import LiveNowView from './LiveNowView.js';
 import UsageDetailView from './UsageDetailView.js';
+import OutcomesDetailView from './OutcomesDetailView.js';
 import { RANGES, type RangeDays, summarizeNames } from './overview-utils.js';
 import { useOverviewLayout } from './useOverviewLayout.js';
 import { useProjectFilter } from './useProjectFilter.js';
@@ -212,7 +212,6 @@ const OVERVIEW_LOCKS: Lock[] = [];
 
 export default function OverviewView() {
   const [rangeDays, setRangeDays] = useState<RangeDays>(30);
-  const [editing, setEditing] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
 
   const { dashboardData, dashboardStatus, pollError, pollErrorData } = usePollingStore(
@@ -277,10 +276,20 @@ export default function OverviewView() {
   const usage = useDetailDrill('usage');
   const usageShifted = usage.shifted;
 
+  // Outcomes Detail — same pattern. Tabs: sessions / retries / types.
+  const outcomes = useDetailDrill('outcomes');
+  const outcomesShifted = outcomes.shifted;
+
   // Escape closes whichever detail view is open. Collapsing to a single
   // active close handler keeps one listener regardless of how many
   // drill-ins exist; adding a new category extends the chain by one line.
-  const activeClose = liveShifted ? closeLive : usageShifted ? usage.close : null;
+  const activeClose = liveShifted
+    ? closeLive
+    : usageShifted
+      ? usage.close
+      : outcomesShifted
+        ? outcomes.close
+        : null;
   useEffect(() => {
     if (!activeClose) return;
     const onKey = (e: KeyboardEvent) => {
@@ -305,7 +314,6 @@ export default function OverviewView() {
     addWidgetAt,
     removeWidget: removeWidgetRaw,
     reorderWidgets,
-    setSlotSize,
     resetToDefault,
     clearAll: clearAllRaw,
     undo,
@@ -496,26 +504,10 @@ export default function OverviewView() {
   }, [undo, announce]);
 
   // `c` opens the customize menu when the dashboard is the focus surface.
-  // `r` toggles rearrange mode — both work whether the catalog is open
-  // or closed (the catalog's own handler covers the open case; this
-  // covers the closed case so rearrange is a first-class action that
-  // doesn't require browsing the catalog first). `Esc` exits rearrange
-  // when the user is stranded in edit mode without the catalog open;
-  // when the catalog IS open, its own Esc handler closes it instead.
-  //
-  // Refs (not deps) for `catalogOpen` / `editing` so toggling either
-  // doesn't re-mount the window listener — listener churn during a drag
-  // (e.g., the user hits R mid-flow) was a candidate jank source.
-  const catalogOpenRef = useRef(catalogOpen);
-  const editingRef = useRef(editing);
+  // Per-widget resize/remove lives on the hover kebab, so there is no
+  // global rearrange mode and no `r` / `Escape` handling for it here.
   useEffect(() => {
-    catalogOpenRef.current = catalogOpen;
-  }, [catalogOpen]);
-  useEffect(() => {
-    editingRef.current = editing;
-  }, [editing]);
-  useEffect(() => {
-    if (isMobile || liveShifted || usageShifted) return;
+    if (isMobile || liveShifted || usageShifted || outcomesShifted) return;
     const handler = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
       const target = e.target as HTMLElement | null;
@@ -527,22 +519,11 @@ export default function OverviewView() {
       if (e.key === 'c' || e.key === 'C') {
         e.preventDefault();
         setCatalogOpen((p) => !p);
-        return;
-      }
-      if (!catalogOpenRef.current && (e.key === 'r' || e.key === 'R')) {
-        e.preventDefault();
-        setEditing((p) => !p);
-        return;
-      }
-      if (!catalogOpenRef.current && editingRef.current && e.key === 'Escape') {
-        e.preventDefault();
-        setEditing(false);
-        return;
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isMobile, liveShifted, usageShifted]);
+  }, [isMobile, liveShifted, usageShifted, outcomesShifted]);
 
   // ── Guards ──────────────────────────────────────
   const isLoading = !dashboardData && (dashboardStatus === 'idle' || dashboardStatus === 'loading');
@@ -655,6 +636,14 @@ export default function OverviewView() {
             rangeDays={rangeDays}
             onRangeChange={setRangeDays}
           />
+        ) : outcomesShifted ? (
+          <OutcomesDetailView
+            analytics={analytics}
+            initialTab={outcomes.param}
+            onBack={outcomes.close}
+            rangeDays={rangeDays}
+            onRangeChange={setRangeDays}
+          />
         ) : (
           <>
             {/* ── Header ── */}
@@ -718,19 +707,16 @@ export default function OverviewView() {
             <div className={styles.gridBleed}>
               <WidgetGrid
                 slots={activeSlots}
-                editing={editing && !isMobile}
                 recentlyAddedId={recentlyAddedId}
                 renderWidget={renderWidget}
                 onReorder={reorderWidgets}
                 onRemove={removeWidget}
-                onSlotSize={setSlotSize}
               />
             </div>
 
             {/* ── Single-project hint (floating, bottom-center of content column) ── */}
             {teams.length === 1 &&
               !catalogOpen &&
-              !editing &&
               !singleProjectHint.isDismissed(teams[0].team_id) && (
                 <InlineHint
                   actionLabel="Open dashboard"
@@ -757,17 +743,10 @@ export default function OverviewView() {
           onClose={() => setCatalogOpen(false)}
           widgetIds={widgetIds}
           toggleWidget={toggleWidget}
-          editing={editing}
-          setEditing={setEditing}
           resetToDefault={resetToDefault}
           clearAll={clearAll}
           viewScope="overview"
         />
-
-        {/* Floating exit affordance when rearranging without the catalog. */}
-        {editing && !catalogOpen && !isMobile && !liveShifted && !usageShifted && (
-          <EditModePill onDone={() => setEditing(false)} />
-        )}
       </div>
       <DragOverlay
         dropAnimation={null}

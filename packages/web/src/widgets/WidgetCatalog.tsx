@@ -409,8 +409,6 @@ export function WidgetCatalog({
   onClose,
   widgetIds,
   toggleWidget,
-  editing,
-  setEditing,
   resetToDefault,
   clearAll,
   viewScope,
@@ -419,8 +417,6 @@ export function WidgetCatalog({
   onClose: () => void;
   widgetIds: string[];
   toggleWidget: (id: string) => void;
-  editing: boolean;
-  setEditing: (v: boolean) => void;
   resetToDefault: () => void;
   clearAll: () => void;
   /** Which view is hosting the picker. Filters catalog to scope-matching widgets. */
@@ -594,11 +590,6 @@ export function WidgetCatalog({
           onClose();
           e.preventDefault();
           break;
-        case 'r':
-        case 'R':
-          setEditing(!editing);
-          e.preventDefault();
-          break;
         case 'V':
           // Shift+V — restore default. Unmodified `v` is intentionally
           // ignored; restoring the default wipes any custom layout, which
@@ -636,17 +627,7 @@ export function WidgetCatalog({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [
-    open,
-    onClose,
-    editing,
-    setEditing,
-    resetToDefault,
-    clearAll,
-    searchOpen,
-    cycleShowFilter,
-    cycleCategory,
-  ]);
+  }, [open, onClose, resetToDefault, clearAll, searchOpen, cycleShowFilter, cycleCategory]);
 
   if (!open) return null;
 
@@ -824,14 +805,6 @@ export function WidgetCatalog({
       <div className={styles.strip}>
         <button type="button" className={styles.stripAction} onClick={onClose}>
           Done <kbd className={styles.kbd}>Esc</kbd>
-        </button>
-        <span className={styles.stripDivider} />
-        <button
-          type="button"
-          className={clsx(styles.stripAction, editing && styles.stripActionActive)}
-          onClick={() => setEditing(!editing)}
-        >
-          Rearrange <kbd className={styles.kbd}>R</kbd>
         </button>
         <span className={styles.stripDivider} />
         <button
