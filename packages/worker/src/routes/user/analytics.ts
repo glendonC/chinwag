@@ -123,6 +123,7 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
 
   const heatmapAcc = codebase.createHeatmapAcc();
   const filesTouchedTotalAcc = codebase.createFilesTouchedTotalAcc();
+  const filesTouchedHalfSplitAcc = codebase.createFilesTouchedHalfSplitAcc();
   const filesByWorkTypeAcc = codebase.createFilesByWorkTypeAcc();
   const filesNewVsRevisitedAcc = codebase.createFilesNewVsRevisitedAcc();
   const fileChurnAcc = codebase.createFileChurnAcc();
@@ -207,6 +208,7 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
 
     codebase.mergeHeatmap(heatmapAcc, team);
     codebase.mergeFilesTouchedTotal(filesTouchedTotalAcc, team);
+    codebase.mergeFilesTouchedHalfSplit(filesTouchedHalfSplitAcc, team);
     codebase.mergeFilesByWorkType(filesByWorkTypeAcc, team);
     codebase.mergeFilesNewVsRevisited(filesNewVsRevisitedAcc, team);
     codebase.mergeFileChurn(fileChurnAcc, team);
@@ -264,6 +266,7 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
       tool_distribution: tools.projectToolDist(toolDistAcc),
       file_heatmap: codebase.projectHeatmap(heatmapAcc),
       files_touched_total: codebase.projectFilesTouchedTotal(filesTouchedTotalAcc),
+      files_touched_half_split: codebase.projectFilesTouchedHalfSplit(filesTouchedHalfSplitAcc),
       hourly_distribution: activity.projectHourly(hourlyAcc),
       tool_daily: tools.projectToolDaily(toolDailyAcc),
       model_outcomes: outcomes.projectModelOutcomes(modelOutcomesAcc),

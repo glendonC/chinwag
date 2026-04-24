@@ -31,6 +31,7 @@ export function getAnalytics(
     outcome_distribution: queryOutcomeDistribution(sql, periodDays),
     daily_metrics: queryDailyMetrics(sql, periodDays),
     files_touched_total: queryFilesTouchedTotal(sql, periodDays),
+    files_touched_half_split: queryFilesTouchedHalfSplit(sql, periodDays),
   };
 }
 
@@ -54,6 +55,50 @@ export function queryFilesTouchedTotal(sql: SqlStorage, days: number): number {
   } catch (err) {
     log.warn(`filesTouchedTotal query failed: ${err}`);
     return 0;
+  }
+}
+
+// Distinct-file count for each half of the current window. Two COUNT(DISTINCT
+// file_path) queries with time bounds. Distinct counts aren't additive across
+// days, so the daily_trends-based splitPeriodDelta helper used by
+// sessions/edits/lines can't compute this — the split has to happen in SQL.
+//
+// Window split mirrors the JS splitPeriodDelta convention: halfDays =
+// floor(periodDays/2) on each side, with odd windows dropping the single
+// middle day so both halves span the same day count. Returns null when the
+// window is too short to split meaningfully.
+export function queryFilesTouchedHalfSplit(
+  sql: SqlStorage,
+  periodDays: number,
+): { current: number; previous: number } | null {
+  if (periodDays < 2) return null;
+  const halfDays = Math.floor(periodDays / 2);
+  const prevEndDays = periodDays - halfDays; // > halfDays when periodDays is odd
+  try {
+    const currentRows = sql
+      .exec(
+        `SELECT COUNT(DISTINCT file_path) AS c
+         FROM edits
+         WHERE created_at > datetime('now', '-' || ? || ' days')`,
+        halfDays,
+      )
+      .toArray();
+    const previousRows = sql
+      .exec(
+        `SELECT COUNT(DISTINCT file_path) AS c
+         FROM edits
+         WHERE created_at > datetime('now', '-' || ? || ' days')
+           AND created_at <= datetime('now', '-' || ? || ' days')`,
+        periodDays,
+        prevEndDays,
+      )
+      .toArray();
+    const current = ((currentRows[0] as Record<string, unknown> | undefined)?.c as number) ?? 0;
+    const previous = ((previousRows[0] as Record<string, unknown> | undefined)?.c as number) ?? 0;
+    return { current, previous };
+  } catch (err) {
+    log.warn(`filesTouchedHalfSplit query failed: ${err}`);
+    return null;
   }
 }
 

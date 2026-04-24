@@ -3,15 +3,16 @@ import {
   type DataCapabilities,
 } from '@chinmeister/shared/tool-registry.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
-import { formatCostDelta } from '../utils.js';
+import { formatCost, formatCostDelta } from '../utils.js';
 import styles from '../widget-shared.module.css';
 
 /** How to format the inline delta magnitude shown next to a stat value.
  *  'count' is the default (1-decimal rounded form used by session/edit
- *  counts). 'usd-fine' is for per-edit USD deltas that need sub-cent
- *  precision via formatCostDelta. Additional variants can land here as
- *  cost-adjacent stats join the strip. */
-export type StatDeltaFormat = 'count' | 'usd-fine';
+ *  counts). 'usd' is 2-decimal `$X.XX` for aggregate-cost deltas.
+ *  'usd-fine' is for per-edit USD deltas that need sub-cent precision via
+ *  formatCostDelta. Additional variants can land here as cost-adjacent
+ *  stats join the strip. */
+export type StatDeltaFormat = 'count' | 'usd' | 'usd-fine';
 
 export const SENTIMENT_COLORS: Record<string, string> = {
   positive: 'var(--success)',
@@ -83,7 +84,11 @@ export function StatWidget({
     const arrow = d > 0 ? '↑' : d < 0 ? '↓' : '→';
     const color = d === 0 ? 'var(--muted)' : isGood ? 'var(--success)' : 'var(--danger)';
     const magnitude =
-      deltaFormat === 'usd-fine' ? formatCostDelta(d) : String(Math.abs(Math.round(d * 10) / 10));
+      deltaFormat === 'usd-fine'
+        ? formatCostDelta(d)
+        : deltaFormat === 'usd'
+          ? formatCost(Math.abs(d), 2)
+          : String(Math.abs(Math.round(d * 10) / 10));
     deltaEl = (
       <span className={styles.statInlineDelta} style={{ color }}>
         {arrow}

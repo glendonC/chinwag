@@ -1,15 +1,8 @@
 import { setQueryParam, useRoute } from '../../lib/router.js';
 import type { UserAnalytics } from '../../lib/apiSchemas.js';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
-import {
-  StatWidget,
-  CoverageNote,
-  capabilityCoverageNote,
-  hasCostData,
-  costEmptyReason,
-} from './shared.js';
+import { StatWidget, hasCostData } from './shared.js';
 import { formatCost } from '../utils.js';
-import { WorkTypeStrip } from '../../components/WorkTypeStrip/index.js';
 
 function openUsage(tab: string) {
   return () => setQueryParam('usage', tab);
@@ -156,43 +149,35 @@ function LinesRemovedWidget({ analytics }: WidgetBodyProps) {
 // files_touched_total comes from COUNT(DISTINCT file_path) on the edits
 // table — uncapped. Distinct from file_heatmap.length, which is the
 // ranked top-50 list and would silently cap this stat at 50. Capture
-// gate is hook-enabled tools (Claude Code, Cursor, Windsurf); the
-// CoverageNote discloses this when non-hook tools are active.
+// gate is hook-enabled tools (Claude Code, Cursor, Windsurf); coverage
+// disclosure lives on UsageDetailView so the overview stays clean.
 //
-// The card face pairs the scalar with a 3px work-type strip — files_touched
-// is breadth, and breadth has a native second dimension (what kind of
-// surface). The strip decompresses the number without labels; one glance
-// reveals "mostly backend + test" before the drill opens.
+// Distinct-file counts aren't additive across days, so the
+// `splitPeriodDelta(daily_trends)` helper used by sessions/edits can't
+// compute this delta. Instead the worker returns a pre-computed
+// `files_touched_half_split` with current/previous distinct counts over
+// each half of the window — null when the window is too short to split.
 function FilesTouchedWidget({ analytics }: WidgetBodyProps) {
   const drillable = useIsDrillable();
   if (isEmptyPeriod(analytics)) return <StatWidget value="--" />;
   const n = analytics.files_touched_total;
-  const tools = analytics.data_coverage?.tools_reporting ?? [];
-  const note = capabilityCoverageNote(tools, 'hooks');
   const display = n.toLocaleString();
-  const breakdown = analytics.files_by_work_type;
+  const delta = analytics.files_touched_half_split;
+  const ariaDelta = deltaAriaSuffix(delta);
   return (
-    <>
-      <StatWidget
-        value={display}
-        onOpenDetail={drillable ? openUsage('files-touched') : undefined}
-        detailAriaLabel={drillable ? `Open usage detail · ${display} files touched` : undefined}
-      />
-      {breakdown.length > 0 && (
-        <WorkTypeStrip
-          entries={breakdown}
-          variant="card"
-          ariaLabel={`${display} files touched by work type`}
-        />
-      )}
-      <CoverageNote text={note} />
-    </>
+    <StatWidget
+      value={display}
+      delta={delta}
+      onOpenDetail={drillable ? openUsage('files-touched') : undefined}
+      detailAriaLabel={
+        drillable ? `Open usage detail · ${display} files touched${ariaDelta}` : undefined
+      }
+    />
   );
 }
 
 function CostWidget({ analytics }: WidgetBodyProps) {
   const t = analytics.token_usage;
-  const tools = analytics.data_coverage?.tools_reporting ?? [];
   const drillable = useIsDrillable();
   // Widen beyond the old `sessions > 0` gate: stale pricing and
   // all-models-unpriced are both "can't honestly compute" states where
@@ -200,30 +185,38 @@ function CostWidget({ analytics }: WidgetBodyProps) {
   // lie. hasCostData folds all three degraded paths into one predicate.
   const reliable = hasCostData(t);
   const value = reliable ? formatCost(t.total_estimated_cost_usd, 2) : '--';
-  const note = reliable ? capabilityCoverageNote(tools, 'tokenUsage') : costEmptyReason(t, tools);
   const canDrill = reliable && drillable;
+  // daily_trends[].cost is populated by enrichDailyTrendsWithPricing and
+  // null on days where cost is structurally unshowable (stale pricing, no
+  // priced sessions that day). Treating null as 0 for the split matches the
+  // total's own summation semantic — both halves get the same treatment so
+  // the direction reflects behavior change, not null handling. `reliable`
+  // above gates the whole thing: if the period-level cost isn't showable,
+  // the delta isn't either.
+  // `deltaInvert` — less total spend reads as the improvement direction,
+  // matching CostPerEditWidget so the color semantic stays consistent.
+  const delta = reliable ? splitPeriodDelta(analytics.daily_trends, (d) => d.cost ?? 0) : null;
+  const ariaDelta = deltaAriaSuffix(delta);
   return (
-    <>
-      <StatWidget
-        value={value}
-        onOpenDetail={canDrill ? openUsage('cost') : undefined}
-        detailAriaLabel={canDrill ? `Open usage detail · ${value} cost` : undefined}
-      />
-      <CoverageNote text={note} />
-    </>
+    <StatWidget
+      value={value}
+      delta={delta}
+      deltaInvert
+      deltaFormat="usd"
+      onOpenDetail={canDrill ? openUsage('cost') : undefined}
+      detailAriaLabel={canDrill ? `Open usage detail · ${value} cost${ariaDelta}` : undefined}
+    />
   );
 }
 
 function CostPerEditWidget({ analytics }: WidgetBodyProps) {
   const t = analytics.token_usage;
-  const tools = analytics.data_coverage?.tools_reporting ?? [];
   const drillable = useIsDrillable();
   // Lock-step with CostWidget: cost-per-edit is the numerator's ratio, so
   // whenever cost itself isn't showable, the ratio isn't either. Prevents
   // the "total says -- but the ratio shows a number" divergence.
   const reliable = hasCostData(t) && t.cost_per_edit != null;
   const value = reliable ? formatCost(t.cost_per_edit, 3) : '--';
-  const note = reliable ? capabilityCoverageNote(tools, 'tokenUsage') : costEmptyReason(t, tools);
   const canDrill = reliable && drillable;
   // Period-over-period delta. Both windows are priced against the current
   // snapshot (via enrichPeriodComparisonCost) so the arrow reflects
@@ -241,17 +234,14 @@ function CostPerEditWidget({ analytics }: WidgetBodyProps) {
         }
       : null;
   return (
-    <>
-      <StatWidget
-        value={value}
-        delta={delta}
-        deltaInvert
-        deltaFormat="usd-fine"
-        onOpenDetail={canDrill ? openUsage('cost-per-edit') : undefined}
-        detailAriaLabel={canDrill ? `Open usage detail · ${value} per edit` : undefined}
-      />
-      <CoverageNote text={note} />
-    </>
+    <StatWidget
+      value={value}
+      delta={delta}
+      deltaInvert
+      deltaFormat="usd-fine"
+      onOpenDetail={canDrill ? openUsage('cost-per-edit') : undefined}
+      detailAriaLabel={canDrill ? `Open usage detail · ${value} per edit` : undefined}
+    />
   );
 }
 

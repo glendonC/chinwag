@@ -63,6 +63,7 @@ function empty(): DemoData {
     degraded: false,
     file_heatmap: [],
     files_touched_total: 0,
+    files_touched_half_split: null,
     files_by_work_type: [],
     files_new_vs_revisited: { new_files: 0, revisited_files: 0 },
     daily_trends: days.map((day) => ({

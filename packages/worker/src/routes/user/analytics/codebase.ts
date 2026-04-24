@@ -101,6 +101,40 @@ export function projectFilesTouchedTotal(acc: FilesTouchedTotalAcc): number {
   return acc.total;
 }
 
+// ── files_touched_half_split ─────────────────────
+//
+// Mirrors the files_touched_total aggregation: each team contributes its own
+// in-window split, summed cross-team. Same one-team-per-project semantic —
+// distinct paths in different repos are different files, so summation is
+// valid. Returns null when no team reported a split (all windows too short).
+// `hasAny` gates null vs zero so the widget can distinguish "can't compute"
+// from "computed zero" honestly.
+
+export interface FilesTouchedHalfSplitAcc {
+  current: number;
+  previous: number;
+  hasAny: boolean;
+}
+
+export function createFilesTouchedHalfSplitAcc(): FilesTouchedHalfSplitAcc {
+  return { current: 0, previous: 0, hasAny: false };
+}
+
+export function mergeFilesTouchedHalfSplit(acc: FilesTouchedHalfSplitAcc, team: TeamResult): void {
+  const s = team.files_touched_half_split;
+  if (!s) return;
+  acc.current += s.current;
+  acc.previous += s.previous;
+  acc.hasAny = true;
+}
+
+export function projectFilesTouchedHalfSplit(
+  acc: FilesTouchedHalfSplitAcc,
+): { current: number; previous: number } | null {
+  if (!acc.hasAny) return null;
+  return { current: acc.current, previous: acc.previous };
+}
+
 // ── file_churn ───────────────────────────────────
 
 interface ChurnBucket {

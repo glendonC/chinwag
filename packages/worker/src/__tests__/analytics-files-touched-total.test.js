@@ -115,3 +115,45 @@ describe('files_touched_total', () => {
     expect(extended.files_touched_total).toBe(3);
   });
 });
+
+// The half-split query powers the overview FilesTouched delta — the scalar
+// alone can't derive it because distinct-file counts aren't additive across
+// days. These tests pin the contract shape and the "too short to split"
+// fallback. Time-travel tests (files in previous half) aren't exercised
+// here because the harness runs SQLite's datetime('now') live; real
+// previous-half coverage would need per-edit created_at overrides.
+describe('files_touched_half_split', () => {
+  it('returns null when the window is a single day', async () => {
+    const team = getTeam('fths-1day');
+    const agentId = 'claude-code:fths-1day';
+    const ownerId = 'user-fths-1day';
+
+    await team.join(agentId, ownerId, 'alice', 'claude-code');
+    await team.startSession(agentId, 'alice', 'react', ownerId);
+    await team.recordEdit(agentId, 'src/only.js', 0, 0, ownerId);
+
+    const analytics = await team.getAnalytics(agentId, 1, ownerId);
+    expect(analytics.ok).toBe(true);
+    expect(analytics.files_touched_half_split).toBeNull();
+  });
+
+  it('reports fresh edits as current, not previous', async () => {
+    // All edits land "now" in test time, so they fall in the current half
+    // (the last halfDays of the window). Previous half is empty. This pins
+    // the boundary semantic: the split counts by creation time, not by
+    // presence in the window.
+    const team = getTeam('fths-fresh');
+    const agentId = 'claude-code:fths-fresh';
+    const ownerId = 'user-fths-fresh';
+
+    await team.join(agentId, ownerId, 'bob', 'claude-code');
+    await team.startSession(agentId, 'bob', 'react', ownerId);
+    await team.recordEdit(agentId, 'src/a.js', 0, 0, ownerId);
+    await team.recordEdit(agentId, 'src/b.js', 0, 0, ownerId);
+    await team.recordEdit(agentId, 'src/c.js', 0, 0, ownerId);
+
+    const analytics = await team.getAnalytics(agentId, 30, ownerId);
+    expect(analytics.ok).toBe(true);
+    expect(analytics.files_touched_half_split).toEqual({ current: 3, previous: 0 });
+  });
+});

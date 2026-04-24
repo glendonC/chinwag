@@ -36,8 +36,13 @@ ENVIRONMENT = "local"
 DASHBOARD_URL = "http://localhost:56790"
 MODERATION_MODE = "local_safe"
 
-[env.local.ai]
-binding = "AI"
+# No [env.local.ai] binding on purpose. Workers AI has no local simulator,
+# so declaring it here forces every contributor through Cloudflare OAuth
+# on first `npm run dev:local`. MODERATION_MODE=local_safe short-circuits
+# moderation, and the remaining AI callers (embeddings, icons, team
+# formation, conversation classification) all handle a missing binding by
+# returning null and degrading gracefully. Add the binding back locally
+# if you need to exercise AI paths against real Cloudflare.
 
 [[env.local.kv_namespaces]]
 binding = "AUTH_KV"

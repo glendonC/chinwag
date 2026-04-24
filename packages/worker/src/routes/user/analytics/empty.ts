@@ -23,6 +23,7 @@ export function buildEmptyAnalyticsResponse(days: number): UserAnalytics {
     outcome_distribution: [],
     daily_metrics: [],
     files_touched_total: 0,
+    files_touched_half_split: null,
     hourly_distribution: [],
     tool_daily: [],
     model_outcomes: [],

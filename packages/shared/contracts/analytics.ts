@@ -72,6 +72,19 @@ export const teamAnalyticsSchema = z.object({
   // file_heatmap.length, which is capped at HEATMAP_LIMIT=50 and is meant
   // for the ranked "most-touched files" list, not a scalar total.
   files_touched_total: z.number().default(0),
+  // In-window half split of files_touched: distinct file count over the
+  // current half vs the previous half of the same window. Lets the overview
+  // widget render a delta on a metric that isn't additive across days
+  // (distinct counts don't sum). Null when the window is too short to split
+  // (periodDays < 2) or no data exists. Defaults to null so older producers
+  // parse cleanly.
+  files_touched_half_split: z
+    .object({
+      current: z.number(),
+      previous: z.number(),
+    })
+    .nullable()
+    .default(null),
 });
 export type TeamAnalytics = z.infer<typeof teamAnalyticsSchema>;
 

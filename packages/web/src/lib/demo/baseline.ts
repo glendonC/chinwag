@@ -1402,6 +1402,14 @@ export function createBaselineAnalytics(): UserAnalytics {
     degraded: false,
     file_heatmap,
     files_touched_total: filesTouchedTotal,
+    // Mid-period snapshot with a modest breadth increase in the current
+    // half — agents exploring slightly wider surface late in the window.
+    // Shaped as the worker's real split (distinct-file count per half),
+    // not a naive halving of the total.
+    files_touched_half_split: {
+      current: Math.round(filesTouchedTotal * 0.58),
+      previous: Math.round(filesTouchedTotal * 0.5),
+    },
     files_by_work_type,
     files_new_vs_revisited,
     daily_trends,

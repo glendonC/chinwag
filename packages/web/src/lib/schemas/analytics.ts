@@ -96,6 +96,18 @@ export const teamAnalyticsSchema = z.object({
   outcome_distribution: z.array(outcomeCountSchema).default([]),
   daily_metrics: z.array(dailyMetricEntrySchema).default([]),
   files_touched_total: z.number().default(0),
+  // In-window half split of distinct files touched: current half vs
+  // previous half of the same window. Lets the overview widget render a
+  // delta on a metric that isn't additive across days. Null when the
+  // window is too short to split or no data exists. Default null so older
+  // producers parse cleanly.
+  files_touched_half_split: z
+    .object({
+      current: z.number(),
+      previous: z.number(),
+    })
+    .nullable()
+    .default(null),
 });
 
 export type TeamAnalytics = z.infer<typeof teamAnalyticsSchema>;
@@ -115,6 +127,7 @@ export function createEmptyAnalytics(): TeamAnalytics {
     outcome_distribution: [],
     daily_metrics: [],
     files_touched_total: 0,
+    files_touched_half_split: null,
   };
 }
 
