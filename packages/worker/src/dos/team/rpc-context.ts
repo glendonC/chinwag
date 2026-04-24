@@ -27,7 +27,15 @@ export interface RpcCtx {
     event: Record<string, unknown>,
     opts?: { invalidateCache?: boolean },
   ) => void;
+  broadcastToExecutors: (event: Record<string, unknown>) => void;
   recordMetric: (metric: string) => void;
+  /** Agent IDs with an active 'role:agent' WebSocket connection. */
+  getConnectedAgentIds: () => Set<string>;
+  hasExecutorConnected: () => boolean;
+  /** Last-broadcast timestamps per agent, owned by TeamDO. Cleared on
+   *  leave / close. Passed by reference so mutations land in the class's
+   *  live Map. */
+  lastHeartbeatBroadcast: Map<string, number>;
 }
 
 /**

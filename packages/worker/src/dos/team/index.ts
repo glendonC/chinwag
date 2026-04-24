@@ -46,12 +46,7 @@ import { ensureSchema } from './schema.js';
 import { queryTeamContext, queryTeamSummary } from './context.js';
 import { resolveOwnedAgentId } from './identity.js';
 import { runCleanup, collectHandleBackfills, type OrphanSummary } from './cleanup.js';
-import { join, leave, heartbeat as heartbeatFn } from './membership.js';
-import {
-  updateActivity as updateActivityFn,
-  checkConflicts as checkConflictsFn,
-  reportFile as reportFileFn,
-} from './activity.js';
+import { heartbeat as heartbeatFn } from './membership.js';
 import {
   saveMemory as saveMemoryFn,
   searchMemories as searchMemoriesFn,
@@ -110,7 +105,6 @@ import {
   getExtendedAnalytics as getExtendedAnalyticsFn,
 } from './analytics/index.js';
 import { getBillingBlocksForOwner as getBillingBlocksForOwnerFn } from './analytics/billing-blocks.js';
-import { sendMessage as sendMessageFn, getMessages as getMessagesFn } from './messages.js';
 import {
   batchRecordConversationEvents as batchRecordConversationEventsFn,
   getConversationForSession as getConversationForSessionFn,
@@ -122,11 +116,6 @@ import type {
   ConversationAnalytics,
   SessionConversationStats,
 } from '@chinmeister/shared/contracts/conversation.js';
-import {
-  submitCommand as submitCommandFn,
-  getPendingCommands as getPendingCommandsFn,
-} from './commands.js';
-import { normalizeRuntimeMetadata } from './runtime.js';
 import {
   enrichAnalyticsWithPricing,
   enrichDailyTrendsWithPricing,
@@ -155,6 +144,10 @@ import {
   withOwner as withOwnerFn,
   op as opFn,
 } from './rpc-context.js';
+import { joinRpc, leaveRpc } from './rpc-membership.js';
+import { updateActivityRpc, checkConflictsRpc, reportFileRpc } from './rpc-activity.js';
+import { sendMessageRpc, getMessagesRpc } from './rpc-messages.js';
+import { submitCommandRpc, getCommandsRpc } from './rpc-commands.js';
 import { getDB } from '../../lib/env.js';
 import { createLogger } from '../../lib/logger.js';
 
@@ -234,7 +227,11 @@ export class TeamDO extends DurableObject<Env> {
       transact: this.#transact,
       resolveOwnedAgentId: (id, ownerId) => this.#resolveOwnedAgentId(id, ownerId),
       broadcastToWatchers: (event, opts) => this.#broadcastToWatchers(event, opts),
+      broadcastToExecutors: (event) => this.#broadcastToExecutors(event),
       recordMetric: (metric) => this.#recordMetric(metric),
+      getConnectedAgentIds: () => this.#getConnectedAgentIds(),
+      hasExecutorConnected: () => this.#hasExecutorConnected(),
+      lastHeartbeatBroadcast: this.#lastHeartbeatBroadcast,
     };
   }
 
@@ -398,35 +395,11 @@ export class TeamDO extends DurableObject<Env> {
     ownerHandle: string,
     runtimeOrTool: string | Record<string, unknown> | null = 'unknown',
   ): Promise<DOResult<{ ok: true }>> {
-    this.#ensureSchema();
-    const result = join(
-      this.sql,
-      agentId,
-      ownerId,
-      ownerHandle,
-      runtimeOrTool,
-      this.#boundRecordMetric,
-    );
-    if (!isDOError(result)) {
-      const tool = normalizeRuntimeMetadata(runtimeOrTool, agentId).hostTool;
-      this.#broadcastToWatchers({
-        type: 'member_joined',
-        agent_id: agentId,
-        handle: ownerHandle,
-        tool: tool || 'unknown',
-      });
-    }
-    return result;
+    return joinRpc(this.#rpcCtx(), agentId, ownerId, ownerHandle, runtimeOrTool);
   }
 
   async leave(agentId: string, ownerId: string | null = null): Promise<DOResult<{ ok: true }>> {
-    this.#ensureSchema();
-    const result = leave(this.sql, agentId, ownerId, this.#transact);
-    if (!isDOError(result)) {
-      this.#lastHeartbeatBroadcast.delete(agentId);
-      this.#broadcastToWatchers({ type: 'member_left', agent_id: agentId });
-    }
-    return result;
+    return leaveRpc(this.#rpcCtx(), agentId, ownerId);
   }
 
   async heartbeat(
@@ -458,14 +431,7 @@ export class TeamDO extends DurableObject<Env> {
     summary: string,
     ownerId: string | null = null,
   ): Promise<DOResult<{ ok: true }> | DOError> {
-    return this.#op(
-      agentId,
-      ownerId,
-      (resolved) => updateActivityFn(this.sql, resolved, files, summary, this.#transact),
-      {
-        broadcast: (_r, resolved) => ({ type: 'activity', agent_id: resolved, files, summary }),
-      },
-    );
+    return updateActivityRpc(this.#rpcCtx(), agentId, files, summary, ownerId);
   }
 
   async checkConflicts(
@@ -473,17 +439,8 @@ export class TeamDO extends DurableObject<Env> {
     files: string[],
     ownerId: string | null = null,
     source: 'hook' | 'advisory' = 'advisory',
-  ): Promise<ReturnType<typeof checkConflictsFn> | DOError> {
-    return this.#withMember(agentId, ownerId, (resolved) =>
-      checkConflictsFn(
-        this.sql,
-        resolved,
-        files,
-        this.#boundRecordMetric,
-        this.#getConnectedAgentIds(),
-        source,
-      ),
-    );
+  ): Promise<ReturnType<typeof checkConflictsRpc> | DOError> {
+    return checkConflictsRpc(this.#rpcCtx(), agentId, files, ownerId, source);
   }
 
   async reportFile(
@@ -491,14 +448,7 @@ export class TeamDO extends DurableObject<Env> {
     filePath: string,
     ownerId: string | null = null,
   ): Promise<DOResult<{ ok: true }> | DOError> {
-    return this.#op(
-      agentId,
-      ownerId,
-      (resolved) => reportFileFn(this.sql, resolved, filePath, this.#transact),
-      {
-        broadcast: (_r, resolved) => ({ type: 'file', agent_id: resolved, file: filePath }),
-      },
-    );
+    return reportFileRpc(this.#rpcCtx(), agentId, filePath, ownerId);
   }
 
   // -- Context (composite queries -- logic in context.ts) --
@@ -1087,22 +1037,14 @@ export class TeamDO extends DurableObject<Env> {
     targetAgent: string | null | undefined,
     ownerId: string | null = null,
   ): Promise<{ ok: true; id: string } | DOError> {
-    return this.#op(
+    return sendMessageRpc(
+      this.#rpcCtx(),
       agentId,
+      handle,
+      runtimeOrTool,
+      text,
+      targetAgent,
       ownerId,
-      (resolved) =>
-        sendMessageFn(
-          this.sql,
-          resolved,
-          handle,
-          runtimeOrTool,
-          text,
-          targetAgent,
-          this.#boundRecordMetric,
-        ),
-      {
-        broadcast: () => ({ type: 'message', from_handle: handle, text }),
-      },
     );
   }
 
@@ -1110,10 +1052,8 @@ export class TeamDO extends DurableObject<Env> {
     agentId: string,
     since: string | null | undefined,
     ownerId: string | null = null,
-  ): Promise<ReturnType<typeof getMessagesFn> | DOError> {
-    return this.#withMember(agentId, ownerId, (resolved) =>
-      getMessagesFn(this.sql, resolved, since),
-    );
+  ): Promise<ReturnType<typeof getMessagesRpc> | DOError> {
+    return getMessagesRpc(this.#rpcCtx(), agentId, since, ownerId);
   }
 
   // -- Commands (daemon relay) --
@@ -1125,41 +1065,14 @@ export class TeamDO extends DurableObject<Env> {
     type: string,
     payload: Record<string, unknown>,
   ): Promise<{ ok: true; id: string; warning?: string } | DOError> {
-    return this.#withMember(agentId, ownerId, () => {
-      const result = submitCommandFn(
-        this.sql,
-        type,
-        payload,
-        ownerId,
-        senderHandle,
-        this.#boundRecordMetric,
-      );
-      if (isDOError(result)) return result;
-
-      this.#broadcastToExecutors({
-        type: 'command',
-        id: result.id,
-        command_type: type,
-        payload,
-      });
-      this.#broadcastToWatchers({
-        type: 'command_status',
-        id: result.id,
-        status: 'pending',
-        command_type: type,
-        sender_handle: senderHandle,
-      });
-
-      const warning = this.#hasExecutorConnected() ? undefined : 'no_executor_connected';
-      return { ...result, ...(warning ? { warning } : {}) };
-    });
+    return submitCommandRpc(this.#rpcCtx(), agentId, ownerId, senderHandle, type, payload);
   }
 
   async getCommands(
     agentId: string,
     ownerId: string | null = null,
-  ): Promise<ReturnType<typeof getPendingCommandsFn> | DOError> {
-    return this.#withMember(agentId, ownerId, () => getPendingCommandsFn(this.sql));
+  ): Promise<ReturnType<typeof getCommandsRpc> | DOError> {
+    return getCommandsRpc(this.#rpcCtx(), agentId, ownerId);
   }
 
   // -- Session timeline (individual session records for swimlane visualization) --
