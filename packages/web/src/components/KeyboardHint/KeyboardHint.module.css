@@ -1,8 +1,33 @@
+/* Wrapper anchors the trigger `?` at top-right of the pill. The popover
+ * (when expanded) sits ABOVE the pill with explicit bottom-anchor so
+ * it doesn't flow inline with the pill text on either axis. Right-
+ * aligned so the popover's content extends leftward from the pill's
+ * right edge — same shape on horizontal and vertical.
+ *
+ * Local --hint-accent drives the dismiss button color so each axis
+ * picks up its own accent (lavender vs pink) without KeyboardHint
+ * needing to know which axis it's in beyond the wrapper class. */
 .wrapper {
   position: absolute;
   top: -6px;
   right: -10px;
   z-index: 2;
+  --hint-accent: var(--accent);
+}
+
+.wrapperVertical {
+  --hint-accent: var(--accent-alt);
+}
+
+/* When the popover is expanded, reanchor the wrapper to float ABOVE
+ * the pill (not overlap inline with the question text). Closed state
+ * (the `?` trigger alone) keeps its top-right corner anchor. Toggled
+ * via a className on the wrapper rather than `:has()` to avoid the
+ * older-browser support gap. */
+.wrapperOpen {
+  top: auto;
+  bottom: calc(100% + 4px);
+  right: 0;
 }
 
 .trigger {
@@ -69,11 +94,17 @@
   box-shadow: 0 1px 0 var(--hairline);
 }
 
+/* Always uppercase. Without this the vertical-axis popover reads
+ * lowercase because the sidebar pill doesn't cascade a text-transform.
+ * Horizontal inherits uppercase from the stat-tab label. Pinning it
+ * here makes the hint render consistently on both axes regardless of
+ * parent. */
 .text {
   font-family: var(--mono);
   font-size: var(--text-2xs);
   color: var(--soft);
   letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .dismiss {
@@ -83,7 +114,7 @@
   font-family: var(--mono);
   font-size: var(--text-2xs);
   font-weight: 500;
-  color: var(--accent);
+  color: var(--hint-accent, var(--accent));
   letter-spacing: 0.04em;
   cursor: pointer;
   opacity: 0.72;
