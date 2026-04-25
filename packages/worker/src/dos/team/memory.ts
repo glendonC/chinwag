@@ -313,6 +313,16 @@ function decayScore(createdAt: string, accessCount: number, tags: string[]): num
  * names, file extensions). For these, FTS5 is strictly better than vector
  * search — embeddings semantically conflate similar paths or hashes and
  * push the exact match down. The router falls back to FTS-only.
+ *
+ * Two consumers, single source of truth:
+ *   1. routes/team/memory.ts: route-side optimization, skips the Workers
+ *      AI embedding round-trip for literal queries (saves latency + cost).
+ *   2. searchMemories below: defense-in-depth, gates `hybridEligible` so
+ *      hybrid retrieval never activates for literals even if a caller
+ *      passes an embedding for one.
+ *
+ * Both call sites import this same function, so the predicate cannot
+ * drift. The duplication is intentional. Keep it.
  */
 export function isLiteralQuery(q: string): boolean {
   if (!q) return false;
@@ -397,7 +407,6 @@ export function searchMemories(sql: SqlStorage, filters: SearchFilters): SearchM
 
   // Use FTS5 for text queries (BM25 ranked, prefix-aware).
   // Falls back to LIKE if FTS5 query fails (e.g., special characters).
-  let _useFts = false;
   if (query) {
     try {
       // Sanitize query for FTS5: escape quotes, add prefix matching
@@ -411,7 +420,6 @@ export function searchMemories(sql: SqlStorage, filters: SearchFilters): SearchM
       sql.exec('SELECT 1 FROM memories_fts LIMIT 0');
       conditions.push('m.rowid IN (SELECT rowid FROM memories_fts WHERE memories_fts MATCH ?)');
       params.push(ftsQuery);
-      _useFts = true;
     } catch {
       // FTS5 not available or query invalid — fall back to LIKE
       conditions.push("text LIKE ? ESCAPE '\\'");

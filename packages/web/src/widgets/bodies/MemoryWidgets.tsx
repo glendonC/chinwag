@@ -427,29 +427,28 @@ function MemorySupersessionFlowWidget({ analytics }: WidgetBodyProps) {
 // tools tried, trend, patterns caught most, false-positive cost.
 function MemorySecretsShieldWidget({ analytics }: WidgetBodyProps) {
   const s = analytics.memory_secrets_shield;
-  // Always render a number — even when 0 — so the corner seat never reads
-  // as "broken empty." Tone the value warn when n>0, ink at 0, with a
-  // muted "working as designed" subline when nothing fired. Substrate-
-  // unique D1 (only chinmeister sees cross-tool memory writes); the value
-  // of the seat is permanent, the day-to-day signal is usually quiet.
+  // Always render both stat blocks, even when 0, so the corner seat never
+  // reads as "broken empty" and the row stays balanced. Tone is warn when
+  // n>0 and idle (ink) when 0. Idle subline appears only when both windows
+  // are 0, signalling "shield on, no traffic." Substrate-unique D1 (only
+  // chinmeister sees cross-tool memory writes); the value of the seat is
+  // permanent, the day-to-day signal is usually quiet.
   const idle = s.blocked_period === 0 && s.blocked_24h === 0;
-  const valueClass =
+  const periodClass =
     s.blocked_period > 0 ? memoryStyles.shieldValueWarn : memoryStyles.shieldValueIdle;
+  const recentClass =
+    s.blocked_24h > 0 ? memoryStyles.shieldValueWarn : memoryStyles.shieldValueIdle;
   return (
     <>
       <div className={styles.statRow}>
         <div className={styles.statBlock}>
-          <span className={`${styles.statBlockValue} ${valueClass}`}>{s.blocked_period}</span>
+          <span className={`${styles.statBlockValue} ${periodClass}`}>{s.blocked_period}</span>
           <span className={styles.statBlockLabel}>blocked this period</span>
         </div>
-        {s.blocked_24h > 0 && (
-          <div className={styles.statBlock}>
-            <span className={`${styles.statBlockValue} ${memoryStyles.shieldValueWarn}`}>
-              {s.blocked_24h}
-            </span>
-            <span className={styles.statBlockLabel}>last 24h</span>
-          </div>
-        )}
+        <div className={styles.statBlock}>
+          <span className={`${styles.statBlockValue} ${recentClass}`}>{s.blocked_24h}</span>
+          <span className={styles.statBlockLabel}>last 24h</span>
+        </div>
       </div>
       {idle && <div className={memoryStyles.shieldSubline}>shield on, working as designed</div>}
     </>
