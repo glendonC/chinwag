@@ -13,7 +13,7 @@ import type {
   MemorySupersessionStats,
   MemorySecretsShieldStats,
 } from '@chinmeister/shared/contracts/analytics.js';
-import { type AnalyticsScope, buildScopeFilter } from './scope.js';
+import { type AnalyticsScope, buildScopeFilter, withScope } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
 
@@ -32,54 +32,50 @@ export function queryMemoryUsage(
     // Memories table carries `handle` as the author. Scoping filters to
     // memories the caller authored (per ANALYTICS_SPEC.md §10, per-user
     // memory access tracking is deferred).
-    const fMem = buildScopeFilter(scope);
 
     // Total memories — exclude soft-merged rows so the count reflects what
     // search would actually return. The merged rows stay in the table for
     // unmerge recourse but are not "live" memory.
-    const totalRow = sql
-      .exec(
-        `SELECT COUNT(*) AS cnt FROM memories WHERE merged_into IS NULL AND invalid_at IS NULL${fMem.sql}`,
-        ...fMem.params,
-      )
-      .one() as Record<string, unknown>;
+    const { sql: totalQ, params: totalParams } = withScope(
+      `SELECT COUNT(*) AS cnt FROM memories WHERE merged_into IS NULL AND invalid_at IS NULL`,
+      [],
+      scope,
+    );
+    const totalRow = sql.exec(totalQ, ...totalParams).one() as Record<string, unknown>;
     const total = (totalRow?.cnt as number) || 0;
 
     // Memories created in period (excluding soft-merged)
-    const periodRow = sql
-      .exec(
-        `SELECT
+    const { sql: periodQ, params: periodParams } = withScope(
+      `SELECT
            SUM(CASE WHEN created_at > datetime('now', '-' || ? || ' days') THEN 1 ELSE 0 END) AS created
          FROM memories
-         WHERE merged_into IS NULL AND invalid_at IS NULL${fMem.sql}`,
-        days,
-        ...fMem.params,
-      )
-      .one() as Record<string, unknown>;
+         WHERE merged_into IS NULL AND invalid_at IS NULL`,
+      [days],
+      scope,
+    );
+    const periodRow = sql.exec(periodQ, ...periodParams).one() as Record<string, unknown>;
 
     // Stale memories: last access (or creation, for never-accessed rows) is
     // older than STALE_MEMORY_DAYS. Excludes soft-merged. Thresholded, not
     // period-windowed — age is absolute, so this field is 'all-time' scope.
-    const staleRow = sql
-      .exec(
-        `SELECT COUNT(*) AS cnt FROM memories
+    const { sql: staleQ, params: staleParams } = withScope(
+      `SELECT COUNT(*) AS cnt FROM memories
          WHERE merged_into IS NULL AND invalid_at IS NULL
            AND ((last_accessed_at IS NULL AND created_at < datetime('now', '-' || ? || ' days'))
-                OR (last_accessed_at IS NOT NULL AND last_accessed_at < datetime('now', '-' || ? || ' days')))${fMem.sql}`,
-        STALE_MEMORY_DAYS,
-        STALE_MEMORY_DAYS,
-        ...fMem.params,
-      )
-      .one() as Record<string, unknown>;
+                OR (last_accessed_at IS NOT NULL AND last_accessed_at < datetime('now', '-' || ? || ' days')))`,
+      [STALE_MEMORY_DAYS, STALE_MEMORY_DAYS],
+      scope,
+    );
+    const staleRow = sql.exec(staleQ, ...staleParams).one() as Record<string, unknown>;
 
     // Average memory age (excluding soft-merged)
-    const ageRow = sql
-      .exec(
-        `SELECT ROUND(AVG(julianday('now') - julianday(created_at)), 1) AS avg_age
-         FROM memories WHERE merged_into IS NULL AND invalid_at IS NULL${fMem.sql}`,
-        ...fMem.params,
-      )
-      .one() as Record<string, unknown>;
+    const { sql: ageQ, params: ageParams } = withScope(
+      `SELECT ROUND(AVG(julianday('now') - julianday(created_at)), 1) AS avg_age
+         FROM memories WHERE merged_into IS NULL AND invalid_at IS NULL`,
+      [],
+      scope,
+    );
+    const ageRow = sql.exec(ageQ, ...ageParams).one() as Record<string, unknown>;
 
     // Search telemetry from daily_metrics (period-scoped, not lifetime).
     // Scope not applied: daily_metrics has no handle column (team-wide rollup).
@@ -202,7 +198,6 @@ export function queryMemoryOutcomeCorrelation(
   days: number,
 ): MemoryOutcomeCorrelation[] {
   try {
-    const f = buildScopeFilter(scope);
     // Three-bucket split:
     //   hit memory          — at least one search call returned results
     //   searched, no results — searched but every call came back empty
@@ -214,9 +209,8 @@ export function queryMemoryOutcomeCorrelation(
     // A2 semantic failure this query fixes. Label reads plainly so a
     // first-time user knows "searched, no results" means the agent looked
     // but came up empty (not "searched and was wrong").
-    const rows = sql
-      .exec(
-        `SELECT
+    const { sql: q, params } = withScope(
+      `SELECT
            CASE
              WHEN memories_search_hits > 0 THEN 'hit memory'
              WHEN memories_searched > 0 THEN 'searched, no results'
@@ -227,7 +221,13 @@ export function queryMemoryOutcomeCorrelation(
            ROUND(CAST(SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
              / NULLIF(COUNT(*), 0) * 100, 1) AS completion_rate
          FROM sessions
-         WHERE started_at > datetime('now', '-' || ? || ' days')${f.sql}
+         WHERE started_at > datetime('now', '-' || ? || ' days')`,
+      [days],
+      scope,
+    );
+    const rows = sql
+      .exec(
+        `${q}
          GROUP BY bucket
          ORDER BY
            CASE bucket
@@ -235,8 +235,7 @@ export function queryMemoryOutcomeCorrelation(
              WHEN 'searched, no results' THEN 1
              ELSE 2
            END`,
-        days,
-        ...f.params,
+        ...params,
       )
       .toArray();
 
@@ -261,18 +260,21 @@ export function queryTopMemories(
   days: number,
 ): MemoryAccessEntry[] {
   try {
-    const f = buildScopeFilter(scope);
-    const rows = sql
-      .exec(
-        `SELECT id, text, access_count, last_accessed_at
+    const { sql: q, params } = withScope(
+      `SELECT id, text, access_count, last_accessed_at
          FROM memories
          WHERE merged_into IS NULL AND invalid_at IS NULL
            AND access_count > 0
-           AND (last_accessed_at IS NOT NULL AND last_accessed_at > datetime('now', '-' || ? || ' days'))${f.sql}
+           AND (last_accessed_at IS NOT NULL AND last_accessed_at > datetime('now', '-' || ? || ' days'))`,
+      [days],
+      scope,
+    );
+    const rows = sql
+      .exec(
+        `${q}
          ORDER BY access_count DESC
          LIMIT 20`,
-        days,
-        ...f.params,
+        ...params,
       )
       .toArray();
 
@@ -315,10 +317,8 @@ export function queryCrossToolMemoryFlow(
   days: number,
 ): CrossToolMemoryFlowEntry[] {
   try {
-    const f = buildScopeFilter(scope);
-    const rows = sql
-      .exec(
-        `WITH active_authors AS (
+    const { sql: head, params } = withScope(
+      `WITH active_authors AS (
            SELECT host_tool, COUNT(*) AS memory_count
            FROM memories
            WHERE merged_into IS NULL AND invalid_at IS NULL
@@ -330,7 +330,13 @@ export function queryCrossToolMemoryFlow(
            SELECT host_tool, COUNT(*) AS session_count
            FROM sessions
            WHERE started_at > datetime('now', '-' || ? || ' days')
-             AND host_tool IS NOT NULL AND host_tool != 'unknown'${f.sql}
+             AND host_tool IS NOT NULL AND host_tool != 'unknown'`,
+      [days],
+      scope,
+    );
+    const rows = sql
+      .exec(
+        `${head}
            GROUP BY host_tool
            HAVING session_count > 0
          )
@@ -344,8 +350,7 @@ export function queryCrossToolMemoryFlow(
          WHERE a.host_tool != c.host_tool
          ORDER BY (a.memory_count * c.session_count) DESC
          LIMIT ?`,
-        days,
-        ...f.params,
+        ...params,
         CROSS_TOOL_FLOW_LIMIT,
       )
       .toArray();
@@ -419,20 +424,24 @@ export function queryMemoryCategories(
   scope: AnalyticsScope,
 ): MemoryCategoryEntry[] {
   try {
-    const f = buildScopeFilter(scope);
-    const rows = sql
-      .exec(
-        `SELECT
+    const { sql: head, params } = withScope(
+      `SELECT
            value AS category,
            COUNT(*) AS count,
            MAX(COALESCE(last_accessed_at, updated_at, created_at)) AS last_used_at
          FROM memories, json_each(memories.categories)
          WHERE merged_into IS NULL AND invalid_at IS NULL
-           AND value IS NOT NULL AND value != ''${f.sql}
+           AND value IS NOT NULL AND value != ''`,
+      [],
+      scope,
+    );
+    const rows = sql
+      .exec(
+        `${head}
          GROUP BY value
          ORDER BY count DESC, last_used_at DESC
          LIMIT ?`,
-        ...f.params,
+        ...params,
         MEMORY_CATEGORIES_LIMIT,
       )
       .toArray();
@@ -517,27 +526,27 @@ export function queryMemorySupersession(
   days: number,
 ): MemorySupersessionStats {
   try {
-    const f = buildScopeFilter(scope);
     const periodFilter = `datetime('now', '-' || ? || ' days')`;
-    const invalidated = sql
-      .exec(
-        `SELECT COUNT(*) AS count
+    const { sql: invalidatedQ, params: invalidatedParams } = withScope(
+      `SELECT COUNT(*) AS count
          FROM memories
-         WHERE invalid_at IS NOT NULL AND invalid_at > ${periodFilter}${f.sql}`,
-        days,
-        ...f.params,
-      )
-      .one() as Record<string, unknown>;
-    const merged = sql
-      .exec(
-        `SELECT COUNT(*) AS count
+         WHERE invalid_at IS NOT NULL AND invalid_at > ${periodFilter}`,
+      [days],
+      scope,
+    );
+    const invalidated = sql.exec(invalidatedQ, ...invalidatedParams).one() as Record<
+      string,
+      unknown
+    >;
+    const { sql: mergedQ, params: mergedParams } = withScope(
+      `SELECT COUNT(*) AS count
          FROM memories
          WHERE merged_into IS NOT NULL AND merged_at IS NOT NULL
-           AND merged_at > ${periodFilter}${f.sql}`,
-        days,
-        ...f.params,
-      )
-      .one() as Record<string, unknown>;
+           AND merged_at > ${periodFilter}`,
+      [days],
+      scope,
+    );
+    const merged = sql.exec(mergedQ, ...mergedParams).one() as Record<string, unknown>;
     const pending = sql
       .exec(
         `SELECT COUNT(*) AS count

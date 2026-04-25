@@ -10,7 +10,7 @@ import type {
   FirstEditStats,
   ScopeComplexityBucket,
 } from '@chinmeister/shared/contracts/analytics.js';
-import { type AnalyticsScope, buildScopeFilter } from './scope.js';
+import { type AnalyticsScope, buildScopeFilter, withScope } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
 
@@ -28,15 +28,20 @@ export function queryRetryPatterns(
     // + Cursor + Windsurf. `latest_outcome` still picks the most recent
     // session's outcome across all agents so "resolved" means the file's
     // current state regardless of who last touched it.
-    const f = buildScopeFilter(scope, { handleColumn: 's.handle' });
-    const rows = sql
-      .exec(
-        `WITH file_sessions AS (
+    const { sql: q, params } = withScope(
+      `WITH file_sessions AS (
            SELECT s.id, s.handle, COALESCE(s.host_tool, 'unknown') AS host_tool,
              s.outcome, s.started_at, f.value AS file
            FROM sessions s, json_each(s.files_touched) f
            WHERE s.started_at > datetime('now', '-' || ? || ' days')
-             AND s.files_touched != '[]'${f.sql}
+             AND s.files_touched != '[]'`,
+      [days],
+      scope,
+      { handleColumn: 's.handle' },
+    );
+    const rows = sql
+      .exec(
+        `${q}
          ),
          file_stats AS (
            SELECT file,
@@ -58,8 +63,7 @@ export function queryRetryPatterns(
          JOIN latest_outcome lo ON lo.file = fs.file AND lo.rn = 1
          ORDER BY fs.attempts DESC
          LIMIT 30`,
-        days,
-        ...f.params,
+        ...params,
       )
       .toArray();
 
@@ -88,21 +92,24 @@ export function queryConflictCorrelation(
   days: number,
 ): ConflictCorrelation[] {
   try {
-    const f = buildScopeFilter(scope);
-    const rows = sql
-      .exec(
-        `SELECT
+    const { sql: q, params } = withScope(
+      `SELECT
            CASE WHEN conflicts_hit > 0 THEN '1+ conflicts' ELSE 'no conflicts' END AS bucket,
            COUNT(*) AS sessions,
            SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS completed,
            ROUND(CAST(SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
              / NULLIF(COUNT(*), 0) * 100, 1) AS completion_rate
          FROM sessions
-         WHERE started_at > datetime('now', '-' || ? || ' days')${f.sql}
+         WHERE started_at > datetime('now', '-' || ? || ' days')`,
+      [days],
+      scope,
+    );
+    const rows = sql
+      .exec(
+        `${q}
          GROUP BY bucket
          ORDER BY bucket`,
-        days,
-        ...f.params,
+        ...params,
       )
       .toArray();
 
@@ -176,10 +183,8 @@ export function queryStuckness(
   days: number,
 ): StucknessStats {
   try {
-    const f = buildScopeFilter(scope);
-    const rows = sql
-      .exec(
-        `SELECT
+    const { sql: q, params } = withScope(
+      `SELECT
            COUNT(*) AS total_sessions,
            SUM(CASE WHEN got_stuck = 1 THEN 1 ELSE 0 END) AS stuck_sessions,
            ROUND(CAST(SUM(CASE WHEN got_stuck = 1 THEN 1 ELSE 0 END) AS REAL)
@@ -189,11 +194,11 @@ export function queryStuckness(
            ROUND(CAST(SUM(CASE WHEN got_stuck = 0 AND outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
              / NULLIF(SUM(CASE WHEN got_stuck = 0 THEN 1 ELSE 0 END), 0) * 100, 1) AS normal_completion_rate
          FROM sessions
-         WHERE started_at > datetime('now', '-' || ? || ' days')${f.sql}`,
-        days,
-        ...f.params,
-      )
-      .toArray();
+         WHERE started_at > datetime('now', '-' || ? || ' days')`,
+      [days],
+      scope,
+    );
+    const rows = sql.exec(q, ...params).toArray();
 
     if (rows.length === 0)
       return {
@@ -230,20 +235,23 @@ export function queryFileOverlap(
   days: number,
 ): FileOverlapStats {
   try {
-    const f = buildScopeFilter(scope);
+    const { sql: inner, params } = withScope(
+      `           SELECT file_path, COUNT(DISTINCT handle) AS agents
+           FROM edits
+           WHERE created_at > datetime('now', '-' || ? || ' days')`,
+      [days],
+      scope,
+    );
     const rows = sql
       .exec(
         `SELECT
            COUNT(*) AS total_files,
            SUM(CASE WHEN agents >= 2 THEN 1 ELSE 0 END) AS overlapping_files
          FROM (
-           SELECT file_path, COUNT(DISTINCT handle) AS agents
-           FROM edits
-           WHERE created_at > datetime('now', '-' || ? || ' days')${f.sql}
+${inner}
            GROUP BY file_path
          )`,
-        days,
-        ...f.params,
+        ...params,
       )
       .toArray();
 
@@ -273,19 +281,18 @@ export function queryFirstEditStats(
   try {
     const f = buildScopeFilter(scope);
     // Overall stats
-    const overall = sql
-      .exec(
-        `SELECT
+    const { sql: overallQ, params: overallParams } = withScope(
+      `SELECT
            ROUND(AVG(
              (julianday(first_edit_at) - julianday(started_at)) * 24 * 60
            ), 1) AS avg_min
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND first_edit_at IS NOT NULL${f.sql}`,
-        days,
-        ...f.params,
-      )
-      .toArray();
+           AND first_edit_at IS NOT NULL`,
+      [days],
+      scope,
+    );
+    const overall = sql.exec(overallQ, ...overallParams).toArray();
 
     // Median via LIMIT/OFFSET — O(n log n) in SQLite, O(1) memory in JS
     const medianRow = sql
@@ -312,9 +319,8 @@ export function queryFirstEditStats(
       medianRow.length > 0 ? ((medianRow[0] as Record<string, unknown>).mins as number) || 0 : 0;
 
     // By tool
-    const toolRows = sql
-      .exec(
-        `SELECT
+    const { sql: toolQ, params: toolParams } = withScope(
+      `SELECT
            host_tool,
            ROUND(AVG(
              (julianday(first_edit_at) - julianday(started_at)) * 24 * 60
@@ -323,11 +329,16 @@ export function queryFirstEditStats(
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
            AND first_edit_at IS NOT NULL
-           AND host_tool IS NOT NULL AND host_tool != 'unknown'${f.sql}
+           AND host_tool IS NOT NULL AND host_tool != 'unknown'`,
+      [days],
+      scope,
+    );
+    const toolRows = sql
+      .exec(
+        `${toolQ}
          GROUP BY host_tool
          ORDER BY sessions DESC`,
-        days,
-        ...f.params,
+        ...toolParams,
       )
       .toArray();
 
@@ -357,7 +368,14 @@ export function queryScopeComplexity(
   days: number,
 ): ScopeComplexityBucket[] {
   try {
-    const f = buildScopeFilter(scope);
+    const { sql: inner, params } = withScope(
+      `           SELECT *, json_array_length(files_touched) AS file_count
+           FROM sessions
+           WHERE started_at > datetime('now', '-' || ? || ' days')
+             AND files_touched != '[]'`,
+      [days],
+      scope,
+    );
     const rows = sql
       .exec(
         `SELECT
@@ -376,10 +394,7 @@ export function queryScopeComplexity(
            ROUND(CAST(SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
              / NULLIF(COUNT(*), 0) * 100, 1) AS completion_rate
          FROM (
-           SELECT *, json_array_length(files_touched) AS file_count
-           FROM sessions
-           WHERE started_at > datetime('now', '-' || ? || ' days')
-             AND files_touched != '[]'${f.sql}
+${inner}
          )
          GROUP BY bucket
          ORDER BY
@@ -390,8 +405,7 @@ export function queryScopeComplexity(
              WHEN '8-15 files' THEN 4
              ELSE 5
            END`,
-        days,
-        ...f.params,
+        ...params,
       )
       .toArray();
 
