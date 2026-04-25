@@ -299,18 +299,6 @@ button.dataRow {
   font-weight: 500;
 }
 
-/* durationCount is used by ConversationWidgets topic-list rows. The
-   companion `durationBars/Row/Label/BarTrack/BarFill/BarPeak` block was
-   removed (unused in TSX). Reintroduce if a new duration-strip widget
-   is built. */
-.durationCount {
-  font-family: var(--mono);
-  font-size: var(--text-xs);
-  color: var(--muted);
-  width: 28px;
-  flex-shrink: 0;
-}
-
 /* ── Trend chart (SVG) ────────────────────────────── */
 
 .trendSvg {

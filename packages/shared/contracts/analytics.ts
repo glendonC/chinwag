@@ -253,11 +253,20 @@ export const conflictCorrelationSchema = z.object({
 });
 export type ConflictCorrelation = z.infer<typeof conflictCorrelationSchema>;
 
+export const conflictDailyEntrySchema = z.object({
+  day: z.string(),
+  blocked: z.number(),
+});
+export type ConflictDailyEntry = z.infer<typeof conflictDailyEntrySchema>;
+
 export const conflictStatsSchema = z.object({
   /** Hook-sourced blocks: PreToolUse calls that found conflicts and prevented the edit. */
   blocked_period: z.number(),
   /** Every detection in the period, including advisory MCP-tool lookups. */
   found_period: z.number(),
+  /** Daily breakdown of blocked counts over the period. Default to [] for
+   *  older producers; renderer falls back to the scalar-only view when empty. */
+  daily_blocked: z.array(conflictDailyEntrySchema).default([]),
 });
 export type ConflictStats = z.infer<typeof conflictStatsSchema>;
 
@@ -377,6 +386,108 @@ export const fileReworkEntrySchema = z.object({
   rework_ratio: z.number(),
 });
 export type FileReworkEntry = z.infer<typeof fileReworkEntrySchema>;
+
+// Files where the user-side conversation showed confusion or frustration in
+// 2+ sessions touching the file. Sentiment is an INPUT to the file-axis
+// question — never the headline — which is the framing ANALYTICS_SPEC §10
+// anti-pattern #1 explicitly endorses (sentiment as input to coordination).
+// retried_sessions is a sub-count of confused_sessions whose outcome was
+// abandoned/failed; useful as severity hint, kept optional so older
+// producers stay parseable.
+export const confusedFileEntrySchema = z.object({
+  file: z.string(),
+  confused_sessions: z.number(),
+  retried_sessions: z.number(),
+});
+export type ConfusedFileEntry = z.infer<typeof confusedFileEntrySchema>;
+
+// Scalar count of user messages classified topic='question' inside sessions
+// that ended abandoned. The signal is "intent the agent couldn't fulfill,"
+// surfaced as a navigation aid (same shape as live-conflicts: number drives
+// drill into the underlying sessions).
+export const unansweredQuestionStatsSchema = z.object({
+  count: z.number(),
+});
+export type UnansweredQuestionStats = z.infer<typeof unansweredQuestionStatsSchema>;
+
+// Cross-tool memory flow. For each (author_tool, consumer_tool) pair, count
+// memories authored by author_tool that were available to consumer_tool's
+// sessions in the window. Honest framing: this measures availability +
+// co-presence, not exact read attribution (the per-memory join table
+// `memory_search_results` is unbuilt — see ANALYTICS_SPEC §10). Renderers
+// label rows accordingly. Detail-view English questions: which tools share
+// memory most? · which categories cross tools? · does cross-tool memory
+// help completion? · how fresh is shared knowledge? · which sessions
+// benefited from another tool's memory?
+export const crossToolMemoryFlowEntrySchema = z.object({
+  author_tool: z.string(),
+  consumer_tool: z.string(),
+  memories: z.number(),
+  consumer_sessions: z.number(),
+});
+export type CrossToolMemoryFlowEntry = z.infer<typeof crossToolMemoryFlowEntrySchema>;
+
+// Memory aging composition: count of currently-live memories grouped into
+// freshness buckets. Lifetime scope by design (catalog timeScope='all-time')
+// so the picker doesn't apply. Detail-view English questions: is knowledge
+// fresh? · which categories age fastest? · accumulating or replacing? ·
+// which directories have fresh knowledge? · who keeps memory current?
+export const memoryAgingCompositionSchema = z.object({
+  recent_7d: z.number(),
+  recent_30d: z.number(),
+  recent_90d: z.number(),
+  older: z.number(),
+});
+export type MemoryAgingComposition = z.infer<typeof memoryAgingCompositionSchema>;
+
+// Memory categories: top agent-assigned categories on currently-live
+// memories, ranked by count, with last-touch hint per row. Categories are
+// optional at save time, so a low-coverage team will see a thin list — the
+// empty state names that gate. Detail-view English questions: top categories?
+// · which help completion? · which directories have which categories? ·
+// who authors which? · how has the mix shifted?
+export const memoryCategoryEntrySchema = z.object({
+  category: z.string(),
+  count: z.number(),
+  last_used_at: z.string().nullable(),
+});
+export type MemoryCategoryEntry = z.infer<typeof memoryCategoryEntrySchema>;
+
+// Single-author directory concentration. Handle-blind reframe of bus-factor:
+// per directory, count of memories with exactly one author vs total. Surfaces
+// the directory (a coordination axis), never names handles. Detail questions:
+// which directories carry single-author memory, period delta, second-author
+// resilience trend, concentrated dirs by traffic, team-wide authorship spread.
+export const memorySingleAuthorDirectoryEntrySchema = z.object({
+  directory: z.string(),
+  single_author_count: z.number(),
+  total_count: z.number(),
+});
+export type MemorySingleAuthorDirectoryEntry = z.infer<
+  typeof memorySingleAuthorDirectoryEntrySchema
+>;
+
+// Memory supersession flow: live counters for the consolidation pipeline.
+// invalidated_period and merged_period scope by event time; pending_proposals
+// is current-state. Detail questions: retired vs merged this period, queue
+// depth + age, categories with most supersession, merge clustering by
+// directory, median memory lifespan.
+export const memorySupersessionStatsSchema = z.object({
+  invalidated_period: z.number(),
+  merged_period: z.number(),
+  pending_proposals: z.number(),
+});
+export type MemorySupersessionStats = z.infer<typeof memorySupersessionStatsSchema>;
+
+// Secrets shield stats: blocked_period rolls up daily_metrics.secrets_blocked
+// over the picker window, blocked_24h is the live last-24h counter. Detail
+// questions: how many leaks attempted, which tools tried, trend, patterns
+// caught most, false-positive cost.
+export const memorySecretsShieldStatsSchema = z.object({
+  blocked_period: z.number(),
+  blocked_24h: z.number(),
+});
+export type MemorySecretsShieldStats = z.infer<typeof memorySecretsShieldStatsSchema>;
 
 export const directoryHeatmapEntrySchema = z.object({
   directory: z.string(),
@@ -756,6 +867,35 @@ export const userAnalyticsSchema = teamAnalyticsSchema.extend({
   memory_usage: memoryUsageStatsSchema,
   work_type_outcomes: z.array(workTypeOutcomeSchema),
   conversation_edit_correlation: z.array(conversationEditCorrelationSchema),
+  // Conversation widgets revived 2026-04-25. Both gate on conversationLogs
+  // capability (Claude Code + Aider today). Default to empty/zero for
+  // older producers and tools without conversation capture.
+  confused_files: z.array(confusedFileEntrySchema).default([]),
+  unanswered_questions: unansweredQuestionStatsSchema.default({ count: 0 }),
+  // Memory + team category density additions 2026-04-25 (post-audit). Each
+  // anchors a multi-question detail view (see schema doc-comments for the
+  // English questions). Defaults so older producers parse cleanly.
+  cross_tool_memory_flow: z.array(crossToolMemoryFlowEntrySchema).default([]),
+  memory_aging: memoryAgingCompositionSchema.default({
+    recent_7d: 0,
+    recent_30d: 0,
+    recent_90d: 0,
+    older: 0,
+  }),
+  memory_categories: z.array(memoryCategoryEntrySchema).default([]),
+  // Memory + team category re-revivals 2026-04-25 (post 18-month re-audit).
+  // Each anchors a multi-question detail view; the original audit cut/queued
+  // these on today-state arguments that the rubric preamble forbids.
+  memory_single_author_directories: z.array(memorySingleAuthorDirectoryEntrySchema).default([]),
+  memory_supersession: memorySupersessionStatsSchema.default({
+    invalidated_period: 0,
+    merged_period: 0,
+    pending_proposals: 0,
+  }),
+  memory_secrets_shield: memorySecretsShieldStatsSchema.default({
+    blocked_period: 0,
+    blocked_24h: 0,
+  }),
   file_rework: z.array(fileReworkEntrySchema),
   directory_heatmap: z.array(directoryHeatmapEntrySchema),
   // Files-touched breadth anatomy. Both default to sensible empties so

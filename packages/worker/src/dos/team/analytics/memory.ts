@@ -6,6 +6,12 @@ import type {
   MemoryOutcomeCorrelation,
   MemoryAccessEntry,
   FormationRecommendationCounts,
+  CrossToolMemoryFlowEntry,
+  MemoryAgingComposition,
+  MemoryCategoryEntry,
+  MemorySingleAuthorDirectoryEntry,
+  MemorySupersessionStats,
+  MemorySecretsShieldStats,
 } from '@chinmeister/shared/contracts/analytics.js';
 import { type AnalyticsScope, buildScopeFilter } from './scope.js';
 
@@ -283,5 +289,301 @@ export function queryTopMemories(
   } catch (err) {
     log.warn(`topMemories query failed: ${err}`);
     return [];
+  }
+}
+
+// Cross-tool memory flow: pairs of (author_tool, consumer_tool) where the
+// consumer_tool ran sessions in the period that COULD have read memories
+// authored by author_tool. Honest framing: this measures co-presence
+// (consumer_tool had sessions while author_tool's memories existed) and
+// the AVAILABLE memory pool — not exact read attribution. The per-memory
+// `memory_search_results` join table is unbuilt (ANALYTICS_SPEC §10), so
+// we cannot say which sessions read which memories. The renderer labels
+// each row "available to" not "read by" to keep the framing honest.
+//
+// Detail-view English questions this anchors:
+//   1. Which tools share memory most? (this widget)
+//   2. What categories cross tools? (memory.categories × pair)
+//   3. Does cross-tool memory help completion? (sessions in pairs vs not)
+//   4. How fresh is shared knowledge? (created_at distribution per pair)
+//   5. Which sessions ran alongside other-tool memory? (drill list)
+const CROSS_TOOL_FLOW_LIMIT = 20;
+
+export function queryCrossToolMemoryFlow(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): CrossToolMemoryFlowEntry[] {
+  try {
+    const f = buildScopeFilter(scope);
+    const rows = sql
+      .exec(
+        `WITH active_authors AS (
+           SELECT host_tool, COUNT(*) AS memory_count
+           FROM memories
+           WHERE merged_into IS NULL AND invalid_at IS NULL
+             AND host_tool IS NOT NULL AND host_tool != 'unknown'
+           GROUP BY host_tool
+           HAVING memory_count > 0
+         ),
+         active_consumers AS (
+           SELECT host_tool, COUNT(*) AS session_count
+           FROM sessions
+           WHERE started_at > datetime('now', '-' || ? || ' days')
+             AND host_tool IS NOT NULL AND host_tool != 'unknown'${f.sql}
+           GROUP BY host_tool
+           HAVING session_count > 0
+         )
+         SELECT
+           a.host_tool AS author_tool,
+           c.host_tool AS consumer_tool,
+           a.memory_count AS memories,
+           c.session_count AS consumer_sessions
+         FROM active_authors a
+         CROSS JOIN active_consumers c
+         WHERE a.host_tool != c.host_tool
+         ORDER BY (a.memory_count * c.session_count) DESC
+         LIMIT ?`,
+        days,
+        ...f.params,
+        CROSS_TOOL_FLOW_LIMIT,
+      )
+      .toArray();
+    return rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      return {
+        author_tool: row.author_tool as string,
+        consumer_tool: row.consumer_tool as string,
+        memories: (row.memories as number) || 0,
+        consumer_sessions: (row.consumer_sessions as number) || 0,
+      };
+    });
+  } catch (err) {
+    log.warn(`crossToolMemoryFlow query failed: ${err}`);
+    return [];
+  }
+}
+
+// Memory aging composition. Currently-live memories bucketed by age. Lifetime
+// scope by design — picker doesn't apply (catalog timeScope='all-time').
+//
+// Detail-view English questions this anchors:
+//   1. Is knowledge fresh? (this widget — composition bar)
+//   2. Which categories age fastest? (categories × age bucket)
+//   3. Are we accumulating or replacing? (created vs invalidated trend)
+//   4. Which directories have fresh knowledge? (memory.tags or path heuristic)
+//   5. Who keeps memory current? (handle-aggregate × recent creation)
+export function queryMemoryAging(sql: SqlStorage): MemoryAgingComposition {
+  try {
+    const row = sql
+      .exec(
+        `SELECT
+           SUM(CASE WHEN created_at > datetime('now', '-7 days') THEN 1 ELSE 0 END) AS recent_7d,
+           SUM(CASE WHEN created_at > datetime('now', '-30 days')
+                     AND created_at <= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS recent_30d,
+           SUM(CASE WHEN created_at > datetime('now', '-90 days')
+                     AND created_at <= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS recent_90d,
+           SUM(CASE WHEN created_at <= datetime('now', '-90 days') THEN 1 ELSE 0 END) AS older
+         FROM memories
+         WHERE merged_into IS NULL AND invalid_at IS NULL`,
+      )
+      .one() as Record<string, unknown>;
+    return {
+      recent_7d: (row.recent_7d as number) || 0,
+      recent_30d: (row.recent_30d as number) || 0,
+      recent_90d: (row.recent_90d as number) || 0,
+      older: (row.older as number) || 0,
+    };
+  } catch (err) {
+    log.warn(`memoryAging query failed: ${err}`);
+    return { recent_7d: 0, recent_30d: 0, recent_90d: 0, older: 0 };
+  }
+}
+
+// Memory categories: top agent-assigned categories on currently-live
+// memories, with last-touch hint per row. The `categories` column on
+// memories is a JSON array of category names assigned at save time. Coverage
+// depends on agent adoption of the category-aware save pattern; the empty
+// state names the gate.
+//
+// Detail-view English questions this anchors:
+//   1. Top categories? (this widget — ranked list)
+//   2. Which categories help completion? (category × outcome correlation)
+//   3. Which directories have which categories? (heatmap)
+//   4. Who authors which categories? (handle-blind handle counts × category)
+//   5. How has the mix shifted? (category trend over time)
+const MEMORY_CATEGORIES_LIMIT = 12;
+
+export function queryMemoryCategories(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+): MemoryCategoryEntry[] {
+  try {
+    const f = buildScopeFilter(scope);
+    const rows = sql
+      .exec(
+        `SELECT
+           value AS category,
+           COUNT(*) AS count,
+           MAX(COALESCE(last_accessed_at, updated_at, created_at)) AS last_used_at
+         FROM memories, json_each(memories.categories)
+         WHERE merged_into IS NULL AND invalid_at IS NULL
+           AND value IS NOT NULL AND value != ''${f.sql}
+         GROUP BY value
+         ORDER BY count DESC, last_used_at DESC
+         LIMIT ?`,
+        ...f.params,
+        MEMORY_CATEGORIES_LIMIT,
+      )
+      .toArray();
+    return rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      return {
+        category: row.category as string,
+        count: (row.count as number) || 0,
+        last_used_at: (row.last_used_at as string) || null,
+      };
+    });
+  } catch (err) {
+    log.warn(`memoryCategories query failed: ${err}`);
+    return [];
+  }
+}
+
+// Single-author directory concentration. Per directory, count of memories
+// authored by exactly one handle vs total. Surface is directory-axis,
+// never names handles - sidesteps Privacy + §10 #4 surveillance ranking.
+// Uses the path heuristic from `tags` JSON (file paths often live there)
+// or falls back to the memory's first tag when path-shaped tags absent.
+const SINGLE_AUTHOR_DIRS_LIMIT = 12;
+const SINGLE_AUTHOR_DIRS_MIN_TOTAL = 2;
+
+export function queryMemorySingleAuthorDirectories(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+): MemorySingleAuthorDirectoryEntry[] {
+  try {
+    const f = buildScopeFilter(scope);
+    // Group memories by tag (proxy for directory) and count distinct handles.
+    // A directory with single_author_count > 0 has one or more memories that
+    // only one author has touched. Filter to dirs with >= MIN_TOTAL memories
+    // so single-memory dirs don't dominate the list.
+    const rows = sql
+      .exec(
+        `SELECT
+           value AS directory,
+           COUNT(*) AS total_count,
+           SUM(CASE WHEN handle_count = 1 THEN 1 ELSE 0 END) AS single_author_count
+         FROM (
+           SELECT
+             je.value,
+             m.id,
+             COUNT(DISTINCT m.handle) OVER (PARTITION BY je.value, m.id) AS handle_count
+           FROM memories m, json_each(m.tags) je
+           WHERE m.merged_into IS NULL AND m.invalid_at IS NULL
+             AND je.value IS NOT NULL AND je.value != ''
+             AND je.value LIKE '%/%'${f.sql ? f.sql.replace(/^\s*AND/, ' AND m.') : ''}
+         )
+         GROUP BY value
+         HAVING total_count >= ?
+         ORDER BY single_author_count DESC, total_count DESC
+         LIMIT ?`,
+        ...f.params,
+        SINGLE_AUTHOR_DIRS_MIN_TOTAL,
+        SINGLE_AUTHOR_DIRS_LIMIT,
+      )
+      .toArray();
+    return rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      return {
+        directory: row.directory as string,
+        single_author_count: (row.single_author_count as number) || 0,
+        total_count: (row.total_count as number) || 0,
+      };
+    });
+  } catch (err) {
+    log.warn(`memorySingleAuthorDirectories query failed: ${err}`);
+    return [];
+  }
+}
+
+// Memory supersession flow: live counters for the consolidation pipeline.
+// invalidated_period and merged_period count events whose mark-time is in
+// the period. pending_proposals is current-state, picker doesn't apply
+// to it. The widget renders all three together (live snapshot).
+export function queryMemorySupersession(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): MemorySupersessionStats {
+  try {
+    const f = buildScopeFilter(scope);
+    const periodFilter = `datetime('now', '-' || ? || ' days')`;
+    const invalidated = sql
+      .exec(
+        `SELECT COUNT(*) AS count
+         FROM memories
+         WHERE invalid_at IS NOT NULL AND invalid_at > ${periodFilter}${f.sql}`,
+        days,
+        ...f.params,
+      )
+      .one() as Record<string, unknown>;
+    const merged = sql
+      .exec(
+        `SELECT COUNT(*) AS count
+         FROM memories
+         WHERE merged_into IS NOT NULL AND merged_at IS NOT NULL
+           AND merged_at > ${periodFilter}${f.sql}`,
+        days,
+        ...f.params,
+      )
+      .one() as Record<string, unknown>;
+    const pending = sql
+      .exec(
+        `SELECT COUNT(*) AS count
+         FROM consolidation_proposals
+         WHERE status = 'pending'`,
+      )
+      .one() as Record<string, unknown>;
+    return {
+      invalidated_period: (invalidated.count as number) || 0,
+      merged_period: (merged.count as number) || 0,
+      pending_proposals: (pending.count as number) || 0,
+    };
+  } catch (err) {
+    log.warn(`memorySupersession query failed: ${err}`);
+    return { invalidated_period: 0, merged_period: 0, pending_proposals: 0 };
+  }
+}
+
+// Secrets shield stats. blocked_period rolls up daily_metrics over the
+// picker window; blocked_24h is the live counter (matches the previously
+// cut memory-safety widget's last-24h read).
+export function queryMemorySecretsShield(sql: SqlStorage, days: number): MemorySecretsShieldStats {
+  try {
+    const period = sql
+      .exec(
+        `SELECT COALESCE(SUM(value), 0) AS total
+         FROM daily_metrics
+         WHERE metric = 'secrets_blocked'
+           AND date > date('now', '-' || ? || ' days')`,
+        days,
+      )
+      .one() as Record<string, unknown>;
+    const last24 = sql
+      .exec(
+        `SELECT COALESCE(SUM(value), 0) AS total
+         FROM daily_metrics
+         WHERE metric = 'secrets_blocked'
+           AND date > date('now', '-1 day')`,
+      )
+      .one() as Record<string, unknown>;
+    return {
+      blocked_period: (period.total as number) || 0,
+      blocked_24h: (last24.total as number) || 0,
+    };
+  } catch (err) {
+    log.warn(`memorySecretsShield query failed: ${err}`);
+    return { blocked_period: 0, blocked_24h: 0 };
   }
 }

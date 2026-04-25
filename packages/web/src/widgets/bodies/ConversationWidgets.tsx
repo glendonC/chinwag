@@ -1,129 +1,92 @@
+import type { CSSProperties } from 'react';
+import SectionEmpty from '../../components/SectionEmpty/SectionEmpty.js';
 import styles from '../widget-shared.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
-import {
-  GhostBars,
-  SENTIMENT_COLORS,
-  PROMPT_CLARITY_LABELS,
-  CoverageNote,
-  capabilityCoverageNote,
-} from './shared.js';
+import { CoverageNote, GhostStatRow, capabilityCoverageNote } from './shared.js';
 
-const TOPICS_VISIBLE = 8;
+// Conversations category was dissolved in the 2026-04-25 audit (3 cuts:
+// topics, prompt-clarity, conversation-depth) for §10 anti-pattern
+// violations. The category is revived thin with two file-axis widgets that
+// use sentiment/topic as INPUTS to coordination questions, not as the
+// headline metric. This is the framing §10 explicitly endorses for
+// conversation data ("use as input to Failure Analysis, never alone").
 
-function TopicsWidget({ conversationData, analytics }: WidgetBodyProps) {
-  const data = conversationData.topic_distribution;
+// confused-files: top files where the agent's user-side conversation
+// expressed confusion or frustration in 2+ sessions. The widget surfaces
+// FILES (a coordination axis), not sentiment polarity. Same E4 standing
+// as `file-rework` and `live-conflicts` — system-language framing about
+// where the work struggled, not personal commentary about messages.
+function ConfusedFilesWidget({ analytics }: WidgetBodyProps) {
+  const cf = analytics.confused_files;
   const tools = analytics.data_coverage?.tools_reporting ?? [];
   const note = capabilityCoverageNote(tools, 'conversationLogs');
-  if (data.length === 0) {
+  if (cf.length === 0) {
     return (
       <>
-        <GhostBars count={3} />
-        <CoverageNote text={note} />
-      </>
-    );
-  }
-  const maxC = Math.max(...data.map((t) => t.count), 1);
-  const hidden = Math.max(0, data.length - TOPICS_VISIBLE);
-  return (
-    <>
-      <div className={styles.metricBars}>
-        {data.slice(0, TOPICS_VISIBLE).map((t) => (
-          <div key={t.topic} className={styles.metricRow}>
-            <span className={styles.metricLabel}>{t.topic}</span>
-            <div className={styles.metricBarTrack}>
-              <div
-                className={styles.metricBarFill}
-                style={{ width: `${(t.count / maxC) * 100}%` }}
-              />
-            </div>
-            <span className={styles.durationCount}>{t.count}</span>
-          </div>
-        ))}
-      </div>
-      {hidden > 0 && (
-        <CoverageNote text={`+ ${hidden} more ${hidden === 1 ? 'topic' : 'topics'}`} />
-      )}
-      <CoverageNote text={note} />
-    </>
-  );
-}
-
-function PromptClarityWidget({ conversationData, analytics }: WidgetBodyProps) {
-  // Backend name stays sentiment_outcome_correlation — the classifier produces
-  // sentiment classes. The UX frame (this widget) reads them as prompt-clarity
-  // signals: "confused" phrasing, a "re-asked" prompt, etc. See
-  // PROMPT_CLARITY_LABELS in shared.tsx for the translation.
-  const soc = conversationData.sentiment_outcome_correlation;
-  const tools = analytics.data_coverage?.tools_reporting ?? [];
-  const note = capabilityCoverageNote(tools, 'conversationLogs');
-  if (!soc || soc.length === 0) {
-    return (
-      <>
-        <GhostBars count={3} />
+        <SectionEmpty>
+          Files where the agent struggled appear after 2+ sessions show confused or frustrated
+          messages.
+        </SectionEmpty>
         <CoverageNote text={note} />
       </>
     );
   }
   return (
     <>
-      <div className={styles.metricBars}>
-        {soc.map((s) => {
-          const label = PROMPT_CLARITY_LABELS[s.dominant_sentiment] ?? s.dominant_sentiment;
-          return (
-            <div key={s.dominant_sentiment} className={styles.metricRow}>
-              <span className={styles.metricLabel}>{label}</span>
-              <div className={styles.metricBarTrack}>
-                <div
-                  className={styles.metricBarFill}
-                  style={{
-                    width: `${s.completion_rate}%`,
-                    background: SENTIMENT_COLORS[s.dominant_sentiment] || 'var(--ghost)',
-                    opacity: 'var(--opacity-bar-fill)',
-                  }}
-                />
-              </div>
-              <span className={styles.metricValue}>
-                {s.completion_rate}% · {s.sessions}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      <CoverageNote text={note} />
-    </>
-  );
-}
-
-function ConversationDepthWidget({ analytics }: WidgetBodyProps) {
-  const ced = analytics.conversation_edit_correlation;
-  const tools = analytics.data_coverage?.tools_reporting ?? [];
-  const note = capabilityCoverageNote(tools, 'conversationLogs');
-  if (ced.length === 0) {
-    return (
-      <>
-        <GhostBars count={4} />
-        <CoverageNote text={note} />
-      </>
-    );
-  }
-  const maxCed = Math.max(...ced.map((c) => c.avg_edits), 1);
-  return (
-    <>
-      <div className={styles.metricBars}>
-        {ced.map((c) => (
-          <div key={c.bucket} className={styles.metricRow}>
-            <span className={styles.metricLabel}>{c.bucket} turns</span>
-            <div className={styles.metricBarTrack}>
-              <div
-                className={styles.metricBarFill}
-                style={{ width: `${(c.avg_edits / maxCed) * 100}%` }}
-              />
-            </div>
-            <span className={styles.metricValue}>
-              {c.avg_edits.toFixed(1)} edits · {c.completion_rate}%
+      <div className={styles.dataList}>
+        {cf.slice(0, 10).map((f, i) => (
+          <div
+            key={f.file}
+            className={styles.dataRow}
+            style={{ '--row-index': i } as CSSProperties}
+          >
+            <span className={styles.dataName} title={f.file}>
+              {f.file.split('/').slice(-2).join('/')}
             </span>
+            <div className={styles.dataMeta}>
+              <span className={styles.dataStat}>
+                <span className={styles.dataStatValue}>{f.confused_sessions}</span>{' '}
+                {f.confused_sessions === 1 ? 'session' : 'sessions'}
+              </span>
+              {f.retried_sessions > 0 && (
+                <span className={styles.dataStat} style={{ color: 'var(--warn)' }}>
+                  <span className={styles.dataStatValue}>{f.retried_sessions}</span> abandoned
+                </span>
+              )}
+            </div>
           </div>
         ))}
+      </div>
+      <CoverageNote text={note} />
+    </>
+  );
+}
+
+// unanswered-questions: count of user messages classified topic='question'
+// inside sessions that ended abandoned. Frame is navigation aid (same shape
+// as live-conflicts and files-in-play) — number drives drill into sessions
+// to read what was asked, then save context as memory or spawn a follow-up.
+// Not a metric in the §10-anti-pattern sense; the action is "go read these,"
+// not "track this number."
+function UnansweredQuestionsWidget({ analytics }: WidgetBodyProps) {
+  const uq = analytics.unanswered_questions;
+  const tools = analytics.data_coverage?.tools_reporting ?? [];
+  const note = capabilityCoverageNote(tools, 'conversationLogs');
+  if (uq.count === 0) {
+    return (
+      <>
+        <GhostStatRow labels={['questions abandoned']} />
+        <CoverageNote text={note} />
+      </>
+    );
+  }
+  return (
+    <>
+      <div className={styles.statRow}>
+        <div className={styles.statBlock}>
+          <span className={styles.statBlockValue}>{uq.count.toLocaleString()}</span>
+          <span className={styles.statBlockLabel}>questions abandoned</span>
+        </div>
       </div>
       <CoverageNote text={note} />
     </>
@@ -131,7 +94,6 @@ function ConversationDepthWidget({ analytics }: WidgetBodyProps) {
 }
 
 export const conversationWidgets: WidgetRegistry = {
-  topics: TopicsWidget,
-  'prompt-clarity': PromptClarityWidget,
-  'conversation-depth': ConversationDepthWidget,
+  'confused-files': ConfusedFilesWidget,
+  'unanswered-questions': UnansweredQuestionsWidget,
 };

@@ -10,40 +10,9 @@ import {
   GhostStatRow,
 } from './shared.js';
 
-function DirectoriesWidget({ analytics }: WidgetBodyProps) {
-  const dirs = analytics.directory_heatmap;
-  if (dirs.length === 0) return <GhostBars count={3} />;
-  const maxT = Math.max(...dirs.map((d) => d.touch_count), 1);
-  return (
-    <div className={styles.metricBars}>
-      {dirs.slice(0, 10).map((d, i) => (
-        <div
-          key={d.directory}
-          className={styles.metricRow}
-          style={{ '--row-index': i } as CSSProperties}
-        >
-          <span className={styles.metricLabel} title={d.directory}>
-            {d.directory}
-          </span>
-          <div className={styles.metricBarTrack}>
-            <div
-              className={styles.metricBarFill}
-              style={{ width: `${(d.touch_count / maxT) * 100}%` }}
-            />
-          </div>
-          <span className={styles.metricValue}>
-            {d.touch_count}
-            {d.file_count > 0 ? ` · ${d.file_count}f` : ''}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// Color the per-file completion rate so a top-of-list file with a weak outcome
-// reads as a problem, not a celebration. Touch_count alone is contaminated by
-// retry thrashing — the rate reframes what the rank means.
+// Color the per-file/directory completion rate so a top-of-list entry with a
+// weak outcome reads as a problem, not a celebration. Touch_count alone is
+// contaminated by retry thrashing — the rate reframes what the rank means.
 //   <40% → danger (thrash signal)
 //   40–69% → warn
 //   70%+  → muted (healthy; de-emphasize the green so every row isn't loud)
@@ -51,6 +20,57 @@ function outcomeRateColor(rate: number): string {
   if (rate < 40) return 'var(--danger)';
   if (rate < 70) return 'var(--warn)';
   return 'var(--muted)';
+}
+
+const DIRECTORIES_VISIBLE = 10;
+
+function DirectoriesWidget({ analytics }: WidgetBodyProps) {
+  const dirs = analytics.directory_heatmap;
+  const tools = analytics.data_coverage?.tools_reporting ?? [];
+  const note = capabilityCoverageNote(tools, 'hooks');
+  if (dirs.length === 0) {
+    return (
+      <>
+        <GhostBars count={3} />
+        <CoverageNote text={note} />
+      </>
+    );
+  }
+  const visible = dirs.slice(0, DIRECTORIES_VISIBLE);
+  const hidden = dirs.length - visible.length;
+  const maxT = Math.max(...visible.map((d) => d.touch_count), 1);
+  return (
+    <>
+      <div className={styles.metricBars}>
+        {visible.map((d, i) => (
+          <div
+            key={d.directory}
+            className={styles.metricRow}
+            style={{ '--row-index': i } as CSSProperties}
+          >
+            <span className={styles.metricLabel} title={d.directory}>
+              {d.directory}
+            </span>
+            <div className={styles.metricBarTrack}>
+              <div
+                className={styles.metricBarFill}
+                style={{ width: `${(d.touch_count / maxT) * 100}%` }}
+              />
+            </div>
+            <span className={styles.metricValue}>
+              <span style={{ color: outcomeRateColor(d.completion_rate) }}>
+                {d.completion_rate}%
+              </span>{' '}
+              · {d.touch_count}
+              {d.file_count > 0 ? ` · ${d.file_count}f` : ''}
+            </span>
+          </div>
+        ))}
+      </div>
+      {hidden > 0 && <div className={styles.moreHidden}>+{hidden} more directories</div>}
+      <CoverageNote text={note} />
+    </>
+  );
 }
 
 function FilesWidget({ analytics }: WidgetBodyProps) {
@@ -102,33 +122,6 @@ function FilesWidget({ analytics }: WidgetBodyProps) {
   );
 }
 
-function FileChurnWidget({ analytics }: WidgetBodyProps) {
-  const fc = analytics.file_churn;
-  if (fc.length === 0) return <GhostRows count={3} />;
-  return (
-    <div className={styles.dataList}>
-      {fc.slice(0, 10).map((f, i) => (
-        <div key={f.file} className={styles.dataRow} style={{ '--row-index': i } as CSSProperties}>
-          <span className={styles.dataName} title={f.file}>
-            {f.file.split('/').slice(-2).join('/')}
-          </span>
-          <div className={styles.dataMeta}>
-            <span className={styles.dataStat}>
-              <span className={styles.dataStatValue}>{f.session_count}</span> sessions
-            </span>
-            <span className={styles.dataStat}>
-              <span className={styles.dataStatValue}>{f.total_edits}</span> edits
-            </span>
-            <span className={styles.dataStat}>
-              <span className={styles.dataStatValue}>{f.total_lines.toLocaleString()}</span> lines
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // Rework ratio severity. Flat danger on every row trains the eye to ignore
 // the color — if every entry is red, the color carries no signal. Gradient
 // preserves the "this is a real problem" vs "this is mildly interesting"
@@ -142,6 +135,12 @@ function reworkSeverityColor(ratio: number): string {
   return 'var(--muted)';
 }
 
+// Note on the metric: `rework_ratio` (kept as the schema field name for back-
+// compat) measures share of this file's edits that occurred inside sessions
+// that later ended abandoned or failed. It is NOT edit-level retry — a clean
+// edit on a file inside a session that gave up on a different file still
+// counts here. The user-facing framing now says "in failed sessions" so the
+// label matches the math; description elaborates.
 function FileReworkWidget({ analytics }: WidgetBodyProps) {
   const fr = analytics.file_rework;
   if (fr.length === 0) return <GhostRows count={3} />;
@@ -160,13 +159,13 @@ function FileReworkWidget({ analytics }: WidgetBodyProps) {
               >
                 {f.rework_ratio}%
               </span>{' '}
-              rework
+              in failed sessions
             </span>
             <span className={styles.dataStat}>
               <span className={styles.dataStatValue}>
                 {f.failed_edits}/{f.total_edits}
               </span>{' '}
-              failed
+              edits
             </span>
           </div>
         </div>
@@ -268,7 +267,6 @@ export const codebaseWidgets: WidgetRegistry = {
   'commit-stats': CommitStatsWidget,
   directories: DirectoriesWidget,
   files: FilesWidget,
-  'file-churn': FileChurnWidget,
   'file-rework': FileReworkWidget,
   'audit-staleness': AuditStalenessWidget,
   'concurrent-edits': ConcurrentEditsWidget,

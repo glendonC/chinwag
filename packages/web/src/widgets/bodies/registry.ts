@@ -9,7 +9,6 @@ import { toolWidgets } from './ToolWidgets.js';
 import { conversationWidgets } from './ConversationWidgets.js';
 import { memoryWidgets } from './MemoryWidgets.js';
 import { teamWidgets } from './TeamWidgets.js';
-import { dataCoverageWidgets } from './DataCoverageWidget.js';
 
 export const widgetBodies: WidgetRegistry = {
   ...liveWidgets,
@@ -22,5 +21,4 @@ export const widgetBodies: WidgetRegistry = {
   ...conversationWidgets,
   ...memoryWidgets,
   ...teamWidgets,
-  ...dataCoverageWidgets,
 };

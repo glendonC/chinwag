@@ -718,7 +718,7 @@ export function createBaselineAnalytics(): UserAnalytics {
   ];
 
   // 27. conflict data
-  const conflict_stats = { blocked_period: 7, found_period: 18 };
+  const conflict_stats = { blocked_period: 7, found_period: 18, daily_blocked: [] };
   const sessionsWithConflicts = Math.round(totalSessions * 0.19);
   const sessionsWithoutConflicts = totalSessions - sessionsWithConflicts;
   const completedWithConflicts = Math.round(sessionsWithConflicts * 0.58);
@@ -1451,6 +1451,14 @@ export function createBaselineAnalytics(): UserAnalytics {
     memory_usage,
     work_type_outcomes,
     conversation_edit_correlation,
+    confused_files: [],
+    unanswered_questions: { count: 0 },
+    cross_tool_memory_flow: [],
+    memory_aging: { recent_7d: 0, recent_30d: 0, recent_90d: 0, older: 0 },
+    memory_categories: [],
+    memory_single_author_directories: [],
+    memory_supersession: { invalidated_period: 0, merged_period: 0, pending_proposals: 0 },
+    memory_secrets_shield: { blocked_period: 0, blocked_24h: 0 },
     file_rework,
     directory_heatmap,
     stuckness,

@@ -67,7 +67,17 @@ import {
   queryScopeComplexity,
 } from './sessions.js';
 import { queryMemberAnalytics, queryMemberCount, queryMemberDailyLines } from './team.js';
-import { queryMemoryUsage, queryMemoryOutcomeCorrelation, queryTopMemories } from './memory.js';
+import {
+  queryMemoryUsage,
+  queryMemoryOutcomeCorrelation,
+  queryTopMemories,
+  queryCrossToolMemoryFlow,
+  queryMemoryAging,
+  queryMemoryCategories,
+  queryMemorySingleAuthorDirectories,
+  queryMemorySupersession,
+  queryMemorySecretsShield,
+} from './memory.js';
 import {
   queryConversationEditCorrelation,
   queryConfusedFiles,
@@ -149,6 +159,12 @@ export function getExtendedAnalytics(
     memory_usage: queryMemoryUsage(sql, scope, days),
     memory_outcome_correlation: queryMemoryOutcomeCorrelation(sql, scope, days),
     top_memories: queryTopMemories(sql, scope, days),
+    cross_tool_memory_flow: queryCrossToolMemoryFlow(sql, scope, days),
+    memory_aging: queryMemoryAging(sql),
+    memory_categories: queryMemoryCategories(sql, scope),
+    memory_single_author_directories: queryMemorySingleAuthorDirectories(sql, scope),
+    memory_supersession: queryMemorySupersession(sql, scope, days),
+    memory_secrets_shield: queryMemorySecretsShield(sql, days),
 
     // ── Conversations ──────────────────────────────────────────────────
     conversation_edit_correlation: queryConversationEditCorrelation(sql, scope, days),

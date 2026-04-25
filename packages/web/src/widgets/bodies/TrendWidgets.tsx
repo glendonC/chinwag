@@ -1,170 +1,140 @@
 import type { CSSProperties } from 'react';
 import SectionEmpty from '../../components/SectionEmpty/SectionEmpty.js';
-import { Sparkline } from '../charts.js';
+import { setQueryParams, useRoute } from '../../lib/router.js';
 import { completionColor } from '../utils.js';
-import styles from '../widget-shared.module.css';
+import shared from '../widget-shared.module.css';
 import trend from './TrendWidgets.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
-import { CoverageNote, capabilityCoverageNote } from './shared.js';
+import { CoverageNote } from './shared.js';
+
+function openOutcomesTrend() {
+  return () => setQueryParams({ outcomes: 'sessions', q: 'trend' });
+}
+
+function useIsDrillable(): boolean {
+  const route = useRoute();
+  return route.view === 'overview';
+}
 
 function OutcomeTrendWidget({ analytics }: WidgetBodyProps) {
-  // Discrete stacked bars, one per day — each bar IS the hover
-  // affordance. Using pure SVG with computed geometry instead of
-  // flex/grid percentages because nested flex + %-height kept
-  // collapsing to near-zero heights depending on the widget slot's
-  // computed size.
-  //
-  // Stack order bottom-up: completed (success) → abandoned (warn) →
-  // failed (danger). Success reads as the foundation. Unknown-
-  // outcome sessions are excluded — they'd inflate the stack with
-  // signal-free bulk.
+  // Hero-first rate signal. The overview should answer the trend in one
+  // glance; the daily bars provide texture after the large number lands.
+  const drillable = useIsDrillable();
   const days = analytics.daily_trends;
-  const stackTotal = (d: { completed?: number; abandoned?: number; failed?: number }) =>
-    (d.completed ?? 0) + (d.abandoned ?? 0) + (d.failed ?? 0);
-  const observed = days.filter((d) => stackTotal(d) > 0);
+  const observed = days.filter((d) => (d.sessions ?? 0) > 0);
   if (observed.length < 2) {
     return <SectionEmpty>Appears once sessions run on 2+ different days</SectionEmpty>;
   }
 
-  const maxTotal = Math.max(...days.map(stackTotal), 1);
+  const maxSessions = Math.max(...observed.map((d) => d.sessions ?? 0), 1);
   const firstDay = observed[0].day;
   const lastDay = observed[observed.length - 1].day;
   const dateRange = formatDateRange(firstDay, lastDay);
+  const completed = observed.reduce((sum, d) => sum + (d.completed ?? 0), 0);
+  const sessions = observed.reduce((sum, d) => sum + (d.sessions ?? 0), 0);
+  const periodRate = sessions > 0 ? Math.round((completed / sessions) * 100) : 0;
+  const observedRates = observed.map((d) =>
+    Math.round(((d.completed ?? 0) / (d.sessions ?? 1)) * 100),
+  );
+  const firstRate = observedRates[0] ?? periodRate;
+  const lastRate = observedRates[observedRates.length - 1] ?? periodRate;
+  const delta = lastRate - firstRate;
+  const minRate = Math.min(...observedRates);
+  const maxRate = Math.max(...observedRates);
+  const signal = trendSignal(periodRate, delta, maxRate - minRate);
+  const deltaTone = delta === 0 ? 'var(--muted)' : delta > 0 ? 'var(--success)' : 'var(--danger)';
+  const detailLabel = `Open outcomes detail · ${periodRate}% completion rate trend`;
 
-  // Fixed coordinate space — the SVG scales via preserveAspectRatio
-  // none to fit the container. Bar widths are proportional to the
-  // number of days; bar HEIGHTS are computed in these units so the
-  // tallest stack fills ~90% of the plot area and the axis baseline
-  // stays clear at the bottom.
-  const PLOT_W = 1000;
-  const PLOT_H = 100;
-  const DAY_STRIDE = PLOT_W / days.length;
-  const BAR_W = Math.max(2, DAY_STRIDE * 0.65);
-  const BAR_GAP_X = (DAY_STRIDE - BAR_W) / 2;
-
-  return (
-    <div className={trend.stackFrame}>
-      <div className={trend.stackHeader}>
-        <div className={trend.stackLegend}>
-          <span className={trend.stackLegendItem}>
-            <span className={trend.stackLegendDot} style={{ background: 'var(--success)' }} />
-            completed
-          </span>
-          <span className={trend.stackLegendItem}>
-            <span className={trend.stackLegendDot} style={{ background: 'var(--warn)' }} />
-            abandoned
-          </span>
-          <span className={trend.stackLegendItem}>
-            <span className={trend.stackLegendDot} style={{ background: 'var(--danger)' }} />
-            failed
+  const content = (
+    <>
+      <div className={trend.rateHeader}>
+        <div className={trend.rateHeroBlock}>
+          <span className={trend.rateHero}>{periodRate}%</span>
+          <span className={trend.rateSignal} style={{ color: signal.color }}>
+            <span className={trend.rateDelta} style={{ color: deltaTone }}>
+              {formatDelta(delta)}
+            </span>{' '}
+            {signal.label}
+            {drillable && (
+              <span className={trend.rateDetailArrow} aria-hidden="true">
+                ↗
+              </span>
+            )}
           </span>
         </div>
-        {dateRange && <span className={trend.stackRange}>{dateRange}</span>}
       </div>
-      <div className={trend.stackPlot}>
-        <svg
-          viewBox={`0 0 ${PLOT_W} ${PLOT_H}`}
-          preserveAspectRatio="none"
-          className={trend.stackSvg}
-          role="img"
-          aria-label={`Daily outcome stack · ${dateRange ?? 'period'}`}
-        >
-          {days.map((d, i) => {
-            const c = d.completed ?? 0;
-            const a = d.abandoned ?? 0;
-            const f = d.failed ?? 0;
-            const total = c + a + f;
-            const label = formatDay(d.day);
-            const tooltip =
-              total === 0
-                ? `${label} · no outcomes recorded`
-                : `${label} · ${c} completed · ${a} abandoned · ${f} failed`;
-            const x = i * DAY_STRIDE + BAR_GAP_X;
+      <div
+        className={trend.rateTape}
+        role="img"
+        aria-label={`Daily completion rate · ${periodRate}% overall, ${signal.label}`}
+      >
+        {days.map((d) => {
+          const daySessions = d.sessions ?? 0;
+          const rate =
+            daySessions > 0 ? Math.round(((d.completed ?? 0) / daySessions) * 100) : null;
+          const color = rate == null ? 'var(--ghost)' : completionColor(rate);
+          const label = formatDay(d.day);
+          const tooltip =
+            rate == null
+              ? `${label} · no sessions`
+              : `${label} · ${rate}% completed · ${d.completed ?? 0} of ${daySessions} sessions`;
+          const volume = daySessions > 0 ? Math.max(0.45, daySessions / maxSessions) : 0.18;
 
-            if (total === 0) {
-              // Faint empty placeholder at the baseline so the axis
-              // stays readable even on zero-outcome days.
-              return (
-                <g key={d.day} className={trend.stackGroup}>
-                  <rect x={x} y={PLOT_H - 1} width={BAR_W} height={1} fill="var(--ghost)" />
-                  <rect
-                    x={i * DAY_STRIDE}
-                    y={0}
-                    width={DAY_STRIDE}
-                    height={PLOT_H}
-                    className={trend.stackHitstrip}
-                  >
-                    <title>{tooltip}</title>
-                  </rect>
-                </g>
-              );
-            }
-
-            // Reserve 90% of plot height for the tallest stack —
-            // leaves a 10% headroom strip so the tallest bar
-            // doesn't kiss the top edge.
-            const scale = (PLOT_H * 0.9) / maxTotal;
-            const cH = c * scale;
-            const aH = a * scale;
-            const fH = f * scale;
-            const cY = PLOT_H - cH;
-            const aY = cY - aH;
-            const fY = aY - fH;
-
-            return (
-              <g key={d.day} className={trend.stackGroup}>
-                {c > 0 && (
-                  <rect
-                    x={x}
-                    y={cY}
-                    width={BAR_W}
-                    height={cH}
-                    fill="var(--success)"
-                    opacity={0.8}
-                    rx={1}
-                  />
-                )}
-                {a > 0 && (
-                  <rect
-                    x={x}
-                    y={aY}
-                    width={BAR_W}
-                    height={aH}
-                    fill="var(--warn)"
-                    opacity={0.8}
-                    rx={1}
-                  />
-                )}
-                {f > 0 && (
-                  <rect
-                    x={x}
-                    y={fY}
-                    width={BAR_W}
-                    height={fH}
-                    fill="var(--danger)"
-                    opacity={0.8}
-                    rx={1}
-                  />
-                )}
-                {/* Full-height hit rect per day for the tooltip + hover tint.
-                 *  Sits on top of the bars so the target is the whole column,
-                 *  not just the painted area. */}
-                <rect
-                  x={i * DAY_STRIDE}
-                  y={0}
-                  width={DAY_STRIDE}
-                  height={PLOT_H}
-                  className={trend.stackHitstrip}
-                >
-                  <title>{tooltip}</title>
-                </rect>
-              </g>
-            );
-          })}
-        </svg>
+          return (
+            <span
+              key={d.day}
+              className={trend.rateCell}
+              style={
+                {
+                  '--rate-height': rate == null ? '14%' : `${Math.max(14, rate)}%`,
+                  background: color,
+                  opacity: volume,
+                } as CSSProperties
+              }
+              title={tooltip}
+            />
+          );
+        })}
       </div>
-    </div>
+      <div className={trend.rateFooter} aria-hidden="true">
+        <span>{dateRange || `${observed.length} active days`}</span>
+        <span>{observed.length} active days</span>
+      </div>
+    </>
   );
+
+  if (!drillable) return <div className={trend.rateFrame}>{content}</div>;
+  return (
+    <button
+      type="button"
+      className={`${trend.rateFrame} ${trend.rateFrameButton}`}
+      onClick={openOutcomesTrend()}
+      aria-label={detailLabel}
+    >
+      {content}
+    </button>
+  );
+}
+
+function trendSignal(
+  periodRate: number,
+  endDelta: number,
+  spread: number,
+): { label: string; color: string } {
+  if (Math.abs(endDelta) >= 12) {
+    return endDelta > 0
+      ? { label: 'improving', color: 'var(--success)' }
+      : { label: 'slipping', color: 'var(--danger)' };
+  }
+  if (spread >= 35) return { label: 'volatile', color: 'var(--warn)' };
+  if (periodRate >= 70) return { label: 'healthy', color: 'var(--success)' };
+  if (periodRate >= 50) return { label: 'watch', color: 'var(--warn)' };
+  return { label: 'at risk', color: 'var(--danger)' };
+}
+
+function formatDelta(delta: number): string {
+  if (delta === 0) return '→0pt';
+  return `${delta > 0 ? '↑' : '↓'}${Math.abs(delta)}pt`;
 }
 
 /** Render a day ISO string as `Apr 24` for the tooltip. */
@@ -184,53 +154,40 @@ function formatDateRange(first: string, last: string): string | null {
   return `${f} – ${l}`;
 }
 
-function PromptEfficiencyWidget({ analytics }: WidgetBodyProps) {
-  const pe = analytics.prompt_efficiency;
-  // avg_turns_per_edit is nullable by contract: the worker emits null
-  // for dead days (no conversation + edit activity) and the cross-team
-  // projector does the same when every team is silent on a day. Keep
-  // real zeros if they ever appear (a user who edits without messaging).
-  const data = pe.map((d) => d.avg_turns_per_edit).filter((v): v is number => v != null);
-  const tools = analytics.data_coverage?.tools_reporting ?? [];
-  const note = capabilityCoverageNote(tools, 'conversationLogs');
-  if (data.length < 2) {
-    // A flat ghost sparkline reads as "efficiency is perfectly constant"
-    // per the D3a rule — never render a ghost line that implies the
-    // system is working while the user has nothing.
-    return (
-      <>
-        <SectionEmpty>Trend fills in after a few sessions with conversation capture</SectionEmpty>
-        <CoverageNote text={note} />
-      </>
-    );
-  }
-  return (
-    <>
-      <Sparkline data={data} height={80} />
-      <CoverageNote text={note} />
-    </>
-  );
-}
+// hourly-effectiveness revived 2026-04-25 (post 18-month re-audit). Cross-
+// tool, cross-agent hour-of-day completion is substrate-unique even though
+// hour-of-day metrics exist in every dashboard product (no IDE sees the
+// union across tools and developers). Slice fix from the original cut: sort
+// by sessions DESC before slicing top-12, so the cap surfaces the highest-
+// volume hours rather than the first 12 in clock order. Detail questions:
+// volume vs completion-rate split, by-tool curve differences, work-type
+// dependence, day-of-week dips, off-hour failure attribution.
+const HOURLY_TOP_N = 12;
 
 function HourlyEffectivenessWidget({ analytics }: WidgetBodyProps) {
   const he = analytics.hourly_effectiveness;
   if (he.length === 0) {
     return <SectionEmpty>Hourly pattern appears after a few completed sessions</SectionEmpty>;
   }
-  const activeHours = he.filter((h) => h.sessions > 0);
-  const visibleHours = activeHours.slice(0, 12);
+  // Sort by volume desc before slicing so the cap surfaces high-traffic hours,
+  // not whatever clock-order the worker returned.
+  const activeHours = he.filter((h) => h.sessions > 0).sort((a, b) => b.sessions - a.sessions);
+  const visibleHours = activeHours.slice(0, HOURLY_TOP_N);
   const hiddenCount = activeHours.length - visibleHours.length;
+  // Re-sort visible by hour for chronological reading. The slice already
+  // captured the top-N by volume; rendering in clock order helps the eye.
+  visibleHours.sort((a, b) => a.hour - b.hour);
   const maxS = Math.max(...visibleHours.map((h) => h.sessions), 1);
   return (
     <>
-      <div className={styles.metricBars}>
+      <div className={shared.metricBars}>
         {visibleHours.map((h, i) => (
           <div
             key={h.hour}
-            className={styles.metricRow}
+            className={shared.metricRow}
             style={{ '--row-index': i } as CSSProperties}
           >
-            <span className={styles.metricLabel}>
+            <span className={shared.metricLabel}>
               {h.hour === 0
                 ? '12a'
                 : h.hour < 12
@@ -239,9 +196,9 @@ function HourlyEffectivenessWidget({ analytics }: WidgetBodyProps) {
                     ? '12p'
                     : `${h.hour - 12}p`}
             </span>
-            <div className={styles.metricBarTrack}>
+            <div className={shared.metricBarTrack}>
               <div
-                className={styles.metricBarFill}
+                className={shared.metricBarFill}
                 style={{
                   width: `${(h.sessions / maxS) * 100}%`,
                   background: completionColor(h.completion_rate),
@@ -249,14 +206,16 @@ function HourlyEffectivenessWidget({ analytics }: WidgetBodyProps) {
                 }}
               />
             </div>
-            <span className={styles.metricValue}>
+            <span className={shared.metricValue}>
               {h.completion_rate}% · {h.sessions}
             </span>
           </div>
         ))}
       </div>
       {hiddenCount > 0 && (
-        <CoverageNote text={`Top 12 of ${activeHours.length} active hours shown`} />
+        <CoverageNote
+          text={`Top ${HOURLY_TOP_N} of ${activeHours.length} active hours by volume`}
+        />
       )}
     </>
   );
@@ -264,6 +223,5 @@ function HourlyEffectivenessWidget({ analytics }: WidgetBodyProps) {
 
 export const trendWidgets: WidgetRegistry = {
   'outcome-trend': OutcomeTrendWidget,
-  'prompt-efficiency': PromptEfficiencyWidget,
   'hourly-effectiveness': HourlyEffectivenessWidget,
 };

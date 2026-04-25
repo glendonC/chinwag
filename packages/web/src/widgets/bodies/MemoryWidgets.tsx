@@ -1,104 +1,16 @@
 import { useState, type CSSProperties } from 'react';
 import SectionEmpty from '../../components/SectionEmpty/SectionEmpty.js';
+import { getToolMeta } from '../../lib/toolMeta.js';
 import styles from '../widget-shared.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
 import { CoverageNote } from './shared.js';
 
-// Period-scoped: everything in here responds to the global date picker.
-function MemoryActivityWidget({ analytics }: WidgetBodyProps) {
-  const m = analytics.memory_usage;
-  if (m.searches === 0 && m.memories_created_period === 0)
-    return <SectionEmpty>No memory searches this period.</SectionEmpty>;
-  return (
-    <div className={styles.statRow}>
-      <div className={styles.statBlock}>
-        <span className={styles.statBlockValue}>{m.searches}</span>
-        <span className={styles.statBlockLabel}>searches</span>
-      </div>
-      {m.search_hit_rate > 0 && (
-        <div className={styles.statBlock}>
-          <span className={styles.statBlockValue}>{m.search_hit_rate}%</span>
-          <span className={styles.statBlockLabel}>hit rate</span>
-        </div>
-      )}
-      <div className={styles.statBlock}>
-        <span className={styles.statBlockValue}>{m.memories_created_period}</span>
-        <span className={styles.statBlockLabel}>created</span>
-      </div>
-    </div>
-  );
-}
-
-// All-time: none of these respond to the date picker. Widget renders the
-// 'all-time' scope tag in its header (see WidgetRenderer).
-//
-// Kept lean on purpose: three blocks for lifetime memory health. The
-// protection-signal counters (consolidation queue, auditor flags, secret
-// blocks, soft-merges) are in the sibling MemorySafetyWidget — separating
-// health from safety keeps each widget readable at 6-col width and avoids
-// the 7-block density problem the 04-19 audit flagged.
-function MemoryHealthWidget({ analytics }: WidgetBodyProps) {
-  const m = analytics.memory_usage;
-  if (m.total_memories === 0) return <SectionEmpty>No memories saved yet.</SectionEmpty>;
-  return (
-    <div className={styles.statRow}>
-      <div className={styles.statBlock}>
-        <span className={styles.statBlockValue}>{m.total_memories}</span>
-        <span className={styles.statBlockLabel}>memories</span>
-      </div>
-      {m.avg_memory_age_days > 0 && (
-        <div className={styles.statBlock}>
-          <span className={styles.statBlockValue}>{Math.round(m.avg_memory_age_days)}d</span>
-          <span className={styles.statBlockLabel}>avg age</span>
-        </div>
-      )}
-      {m.stale_memories > 0 && (
-        <div className={styles.statBlock}>
-          <span className={styles.statBlockValue}>{m.stale_memories}</span>
-          <span className={styles.statBlockLabel}>stale</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Live review queue for the memory pipeline. Three signals, all live:
-//   review queue    — consolidation proposals awaiting decision
-//   auditor-flagged — unaddressed formation observations (merge/evolve/discard)
-//   secrets caught  — secret-detector blocks in the last 24h
-// The widget has a single time scope (live) so the empty state is virtuous
-// ("nothing needs review") like live-conflicts, not accusatory.
-function MemorySafetyWidget({ analytics }: WidgetBodyProps) {
-  const m = analytics.memory_usage;
-  const formation = m.formation_observations_by_recommendation;
-  const flagged = formation
-    ? (formation.merge ?? 0) + (formation.evolve ?? 0) + (formation.discard ?? 0)
-    : 0;
-  const hasAny = m.pending_consolidation_proposals > 0 || flagged > 0 || m.secrets_blocked_24h > 0;
-  if (!hasAny) return <SectionEmpty>Nothing needs review.</SectionEmpty>;
-  return (
-    <div className={styles.statRow}>
-      {m.pending_consolidation_proposals > 0 && (
-        <div className={styles.statBlock}>
-          <span className={styles.statBlockValue}>{m.pending_consolidation_proposals}</span>
-          <span className={styles.statBlockLabel}>review queue</span>
-        </div>
-      )}
-      {flagged > 0 && (
-        <div className={styles.statBlock}>
-          <span className={styles.statBlockValue}>{flagged}</span>
-          <span className={styles.statBlockLabel}>auditor-flagged</span>
-        </div>
-      )}
-      {m.secrets_blocked_24h > 0 && (
-        <div className={styles.statBlock}>
-          <span className={styles.statBlockValue}>{m.secrets_blocked_24h}</span>
-          <span className={styles.statBlockLabel}>secrets caught</span>
-        </div>
-      )}
-    </div>
-  );
-}
+// Memory category was contracted in the 2026-04-25 audit (4 cuts: memory-
+// activity, memory-health, memory-safety, top-memories) and re-expanded the
+// same day with widgets that anchor multi-question detail views per the
+// rubric's Widget ↔ Detail-View Disposition. Each widget below documents
+// the 4-5 English questions its detail view will answer (when built). All
+// new widgets are catalog-only at the catalog default sizes.
 
 // Sample-size gate. Below this, the 3-bucket split collapses visually (a
 // single-bucket bar chart fails rubric C1), and completion_rate percentages
@@ -146,15 +58,184 @@ function MemoryOutcomesWidget({ analytics }: WidgetBodyProps) {
   );
 }
 
-// How many top-memories rows render inline before the "+N more" affordance
-// truncates. Above this, rows compete for vertical space at the default 6×3
-// widget size; below, the list reads as sparse. SQL returns up to 20.
+// memory-cross-tool-flow: pairs of (author_tool, consumer_tool) where the
+// consumer tool ran sessions in the period that COULD have read memories
+// authored by author_tool. Honest framing: this measures co-presence and
+// available-memory volume, NOT exact read attribution. Per ANALYTICS_SPEC
+// §10, the per-memory `memory_search_results` join table is unbuilt —
+// without it, the renderer says "available to N sessions of," not "read
+// by N sessions of."
+function MemoryCrossToolFlowWidget({ analytics }: WidgetBodyProps) {
+  const flow = analytics.cross_tool_memory_flow;
+  if (flow.length === 0) {
+    return (
+      <>
+        <SectionEmpty>
+          Cross-tool flow appears once two or more tools have memories and active sessions.
+        </SectionEmpty>
+        <CoverageNote text="Memory available to other-tool sessions — not exact read attribution." />
+      </>
+    );
+  }
+  const visible = flow.slice(0, 8);
+  const hidden = flow.length - visible.length;
+  return (
+    <>
+      <div className={styles.dataList}>
+        {visible.map((f, i) => {
+          const author = getToolMeta(f.author_tool);
+          const consumer = getToolMeta(f.consumer_tool);
+          return (
+            <div
+              key={`${f.author_tool}-${f.consumer_tool}`}
+              className={styles.dataRow}
+              style={{ '--row-index': i } as CSSProperties}
+            >
+              <span className={styles.dataName}>
+                {author.label} → {consumer.label}
+              </span>
+              <div className={styles.dataMeta}>
+                <span className={styles.dataStat}>
+                  <span className={styles.dataStatValue}>{f.memories}</span>{' '}
+                  {f.memories === 1 ? 'memory' : 'memories'}
+                </span>
+                <span className={styles.dataStat}>
+                  available to <span className={styles.dataStatValue}>{f.consumer_sessions}</span>{' '}
+                  {f.consumer_sessions === 1 ? 'session' : 'sessions'}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {hidden > 0 && <div className={styles.moreHidden}>+{hidden} more pairs</div>}
+      <CoverageNote text="Available-to, not read-by. Exact attribution requires memory-search-result tracking." />
+    </>
+  );
+}
+
+// memory-aging-curve: composition of currently-live memories by age bucket.
+// Lifetime scope (catalog timeScope='all-time'); picker doesn't apply.
+const AGE_COLORS: Record<string, string> = {
+  '0-7d': 'var(--success)',
+  '8-30d': 'var(--soft)',
+  '31-90d': 'var(--warn)',
+  '90d+': 'var(--ghost)',
+};
+
+function MemoryAgingCurveWidget({ analytics }: WidgetBodyProps) {
+  const a = analytics.memory_aging;
+  const total = a.recent_7d + a.recent_30d + a.recent_90d + a.older;
+  if (total === 0) {
+    return <SectionEmpty>Aging curve appears after the team saves memories.</SectionEmpty>;
+  }
+  const buckets = [
+    { key: '0-7d', label: '0-7 days', count: a.recent_7d },
+    { key: '8-30d', label: '8-30 days', count: a.recent_30d },
+    { key: '31-90d', label: '31-90 days', count: a.recent_90d },
+    { key: '90d+', label: '90+ days', count: a.older },
+  ];
+  return (
+    <>
+      <div className={styles.workBar}>
+        {buckets.map((b) => {
+          const pct = (b.count / total) * 100;
+          return pct < 1 ? null : (
+            <div
+              key={b.key}
+              className={styles.workSegment}
+              style={{ width: `${pct}%`, background: AGE_COLORS[b.key] }}
+              title={`${b.label}: ${Math.round(pct)}% (${b.count})`}
+            />
+          );
+        })}
+      </div>
+      <div className={styles.workLegend}>
+        {buckets.map((b, i) => {
+          const pct = Math.round((b.count / total) * 100);
+          return pct < 1 ? null : (
+            <div
+              key={b.key}
+              className={styles.workLegendItem}
+              style={{ '--row-index': i } as CSSProperties}
+            >
+              <span className={styles.workDot} style={{ background: AGE_COLORS[b.key] }} />
+              <span className={styles.workLegendLabel}>{b.label}</span>
+              <span className={styles.workLegendValue}>
+                {pct}% · {b.count}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+// memory-categories: top agent-assigned categories on currently-live
+// memories. Coverage depends on agent adoption of the category-aware save
+// pattern; the empty state names the gate.
+const TOP_CATEGORIES_VISIBLE = 8;
+
+function MemoryCategoriesWidget({ analytics }: WidgetBodyProps) {
+  const [nowMs] = useState(() => Date.now());
+  const cats = analytics.memory_categories;
+  if (cats.length === 0) {
+    return (
+      <SectionEmpty>
+        Categories appear when agents tag memories on save (`chinmeister_save_memory` with
+        categories).
+      </SectionEmpty>
+    );
+  }
+  const visible = cats.slice(0, TOP_CATEGORIES_VISIBLE);
+  const hidden = cats.length - visible.length;
+  const maxCount = Math.max(...visible.map((c) => c.count), 1);
+  return (
+    <>
+      <div className={styles.metricBars}>
+        {visible.map((c, i) => {
+          const daysAgo = c.last_used_at
+            ? Math.max(0, Math.floor((nowMs - new Date(c.last_used_at).getTime()) / 86_400_000))
+            : null;
+          return (
+            <div
+              key={c.category}
+              className={styles.metricRow}
+              style={{ '--row-index': i } as CSSProperties}
+            >
+              <span className={styles.metricLabel}>{c.category}</span>
+              <div className={styles.metricBarTrack}>
+                <div
+                  className={styles.metricBarFill}
+                  style={{
+                    width: `${(c.count / maxCount) * 100}%`,
+                    opacity: 'var(--opacity-bar-fill)',
+                  }}
+                />
+              </div>
+              <span className={styles.metricValue}>
+                {c.count}
+                {daysAgo != null ? ` · ${daysAgo === 0 ? 'today' : `${daysAgo}d ago`}` : ''}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {hidden > 0 && <div className={styles.moreHidden}>+{hidden} more categories</div>}
+    </>
+  );
+}
+
+// top-memories revived 2026-04-25. Cut-then-reinstated when the rubric bar
+// shifted from "passes the rubric in isolation" to "anchors a multi-question
+// detail view." The widget answers "what does the team rely on" — most-read
+// shared memories with last-touch hint. Click drills to memory detail (when
+// MemoryDetailView ships) for the underlying questions: most-read, never-
+// read, heaviest categories, work-type dependencies, composition shifts.
 const TOP_MEMORIES_VISIBLE = 8;
 
 function TopMemoriesWidget({ analytics }: WidgetBodyProps) {
-  // Captured at mount so relative-time math in render stays pure. Accepted
-  // staleness: a long-mounted dashboard may show "Xd ago" lagging by a day
-  // until next remount.
   const [nowMs] = useState(() => Date.now());
   const tm = analytics.top_memories;
   if (tm.length === 0) return <SectionEmpty>No memories accessed.</SectionEmpty>;
@@ -198,10 +279,157 @@ function TopMemoriesWidget({ analytics }: WidgetBodyProps) {
   );
 }
 
+// memory-health revived 2026-04-25 (post 18-month re-audit). Three lifetime
+// stats: total live memories, average age, stale count. Renders the steady-
+// state shape of the team's living memory. Catalog-only with timeScope='all-
+// time' so the picker doesn't apply. Detail-view questions: total live vs
+// invalidated trend, formation-observation rate, hygiene-action backlog,
+// per-category live count, last-touched age distribution.
+function MemoryHealthWidget({ analytics }: WidgetBodyProps) {
+  const m = analytics.memory_usage;
+  if (m.total_memories === 0) return <SectionEmpty>No memories saved yet.</SectionEmpty>;
+  return (
+    <div className={styles.statRow}>
+      <div className={styles.statBlock}>
+        <span className={styles.statBlockValue}>{m.total_memories}</span>
+        <span className={styles.statBlockLabel}>memories</span>
+      </div>
+      {m.avg_memory_age_days > 0 && (
+        <div className={styles.statBlock}>
+          <span className={styles.statBlockValue}>{Math.round(m.avg_memory_age_days)}d</span>
+          <span className={styles.statBlockLabel}>avg age</span>
+        </div>
+      )}
+      {m.stale_memories > 0 && (
+        <div className={styles.statBlock}>
+          <span className={styles.statBlockValue}>{m.stale_memories}</span>
+          <span className={styles.statBlockLabel}>stale</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// memory-bus-factor (handle-blind directory variant). Per directory, share
+// of memories with single-author concentration. Surface is directory-axis,
+// never names handles. Detail questions: which directories carry single-
+// author memory, period delta, second-author resilience trend, concentrated
+// dirs by traffic, team-wide authorship spread.
+const SINGLE_AUTHOR_VISIBLE = 8;
+
+function MemoryBusFactorWidget({ analytics }: WidgetBodyProps) {
+  const dirs = analytics.memory_single_author_directories;
+  if (dirs.length === 0) {
+    return (
+      <SectionEmpty>
+        Single-author directories appear when 2+ authors have saved memories and at least one
+        directory has only one of them contributing.
+      </SectionEmpty>
+    );
+  }
+  const visible = dirs.slice(0, SINGLE_AUTHOR_VISIBLE);
+  const hidden = dirs.length - visible.length;
+  return (
+    <>
+      <div className={styles.dataList}>
+        {visible.map((d, i) => {
+          const pct =
+            d.total_count > 0 ? Math.round((d.single_author_count / d.total_count) * 100) : 0;
+          return (
+            <div
+              key={d.directory}
+              className={styles.dataRow}
+              style={{ '--row-index': i } as CSSProperties}
+            >
+              <span className={styles.dataName} title={d.directory}>
+                {d.directory}
+              </span>
+              <div className={styles.dataMeta}>
+                <span className={styles.dataStat}>
+                  <span className={styles.dataStatValue}>{pct}%</span> single-author
+                </span>
+                <span className={styles.dataStat}>
+                  <span className={styles.dataStatValue}>{d.single_author_count}</span>/
+                  <span className={styles.dataStatValue}>{d.total_count}</span>
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {hidden > 0 && <div className={styles.moreHidden}>+{hidden} more directories</div>}
+    </>
+  );
+}
+
+// memory-supersession-flow: live counters for the consolidation pipeline.
+// Latent infrastructure for Memory Hygiene Autopilot — quiet today, load-
+// bearing once consolidation runs on cadence. Detail questions: retired vs
+// merged this period, queue depth + age, categories with most supersession,
+// merge clustering by directory, median memory lifespan.
+function MemorySupersessionFlowWidget({ analytics }: WidgetBodyProps) {
+  const s = analytics.memory_supersession;
+  const hasAny = s.invalidated_period > 0 || s.merged_period > 0 || s.pending_proposals > 0;
+  if (!hasAny) {
+    return (
+      <SectionEmpty>
+        Supersession activity appears when consolidation runs. Memory Hygiene runs on cadence in
+        active teams.
+      </SectionEmpty>
+    );
+  }
+  return (
+    <div className={styles.statRow}>
+      <div className={styles.statBlock}>
+        <span className={styles.statBlockValue}>{s.invalidated_period}</span>
+        <span className={styles.statBlockLabel}>invalidated</span>
+      </div>
+      <div className={styles.statBlock}>
+        <span className={styles.statBlockValue}>{s.merged_period}</span>
+        <span className={styles.statBlockLabel}>merged</span>
+      </div>
+      <div className={styles.statBlock}>
+        <span className={styles.statBlockValue}>{s.pending_proposals}</span>
+        <span className={styles.statBlockLabel}>pending review</span>
+      </div>
+    </div>
+  );
+}
+
+// memory-secrets-shield: secret writes blocked by the prompt-injection /
+// secret-detection layer. Quiet most of the time today; latent security
+// posture signal as memory volume grows. Substrate-unique (only chinmeister
+// sees cross-tool memory writes). Detail questions: leaks attempted, which
+// tools tried, trend, patterns caught most, false-positive cost.
+function MemorySecretsShieldWidget({ analytics }: WidgetBodyProps) {
+  const s = analytics.memory_secrets_shield;
+  if (s.blocked_period === 0 && s.blocked_24h === 0) {
+    return <SectionEmpty>No blocks this period. The shield is on.</SectionEmpty>;
+  }
+  return (
+    <div className={styles.statRow}>
+      <div className={styles.statBlock}>
+        <span className={styles.statBlockValue}>{s.blocked_period}</span>
+        <span className={styles.statBlockLabel}>blocked this period</span>
+      </div>
+      {s.blocked_24h > 0 && (
+        <div className={styles.statBlock}>
+          <span className={styles.statBlockValue}>{s.blocked_24h}</span>
+          <span className={styles.statBlockLabel}>last 24h</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export const memoryWidgets: WidgetRegistry = {
-  'memory-activity': MemoryActivityWidget,
-  'memory-health': MemoryHealthWidget,
-  'memory-safety': MemorySafetyWidget,
   'memory-outcomes': MemoryOutcomesWidget,
+  'memory-cross-tool-flow': MemoryCrossToolFlowWidget,
+  'memory-aging-curve': MemoryAgingCurveWidget,
+  'memory-categories': MemoryCategoriesWidget,
   'top-memories': TopMemoriesWidget,
+  'memory-health': MemoryHealthWidget,
+  'memory-bus-factor': MemoryBusFactorWidget,
+  'memory-supersession-flow': MemorySupersessionFlowWidget,
+  'memory-secrets-shield': MemorySecretsShieldWidget,
 };

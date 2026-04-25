@@ -80,15 +80,21 @@ function Heatmap({ hourly }: { hourly: UserAnalytics['hourly_distribution'] }) {
 
 function WorkTypesWidget({ analytics }: WidgetBodyProps) {
   const workTypes = analytics.work_type_distribution;
-  const total = workTypes.reduce((s, w) => s + w.sessions, 0);
-  if (total === 0) {
+  // Denominator is edits, not sessions. A session that touches frontend +
+  // tests appears in BOTH per-work-type session counts (one row each), so
+  // sum(w.sessions) double-counts cross-type sessions and the percentages
+  // can exceed 100. Edits are disjoint at the edit level (each edit has
+  // exactly one work_type via SQL CASE), so sum(w.edits) is the honest
+  // denominator that sums to total period edits.
+  const totalEdits = workTypes.reduce((s, w) => s + w.edits, 0);
+  if (totalEdits === 0) {
     return <SectionEmpty>No sessions yet</SectionEmpty>;
   }
   return (
     <>
       <div className={shared.workBar}>
         {workTypes.map((w) => {
-          const pct = (w.sessions / total) * 100;
+          const pct = (w.edits / totalEdits) * 100;
           return pct < 1 ? null : (
             <div
               key={w.work_type}
@@ -97,14 +103,14 @@ function WorkTypesWidget({ analytics }: WidgetBodyProps) {
                 width: `${pct}%`,
                 background: workTypeColor(w.work_type),
               }}
-              title={`${w.work_type}: ${Math.round(pct)}%`}
+              title={`${w.work_type}: ${Math.round(pct)}% of edits`}
             />
           );
         })}
       </div>
       <div className={shared.workLegend}>
         {workTypes
-          .map((w) => ({ w, pct: Math.round((w.sessions / total) * 100) }))
+          .map((w) => ({ w, pct: Math.round((w.edits / totalEdits) * 100) }))
           .filter(({ pct }) => pct >= 1)
           .map(({ w, pct }, i) => (
             <div
@@ -115,7 +121,7 @@ function WorkTypesWidget({ analytics }: WidgetBodyProps) {
               <span className={shared.workDot} style={{ background: workTypeColor(w.work_type) }} />
               <span className={shared.workLegendLabel}>{w.work_type}</span>
               <span className={shared.workLegendValue}>
-                {pct}% · {w.sessions}
+                {pct}% · {w.sessions} {w.sessions === 1 ? 'session' : 'sessions'}
               </span>
             </div>
           ))}

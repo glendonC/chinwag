@@ -145,10 +145,28 @@ export function queryConflictStats(
       if (row.metric === 'conflicts_blocked') blocked = (row.cnt as number) || 0;
       if (row.metric === 'conflicts_found') found = (row.cnt as number) || 0;
     }
-    return { blocked_period: blocked, found_period: found };
+    // Daily breakdown for the conflicts-blocked widget's enhanced trend
+    // sparkline. Same source as the period total (daily_metrics rolled up
+    // by date) so the sparkline sums to blocked_period exactly.
+    const dailyRows = sql
+      .exec(
+        `SELECT date AS day, COALESCE(SUM(count), 0) AS blocked
+         FROM daily_metrics
+         WHERE metric = 'conflicts_blocked'
+           AND date > date('now', '-' || ? || ' days')
+         GROUP BY date
+         ORDER BY date ASC`,
+        days,
+      )
+      .toArray();
+    const daily_blocked = dailyRows.map((r) => {
+      const row = r as Record<string, unknown>;
+      return { day: row.day as string, blocked: (row.blocked as number) || 0 };
+    });
+    return { blocked_period: blocked, found_period: found, daily_blocked };
   } catch (err) {
     log.warn(`conflictStats query failed: ${err}`);
-    return { blocked_period: 0, found_period: 0 };
+    return { blocked_period: 0, found_period: 0, daily_blocked: [] };
   }
 }
 

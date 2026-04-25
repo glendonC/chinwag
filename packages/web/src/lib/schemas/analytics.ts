@@ -30,6 +30,15 @@ import {
   memoryUsageStatsSchema as baseMemoryUsageStatsSchema,
   workTypeOutcomeSchema as baseWorkTypeOutcomeSchema,
   conversationEditCorrelationSchema as baseConversationEditCorrelationSchema,
+  confusedFileEntrySchema as baseConfusedFileEntrySchema,
+  unansweredQuestionStatsSchema as baseUnansweredQuestionStatsSchema,
+  crossToolMemoryFlowEntrySchema as baseCrossToolMemoryFlowEntrySchema,
+  memoryAgingCompositionSchema as baseMemoryAgingCompositionSchema,
+  memoryCategoryEntrySchema as baseMemoryCategoryEntrySchema,
+  memorySingleAuthorDirectoryEntrySchema as baseMemorySingleAuthorDirectoryEntrySchema,
+  memorySupersessionStatsSchema as baseMemorySupersessionStatsSchema,
+  memorySecretsShieldStatsSchema as baseMemorySecretsShieldStatsSchema,
+  conflictDailyEntrySchema as baseConflictDailyEntrySchema,
   fileReworkEntrySchema as baseFileReworkEntrySchema,
   directoryHeatmapEntrySchema as baseDirectoryHeatmapEntrySchema,
   filesByWorkTypeEntrySchema as baseFilesByWorkTypeEntrySchema,
@@ -231,9 +240,14 @@ const conflictCorrelationSchema = baseConflictCorrelationSchema.extend({
   completion_rate: z.number().default(0),
 });
 
+const conflictDailyEntrySchemaLocal = baseConflictDailyEntrySchema.extend({
+  blocked: z.number().default(0),
+});
+
 const conflictStatsSchema = baseConflictStatsSchema.extend({
   blocked_period: z.number().default(0),
   found_period: z.number().default(0),
+  daily_blocked: z.array(conflictDailyEntrySchemaLocal).default([]),
 });
 
 const editVelocityTrendSchema = baseEditVelocityTrendSchema.extend({
@@ -274,6 +288,47 @@ const conversationEditCorrelationSchema = baseConversationEditCorrelationSchema.
   avg_edits: z.number().default(0),
   avg_lines: z.number().default(0),
   completion_rate: z.number().default(0),
+});
+
+const confusedFileEntrySchema = baseConfusedFileEntrySchema.extend({
+  confused_sessions: z.number().default(0),
+  retried_sessions: z.number().default(0),
+});
+
+const unansweredQuestionStatsSchema = baseUnansweredQuestionStatsSchema.extend({
+  count: z.number().default(0),
+});
+
+const crossToolMemoryFlowEntrySchema = baseCrossToolMemoryFlowEntrySchema.extend({
+  memories: z.number().default(0),
+  consumer_sessions: z.number().default(0),
+});
+
+const memoryAgingCompositionSchema = baseMemoryAgingCompositionSchema.extend({
+  recent_7d: z.number().default(0),
+  recent_30d: z.number().default(0),
+  recent_90d: z.number().default(0),
+  older: z.number().default(0),
+});
+
+const memoryCategoryEntrySchema = baseMemoryCategoryEntrySchema.extend({
+  count: z.number().default(0),
+});
+
+const memorySingleAuthorDirectoryEntrySchema = baseMemorySingleAuthorDirectoryEntrySchema.extend({
+  single_author_count: z.number().default(0),
+  total_count: z.number().default(0),
+});
+
+const memorySupersessionStatsSchema = baseMemorySupersessionStatsSchema.extend({
+  invalidated_period: z.number().default(0),
+  merged_period: z.number().default(0),
+  pending_proposals: z.number().default(0),
+});
+
+const memorySecretsShieldStatsSchema = baseMemorySecretsShieldStatsSchema.extend({
+  blocked_period: z.number().default(0),
+  blocked_24h: z.number().default(0),
 });
 
 const fileReworkEntrySchema = baseFileReworkEntrySchema.extend({
@@ -503,7 +558,11 @@ export const userAnalyticsSchema = teamAnalyticsSchema.extend({
   member_analytics_total: z.number().default(0),
   retry_patterns: z.array(retryPatternSchema).default([]),
   conflict_correlation: z.array(conflictCorrelationSchema).default([]),
-  conflict_stats: conflictStatsSchema.default({ blocked_period: 0, found_period: 0 }),
+  conflict_stats: conflictStatsSchema.default({
+    blocked_period: 0,
+    found_period: 0,
+    daily_blocked: [],
+  }),
   edit_velocity: z.array(editVelocityTrendSchema).default([]),
   per_project_velocity: z.array(projectVelocityRollupSchema).default([]),
   memory_usage: memoryUsageStatsSchema.default({
@@ -520,6 +579,26 @@ export const userAnalyticsSchema = teamAnalyticsSchema.extend({
   }),
   work_type_outcomes: z.array(workTypeOutcomeSchema).default([]),
   conversation_edit_correlation: z.array(conversationEditCorrelationSchema).default([]),
+  confused_files: z.array(confusedFileEntrySchema).default([]),
+  unanswered_questions: unansweredQuestionStatsSchema.default({ count: 0 }),
+  cross_tool_memory_flow: z.array(crossToolMemoryFlowEntrySchema).default([]),
+  memory_aging: memoryAgingCompositionSchema.default({
+    recent_7d: 0,
+    recent_30d: 0,
+    recent_90d: 0,
+    older: 0,
+  }),
+  memory_categories: z.array(memoryCategoryEntrySchema).default([]),
+  memory_single_author_directories: z.array(memorySingleAuthorDirectoryEntrySchema).default([]),
+  memory_supersession: memorySupersessionStatsSchema.default({
+    invalidated_period: 0,
+    merged_period: 0,
+    pending_proposals: 0,
+  }),
+  memory_secrets_shield: memorySecretsShieldStatsSchema.default({
+    blocked_period: 0,
+    blocked_24h: 0,
+  }),
   file_rework: z.array(fileReworkEntrySchema).default([]),
   directory_heatmap: z.array(directoryHeatmapEntrySchema).default([]),
   files_by_work_type: z.array(filesByWorkTypeEntrySchema).default([]),
@@ -679,7 +758,7 @@ export function createEmptyUserAnalytics(): UserAnalytics {
     per_project_lines: [],
     retry_patterns: [],
     conflict_correlation: [],
-    conflict_stats: { blocked_period: 0, found_period: 0 },
+    conflict_stats: { blocked_period: 0, found_period: 0, daily_blocked: [] },
     edit_velocity: [],
     per_project_velocity: [],
     memory_usage: {
@@ -696,6 +775,14 @@ export function createEmptyUserAnalytics(): UserAnalytics {
     },
     work_type_outcomes: [],
     conversation_edit_correlation: [],
+    confused_files: [],
+    unanswered_questions: { count: 0 },
+    cross_tool_memory_flow: [],
+    memory_aging: { recent_7d: 0, recent_30d: 0, recent_90d: 0, older: 0 },
+    memory_categories: [],
+    memory_single_author_directories: [],
+    memory_supersession: { invalidated_period: 0, merged_period: 0, pending_proposals: 0 },
+    memory_secrets_shield: { blocked_period: 0, blocked_24h: 0 },
     file_rework: [],
     directory_heatmap: [],
     files_by_work_type: [],

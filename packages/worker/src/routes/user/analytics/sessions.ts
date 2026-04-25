@@ -173,10 +173,11 @@ export function projectStuckness(acc: StucknessAcc): StucknessStats {
 export interface ConflictStatsAcc {
   blocked: number;
   found: number;
+  daily: Map<string, number>;
 }
 
 export function createConflictStatsAcc(): ConflictStatsAcc {
-  return { blocked: 0, found: 0 };
+  return { blocked: 0, found: 0, daily: new Map() };
 }
 
 export function mergeConflictStats(acc: ConflictStatsAcc, team: TeamResult): void {
@@ -184,10 +185,16 @@ export function mergeConflictStats(acc: ConflictStatsAcc, team: TeamResult): voi
   if (!cs) return;
   acc.blocked += cs.blocked_period;
   acc.found += cs.found_period;
+  for (const d of cs.daily_blocked ?? []) {
+    acc.daily.set(d.day, (acc.daily.get(d.day) ?? 0) + d.blocked);
+  }
 }
 
 export function projectConflictStats(acc: ConflictStatsAcc): ConflictStats {
-  return { blocked_period: acc.blocked, found_period: acc.found };
+  const daily_blocked = [...acc.daily.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([day, blocked]) => ({ day, blocked }));
+  return { blocked_period: acc.blocked, found_period: acc.found, daily_blocked };
 }
 
 // ── retry_patterns ───────────────────────────────

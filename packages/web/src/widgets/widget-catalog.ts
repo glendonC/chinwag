@@ -290,20 +290,6 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['token_usage'],
   },
-  {
-    id: 'cache-efficiency',
-    name: 'cache hit rate',
-    description: 'How much of each prompt is reused from cache instead of re-sent to the model',
-    category: 'tools',
-    scope: 'both',
-    viz: 'stat',
-    w: 3,
-    h: 2,
-    minW: 2,
-    minH: 2,
-    dataKeys: ['token_usage'],
-  },
-
   // ── Trends (sparklines) ───────────────
   // `session-trend` and `edit-velocity` were both cut 2026-04-25 after
   // the widget-rubric agent-team pass on the Usage Trends category.
@@ -407,7 +393,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   {
     id: 'work-types',
     name: 'work types',
-    description: 'What kind of work: frontend, backend, test, docs, etc.',
+    description: 'Share of edits by category — frontend, backend, test, docs, etc.',
     category: 'activity',
     scope: 'both',
     viz: 'proportional-bar',
@@ -488,67 +474,6 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     dataKeys: ['model_outcomes'],
   },
 
-  // ── Conversations ─────────────────────
-  {
-    id: 'topics',
-    name: 'topics',
-    description:
-      'What your prompts are about. Classified from conversation content, so it tracks intent (what you asked for) — not code changes (what landed).',
-    category: 'conversations',
-    scope: 'both',
-    viz: 'topic-bars',
-    w: 4,
-    h: 3,
-    minW: 3,
-    minH: 2,
-    dataKeys: ['conversation'],
-    fitContent: true,
-  },
-
-  // ── Memory ────────────────────────────
-  {
-    id: 'memory-activity',
-    name: 'memory activity',
-    description: 'Searches, hit rate, and new memories this period',
-    category: 'memory',
-    scope: 'both',
-    viz: 'stat-row',
-    w: 6,
-    h: 2,
-    minW: 3,
-    minH: 2,
-    dataKeys: ['memory_usage'],
-  },
-  {
-    id: 'memory-health',
-    name: 'memory health',
-    description: 'Total memories, average age, and stale count across all time',
-    category: 'memory',
-    scope: 'both',
-    viz: 'stat-row',
-    w: 6,
-    h: 2,
-    minW: 3,
-    minH: 2,
-    dataKeys: ['memory_usage'],
-    timeScope: 'all-time',
-  },
-
-  // ── Team ──────────────────────────────
-  {
-    id: 'team-members',
-    name: 'team members',
-    description: 'Teammates and their session/edit activity',
-    category: 'team',
-    scope: 'both',
-    viz: 'data-list',
-    w: 12,
-    h: 3,
-    minW: 6,
-    minH: 2,
-    dataKeys: ['member_analytics'],
-  },
-
   // ── Projects ──────────────────────────
   {
     id: 'projects',
@@ -592,73 +517,19 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     category: 'outcomes',
     scope: 'both',
     viz: 'bucket-chart',
-    w: 6,
+    w: 8,
     h: 3,
-    minW: 4,
+    minW: 6,
     minH: 2,
     dataKeys: ['scope_complexity'],
   },
 
-  // ── Activity (extended) ─────────────
-  {
-    id: 'prompt-efficiency',
-    name: 'prompt efficiency',
-    description: 'Back-and-forth turns per edit over time — lower means fewer messages per change',
-    category: 'activity',
-    scope: 'both',
-    viz: 'sparkline',
-    w: 8,
-    h: 3,
-    minW: 4,
-    minH: 2,
-    dataKeys: ['prompt_efficiency'],
-    fitContent: true,
-  },
-  {
-    id: 'hourly-effectiveness',
-    name: 'completion rate by hour',
-    description: 'Completion rate and output by hour of day',
-    category: 'activity',
-    scope: 'both',
-    viz: 'bar-chart',
-    w: 8,
-    h: 3,
-    minW: 4,
-    minH: 2,
-    dataKeys: ['hourly_effectiveness'],
-  },
-  {
-    id: 'work-type-outcomes',
-    name: 'work type outcomes',
-    description: 'Completion rate by work type',
-    category: 'activity',
-    scope: 'both',
-    viz: 'bar-chart',
-    w: 6,
-    h: 3,
-    minW: 4,
-    minH: 2,
-    dataKeys: ['work_type_outcomes'],
-  },
-
   // ── Codebase (extended) ─────────────
   {
-    id: 'file-churn',
-    name: 'file churn',
-    description: 'Top 10 files by session spread — persistent work across separate sessions',
-    category: 'codebase',
-    scope: 'both',
-    viz: 'data-list',
-    w: 6,
-    h: 4,
-    minW: 4,
-    minH: 3,
-    dataKeys: ['file_churn'],
-  },
-  {
     id: 'file-rework',
-    name: 'file rework',
-    description: 'Top 10 files by failed-edit ratio — candidates for refactor or review',
+    name: 'files in failed sessions',
+    description:
+      "Top 10 files where edits often land inside sessions that end abandoned or failed. Percentage is the share of this file's edits attached to failing sessions — high values flag files that recur in sessions that don't complete, not necessarily that the edits themselves were broken.",
     category: 'codebase',
     scope: 'both',
     viz: 'data-list',
@@ -699,19 +570,6 @@ export const WIDGET_CATALOG: WidgetDef[] = [
 
   // ── Tools (extended) ────────────────
   {
-    id: 'tool-outcomes',
-    name: 'tool outcomes',
-    description: 'Completion breakdown per tool',
-    category: 'tools',
-    scope: 'both',
-    viz: 'bar-chart',
-    w: 6,
-    h: 3,
-    minW: 4,
-    minH: 2,
-    dataKeys: ['tool_outcomes'],
-  },
-  {
     id: 'tool-handoffs',
     name: 'tool handoffs',
     description: 'Files that move between different tools',
@@ -723,34 +581,6 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 2,
     dataKeys: ['tool_handoffs'],
-  },
-  {
-    id: 'tool-calls',
-    name: 'tool calls',
-    description:
-      'How often agents call tools, how often calls fail, and how much they read before editing',
-    category: 'tools',
-    scope: 'both',
-    viz: 'stat-row',
-    w: 6,
-    h: 2,
-    minW: 4,
-    minH: 2,
-    dataKeys: ['tool_call_stats'],
-  },
-  {
-    id: 'tool-call-freq',
-    name: 'tool call frequency',
-    description:
-      'Which underlying tools agents call most (Edit, Read, Grep, MCP tools) and how often they error',
-    category: 'tools',
-    scope: 'both',
-    viz: 'bar-chart',
-    w: 6,
-    h: 4,
-    minW: 4,
-    minH: 3,
-    dataKeys: ['tool_call_stats'],
   },
   {
     id: 'tool-call-errors',
@@ -778,79 +608,179 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 3,
     dataKeys: ['token_usage'],
   },
+  // ── Conversations (revived 2026-04-25) ──
+  // Two file-axis widgets that use sentiment/topic as INPUTS to coordination
+  // questions, not as the headline metric — the framing ANALYTICS_SPEC §10
+  // anti-pattern #1 explicitly endorses ("use as input to Failure Analysis,
+  // never alone"). Both gate on conversationLogs capability (Claude Code +
+  // Aider today). See WIDGET_RUBRIC.md change log entry 2026-04-25 for the
+  // generative pass that revived this category from 0 widgets to 2.
   {
-    id: 'tool-daily',
-    name: 'tool adoption',
-    description: 'Daily session volume per tool — adoption and migration over time',
-    category: 'tools',
-    scope: 'both',
-    viz: 'multi-sparkline',
-    w: 8,
-    h: 4,
-    minW: 6,
-    minH: 3,
-    dataKeys: ['tool_daily'],
-  },
-  {
-    id: 'tool-work-type',
-    name: 'tool work mix',
-    description: 'What kind of work each tool handles',
-    category: 'tools',
-    scope: 'both',
-    viz: 'proportional-bar',
-    w: 6,
-    h: 4,
-    minW: 4,
-    minH: 3,
-    dataKeys: ['tool_work_type'],
-    fitContent: true,
-  },
-  {
-    id: 'data-coverage',
-    name: 'data coverage',
-    description: 'Which analytics have real data yet and what to do to light up the rest',
-    category: 'tools',
+    id: 'confused-files',
+    name: 'files where the agent struggled',
+    description:
+      'Files where 2+ sessions had user messages classified confused or frustrated. Surfaces the file (a coordination axis), not the sentiment — sentiment is the input that ranks files. Read these files alongside their memories before editing; consider a stronger model for confused regions.',
+    category: 'conversations',
     scope: 'both',
     viz: 'data-list',
     w: 6,
-    h: 4,
+    h: 3,
     minW: 4,
-    minH: 3,
-    dataKeys: ['data_coverage'],
-    timeScope: 'live',
-    fitContent: true,
+    minH: 2,
+    dataKeys: ['confused_files'],
+  },
+  {
+    id: 'unanswered-questions',
+    name: 'questions in abandoned sessions',
+    description:
+      "Count of user messages classified as questions inside sessions that ended abandoned — intent the agent couldn't fulfill. A navigation aid: open these sessions to see what was asked, then save the context as a memory or spawn a clarifying session.",
+    category: 'conversations',
+    scope: 'both',
+    viz: 'stat',
+    w: 3,
+    h: 2,
+    minW: 2,
+    minH: 2,
+    dataKeys: ['unanswered_questions'],
   },
 
-  // ── Conversations (extended) ────────
+  // ── Memory (extended) ───────────────
+  // Memory category density additions 2026-04-25. Each anchors a 4-5
+  // question detail view (see body file doc-comments for the English
+  // questions). Catalog-only at default sizes; promote individual widgets
+  // to default after MemoryDetailView pattern lands.
   {
-    id: 'prompt-clarity',
-    name: 'prompt clarity',
+    id: 'memory-cross-tool-flow',
+    name: 'memory across tools',
     description:
-      'How phrasing quality correlates with session outcomes. Re-asks and confused prompts often mean the agent needs more memory or scope.',
-    category: 'conversations',
+      "Memories authored by one tool that are available to another tool's sessions in the period. Honest framing: this measures co-presence and the available pool, not exact read attribution. Anchors questions like which tools share knowledge, which categories cross tools, and whether cross-tool memory tracks completion.",
+    category: 'memory',
+    scope: 'both',
+    viz: 'data-list',
+    w: 6,
+    h: 3,
+    minW: 4,
+    minH: 2,
+    dataKeys: ['cross_tool_memory_flow'],
+  },
+  {
+    id: 'memory-aging-curve',
+    name: 'memory freshness',
+    description:
+      'Currently-live memories grouped by age: 0-7d, 8-30d, 31-90d, 90d+. Lifetime scope; the date picker does not apply. Anchors questions like which categories age fastest, whether the team is replacing or accumulating, and which directories carry the freshest knowledge.',
+    category: 'memory',
+    scope: 'both',
+    viz: 'proportional-bar',
+    w: 6,
+    h: 3,
+    minW: 4,
+    minH: 2,
+    dataKeys: ['memory_aging'],
+    timeScope: 'all-time',
+    fitContent: true,
+  },
+  {
+    id: 'memory-categories',
+    name: 'knowledge categories',
+    description:
+      'Top agent-assigned categories on currently-live memories with last-touch hint. Empty until agents tag memories on save. Anchors questions like which categories help completion, which directories carry which knowledge, and how the mix shifts over time.',
+    category: 'memory',
     scope: 'both',
     viz: 'bar-chart',
     w: 6,
-    h: 3,
+    h: 4,
     minW: 4,
+    minH: 3,
+    dataKeys: ['memory_categories'],
+  },
+  // Memory + team revivals + density 2026-04-25 (post 18-month re-audit).
+  {
+    id: 'memory-health',
+    name: 'memory health',
+    description:
+      "Lifetime steady-state of the team's living memory: total live count, average age, stale count. All-time scope; the date picker does not apply. Anchors questions like the live-vs-invalidated trend, formation-observation rate, hygiene-action backlog, per-category live count, and last-touched age distribution.",
+    category: 'memory',
+    scope: 'both',
+    viz: 'stat-row',
+    w: 6,
+    h: 2,
+    minW: 3,
     minH: 2,
-    dataKeys: ['conversation'],
+    dataKeys: ['memory_usage'],
+    timeScope: 'all-time',
   },
   {
-    id: 'conversation-depth',
-    name: 'conversation depth',
+    id: 'memory-bus-factor',
+    name: 'single-author directories',
     description:
-      'Edit output and completion rate bucketed by session turn count. Snapshot view of the current period — see prompt-efficiency for the same axis trended over time.',
-    category: 'conversations',
+      'Directories where memories cluster on one author. Surface is directory-axis, never names handles, so it shows concentration risk without surveillance. Anchors questions like which directories carry single-author knowledge, period delta on concentration, second-author resilience trend, concentrated dirs by traffic, and team-wide authorship spread.',
+    category: 'memory',
     scope: 'both',
-    viz: 'bucket-chart',
+    viz: 'data-list',
     w: 6,
     h: 3,
     minW: 4,
     minH: 2,
-    dataKeys: ['conversation_edit_correlation'],
+    dataKeys: ['memory_single_author_directories'],
   },
-  // ── Memory (extended) ───────────────
+  {
+    id: 'memory-supersession-flow',
+    name: 'memory supersession',
+    description:
+      'Live counters for the consolidation pipeline: memories invalidated this period, memories merged, proposals pending review. Quiet today; load-bearing once Memory Hygiene Autopilot runs on cadence. Anchors questions like retired vs merged this period, queue depth and age, categories with most supersession, merge clustering by directory, and median memory lifespan.',
+    category: 'memory',
+    scope: 'both',
+    viz: 'stat-row',
+    w: 6,
+    h: 2,
+    minW: 3,
+    minH: 2,
+    dataKeys: ['memory_supersession'],
+    timeScope: 'live',
+  },
+  {
+    id: 'memory-secrets-shield',
+    name: 'secrets blocked',
+    description:
+      'Secret writes the shield caught before they reached shared memory. Substrate-unique: only chinmeister sees cross-tool memory writes, so this is the security signal no IDE or generic DLP produces. Anchors questions like how many leak attempts, which tools tried, trend, patterns caught most, and false-positive cost.',
+    category: 'memory',
+    scope: 'both',
+    viz: 'stat-row',
+    w: 4,
+    h: 2,
+    minW: 3,
+    minH: 2,
+    dataKeys: ['memory_secrets_shield'],
+  },
+  {
+    id: 'hourly-effectiveness',
+    name: 'completion rate by hour',
+    description:
+      'Cross-tool, cross-agent completion rate by hour of day. The slice fix from the original cut: top hours by volume not clock order, so the rendered set is the high-traffic window. Anchors questions like the volume-vs-rate split, by-tool curve differences, work-type dependence, day-of-week dips, and off-hour failure attribution.',
+    category: 'activity',
+    scope: 'both',
+    viz: 'bar-chart',
+    w: 8,
+    h: 3,
+    minW: 4,
+    minH: 2,
+    dataKeys: ['hourly_effectiveness'],
+  },
+  {
+    id: 'file-overlap',
+    name: 'file overlap',
+    description:
+      "Share of files this period that multiple agents touched. Surfaces the team-overlap scalar that no IDE produces. Solo users see an honest 'requires 2+ agents' empty state — the populated branch is gated on team_size > 1. Anchors questions like overlap rate by directory, period trend, average agents-per-file in the overlap subset, claim coverage of overlap files, and tool-pair contribution.",
+    category: 'team',
+    scope: 'both',
+    viz: 'stat-row',
+    w: 4,
+    h: 2,
+    minW: 3,
+    minH: 2,
+    dataKeys: ['file_overlap'],
+  },
+
   {
     id: 'memory-outcomes',
     name: 'outcomes by memory',
@@ -864,10 +794,14 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['memory_outcome_correlation'],
   },
+  // top-memories revived 2026-04-25 after the rubric bar shifted to "anchors
+  // a multi-question detail view." Click target opens MemoryDetailView when
+  // that surface ships; meanwhile the row preview is the read.
   {
     id: 'top-memories',
-    name: 'top memories',
-    description: 'Most-accessed shared memories',
+    name: 'most-read memories',
+    description:
+      "Memories the team relies on most, ranked by access count with last-touch hint. Anchors questions like which memories never get read, which categories dominate the team's hot path, and how memory composition shifts over time.",
     category: 'memory',
     scope: 'both',
     viz: 'data-list',
@@ -877,35 +811,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['top_memories'],
   },
-  {
-    id: 'memory-safety',
-    name: 'memory safety',
-    description: 'Review queue: proposals, auditor flags, and secrets blocks needing attention',
-    category: 'memory',
-    scope: 'both',
-    viz: 'stat-row',
-    w: 6,
-    h: 2,
-    minW: 3,
-    minH: 2,
-    dataKeys: ['memory_usage'],
-    timeScope: 'live',
-  },
-
   // ── Team (extended) ─────────────────
-  {
-    id: 'conflict-impact',
-    name: 'conflict impact',
-    description: 'How conflicts affect session completion',
-    category: 'team',
-    scope: 'both',
-    viz: 'stat-row',
-    w: 6,
-    h: 2,
-    minW: 3,
-    minH: 2,
-    dataKeys: ['conflict_correlation'],
-  },
   {
     id: 'conflicts-blocked',
     name: 'conflicts blocked',
@@ -918,32 +824,6 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 3,
     minH: 2,
     dataKeys: ['conflict_stats'],
-  },
-  {
-    id: 'retry-patterns',
-    name: 'recurring failures',
-    description: 'Files edited repeatedly across failed sessions',
-    category: 'team',
-    scope: 'both',
-    viz: 'data-list',
-    w: 6,
-    h: 3,
-    minW: 4,
-    minH: 2,
-    dataKeys: ['retry_patterns'],
-  },
-  {
-    id: 'file-overlap',
-    name: 'file overlap',
-    description: 'Share of files touched by more than one agent',
-    category: 'team',
-    scope: 'both',
-    viz: 'stat-row',
-    w: 4,
-    h: 2,
-    minW: 3,
-    minH: 2,
-    dataKeys: ['file_overlap'],
   },
 ];
 
@@ -1025,14 +905,6 @@ export function defaultSlot(id: string): WidgetSlot | null {
  * Single-entry array = rename. Multi-entry array = split.
  */
 export const WIDGET_ALIASES: Record<string, string[]> = {
-  // 2026-04: memory-stats mixed period + lifetime fields. Split so each
-  // widget has one clear time scope. See .internal/OVERVIEW_ARCH.md item #1.
-  'memory-stats': ['memory-activity', 'memory-health'],
-  // 2026-04: sentiment-outcomes reframed as prompt-clarity. Same data (the
-  // classifier still produces sentiment classes) under a coordination-oriented
-  // frame: "which prompt phrasings stall sessions" instead of "your mood vs
-  // your outcomes." See .internal/WIDGET_RUBRIC.md E4.
-  'sentiment-outcomes': ['prompt-clarity'],
   // 2026-04-21: formation-summary cut. Duplicated memory-safety's
   // auditor-flagged count in chart form (B2) and failed C1 — the bar chart
   // rendered a minority subset (actionable flags) as if it were the whole.
@@ -1060,6 +932,96 @@ export const WIDGET_ALIASES: Record<string, string[]> = {
   // tool's own dashboard produces. Schema field `edit_velocity` stays
   // for UsageDetail's `cadence` scalar consumers.
   'edit-velocity': [],
+
+  // 2026-04-25: agent-team audit pass on activity → end of catalog.
+  // 22 widgets cut across activity, codebase, tools, conversations,
+  // memory, and team categories. See WIDGET_RUBRIC.md change log entry
+  // for 2026-04-25 (activity → team sweep). Schema fields stay; some
+  // surfaces re-emerge as Reports inputs or detail-view facets.
+
+  // Activity cuts. prompt-efficiency rides the same Simpson's-paradox
+  // trap that cut edit-velocity (turns ↔ outcome). work-type-outcomes
+  // is fully absorbed into OutcomesDetailView's WorkTypesPanel as a
+  // facet (Option C detail-only per Widget-Detail Disposition).
+  // hourly-effectiveness was revived 2026-04-25 (post 18-month re-audit)
+  // with the slice-by-volume fix.
+  'prompt-efficiency': [],
+  'work-type-outcomes': [],
+
+  // Codebase cuts. file-churn duplicates files in practice (different
+  // aggregation primitive, same ranking), and triple-volume-metric row
+  // invites the "high-on-all = bad" anti-pattern read.
+  'file-churn': [],
+
+  // Tools cuts (7). tool-outcomes B2-redundant with the `tools` factual
+  // grid (which already shows completion%). cache-efficiency is plumbing
+  // observability with no user control surface (B3 zero). tool-daily
+  // rides the same zero-fill A3 failure that cut session-trend. tool-
+  // work-type carries a broken denominator (sessions in multiple work
+  // types double-counted) plus STRATEGY's "per-tool distribution as pie"
+  // anti-pattern. tool-calls has polysemous "calls" semantics across
+  // hook-instrumented vs MCP-only hosts. tool-call-freq is pure
+  // frequency without effectiveness overlay (STRATEGY line 139). data-
+  // coverage is plumbing diagnostic with negative emotional payload —
+  // belongs on a Connect/Settings surface, not the cockpit.
+  'tool-outcomes': [],
+  'cache-efficiency': [],
+  'tool-daily': [],
+  'tool-work-type': [],
+  'tool-calls': [],
+  'tool-call-freq': [],
+  'data-coverage': [],
+
+  // Conversations cuts (3 of 3 from the original category). The category
+  // dissolved on 2026-04-25 then revived the same day with two new file-
+  // axis widgets (confused-files, unanswered-questions) that surface FILES
+  // with sentiment/topic as inputs — the framing §10 #1 explicitly
+  // endorses. These three originals stay cut because each independently
+  // violated §10:
+  //   topics — B2 with work-types (different signal, near-identical
+  //     output buckets); D1 weak (every LLM-obs tool ships it).
+  //   prompt-clarity — rename was lipstick; classifier still emits
+  //     sentiment polarity; §10 #1 ("sentiment-to-outcome standalone")
+  //     still applies.
+  //   conversation-depth — Simpson's-paradox trap (longer sessions =
+  //     harder tasks), same family as the edit-velocity cut.
+  topics: [],
+  'prompt-clarity': [],
+  'conversation-depth': [],
+  // 2026-04-25: chains updated. Both replacement targets (memory-
+  // activity, memory-health, prompt-clarity) are now cut, so the
+  // historical aliases drop their slots entirely.
+  'memory-stats': [],
+  'sentiment-outcomes': [],
+
+  // Memory cuts (2 of 5 stay cut after the 2026-04-25 re-audit). memory-
+  // activity rendered search hit rate (ANALYTICS_SPEC §10 #7 anti-pattern,
+  // evergreen). memory-safety stays cut for now — the data is shipped via
+  // memory-supersession-flow + memory-secrets-shield (the supersession +
+  // secrets components of safety surface as their own widgets), and the
+  // remaining auditor-flag piece pre-empts Memory Hygiene Autopilot Report.
+  // memory-health, top-memories were revived; memory-outcomes was demoted
+  // to catalog-only (will restore to default once memory_search_results
+  // join lands).
+  'memory-activity': [],
+  'memory-safety': [],
+
+  // Team cuts (4 of 5; only conflicts-blocked survives — substrate-
+  // unique prevention proof). team-members triggers ANALYTICS_SPEC §10
+  // #4 explicit anti-pattern ("agent productivity rankings across team
+  // members — surveillance, not intelligence"); also pre-empts
+  // STRATEGY § Privacy model which is unbuilt. conflict-impact rides
+  // Simpson's paradox (sessions hitting conflicts are also harder
+  // sessions) — the disclaimer line is theater in a stat-row that
+  // reads causally by construction. retry-patterns is B2-redundant
+  // with file-rework (same axis, different aggregation primitive — the
+  // cross-agent + cross-tool columns belong as a footer line on file-
+  // rework). file-overlap was revived 2026-04-25 (post 18-month re-audit)
+  // after the populated branch was gated on team_size > 1 — the original
+  // A3 lie was a renderer bug, not a structural rubric failure.
+  'team-members': [],
+  'conflict-impact': [],
+  'retry-patterns': [],
 };
 
 /**
@@ -1119,7 +1081,14 @@ export const DEFAULT_LAYOUT: WidgetSlot[] = [
   { id: 'heatmap', colSpan: 8, rowSpan: 4 },
   { id: 'work-types', colSpan: 4, rowSpan: 3 },
 
-  // Codebase — 6 + 6
+  // Codebase — directories + files. `directories` returned to default 2026-
+  // 04-25 after the 18-month re-audit. The original demotion was a today-
+  // state argument (renderer wasn't painting completion_rate); rendering it
+  // is a one-day component change and the substrate-unique angle (per-
+  // directory completion rate weighted by agent-session outcomes) is the
+  // strongest D1 in the codebase category. Now renders completion_rate
+  // colored by severity, with MoreHidden tail past top-10 and a hooks-
+  // capability CoverageNote.
   { id: 'directories', colSpan: 6, rowSpan: 4 },
   { id: 'files', colSpan: 6, rowSpan: 4 },
 
@@ -1128,26 +1097,34 @@ export const DEFAULT_LAYOUT: WidgetSlot[] = [
   // handlers shipped 2026-04-17, so the old Claude-Code-only gating that
   // justified catalog-only in ANALYTICS_SPEC §5.6 is stale. file-rework
   // has the highest B3 in the category — drives "open this file, review"
-  // directly, per the rubric challenger pass. Full-width to match the
-  // airy stat-strip pattern used elsewhere in the default layout.
+  // directly. Full-width to match the airy stat-strip pattern used
+  // elsewhere in the default layout.
+  // NOTE: file-rework's "rework_ratio" label/math mismatch is queued for
+  // pre-UI rework — see audit verdicts (rename or fold into files).
   { id: 'commit-stats', colSpan: 12, rowSpan: 2 },
   { id: 'file-rework', colSpan: 12, rowSpan: 4 },
 
-  // Tools + models — 6 + 6
+  // Tools — `models` was demoted to catalog-only 2026-04-25 after the
+  // agent-team audit. ANALYTICS_SPEC §10 anti-pattern #5 ("raw Model A > B
+  // without scope control") + STRATEGY explicit demotion of model/tool
+  // routing recommendations from headline Autopilot to passive insight.
+  // Per-tool pill is partial mitigation only; needs a work-type filter
+  // affordance before re-promotion.
   { id: 'tools', colSpan: 6, rowSpan: 3 },
-  { id: 'models', colSpan: 6, rowSpan: 3 },
 
   // Cross-tool handoffs — full-width. Substrate-unique (no IDE can show
   // "Cursor started this file, Claude Code finished it"), so it earns
-  // default placement alongside the tools/models row.
+  // default placement. Capture-latency (ANALYTICS_SPEC Open Work line 13)
+  // can invert directionality today — gate on that pipeline fix.
   { id: 'tool-handoffs', colSpan: 12, rowSpan: 3 },
 
-  // Memory correlation — 12. Promoted from 8 to full-width on 2026-04-22
-  // when stuckness moved down to pair with the resized projects widget.
-  // memory-outcomes is the strongest D1 memory widget (completion rate
-  // bucketed by shared-memory hit) and uses the extra horizontal room for
-  // its bucket bar chart.
-  { id: 'memory-outcomes', colSpan: 12, rowSpan: 3 },
+  // memory-outcomes was demoted to catalog-only 2026-04-25 after the
+  // agent-team audit. The 3-bucket session-grain proxy is honest about what
+  // it measures but is NOT the per-memory-attribution surface ANALYTICS_SPEC
+  // §10 promised — the `memory_search_results` join table is unshipped.
+  // At full-width with single-bucket cases unguarded, the widget can render
+  // a lonely strip. Demoted to 6×3 catalog default; earns default again
+  // when the join table lands AND a min-bucket guard is added.
 
   // Projects + stuckness — 8 + 4. Projects shrank from 12→8 on 2026-04-22
   // (the comparator-table redesign doesn't earn full width), opening room
