@@ -19,7 +19,7 @@ import {
   METRIC_KEYS,
 } from '../../lib/constants.js';
 import { createLogger } from '../../lib/logger.js';
-import { row } from '../../lib/row.js';
+import { row, rows } from '../../lib/row.js';
 import { inferHostToolFromAgentId } from './runtime.js';
 
 const log = createLogger('TeamDO.context');
@@ -173,8 +173,8 @@ export function queryTeamContext(
               default: [],
               context: `queryTeamContext agent=${agentId} member files`,
             }),
-            summary: r.raw('summary') as string,
-            updated_at: r.raw('updated_at') as string,
+            summary: r.string('summary'),
+            updated_at: r.string('updated_at'),
           }
         : null,
     };
@@ -200,27 +200,46 @@ export function queryTeamContext(
   }
 
   // Active file locks
-  const locks = sql
-    .exec(
-      `SELECT l.file_path, l.handle AS owner_handle, l.host_tool AS tool, l.host_tool, l.agent_surface,
+  const locks = rows<ContextLockEntry>(
+    sql
+      .exec(
+        `SELECT l.file_path, l.handle AS owner_handle, l.host_tool AS tool, l.host_tool, l.agent_surface,
             ROUND((julianday('now') - julianday(l.claimed_at)) * 1440) as minutes_held
      FROM locks l
      JOIN members m ON m.agent_id = l.agent_id
      WHERE m.last_heartbeat > datetime('now', '-' || ? || ' seconds')
      LIMIT ?`,
-      HEARTBEAT_ACTIVE_WINDOW_S,
-      CONTEXT_LOCKS_LIMIT,
-    )
-    .toArray() as unknown as ContextLockEntry[];
+        HEARTBEAT_ACTIVE_WINDOW_S,
+        CONTEXT_LOCKS_LIMIT,
+      )
+      .toArray(),
+    (r) => ({
+      file_path: r.string('file_path'),
+      owner_handle: r.string('owner_handle'),
+      tool: r.string('tool'),
+      host_tool: r.string('host_tool'),
+      agent_surface: r.nullableString('agent_surface'),
+      minutes_held: r.number('minutes_held'),
+    }),
+  );
 
   const telemetry = getTelemetryBreakdown(sql);
 
-  const memoryCategories: MemoryCategory[] = sql
-    .exec(
-      `SELECT id, name, description, color, created_at
+  const memoryCategories: MemoryCategory[] = rows<MemoryCategory>(
+    sql
+      .exec(
+        `SELECT id, name, description, color, created_at
        FROM memory_categories ORDER BY name ASC`,
-    )
-    .toArray() as unknown as MemoryCategory[];
+      )
+      .toArray(),
+    (r) => ({
+      id: r.string('id'),
+      name: r.string('name'),
+      description: r.string('description'),
+      color: r.nullableString('color'),
+      created_at: r.string('created_at'),
+    }),
+  );
 
   return {
     ok: true,

@@ -18,6 +18,7 @@
 import type { DOResult, Env } from '../../types.js';
 import { createLogger } from '../../lib/logger.js';
 import { chatCompletion } from '../../lib/ai.js';
+import { row, rows } from '../../lib/row.js';
 
 const log = createLogger('TeamDO.formation');
 
@@ -102,14 +103,15 @@ export async function runFormationPass(sql: SqlStorage, env: Env, memoryId: stri
   try {
     if (!env.AI) return;
 
-    const newRow = sql
+    const newRowRaw = sql
       .exec(
         'SELECT id, text, embedding FROM memories WHERE id = ? AND merged_into IS NULL AND invalid_at IS NULL',
         memoryId,
       )
-      .toArray()[0] as Record<string, unknown> | undefined;
-    if (!newRow) return;
-    const embedBlob = newRow.embedding as ArrayBuffer | null;
+      .toArray()[0];
+    if (!newRowRaw) return;
+    const newRow = row(newRowRaw);
+    const embedBlob = newRow.raw('embedding') as ArrayBuffer | null;
     if (!embedBlob) return; // no embedding -> can't pick neighbours
     const newVec = new Float32Array(embedBlob);
 
@@ -124,16 +126,17 @@ export async function runFormationPass(sql: SqlStorage, env: Env, memoryId: stri
          ORDER BY created_at DESC`,
         memoryId,
       )
-      .toArray() as Record<string, unknown>[];
+      .toArray();
 
     type Scored = { id: string; text: string; sim: number };
     const scored: Scored[] = [];
-    for (const c of candidates) {
-      const buf = c.embedding as ArrayBuffer | null;
+    for (const cRaw of candidates) {
+      const c = row(cRaw);
+      const buf = c.raw('embedding') as ArrayBuffer | null;
       if (!buf) continue;
       const v = new Float32Array(buf);
       if (v.length !== newVec.length) continue;
-      scored.push({ id: c.id as string, text: c.text as string, sim: cosineSimilarity(newVec, v) });
+      scored.push({ id: c.string('id'), text: c.string('text'), sim: cosineSimilarity(newVec, v) });
     }
     scored.sort((a, b) => b.sim - a.sim);
     const top = scored.slice(0, FORMATION_TOP_K);
@@ -150,7 +153,7 @@ export async function runFormationPass(sql: SqlStorage, env: Env, memoryId: stri
       return;
     }
 
-    const prompt = buildFormationPrompt(newRow.text as string, top);
+    const prompt = buildFormationPrompt(newRow.string('text'), top);
     const response = await chatCompletion(env.AI, {
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 256,
@@ -242,16 +245,19 @@ export async function runFormationOnRecent(
   limit: number = 20,
 ): Promise<{ processed: number; skipped: number }> {
   const cap = Math.min(Math.max(1, limit), 50);
-  const candidates = sql
-    .exec(
-      `SELECT m.id FROM memories m
+  const candidates = rows(
+    sql
+      .exec(
+        `SELECT m.id FROM memories m
        LEFT JOIN formation_observations fo ON fo.memory_id = m.id
        WHERE m.merged_into IS NULL AND invalid_at IS NULL AND m.embedding IS NOT NULL AND fo.id IS NULL
        ORDER BY m.created_at DESC
        LIMIT ?`,
-      cap,
-    )
-    .toArray() as Array<{ id: string }>;
+        cap,
+      )
+      .toArray(),
+    (r) => ({ id: r.string('id') }),
+  );
 
   let processed = 0;
   let skipped = 0;
@@ -288,9 +294,9 @@ export function listFormationObservations(
   filter: { recommendation?: FormationRecommendation; limit?: number } = {},
 ): DOResult<{ ok: true; observations: FormationObservation[] }> {
   const limit = Math.min(Math.max(1, filter.limit || 50), 200);
-  let rows: Record<string, unknown>[];
+  let rawRows: unknown[];
   if (filter.recommendation) {
-    rows = sql
+    rawRows = sql
       .exec(
         `SELECT id, memory_id, recommendation, target_id, confidence, llm_reason, model, created_at
          FROM formation_observations
@@ -299,9 +305,9 @@ export function listFormationObservations(
         filter.recommendation,
         limit,
       )
-      .toArray() as Record<string, unknown>[];
+      .toArray();
   } else {
-    rows = sql
+    rawRows = sql
       .exec(
         `SELECT id, memory_id, recommendation, target_id, confidence, llm_reason, model, created_at
          FROM formation_observations
@@ -309,7 +315,17 @@ export function listFormationObservations(
          ORDER BY created_at DESC LIMIT ?`,
         limit,
       )
-      .toArray() as Record<string, unknown>[];
+      .toArray();
   }
-  return { ok: true, observations: rows as unknown as FormationObservation[] };
+  const observations = rows<FormationObservation>(rawRows, (r) => ({
+    id: r.string('id'),
+    memory_id: r.string('memory_id'),
+    recommendation: r.string('recommendation') as FormationRecommendation,
+    target_id: r.nullableString('target_id'),
+    confidence: r.nullableNumber('confidence'),
+    llm_reason: r.nullableString('llm_reason'),
+    model: r.nullableString('model'),
+    created_at: r.string('created_at'),
+  }));
+  return { ok: true, observations };
 }

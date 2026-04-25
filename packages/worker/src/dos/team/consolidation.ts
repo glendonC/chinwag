@@ -12,7 +12,7 @@
 
 import type { DOResult } from '../../types.js';
 import { createLogger } from '../../lib/logger.js';
-import { safeParse } from '../../lib/safe-parse.js';
+import { row, rows } from '../../lib/row.js';
 
 const log = createLogger('TeamDO.consolidation');
 
@@ -113,33 +113,33 @@ export function consolidateMemories(sql: SqlStorage): DOResult<{ ok: true } & Co
   // Pull all live (un-merged) memories with embeddings. Sort by access
   // count desc so the canonical (winner) tends to be the well-used one
   // when we record proposals.
-  const rows = sql
+  const memoryRows = sql
     .exec(
       `SELECT id, text, tags, embedding, access_count, created_at
        FROM memories
        WHERE merged_into IS NULL AND invalid_at IS NULL AND embedding IS NOT NULL
        ORDER BY access_count DESC, created_at DESC`,
     )
-    .toArray() as Record<string, unknown>[];
+    .toArray();
 
-  stats.memoriesScanned = rows.length;
-  if (rows.length < 2) return { ok: true, ...stats };
+  stats.memoriesScanned = memoryRows.length;
+  if (memoryRows.length < 2) return { ok: true, ...stats };
 
   // Pre-deserialize embeddings once
   type Mem = { id: string; text: string; tags: string[]; embedding: Float32Array };
   const memos: Mem[] = [];
-  for (const r of rows) {
-    const buf = r.embedding as ArrayBuffer | null;
+  for (const rawMem of memoryRows) {
+    const r = row(rawMem);
+    const buf = r.raw('embedding') as ArrayBuffer | null;
     if (!buf) continue;
-    const parsedTags = safeParse(
-      (r.tags as string) || '[]',
-      `consolidate memory=${r.id} tags`,
-      [],
-      log,
-    ) as string[];
+    const id = r.string('id');
+    const parsedTags = r.json<string[]>('tags', {
+      default: [],
+      context: `consolidate memory=${id} tags`,
+    });
     memos.push({
-      id: r.id as string,
-      text: r.text as string,
+      id,
+      text: r.string('text'),
       tags: parsedTags,
       embedding: new Float32Array(buf),
     });
@@ -148,9 +148,12 @@ export function consolidateMemories(sql: SqlStorage): DOResult<{ ok: true } & Co
   // Existing proposals so we don't re-create
   const existing = sql
     .exec("SELECT source_id, target_id FROM consolidation_proposals WHERE status = 'pending'")
-    .toArray() as Record<string, unknown>[];
+    .toArray();
   const existingPairs = new Set(
-    existing.map((p) => `${p.source_id as string}::${p.target_id as string}`),
+    existing.map((p) => {
+      const pr = row(p);
+      return `${pr.string('source_id')}::${pr.string('target_id')}`;
+    }),
   );
 
   for (let i = 0; i < memos.length; i++) {
@@ -308,9 +311,10 @@ export function listConsolidationProposals(
   sql: SqlStorage,
   limit: number = 50,
 ): DOResult<{ ok: true; proposals: ProposalRow[] }> {
-  const rows = sql
-    .exec(
-      `SELECT p.id, p.source_id, p.target_id, p.cosine, p.jaccard, p.proposed_at, p.kind,
+  const proposals = rows<ProposalRow>(
+    sql
+      .exec(
+        `SELECT p.id, p.source_id, p.target_id, p.cosine, p.jaccard, p.proposed_at, p.kind,
               s.text as source_text, t.text as target_text,
               s.valid_at as source_valid_at, t.valid_at as target_valid_at
        FROM consolidation_proposals p
@@ -321,10 +325,24 @@ export function listConsolidationProposals(
          AND t.merged_into IS NULL AND t.invalid_at IS NULL
        ORDER BY p.proposed_at DESC
        LIMIT ?`,
-      Math.min(Math.max(1, limit), 200),
-    )
-    .toArray() as unknown as ProposalRow[];
-  return { ok: true, proposals: rows };
+        Math.min(Math.max(1, limit), 200),
+      )
+      .toArray(),
+    (r) => ({
+      id: r.string('id'),
+      source_id: r.string('source_id'),
+      target_id: r.string('target_id'),
+      source_text: r.string('source_text'),
+      target_text: r.string('target_text'),
+      cosine: r.number('cosine'),
+      jaccard: r.number('jaccard'),
+      proposed_at: r.string('proposed_at'),
+      kind: r.string('kind') as 'merge' | 'invalidate',
+      source_valid_at: r.string('source_valid_at'),
+      target_valid_at: r.string('target_valid_at'),
+    }),
+  );
+  return { ok: true, proposals };
 }
 
 /**
@@ -347,20 +365,22 @@ export function applyConsolidationProposal(
   proposalId: string,
   reviewerHandle: string,
 ): DOResult<{ ok: true; applied: true; source_id: string; target_id: string; kind: string }> {
-  const proposal = sql
+  const proposalRaw = sql
     .exec(
       'SELECT source_id, target_id, status, kind FROM consolidation_proposals WHERE id = ?',
       proposalId,
     )
-    .toArray()[0] as Record<string, unknown> | undefined;
-  if (!proposal) return { error: 'Proposal not found', code: 'NOT_FOUND' };
-  if (proposal.status !== 'pending') {
-    return { error: `Proposal already ${proposal.status as string}`, code: 'INVALID_STATE' };
+    .toArray()[0];
+  if (!proposalRaw) return { error: 'Proposal not found', code: 'NOT_FOUND' };
+  const proposal = row(proposalRaw);
+  const status = proposal.string('status');
+  if (status !== 'pending') {
+    return { error: `Proposal already ${status}`, code: 'INVALID_STATE' };
   }
 
-  const sourceId = proposal.source_id as string;
-  const targetId = proposal.target_id as string;
-  const kind = ((proposal.kind as string) || 'merge') as 'merge' | 'invalidate';
+  const sourceId = proposal.string('source_id');
+  const targetId = proposal.string('target_id');
+  const kind = (proposal.string('kind') || 'merge') as 'merge' | 'invalidate';
 
   if (kind === 'invalidate') {
     // For supersession: the source is the newer fact, target is the older
@@ -368,10 +388,8 @@ export function applyConsolidationProposal(
     // the target's validity interval closes at the exact moment the source
     // became true. Falls back to NOW if source.valid_at is somehow null
     // (shouldn't happen post-migration-023 but keeps the write total).
-    const source = sql.exec('SELECT valid_at FROM memories WHERE id = ?', sourceId).toArray()[0] as
-      | Record<string, unknown>
-      | undefined;
-    const invalidAt = (source?.valid_at as string) || new Date().toISOString();
+    const sourceRaw = sql.exec('SELECT valid_at FROM memories WHERE id = ?', sourceId).toArray()[0];
+    const invalidAt = (sourceRaw && row(sourceRaw).string('valid_at')) || new Date().toISOString();
     sql.exec(
       'UPDATE memories SET invalid_at = ? WHERE id = ? AND invalid_at IS NULL',
       invalidAt,
@@ -398,12 +416,13 @@ export function rejectConsolidationProposal(
   proposalId: string,
   reviewerHandle: string,
 ): DOResult<{ ok: true; rejected: true }> {
-  const proposal = sql
+  const proposalRaw = sql
     .exec('SELECT status FROM consolidation_proposals WHERE id = ?', proposalId)
-    .toArray()[0] as Record<string, unknown> | undefined;
-  if (!proposal) return { error: 'Proposal not found', code: 'NOT_FOUND' };
-  if (proposal.status !== 'pending') {
-    return { error: `Proposal already ${proposal.status as string}`, code: 'INVALID_STATE' };
+    .toArray()[0];
+  if (!proposalRaw) return { error: 'Proposal not found', code: 'NOT_FOUND' };
+  const status = row(proposalRaw).string('status');
+  if (status !== 'pending') {
+    return { error: `Proposal already ${status}`, code: 'INVALID_STATE' };
   }
   sql.exec(
     "UPDATE consolidation_proposals SET status = 'rejected', resolved_at = datetime('now'), resolved_by = ? WHERE id = ?",
@@ -431,12 +450,13 @@ export function unmergeMemory(
   sql: SqlStorage,
   memoryId: string,
 ): DOResult<{ ok: true; unmerged: true; restored: Array<'merged' | 'invalidated'> }> {
-  const row = sql
+  const memoryRaw = sql
     .exec('SELECT merged_into, invalid_at FROM memories WHERE id = ?', memoryId)
-    .toArray()[0] as Record<string, unknown> | undefined;
-  if (!row) return { error: 'Memory not found', code: 'NOT_FOUND' };
-  const wasMerged = row.merged_into !== null;
-  const wasInvalidated = row.invalid_at !== null;
+    .toArray()[0];
+  if (!memoryRaw) return { error: 'Memory not found', code: 'NOT_FOUND' };
+  const memory = row(memoryRaw);
+  const wasMerged = memory.raw('merged_into') !== null;
+  const wasInvalidated = memory.raw('invalid_at') !== null;
   if (!wasMerged && !wasInvalidated) {
     return { error: 'Memory is not hidden', code: 'INVALID_STATE' };
   }
