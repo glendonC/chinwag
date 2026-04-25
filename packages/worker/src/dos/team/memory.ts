@@ -3,7 +3,7 @@
 
 import type { DOResult, Memory } from '../../types.js';
 import { createLogger } from '../../lib/logger.js';
-import { safeParse } from '../../lib/safe-parse.js';
+import { row, rows } from '../../lib/row.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
 import {
   MEMORY_MAX_COUNT,
@@ -86,12 +86,12 @@ export function saveMemory(
       )
       .toArray();
     if (existing.length > 0) {
-      const row = existing[0] as Record<string, unknown>;
+      const r = row(existing[0]);
       return {
         error: 'Duplicate memory exists',
         code: 'DUPLICATE',
-        existingId: row.id as string,
-        existingText: row.text as string,
+        existingId: r.string('id'),
+        existingText: r.string('text'),
       };
     }
   }
@@ -99,15 +99,15 @@ export function saveMemory(
   // --- Near dedup: embedding similarity scan ---
   if (embedding) {
     const queryVec = new Float32Array(embedding);
-    const rows = sql
+    const candidateRows = sql
       .exec(
         'SELECT id, text, embedding FROM memories WHERE embedding IS NOT NULL AND merged_into IS NULL AND invalid_at IS NULL',
       )
       .toArray();
 
-    for (const row of rows) {
-      const r = row as Record<string, unknown>;
-      const storedBuf = r.embedding as ArrayBuffer;
+    for (const raw of candidateRows) {
+      const r = row(raw);
+      const storedBuf = r.raw('embedding') as ArrayBuffer | null;
       if (!storedBuf) continue;
       const storedVec = new Float32Array(storedBuf);
       const sim = cosineSimilarity(queryVec, storedVec);
@@ -115,8 +115,8 @@ export function saveMemory(
         return {
           error: 'Near-duplicate memory exists',
           code: 'DUPLICATE',
-          existingId: r.id as string,
-          existingText: r.text as string,
+          existingId: r.string('id'),
+          existingText: r.string('text'),
           similarity: Math.round(sim * 1000) / 1000,
         };
       }
@@ -124,15 +124,15 @@ export function saveMemory(
   }
 
   // Inherit model + session_id from active session
-  const sessionRow = sql
+  const sessionRows = sql
     .exec(
       'SELECT id, agent_model FROM sessions WHERE agent_id = ? AND ended_at IS NULL LIMIT 1',
       resolvedAgentId,
     )
     .toArray();
-  const sessionData = sessionRow[0] as Record<string, unknown> | undefined;
-  const model = (sessionData?.agent_model as string) || runtime.model || null;
-  const sessionId = (sessionData?.id as string) || null;
+  const sessionData = row(sessionRows[0]);
+  const model = sessionData.string('agent_model') || runtime.model || null;
+  const sessionId = sessionData.string('id') || null;
 
   const id = crypto.randomUUID();
   const normalizedTags = tags || [];
@@ -496,7 +496,7 @@ export function searchMemories(sql: SqlStorage, filters: SearchFilters): SearchM
   // that satisfies the same non-text filters. These will surface
   // semantically-close memories that FTS missed (paraphrased queries).
   // RRF then merges FTS rank with vector rank.
-  let rows: Record<string, unknown>[] = ftsRows as Record<string, unknown>[];
+  let candidateRows: unknown[] = ftsRows;
   let vectorRanking: string[] = [];
   if (hybridEligible) {
     // Build the same WHERE minus the FTS clause (vector ignores text query)
@@ -548,29 +548,30 @@ export function searchMemories(sql: SqlStorage, filters: SearchFilters): SearchM
         throttleSeconds,
         ...nonFtsParams,
       )
-      .toArray() as Record<string, unknown>[];
+      .toArray();
 
     const queryVec = new Float32Array(filters.queryEmbedding!);
-    type VecScored = { row: Record<string, unknown>; sim: number };
+    type VecScored = { raw: unknown; id: string; sim: number };
     const vecScored: VecScored[] = [];
-    for (const r of vecRows) {
-      const buf = r.embedding as ArrayBuffer | null;
+    for (const raw of vecRows) {
+      const r = row(raw);
+      const buf = r.raw('embedding') as ArrayBuffer | null;
       if (!buf) continue;
       const stored = new Float32Array(buf);
       if (stored.length !== queryVec.length) continue;
-      vecScored.push({ row: r, sim: cosineSimilarity(queryVec, stored) });
+      vecScored.push({ raw, id: r.string('id'), sim: cosineSimilarity(queryVec, stored) });
     }
     vecScored.sort((a, b) => b.sim - a.sim);
     const topVec = vecScored.slice(0, MEMORY_HYBRID_VECTOR_TOP_N);
-    vectorRanking = topVec.map((v) => v.row.id as string);
+    vectorRanking = topVec.map((v) => v.id);
 
     // Union FTS candidates with vector candidates (dedup by id)
-    const ftsIds = new Set(ftsRows.map((r) => (r as Record<string, unknown>).id as string));
-    const merged = [...(ftsRows as Record<string, unknown>[])];
+    const ftsIds = new Set(ftsRows.map((raw) => row(raw).string('id')));
+    const merged: unknown[] = [...ftsRows];
     for (const v of topVec) {
-      if (!ftsIds.has(v.row.id as string)) merged.push(v.row);
+      if (!ftsIds.has(v.id)) merged.push(v.raw);
     }
-    rows = merged;
+    candidateRows = merged;
   }
 
   // Throttled last_accessed_at update — only touch rows flagged is_stale by SQL.
@@ -584,46 +585,50 @@ export function searchMemories(sql: SqlStorage, filters: SearchFilters): SearchM
     embedding: Float32Array | null;
   };
   // FTS rank order from the recency-sorted SQL result (position-based)
-  const ftsRanking = (ftsRows as Record<string, unknown>[]).map((r) => r.id as string);
+  const ftsRanking = rows(ftsRows, (r) => r.string('id'));
   const rrfScores = hybridEligible ? rrfMerge(ftsRanking, vectorRanking) : null;
 
-  const scored: Scored[] = rows.map((row, idx) => {
-    const parsedTags = safeParse(
-      (row.tags as string) || '[]',
-      `searchMemories memory=${row.id} tags`,
-      row.tags ? [String(row.tags)] : [],
-      log,
-    );
-    const parsedCategories = safeParse(
-      (row.categories as string) || '[]',
-      `searchMemories memory=${row.id} categories`,
-      [],
-      log,
-    );
+  const scored: Scored[] = candidateRows.map((raw, idx) => {
+    const r = row(raw);
+    const id = r.string('id');
+    const rawTags = r.raw('tags');
+    const parsedTags = r.json<string[]>('tags', {
+      default: rawTags ? [String(rawTags)] : [],
+      context: `searchMemories memory=${id} tags`,
+    });
+    const parsedCategories = r.json<string[]>('categories', {
+      default: [],
+      context: `searchMemories memory=${id} categories`,
+    });
 
-    if (row.is_stale === 1) {
-      idsToTouch.push(row.id as string);
+    if (r.number('is_stale') === 1) {
+      idsToTouch.push(id);
     }
 
     // Strip the SQL-only is_stale + access_count + embedding columns from
     // the returned row so callers see the same Memory shape as before.
     // access_count and embedding are used internally for scoring/MMR.
-    const { is_stale: _is_stale, access_count, embedding: embedBlob, ...rest } = row;
+    const accessCount = r.number('access_count');
+    const embedBlob = r.raw('embedding');
     const memory = {
-      ...rest,
+      id,
+      text: r.string('text'),
       tags: parsedTags,
       categories: parsedCategories,
+      handle: r.string('handle'),
+      host_tool: r.string('host_tool'),
+      agent_surface: r.nullableString('agent_surface'),
+      agent_model: r.nullableString('agent_model'),
+      session_id: r.nullableString('session_id'),
+      created_at: r.string('created_at'),
+      updated_at: r.string('updated_at'),
+      last_accessed_at: r.nullableString('last_accessed_at'),
     } as unknown as Memory;
 
     // Relevance: hybrid uses RRF score, FTS-only uses reciprocal of position.
-    const id = row.id as string;
     const relevanceWeight = rrfScores ? (rrfScores.get(id) ?? 1 / (idx + 1)) : 1 / (idx + 1);
     const decayWeight = decayEnabled
-      ? decayScore(
-          (row.created_at as string) ?? new Date().toISOString(),
-          Number(access_count) || 0,
-          parsedTags as string[],
-        )
+      ? decayScore(r.string('created_at') || new Date().toISOString(), accessCount, parsedTags)
       : 1;
     const embedding = embedBlob instanceof ArrayBuffer ? new Float32Array(embedBlob) : null;
     return { id, memory, relevanceWeight, decayWeight, embedding };
