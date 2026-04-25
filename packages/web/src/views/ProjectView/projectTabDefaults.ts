@@ -25,8 +25,9 @@ export const TRENDS_DEFAULT_LAYOUT: WidgetSlot[] = [
   // block). Outcomes snaps to its natural 8 cols — was 4 only because
   // session-trend filled the other 8. No forced backfill on the row.
   { id: 'outcomes', colSpan: 8, rowSpan: 3 },
-  { id: 'heatmap', colSpan: 8, rowSpan: 4 },
-  { id: 'work-types', colSpan: 4, rowSpan: 3 },
+  { id: 'heatmap', colSpan: 12, rowSpan: 3 },
+  { id: 'work-types', colSpan: 6, rowSpan: 3 },
+  { id: 'hourly-effectiveness', colSpan: 6, rowSpan: 3 },
   { id: 'directories', colSpan: 6, rowSpan: 4 },
   { id: 'files', colSpan: 6, rowSpan: 4 },
   { id: 'tools', colSpan: 6, rowSpan: 3 },

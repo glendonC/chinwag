@@ -409,7 +409,6 @@ function StucknessWidget({ analytics }: WidgetBodyProps) {
 // completion. Labels stay in DOM outside the geometry to avoid overlap.
 
 function ScopeComplexityWidget({ analytics }: WidgetBodyProps) {
-  const drillable = useIsDrillable();
   const sc = analytics.scope_complexity.filter((b) => b.sessions > 0);
   if (sc.length < 2) {
     return (
@@ -421,27 +420,11 @@ function ScopeComplexityWidget({ analytics }: WidgetBodyProps) {
     );
   }
 
-  const content = (
-    <>
-      {drillable && <span className={styles.scopeViewButton}>View</span>}
+  return (
+    <div className={styles.scopeFrame}>
       <ScopeTerrace buckets={sc} />
-    </>
+    </div>
   );
-
-  if (drillable) {
-    return (
-      <button
-        type="button"
-        className={styles.scopeFrame}
-        onClick={openOutcomes('retries')}
-        aria-label="Open outcomes detail · completion by scope"
-      >
-        {content}
-      </button>
-    );
-  }
-
-  return <div className={styles.scopeFrame}>{content}</div>;
 }
 
 function ScopeTerrace({ buckets }: { buckets: UserAnalytics['scope_complexity'] }) {

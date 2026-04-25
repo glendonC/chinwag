@@ -48,11 +48,15 @@
   height: var(--cell-size, 14px);
   border-radius: 2px;
   min-width: 4px;
-  transition: opacity 0.15s ease;
+  transition:
+    outline-color 0.15s ease,
+    transform 0.15s var(--motion);
 }
 
 .cell:hover {
-  opacity: 0.7;
+  outline: 1px solid var(--ink);
+  outline-offset: 1px;
+  transform: translateY(-1px);
 }
 
 .xLabels {
@@ -83,5 +87,9 @@
   }
   .cell {
     transition: none;
+  }
+
+  .cell:hover {
+    transform: none;
   }
 }

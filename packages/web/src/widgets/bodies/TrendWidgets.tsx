@@ -2,10 +2,8 @@ import type { CSSProperties } from 'react';
 import SectionEmpty from '../../components/SectionEmpty/SectionEmpty.js';
 import { setQueryParams, useRoute } from '../../lib/router.js';
 import { completionColor } from '../utils.js';
-import shared from '../widget-shared.module.css';
 import trend from './TrendWidgets.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
-import { CoverageNote } from './shared.js';
 
 function openOutcomesTrend() {
   return () => setQueryParams({ outcomes: 'sessions', q: 'trend' });
@@ -154,74 +152,6 @@ function formatDateRange(first: string, last: string): string | null {
   return `${f} – ${l}`;
 }
 
-// hourly-effectiveness revived 2026-04-25 (post 18-month re-audit). Cross-
-// tool, cross-agent hour-of-day completion is substrate-unique even though
-// hour-of-day metrics exist in every dashboard product (no IDE sees the
-// union across tools and developers). Slice fix from the original cut: sort
-// by sessions DESC before slicing top-12, so the cap surfaces the highest-
-// volume hours rather than the first 12 in clock order. Detail questions:
-// volume vs completion-rate split, by-tool curve differences, work-type
-// dependence, day-of-week dips, off-hour failure attribution.
-const HOURLY_TOP_N = 12;
-
-function HourlyEffectivenessWidget({ analytics }: WidgetBodyProps) {
-  const he = analytics.hourly_effectiveness;
-  if (he.length === 0) {
-    return <SectionEmpty>Hourly pattern appears after a few completed sessions</SectionEmpty>;
-  }
-  // Sort by volume desc before slicing so the cap surfaces high-traffic hours,
-  // not whatever clock-order the worker returned.
-  const activeHours = he.filter((h) => h.sessions > 0).sort((a, b) => b.sessions - a.sessions);
-  const visibleHours = activeHours.slice(0, HOURLY_TOP_N);
-  const hiddenCount = activeHours.length - visibleHours.length;
-  // Re-sort visible by hour for chronological reading. The slice already
-  // captured the top-N by volume; rendering in clock order helps the eye.
-  visibleHours.sort((a, b) => a.hour - b.hour);
-  const maxS = Math.max(...visibleHours.map((h) => h.sessions), 1);
-  return (
-    <>
-      <div className={shared.metricBars}>
-        {visibleHours.map((h, i) => (
-          <div
-            key={h.hour}
-            className={shared.metricRow}
-            style={{ '--row-index': i } as CSSProperties}
-          >
-            <span className={shared.metricLabel}>
-              {h.hour === 0
-                ? '12a'
-                : h.hour < 12
-                  ? `${h.hour}a`
-                  : h.hour === 12
-                    ? '12p'
-                    : `${h.hour - 12}p`}
-            </span>
-            <div className={shared.metricBarTrack}>
-              <div
-                className={shared.metricBarFill}
-                style={{
-                  width: `${(h.sessions / maxS) * 100}%`,
-                  background: completionColor(h.completion_rate),
-                  opacity: 'var(--opacity-bar-fill)',
-                }}
-              />
-            </div>
-            <span className={shared.metricValue}>
-              {h.completion_rate}% · {h.sessions}
-            </span>
-          </div>
-        ))}
-      </div>
-      {hiddenCount > 0 && (
-        <CoverageNote
-          text={`Top ${HOURLY_TOP_N} of ${activeHours.length} active hours by volume`}
-        />
-      )}
-    </>
-  );
-}
-
 export const trendWidgets: WidgetRegistry = {
   'outcome-trend': OutcomeTrendWidget,
-  'hourly-effectiveness': HourlyEffectivenessWidget,
 };

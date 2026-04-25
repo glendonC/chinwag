@@ -13,14 +13,21 @@ import {
  * test actually cares about.
  */
 function ev(
-  iso,
+  iso: string,
   {
     input = 0,
     output = 0,
     cacheRead = 0,
     cacheCreate = 0,
     model = 'claude-sonnet-4-6',
-    cost = null,
+    cost = null as number | null,
+  }: {
+    input?: number;
+    output?: number;
+    cacheRead?: number;
+    cacheCreate?: number;
+    model?: string;
+    cost?: number | null;
   } = {},
 ) {
   return {

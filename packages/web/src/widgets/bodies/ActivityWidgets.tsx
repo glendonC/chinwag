@@ -4,7 +4,6 @@ import HourHeatmap, { type HourCell } from '../../components/viz/time/HourHeatma
 import { qualifyByVolume } from '../../lib/qualifyByVolume.js';
 import { completionColor, workTypeColor } from '../utils.js';
 import type { UserAnalytics } from '../../lib/apiSchemas.js';
-import shared from '../widget-shared.module.css';
 import styles from './ActivityWidgets.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
 
@@ -14,33 +13,55 @@ import type { WidgetBodyProps, WidgetRegistry } from './types.js';
 // the widget will fill in with more sessions.
 const HEATMAP_MIN_POPULATED_CELLS = 3;
 
+function formatWorkTypeLabel(raw: string): string {
+  return raw.replace(/_/g, ' ').toLowerCase();
+}
+
 function HeatmapWidget({ analytics }: WidgetBodyProps) {
   return <Heatmap hourly={analytics.hourly_distribution} />;
 }
 
 function Heatmap({ hourly }: { hourly: UserAnalytics['hourly_distribution'] }) {
-  const { cells, populatedCells } = useMemo(() => {
+  const { cells, populatedCells, peak } = useMemo(() => {
     const grid: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0));
     for (const h of hourly) grid[h.dow][h.hour] = (grid[h.dow][h.hour] || 0) + h.sessions;
     const out: HourCell[] = [];
     let populated = 0;
+    let peakCell: HourCell | null = null;
     for (let dow = 0; dow < 7; dow++) {
       for (let hour = 0; hour < 24; hour++) {
         const v = grid[dow][hour];
         if (v > 0) {
-          out.push({ dow, hour, value: v });
+          const cell = { dow, hour, value: v };
+          out.push(cell);
           populated++;
+          if (!peakCell || v > peakCell.value) peakCell = cell;
         }
       }
     }
-    return { cells: out, populatedCells: populated };
+    return { cells: out, populatedCells: populated, peak: peakCell };
   }, [hourly]);
 
   if (populatedCells < HEATMAP_MIN_POPULATED_CELLS) {
     return <SectionEmpty>Heatmap fills in as you run more sessions</SectionEmpty>;
   }
 
-  return <HourHeatmap data={cells} />;
+  return (
+    <div className={styles.heatmapFrame}>
+      {peak ? (
+        <div className={styles.heatmapLead}>
+          <span className={styles.heatmapLeadLabel}>peak</span>
+          <span className={styles.heatmapLeadValue}>
+            {peak.value} {peak.value === 1 ? 'session' : 'sessions'}
+          </span>
+          <span className={styles.heatmapLeadMeta}>
+            {hourGlyph(peak.hour)} {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][peak.dow]}
+          </span>
+        </div>
+      ) : null}
+      <HourHeatmap data={cells} cellSize={16} />
+    </div>
+  );
 }
 
 function WorkTypesWidget({ analytics }: WidgetBodyProps) {
@@ -55,43 +76,70 @@ function WorkTypesWidget({ analytics }: WidgetBodyProps) {
   if (totalEdits === 0) {
     return <SectionEmpty>No sessions yet</SectionEmpty>;
   }
+  const ranked = [...workTypes].sort((a, b) => b.edits - a.edits);
+  // Cap segment count on the weft strip; tail merges into one "other" bucket
+  // (detail view has the full list).
+  const maxBands = 6;
+  const displayRows =
+    ranked.length <= maxBands
+      ? ranked
+      : [
+          ...ranked.slice(0, maxBands - 1),
+          {
+            work_type: 'other',
+            edits: ranked.slice(maxBands - 1).reduce((s, w) => s + w.edits, 0),
+            sessions: ranked.slice(maxBands - 1).reduce((s, w) => s + w.sessions, 0),
+          },
+        ];
+  const primary = displayRows[0]!;
+  const primaryPct = Math.round((primary.edits / totalEdits) * 100);
+  const aria = ranked
+    .map(
+      (w) =>
+        `${formatWorkTypeLabel(w.work_type)} ${Math.round((w.edits / totalEdits) * 100)} percent of edits`,
+    )
+    .join(', ');
+  const primaryLabel = formatWorkTypeLabel(primary.work_type);
   return (
-    <>
-      <div className={shared.workBar}>
-        {workTypes.map((w) => {
-          const pct = (w.edits / totalEdits) * 100;
-          return pct < 1 ? null : (
+    <div
+      className={styles.mixWeft}
+      role="group"
+      aria-label={`${primaryPct} percent of edits in ${primaryLabel}. Full mix: ${aria}`}
+    >
+      <div className={styles.mixStrip} aria-hidden>
+        {displayRows.map((w, i) => {
+          const pct = Math.round((w.edits / totalEdits) * 100);
+          const c = workTypeColor(w.work_type);
+          return (
             <div
-              key={w.work_type}
-              className={shared.workSegment}
-              style={{
-                width: `${pct}%`,
-                background: workTypeColor(w.work_type),
-              }}
-              title={`${w.work_type}: ${Math.round(pct)}% of edits`}
+              key={
+                i === displayRows.length - 1 && w.work_type === 'other'
+                  ? 'other-merged'
+                  : w.work_type
+              }
+              className={styles.mixSeg}
+              style={
+                {
+                  flexGrow: w.edits,
+                  flexBasis: 0,
+                  minWidth: 2,
+                  background: c,
+                } as CSSProperties
+              }
+              title={`${w.work_type}: ${pct}% of edits (${w.edits} edits, ${w.sessions} sessions)`}
             />
           );
         })}
       </div>
-      <div className={shared.workLegend}>
-        {workTypes
-          .map((w) => ({ w, pct: Math.round((w.edits / totalEdits) * 100) }))
-          .filter(({ pct }) => pct >= 1)
-          .map(({ w, pct }, i) => (
-            <div
-              key={w.work_type}
-              className={shared.workLegendItem}
-              style={{ '--row-index': i } as CSSProperties}
-            >
-              <span className={shared.workDot} style={{ background: workTypeColor(w.work_type) }} />
-              <span className={shared.workLegendLabel}>{w.work_type}</span>
-              <span className={shared.workLegendValue}>
-                {pct}% · {w.sessions} {w.sessions === 1 ? 'session' : 'sessions'}
-              </span>
-            </div>
-          ))}
+      <div className={styles.mixSummary}>
+        <span className={styles.mixPct}>{primaryPct}%</span>
+        <span className={styles.mixIn}>in</span>
+        <span className={styles.mixName} style={{ color: workTypeColor(primary.work_type) }}>
+          {primaryLabel}
+        </span>
+        <span className={styles.mixEditsUnit}>edits</span>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -101,6 +149,7 @@ function WorkTypesWidget({ analytics }: WidgetBodyProps) {
 // real — so under 4 indicates "not enough data yet" rather than "show
 // a degenerate viz."
 const EFFECTIVE_HOURS_MIN_QUALIFIED = 4;
+const EFFECTIVE_WINDOW_HOURS = 3;
 
 function hourGlyph(h: number): string {
   if (h === 0) return '12a';
@@ -109,43 +158,136 @@ function hourGlyph(h: number): string {
   return `${h - 12}p`;
 }
 
+/** End-boundary label so a 3h block reads as a wall-clock span (e.g. 10a–1p). */
+function hourWindowWallRange(start: number, windowHrs: number): string {
+  const endH = (start + windowHrs) % 24;
+  return `${hourGlyph(start)}–${hourGlyph(endH)}`;
+}
+
+interface HourWindow {
+  start: number;
+  sessions: number;
+  rate: number;
+}
+
+function buildHourWindows(hours: UserAnalytics['hourly_effectiveness']): HourWindow[] {
+  const byHour = new Map(hours.map((h) => [h.hour, h]));
+  const windows: HourWindow[] = [];
+  for (let start = 0; start <= 24 - EFFECTIVE_WINDOW_HOURS; start++) {
+    const slice = Array.from({ length: EFFECTIVE_WINDOW_HOURS }, (_, i) => byHour.get(start + i));
+    const sessions = slice.reduce((sum, h) => sum + (h?.sessions ?? 0), 0);
+    if (sessions === 0) continue;
+    const completed = slice.reduce(
+      (sum, h) => sum + ((h?.completion_rate ?? 0) / 100) * (h?.sessions ?? 0),
+      0,
+    );
+    windows.push({
+      start,
+      sessions,
+      rate: Math.round((completed / sessions) * 100),
+    });
+  }
+  return windows;
+}
+
 function HourlyEffectivenessWidget({ analytics }: WidgetBodyProps) {
   const qualified = useMemo(
     () => qualifyByVolume(analytics.hourly_effectiveness, (h) => h.sessions, 25),
     [analytics.hourly_effectiveness],
   );
 
+  const { series, bestWindow, maxSess, ariaDiel } = useMemo(() => {
+    const byHour = new Map(analytics.hourly_effectiveness.map((h) => [h.hour, h]));
+    const series = Array.from({ length: 24 }, (_, hour) => {
+      const h = byHour.get(hour);
+      return {
+        hour,
+        sessions: h?.sessions ?? 0,
+        completion_rate: h != null ? Math.round(h.completion_rate) : 0,
+      };
+    });
+    const windows = buildHourWindows(analytics.hourly_effectiveness);
+    const maxWindowSessions = Math.max(1, ...windows.map((w) => w.sessions));
+    const meaningful = windows.filter((w) => w.sessions >= Math.max(3, maxWindowSessions * 0.25));
+    const windowSet = meaningful.length > 0 ? meaningful : windows;
+    let best: HourWindow = { start: 0, rate: 0, sessions: 0 };
+    if (windowSet.length) {
+      best = windowSet.reduce((top, w) => (w.rate > top.rate ? w : top));
+    }
+    const maxS = Math.max(1, ...series.map((d) => d.sessions));
+    const ariaDiel = `Completion by hour${
+      best.sessions
+        ? `, ${best.rate} percent in best ${EFFECTIVE_WINDOW_HOURS}h window ${hourWindowWallRange(
+            best.start,
+            EFFECTIVE_WINDOW_HOURS,
+          )}`
+        : ''
+    }.`;
+    return { series, bestWindow: best, maxSess: maxS, ariaDiel };
+  }, [analytics.hourly_effectiveness]);
+
   if (qualified.length < EFFECTIVE_HOURS_MIN_QUALIFIED) {
     return <SectionEmpty>Needs at least 4 high-volume hours — keep working.</SectionEmpty>;
   }
 
-  // Bars ordered by clock so the user can scan their day; height encodes
-  // session volume, color encodes completion rate. Mirror of the
-  // peak-completion question in ActivityDetailView.
-  const byClock = [...qualified].sort((a, b) => a.hour - b.hour);
-  const maxSessions = Math.max(1, ...byClock.map((h) => h.sessions));
+  const bestRangeLabel =
+    bestWindow.sessions > 0 ? hourWindowWallRange(bestWindow.start, EFFECTIVE_WINDOW_HOURS) : '';
 
   return (
-    <div className={styles.effFrame}>
-      <div className={styles.effBars}>
-        {byClock.map((h) => {
-          const heightPct = Math.max(8, Math.round((h.sessions / maxSessions) * 100));
-          const color = completionColor(h.completion_rate);
-          return (
-            <div key={h.hour} className={styles.effColumn}>
-              <span className={styles.effRate}>{Math.round(h.completion_rate)}%</span>
-              <span
-                className={styles.effBar}
-                style={
-                  {
-                    '--bar-height': `${heightPct}%`,
-                    background: color,
-                  } as CSSProperties
+    <div className={styles.diel} role="group" aria-label={ariaDiel}>
+      {bestWindow.sessions > 0 ? (
+        <div className={styles.dielLead}>
+          <div className={styles.dielLeadNum}>{bestWindow.rate}%</div>
+          <div className={styles.dielLeadSub}>
+            Best {EFFECTIVE_WINDOW_HOURS}h window, {bestRangeLabel}
+          </div>
+        </div>
+      ) : null}
+      <div className={styles.dielPillarStage}>
+        <div className={styles.dielPillars}>
+          {series.map((d) => {
+            const c = completionColor(d.completion_rate);
+            const hasData = d.sessions > 0;
+            const vol = hasData ? 0.22 + 0.78 * (d.sessions / maxSess) : 0.12;
+            const inBest =
+              bestWindow.sessions > 0 &&
+              d.hour >= bestWindow.start &&
+              d.hour < bestWindow.start + EFFECTIVE_WINDOW_HOURS;
+            return (
+              <div
+                key={d.hour}
+                className={styles.dielCell}
+                title={
+                  hasData
+                    ? `${hourGlyph(d.hour)}: ${d.completion_rate}% done, ${d.sessions} sessions`
+                    : `${hourGlyph(d.hour)}: no volume`
                 }
-                title={`${hourGlyph(h.hour)}: ${h.sessions} sessions, ${Math.round(h.completion_rate)}% completed`}
-              />
-              <span className={styles.effHourLabel}>{hourGlyph(h.hour)}</span>
-            </div>
+              >
+                <div
+                  className={`${styles.dielPillar} ${inBest ? styles.dielPillarBest : ''}`}
+                  style={
+                    {
+                      height: hasData ? `${d.completion_rate}%` : '4%',
+                      background: c,
+                      opacity: vol,
+                    } as CSSProperties
+                  }
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div className={styles.dielRim} aria-hidden>
+        {series.map((d) => {
+          const t = d.hour;
+          if (t !== 0 && t !== 6 && t !== 12 && t !== 18) {
+            return <span key={d.hour} className={styles.dielTick} />;
+          }
+          return (
+            <span key={d.hour} className={styles.dielTickLabeled}>
+              {hourGlyph(t)}
+            </span>
           );
         })}
       </div>

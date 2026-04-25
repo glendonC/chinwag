@@ -132,6 +132,34 @@ function healScopeComplexityWidth(slots: WidgetSlot[]): WidgetSlot[] {
   );
 }
 
+// 2026-04-25: activity redesign makes the heatmap a full-width 12×3
+// read and promotes hourly-effectiveness beside work-types. Heal saved
+// layouts so existing users see the curated activity row instead of the
+// old 8×4 heatmap with unused vertical space.
+function healActivityLayout(slots: WidgetSlot[]): WidgetSlot[] {
+  const hasHourly = slots.some((s) => s.id === 'hourly-effectiveness');
+  const out: WidgetSlot[] = [];
+  for (const slot of slots) {
+    if (slot.id === 'heatmap') {
+      out.push({ ...slot, colSpan: 12, rowSpan: 3 });
+      continue;
+    }
+    if (slot.id === 'work-types') {
+      out.push({ ...slot, colSpan: 6, rowSpan: 3 });
+      if (!hasHourly) {
+        out.push({ id: 'hourly-effectiveness', colSpan: 6, rowSpan: 3 });
+      }
+      continue;
+    }
+    if (slot.id === 'hourly-effectiveness') {
+      out.push({ ...slot, colSpan: 6, rowSpan: 3 });
+      continue;
+    }
+    out.push(slot);
+  }
+  return out;
+}
+
 function migrateFromLegacyKeys(): DashboardLayout | null {
   try {
     const idsRaw = localStorage.getItem(LEGACY_IDS_KEY);
@@ -173,13 +201,20 @@ function loadDashboard(): DashboardLayout {
       }
       if (parsed?.version === STORAGE_VERSION && Array.isArray(parsed.widgets)) {
         const expanded = resolveAliases(parsed.widgets as WidgetSlot[]);
-        const healed = healScopeComplexityWidth(
-          healOutcomesWidth(healProjectsWidth(healLiveAgentsWidth(expanded))),
+        const healed = healActivityLayout(
+          healScopeComplexityWidth(
+            healOutcomesWidth(healProjectsWidth(healLiveAgentsWidth(expanded))),
+          ),
         );
         const stored = parsed.widgets as WidgetSlot[];
         const changed =
           healed.length !== stored.length ||
-          healed.some((s, i) => s.id !== stored[i]?.id || s.colSpan !== stored[i]?.colSpan);
+          healed.some(
+            (s, i) =>
+              s.id !== stored[i]?.id ||
+              s.colSpan !== stored[i]?.colSpan ||
+              s.rowSpan !== stored[i]?.rowSpan,
+          );
         if (changed) {
           saveDashboard({ version: STORAGE_VERSION, widgets: healed });
         }

@@ -304,42 +304,6 @@ button.outcomeDataRow {
   text-align: left;
 }
 
-button.scopeFrame {
-  cursor: pointer;
-}
-
-.scopeFrame:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 6px;
-  border-radius: var(--radius-xs);
-}
-
-.scopeViewButton {
-  position: absolute;
-  top: 0;
-  right: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px 12px;
-  border-radius: var(--radius-pill);
-  font-family: var(--sans);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  background: var(--ink);
-  color: var(--page-bg);
-  transition:
-    background 0.12s ease,
-    color 0.12s ease;
-}
-
-.scopeFrame:hover .scopeViewButton,
-.scopeFrame:focus-visible .scopeViewButton {
-  background: var(--accent);
-  color: var(--on-accent);
-}
-
 .scopeTerrace {
   display: grid;
   grid-template-rows: minmax(86px, 1fr) auto;
