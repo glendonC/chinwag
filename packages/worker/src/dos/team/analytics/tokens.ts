@@ -3,7 +3,7 @@
 import { createLogger } from '../../../lib/logger.js';
 import type { TokenUsageStats } from '@chinmeister/shared/contracts/analytics.js';
 import type { WindowTokenAggregate } from '../../../lib/pricing-enrich.js';
-import { type AnalyticsScope, buildScopeFilter } from './scope.js';
+import { type AnalyticsScope, buildScopeFilter, withScope } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
 
@@ -42,10 +42,8 @@ export function queryTokenUsage(
     // Totals — only count sessions that have token data (non-NULL input_tokens
     // is the presence signal; cache fields may still be NULL on sessions
     // uploaded before phase 2 even if input/output were captured).
-    const fTotals = buildScopeFilter(scope);
-    const totals = sql
-      .exec(
-        `SELECT
+    const { sql: totalsQ, params: totalsP } = withScope(
+      `SELECT
            COALESCE(SUM(input_tokens), 0) AS total_input,
            COALESCE(SUM(output_tokens), 0) AS total_output,
            COALESCE(SUM(cache_read_tokens), 0) AS total_cache_read,
@@ -54,11 +52,11 @@ export function queryTokenUsage(
            COUNT(CASE WHEN input_tokens IS NULL THEN 1 END) AS without_data,
            COALESCE(SUM(CASE WHEN input_tokens IS NOT NULL THEN edit_count ELSE 0 END), 0) AS edits_in_token_sessions
          FROM sessions
-         WHERE started_at > datetime('now', '-' || ? || ' days')${fTotals.sql}`,
-        days,
-        ...fTotals.params,
-      )
-      .toArray();
+         WHERE started_at > datetime('now', '-' || ? || ' days')`,
+      [days],
+      scope,
+    );
+    const totals = sql.exec(totalsQ, ...totalsP).toArray();
 
     const t = (totals[0] || {}) as Record<string, unknown>;
     const totalInput = (t.total_input as number) || 0;
@@ -142,10 +140,8 @@ export function queryTokenUsage(
       .toArray();
 
     // By tool
-    const fTool = buildScopeFilter(scope);
-    const toolRows = sql
-      .exec(
-        `SELECT host_tool,
+    const { sql: toolQ, params: toolP } = withScope(
+      `SELECT host_tool,
                 COALESCE(SUM(input_tokens), 0) AS input_tokens,
                 COALESCE(SUM(output_tokens), 0) AS output_tokens,
                 COALESCE(SUM(cache_read_tokens), 0) AS cache_read_tokens,
@@ -154,11 +150,16 @@ export function queryTokenUsage(
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
            AND input_tokens IS NOT NULL
-           AND host_tool IS NOT NULL AND host_tool != 'unknown'${fTool.sql}
+           AND host_tool IS NOT NULL AND host_tool != 'unknown'`,
+      [days],
+      scope,
+    );
+    const toolRows = sql
+      .exec(
+        `${toolQ}
          GROUP BY host_tool
          ORDER BY input_tokens DESC`,
-        days,
-        ...fTool.params,
+        ...toolP,
       )
       .toArray();
 
@@ -256,18 +257,15 @@ export function queryTokenAggregateForWindow(
   };
 
   try {
-    const fEdits = buildScopeFilter(scope);
-    const editsRows = sql
-      .exec(
-        `SELECT COALESCE(SUM(CASE WHEN input_tokens IS NOT NULL THEN edit_count ELSE 0 END), 0) AS edits
+    const { sql: editsQ, params: editsP } = withScope(
+      `SELECT COALESCE(SUM(CASE WHEN input_tokens IS NOT NULL THEN edit_count ELSE 0 END), 0) AS edits
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND started_at <= datetime('now', '-' || ? || ' days')${fEdits.sql}`,
-        offsetStart,
-        offsetEnd,
-        ...fEdits.params,
-      )
-      .toArray();
+           AND started_at <= datetime('now', '-' || ? || ' days')`,
+      [offsetStart, offsetEnd],
+      scope,
+    );
+    const editsRows = sql.exec(editsQ, ...editsP).toArray();
     const editsRow = (editsRows[0] || {}) as Record<string, unknown>;
     const totalEdits = (editsRow.edits as number) || 0;
 
@@ -349,10 +347,8 @@ export function queryDailyTokenUsage(
   tzOffsetMinutes: number = 0,
 ): DailyTokenUsageRow[] {
   try {
-    const f = buildScopeFilter(scope);
-    const rows = sql
-      .exec(
-        `SELECT date(datetime(started_at, ? || ' minutes')) AS day,
+    const { sql: q, params } = withScope(
+      `SELECT date(datetime(started_at, ? || ' minutes')) AS day,
                 agent_model,
                 COALESCE(SUM(input_tokens), 0) AS input_tokens,
                 COALESCE(SUM(output_tokens), 0) AS output_tokens,
@@ -361,12 +357,16 @@ export function queryDailyTokenUsage(
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days', '-1 day')
            AND input_tokens IS NOT NULL
-           AND agent_model IS NOT NULL AND agent_model != ''${f.sql}
+           AND agent_model IS NOT NULL AND agent_model != ''`,
+      [tzOffsetMinutes, days],
+      scope,
+    );
+    const rows = sql
+      .exec(
+        `${q}
          GROUP BY day, agent_model
          ORDER BY day ASC`,
-        tzOffsetMinutes,
-        days,
-        ...f.params,
+        ...params,
       )
       .toArray();
 
