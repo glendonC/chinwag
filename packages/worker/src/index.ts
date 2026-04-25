@@ -37,6 +37,9 @@ import {
   handleUpdateHandle,
   handleGlobalRank,
   handleUpdateBudgets,
+  handleRevokeTokens,
+  handleExportUserData,
+  handleDeleteUserData,
 } from './routes/user/index.js';
 import {
   handleListDirectory,
@@ -242,6 +245,9 @@ const routeDefinitions: RouteDefinition[] = [
   { method: 'PUT', path: '/me/handle', handler: handleUpdateHandle },
   { method: 'PUT', path: '/me/color', handler: handleUpdateColor },
   { method: 'PUT', path: '/me/budgets', handler: handleUpdateBudgets },
+  { method: 'POST', path: '/me/revoke-tokens', handler: handleRevokeTokens },
+  { method: 'GET', path: '/me/data/export', handler: handleExportUserData },
+  { method: 'POST', path: '/me/data/delete', handler: handleDeleteUserData },
   { method: 'PUT', path: '/me/github', handler: handleUnlinkGithub },
   { method: 'PUT', path: '/status', handler: handleSetStatus },
   { method: 'DELETE', path: '/status', handler: handleClearStatus },

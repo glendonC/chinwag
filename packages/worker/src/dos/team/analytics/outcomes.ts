@@ -10,6 +10,7 @@ import type {
   ToolWorkTypeBreakdown,
   WorkTypeOutcome,
 } from '@chinmeister/shared/contracts/analytics.js';
+import { type AnalyticsScope, buildScopeFilter } from './scope.js';
 // The JS classifier and the canonical WORK_TYPES list live in shared so
 // the web package, demo fixtures, and the worker all agree on the same
 // enum. The SQL CASE below must stay in lockstep with that JS classifier
@@ -44,13 +45,18 @@ export const WORK_TYPE_CASE = `
 // where the column alias is 'value' (from json_each).
 export const WORK_TYPE_CASE_VALUE = WORK_TYPE_CASE.replace(/file_path/g, 'value');
 
-export function queryModelPerformance(sql: SqlStorage, days: number): ModelOutcome[] {
+export function queryModelPerformance(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): ModelOutcome[] {
   try {
     // GROUP BY includes host_tool so the models widget can show cross-tool
     // attribution per model (Claude Code ran Sonnet for X sessions, Cursor
     // ran it for Y). Rows where host_tool is null collapse into a single
     // per-model null-tool bucket — they still count toward the model total
     // but drop out of the per-tool breakdown in the renderer.
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT agent_model,
@@ -65,10 +71,11 @@ export function queryModelPerformance(sql: SqlStorage, days: number): ModelOutco
                 COALESCE(SUM(lines_removed), 0) AS total_lines_removed
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND agent_model IS NOT NULL AND agent_model != ''
+           AND agent_model IS NOT NULL AND agent_model != ''${f.sql}
          GROUP BY agent_model, host_tool, outcome
          ORDER BY count DESC`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -91,8 +98,13 @@ export function queryModelPerformance(sql: SqlStorage, days: number): ModelOutco
   }
 }
 
-export function queryToolOutcomes(sql: SqlStorage, days: number): ToolOutcome[] {
+export function queryToolOutcomes(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): ToolOutcome[] {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT host_tool,
@@ -100,10 +112,11 @@ export function queryToolOutcomes(sql: SqlStorage, days: number): ToolOutcome[] 
                 COUNT(*) AS count
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND host_tool IS NOT NULL AND host_tool != 'unknown'
+           AND host_tool IS NOT NULL AND host_tool != 'unknown'${f.sql}
          GROUP BY host_tool, outcome
          ORDER BY count DESC`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -121,8 +134,13 @@ export function queryToolOutcomes(sql: SqlStorage, days: number): ToolOutcome[] 
   }
 }
 
-export function queryCompletionSummary(sql: SqlStorage, days: number): CompletionSummary {
+export function queryCompletionSummary(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): CompletionSummary {
   try {
+    const f = buildScopeFilter(scope);
     const current = sql
       .exec(
         `SELECT
@@ -132,8 +150,9 @@ export function queryCompletionSummary(sql: SqlStorage, days: number): Completio
            SUM(CASE WHEN outcome = 'failed' THEN 1 ELSE 0 END) AS failed,
            SUM(CASE WHEN outcome IS NULL THEN 1 ELSE 0 END) AS unknown
          FROM sessions
-         WHERE started_at > datetime('now', '-' || ? || ' days')`,
+         WHERE started_at > datetime('now', '-' || ? || ' days')${f.sql}`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -152,9 +171,10 @@ export function queryCompletionSummary(sql: SqlStorage, days: number): Completio
              SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS completed
            FROM sessions
            WHERE started_at > datetime('now', '-' || ? || ' days')
-             AND started_at <= datetime('now', '-' || ? || ' days')`,
+             AND started_at <= datetime('now', '-' || ? || ' days')${f.sql}`,
           days * 2,
           days,
+          ...f.params,
         )
         .toArray();
       const p = (prev[0] || {}) as Record<string, unknown>;
@@ -188,8 +208,13 @@ export function queryCompletionSummary(sql: SqlStorage, days: number): Completio
   }
 }
 
-export function queryToolComparison(sql: SqlStorage, days: number): ToolComparison[] {
+export function queryToolComparison(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): ToolComparison[] {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT
@@ -214,10 +239,11 @@ export function queryToolComparison(sql: SqlStorage, days: number): ToolComparis
            ), 0) AS total_session_hours
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND host_tool IS NOT NULL AND host_tool != 'unknown'
+           AND host_tool IS NOT NULL AND host_tool != 'unknown'${f.sql}
          GROUP BY host_tool
          ORDER BY sessions DESC`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -243,8 +269,13 @@ export function queryToolComparison(sql: SqlStorage, days: number): ToolComparis
   }
 }
 
-export function queryWorkTypeDistribution(sql: SqlStorage, days: number): WorkTypeDistribution[] {
+export function queryWorkTypeDistribution(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): WorkTypeDistribution[] {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT
@@ -255,10 +286,11 @@ export function queryWorkTypeDistribution(sql: SqlStorage, days: number): WorkTy
            COALESCE(SUM(lines_removed), 0) AS lines_removed,
            COUNT(DISTINCT file_path) AS files
          FROM edits
-         WHERE created_at > datetime('now', '-' || ? || ' days')
+         WHERE created_at > datetime('now', '-' || ? || ' days')${f.sql}
          GROUP BY work_type
          ORDER BY sessions DESC`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -279,8 +311,13 @@ export function queryWorkTypeDistribution(sql: SqlStorage, days: number): WorkTy
   }
 }
 
-export function queryToolWorkType(sql: SqlStorage, days: number): ToolWorkTypeBreakdown[] {
+export function queryToolWorkType(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): ToolWorkTypeBreakdown[] {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT
@@ -290,10 +327,11 @@ export function queryToolWorkType(sql: SqlStorage, days: number): ToolWorkTypeBr
            COUNT(*) AS edits
          FROM edits
          WHERE created_at > datetime('now', '-' || ? || ' days')
-           AND host_tool IS NOT NULL AND host_tool != 'unknown'
+           AND host_tool IS NOT NULL AND host_tool != 'unknown'${f.sql}
          GROUP BY host_tool, work_type
          ORDER BY host_tool, sessions DESC`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -312,10 +350,15 @@ export function queryToolWorkType(sql: SqlStorage, days: number): ToolWorkTypeBr
   }
 }
 
-export function queryWorkTypeOutcomes(sql: SqlStorage, days: number): WorkTypeOutcome[] {
+export function queryWorkTypeOutcomes(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): WorkTypeOutcome[] {
   try {
     // Assign each session to its PRIMARY work type (the type with the most
     // files) to avoid double-counting sessions that touch multiple types.
+    const f = buildScopeFilter(scope, { handleColumn: 's.handle' });
     const rows = sql
       .exec(
         `WITH session_work_type AS (
@@ -325,7 +368,7 @@ export function queryWorkTypeOutcomes(sql: SqlStorage, days: number): WorkTypeOu
               GROUP BY wt ORDER BY COUNT(*) DESC LIMIT 1) AS work_type
            FROM sessions s
            WHERE s.started_at > datetime('now', '-' || ? || ' days')
-             AND s.files_touched != '[]'
+             AND s.files_touched != '[]'${f.sql}
          )
          SELECT
            work_type,
@@ -339,6 +382,7 @@ export function queryWorkTypeOutcomes(sql: SqlStorage, days: number): WorkTypeOu
          GROUP BY work_type
          ORDER BY sessions DESC`,
         days,
+        ...f.params,
       )
       .toArray();
 

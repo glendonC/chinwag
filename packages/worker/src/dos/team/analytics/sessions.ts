@@ -10,10 +10,15 @@ import type {
   FirstEditStats,
   ScopeComplexityBucket,
 } from '@chinmeister/shared/contracts/analytics.js';
+import { type AnalyticsScope, buildScopeFilter } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
 
-export function queryRetryPatterns(sql: SqlStorage, days: number): RetryPattern[] {
+export function queryRetryPatterns(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): RetryPattern[] {
   try {
     // Audit 2026-04-21: Regrouped from (handle, file) to file only so the
     // top-N cannot be swallowed by a single noisy agent. Adds cross-agent
@@ -23,6 +28,7 @@ export function queryRetryPatterns(sql: SqlStorage, days: number): RetryPattern[
     // + Cursor + Windsurf. `latest_outcome` still picks the most recent
     // session's outcome across all agents so "resolved" means the file's
     // current state regardless of who last touched it.
+    const f = buildScopeFilter(scope, { handleColumn: 's.handle' });
     const rows = sql
       .exec(
         `WITH file_sessions AS (
@@ -30,7 +36,7 @@ export function queryRetryPatterns(sql: SqlStorage, days: number): RetryPattern[
              s.outcome, s.started_at, f.value AS file
            FROM sessions s, json_each(s.files_touched) f
            WHERE s.started_at > datetime('now', '-' || ? || ' days')
-             AND s.files_touched != '[]'
+             AND s.files_touched != '[]'${f.sql}
          ),
          file_stats AS (
            SELECT file,
@@ -53,6 +59,7 @@ export function queryRetryPatterns(sql: SqlStorage, days: number): RetryPattern[
          ORDER BY fs.attempts DESC
          LIMIT 30`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -75,8 +82,13 @@ export function queryRetryPatterns(sql: SqlStorage, days: number): RetryPattern[
   }
 }
 
-export function queryConflictCorrelation(sql: SqlStorage, days: number): ConflictCorrelation[] {
+export function queryConflictCorrelation(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): ConflictCorrelation[] {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT
@@ -86,10 +98,11 @@ export function queryConflictCorrelation(sql: SqlStorage, days: number): Conflic
            ROUND(CAST(SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
              / NULLIF(COUNT(*), 0) * 100, 1) AS completion_rate
          FROM sessions
-         WHERE started_at > datetime('now', '-' || ? || ' days')
+         WHERE started_at > datetime('now', '-' || ? || ' days')${f.sql}
          GROUP BY bucket
          ORDER BY bucket`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -108,7 +121,12 @@ export function queryConflictCorrelation(sql: SqlStorage, days: number): Conflic
   }
 }
 
-export function queryConflictStats(sql: SqlStorage, days: number): ConflictStats {
+export function queryConflictStats(
+  sql: SqlStorage,
+  _scope: AnalyticsScope,
+  days: number,
+): ConflictStats {
+  // Scope: not applicable — daily_metrics has no per-user dimension
   try {
     const rows = sql
       .exec(
@@ -134,8 +152,13 @@ export function queryConflictStats(sql: SqlStorage, days: number): ConflictStats
   }
 }
 
-export function queryStuckness(sql: SqlStorage, days: number): StucknessStats {
+export function queryStuckness(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): StucknessStats {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT
@@ -148,8 +171,9 @@ export function queryStuckness(sql: SqlStorage, days: number): StucknessStats {
            ROUND(CAST(SUM(CASE WHEN got_stuck = 0 AND outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
              / NULLIF(SUM(CASE WHEN got_stuck = 0 THEN 1 ELSE 0 END), 0) * 100, 1) AS normal_completion_rate
          FROM sessions
-         WHERE started_at > datetime('now', '-' || ? || ' days')`,
+         WHERE started_at > datetime('now', '-' || ? || ' days')${f.sql}`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -182,8 +206,13 @@ export function queryStuckness(sql: SqlStorage, days: number): StucknessStats {
   }
 }
 
-export function queryFileOverlap(sql: SqlStorage, days: number): FileOverlapStats {
+export function queryFileOverlap(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): FileOverlapStats {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT
@@ -192,10 +221,11 @@ export function queryFileOverlap(sql: SqlStorage, days: number): FileOverlapStat
          FROM (
            SELECT file_path, COUNT(DISTINCT handle) AS agents
            FROM edits
-           WHERE created_at > datetime('now', '-' || ? || ' days')
+           WHERE created_at > datetime('now', '-' || ? || ' days')${f.sql}
            GROUP BY file_path
          )`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -212,13 +242,18 @@ export function queryFileOverlap(sql: SqlStorage, days: number): FileOverlapStat
   }
 }
 
-export function queryFirstEditStats(sql: SqlStorage, days: number): FirstEditStats {
+export function queryFirstEditStats(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): FirstEditStats {
   const empty: FirstEditStats = {
     avg_minutes_to_first_edit: 0,
     median_minutes_to_first_edit: 0,
     by_tool: [],
   };
   try {
+    const f = buildScopeFilter(scope);
     // Overall stats
     const overall = sql
       .exec(
@@ -228,8 +263,9 @@ export function queryFirstEditStats(sql: SqlStorage, days: number): FirstEditSta
            ), 1) AS avg_min
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND first_edit_at IS NOT NULL`,
+           AND first_edit_at IS NOT NULL${f.sql}`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -240,15 +276,17 @@ export function queryFirstEditStats(sql: SqlStorage, days: number): FirstEditSta
            SELECT (julianday(first_edit_at) - julianday(started_at)) * 24 * 60 AS mins
            FROM sessions
            WHERE started_at > datetime('now', '-' || ? || ' days')
-             AND first_edit_at IS NOT NULL
+             AND first_edit_at IS NOT NULL${f.sql}
            ORDER BY mins
            LIMIT 1
            OFFSET (SELECT COUNT(*) / 2 FROM sessions
                    WHERE started_at > datetime('now', '-' || ? || ' days')
-                     AND first_edit_at IS NOT NULL)
+                     AND first_edit_at IS NOT NULL${f.sql})
          )`,
         days,
+        ...f.params,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -267,10 +305,11 @@ export function queryFirstEditStats(sql: SqlStorage, days: number): FirstEditSta
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
            AND first_edit_at IS NOT NULL
-           AND host_tool IS NOT NULL AND host_tool != 'unknown'
+           AND host_tool IS NOT NULL AND host_tool != 'unknown'${f.sql}
          GROUP BY host_tool
          ORDER BY sessions DESC`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -294,8 +333,13 @@ export function queryFirstEditStats(sql: SqlStorage, days: number): FirstEditSta
   }
 }
 
-export function queryScopeComplexity(sql: SqlStorage, days: number): ScopeComplexityBucket[] {
+export function queryScopeComplexity(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): ScopeComplexityBucket[] {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT
@@ -317,7 +361,7 @@ export function queryScopeComplexity(sql: SqlStorage, days: number): ScopeComple
            SELECT *, json_array_length(files_touched) AS file_count
            FROM sessions
            WHERE started_at > datetime('now', '-' || ? || ' days')
-             AND files_touched != '[]'
+             AND files_touched != '[]'${f.sql}
          )
          GROUP BY bucket
          ORDER BY
@@ -329,6 +373,7 @@ export function queryScopeComplexity(sql: SqlStorage, days: number): ScopeComple
              ELSE 5
            END`,
         days,
+        ...f.params,
       )
       .toArray();
 

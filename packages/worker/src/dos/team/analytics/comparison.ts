@@ -11,11 +11,17 @@
 
 import { createLogger } from '../../../lib/logger.js';
 import type { PeriodComparison, PeriodMetrics } from '@chinmeister/shared/contracts/analytics.js';
+import { type AnalyticsScope, buildScopeFilter } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
 
-export function queryPeriodComparison(sql: SqlStorage, days: number): PeriodComparison {
+export function queryPeriodComparison(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): PeriodComparison {
   const effectiveDays = days;
+  const f = buildScopeFilter(scope);
 
   function queryPeriodMetrics(offsetStart: number, offsetEnd: number): PeriodMetrics | null {
     try {
@@ -38,9 +44,10 @@ export function queryPeriodComparison(sql: SqlStorage, days: number): PeriodComp
              SUM(CASE WHEN memories_searched > 0 THEN 1 ELSE 0 END) AS sessions_with_memory
            FROM sessions
            WHERE started_at > datetime('now', '-' || ? || ' days')
-             AND started_at <= datetime('now', '-' || ? || ' days')`,
+             AND started_at <= datetime('now', '-' || ? || ' days')${f.sql}`,
           offsetStart,
           offsetEnd,
+          ...f.params,
         )
         .toArray();
 
@@ -54,6 +61,7 @@ export function queryPeriodComparison(sql: SqlStorage, days: number): PeriodComp
       const stuck = (r.stuck_sessions as number) || 0;
 
       // Memory hit rate from daily_metrics (period-scoped)
+      // Scope: not applicable — daily_metrics has no per-user dimension
       let memoryHitRate = 0;
       try {
         const telRows = sql

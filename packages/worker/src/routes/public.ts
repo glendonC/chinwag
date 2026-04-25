@@ -77,11 +77,17 @@ export const handleInit = publicRoute(async ({ request, env }) => {
 
   // Store auth and refresh tokens in KV — if this fails the user would
   // receive tokens that cannot authenticate, so we treat it as fatal.
+  // Every token entry carries `issued_at` metadata so a future
+  // revokeTokens stamp can invalidate it without a per-key index.
   const refreshToken = `rt_${crypto.randomUUID().replace(/-/g, '')}`;
+  const issuedAt = new Date().toISOString();
   try {
-    await env.AUTH_KV.put(`token:${result.token}`, result.id);
+    await env.AUTH_KV.put(`token:${result.token}`, result.id, {
+      metadata: { issued_at: issuedAt },
+    });
     await env.AUTH_KV.put(`refresh:${refreshToken}`, result.id, {
       expirationTtl: 30 * 24 * 60 * 60,
+      metadata: { issued_at: issuedAt },
     });
   } catch (err) {
     log.error('KV put failed during init', {
@@ -296,7 +302,9 @@ export const handleGithubCallback = publicRoute(async ({ request, env }) => {
     }
     // Store the CLI token in KV (so the user could use it from CLI later)
     try {
-      await env.AUTH_KV.put(`token:${created.token}`, created.id);
+      await env.AUTH_KV.put(`token:${created.token}`, created.id, {
+        metadata: { issued_at: new Date().toISOString() },
+      });
     } catch (err) {
       log.error('KV put failed for GitHub CLI token', {
         error: err instanceof Error ? err.message : String(err),
@@ -322,6 +330,7 @@ export const handleGithubCallback = publicRoute(async ({ request, env }) => {
   try {
     await env.AUTH_KV.put(`token:${session.token}`, userId, {
       expirationTtl: 30 * 24 * 60 * 60,
+      metadata: { issued_at: new Date().toISOString() },
     });
   } catch (err) {
     log.error('KV put failed for web session token', {

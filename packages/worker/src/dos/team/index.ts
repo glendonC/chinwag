@@ -110,6 +110,12 @@ import {
   getExtendedAnalytics as getExtendedAnalyticsFn,
 } from './analytics/index.js';
 import { getBillingBlocksForOwner as getBillingBlocksForOwnerFn } from './analytics/billing-blocks.js';
+import {
+  exportForHandle as exportForHandleFn,
+  deleteForHandle as deleteForHandleFn,
+  type UserDataExport,
+  type UserDataDeletionResult,
+} from './data-export.js';
 import { sendMessage as sendMessageFn, getMessages as getMessagesFn } from './messages.js';
 import {
   batchRecordConversationEvents as batchRecordConversationEventsFn,
@@ -133,6 +139,7 @@ import {
   enrichPeriodComparisonCost,
 } from '../../lib/pricing-enrich.js';
 import { queryDailyTokenUsage, queryTokenAggregateForWindow } from './analytics/tokens.js';
+import type { AnalyticsScope } from './analytics/scope.js';
 import {
   CONTEXT_CACHE_TTL_MS,
   CLEANUP_INTERVAL_MS,
@@ -391,13 +398,16 @@ export class TeamDO extends DurableObject<Env> {
 
   /**
    * Owner-scoped RPC wrapper for endpoints that do not resolve a specific
-   * agent (dashboard/summary calls). Confirms the caller owns at least one
-   * member in this team before running the callback.
+   * agent (dashboard/summary calls). Gates on the persistent roster
+   * (`team_owners`), not presence (`members`) — an idle user with no live
+   * agents is still a roster member and must be able to read summary data.
+   * The roster row is added by `join` and removed only on explicit leave;
+   * cleanup never touches it.
    */
   #withOwner<T>(ownerId: string, fn: () => T): T | DOError {
     this.#ensureSchema();
     const row = this.sql
-      .exec('SELECT 1 FROM members WHERE owner_id = ? LIMIT 1', ownerId)
+      .exec('SELECT 1 FROM team_owners WHERE owner_id = ? LIMIT 1', ownerId)
       .toArray();
     if (row.length === 0) return { error: 'Not a member of this team', code: 'NOT_MEMBER' };
     return fn();
@@ -648,13 +658,14 @@ export class TeamDO extends DurableObject<Env> {
     ownerId: string | null = null,
     extended = false,
     tzOffsetMinutes: number = 0,
+    scope: AnalyticsScope = {},
   ): Promise<
     ReturnType<typeof getAnalyticsFn> | ReturnType<typeof getExtendedAnalyticsFn> | DOError
   > {
     const raw = this.#withMember(agentId, ownerId, () =>
       extended
-        ? getExtendedAnalyticsFn(this.sql, days, tzOffsetMinutes)
-        : getAnalyticsFn(this.sql, days, tzOffsetMinutes),
+        ? getExtendedAnalyticsFn(this.sql, scope, days, tzOffsetMinutes)
+        : getAnalyticsFn(this.sql, scope, days, tzOffsetMinutes),
     );
     if (isDOError(raw)) return raw;
     // Enrich token_usage with cost from the isolate pricing cache. This hits
@@ -664,15 +675,15 @@ export class TeamDO extends DurableObject<Env> {
     // aggregate. Fills the Trend widget's cost and cost-per-edit lines with
     // honest per-day numbers instead of the "daily cost not captured"
     // placeholder. Reliability gates mirror the period total.
-    const dailyTokens = queryDailyTokenUsage(this.sql, days, tzOffsetMinutes);
+    const dailyTokens = queryDailyTokenUsage(this.sql, scope, days, tzOffsetMinutes);
     await enrichDailyTrendsWithPricing(enriched.daily_trends, dailyTokens, this.env);
     // Period-comparison cost: price both windows against the CURRENT pricing
     // snapshot so the cost-per-edit delta shown by CostPerEditWidget reflects
     // behavior change, not price drift. Previous-window aggregate falls to
     // empty when outside retention (30d default), which computeWindowCost
     // maps to a null cost — StatWidget's delta gate then skips rendering.
-    const currentAgg = queryTokenAggregateForWindow(this.sql, days, 0);
-    const previousAgg = queryTokenAggregateForWindow(this.sql, days * 2, days);
+    const currentAgg = queryTokenAggregateForWindow(this.sql, scope, days, 0);
+    const previousAgg = queryTokenAggregateForWindow(this.sql, scope, days * 2, days);
     await enrichPeriodComparisonCost(enriched, currentAgg, previousAgg, this.env);
     return enriched;
   }
@@ -778,8 +789,11 @@ export class TeamDO extends DurableObject<Env> {
     agentId: string,
     days: number,
     ownerId: string | null = null,
+    scope: AnalyticsScope = {},
   ): Promise<ConversationAnalytics | DOError> {
-    return this.#withMember(agentId, ownerId, () => getConversationAnalyticsFn(this.sql, days));
+    return this.#withMember(agentId, ownerId, () =>
+      getConversationAnalyticsFn(this.sql, scope, days),
+    );
   }
 
   async getSessionConversationStats(
@@ -1200,20 +1214,21 @@ export class TeamDO extends DurableObject<Env> {
     ownerId: string,
     days: number,
     tzOffsetMinutes: number = 0,
+    scope: AnalyticsScope = {},
   ): Promise<ReturnType<typeof getExtendedAnalyticsFn> | DOError> {
     const gate = this.#withOwner(ownerId, () =>
-      getExtendedAnalyticsFn(this.sql, days, tzOffsetMinutes),
+      getExtendedAnalyticsFn(this.sql, scope, days, tzOffsetMinutes),
     );
     if (isDOError(gate)) return gate;
     const enriched = await enrichAnalyticsWithPricing(gate, this.env);
-    const dailyTokens = queryDailyTokenUsage(this.sql, days, tzOffsetMinutes);
+    const dailyTokens = queryDailyTokenUsage(this.sql, scope, days, tzOffsetMinutes);
     await enrichDailyTrendsWithPricing(enriched.daily_trends, dailyTokens, this.env);
     // Same period-comparison cost enrichment as getAnalytics. Each team
     // ships its own cost/edits in period_comparison; the cross-team route
     // then sums them null-stickily and re-derives cost_per_edit on the
     // merged totals (daily-trends pattern) instead of averaging ratios.
-    const currentAgg = queryTokenAggregateForWindow(this.sql, days, 0);
-    const previousAgg = queryTokenAggregateForWindow(this.sql, days * 2, days);
+    const currentAgg = queryTokenAggregateForWindow(this.sql, scope, days, 0);
+    const previousAgg = queryTokenAggregateForWindow(this.sql, scope, days * 2, days);
     await enrichPeriodComparisonCost(enriched, currentAgg, previousAgg, this.env);
     return enriched;
   }
@@ -1245,6 +1260,34 @@ export class TeamDO extends DurableObject<Env> {
     ownerId: string,
   ): Promise<ReturnType<typeof getBillingBlocksForOwnerFn> | DOError> {
     return this.#withOwner(ownerId, () => getBillingBlocksForOwnerFn(this.sql, ownerId));
+  }
+
+  // -- Per-user data export and erasure (GDPR Art. 15 / Art. 17) --
+  //
+  // Both methods take the caller's handle (not just owner_id) because every
+  // per-user table in the team schema carries handle as the user-facing
+  // identifier. Owner_id is used to gate the call (the caller must be on
+  // the team) but the filter is by handle.
+
+  async exportUserData(
+    ownerId: string,
+    handle: string,
+  ): Promise<DOResult<{ ok: true; data: UserDataExport }>> {
+    const gate = this.#withOwner(ownerId, () => true);
+    if (isDOError(gate)) return gate;
+    return { ok: true, data: exportForHandleFn(this.sql, handle) };
+  }
+
+  async deleteUserData(
+    ownerId: string,
+    handle: string,
+  ): Promise<DOResult<{ ok: true; result: UserDataDeletionResult }>> {
+    const gate = this.#withOwner(ownerId, () => true);
+    if (isDOError(gate)) return gate;
+    return {
+      ok: true,
+      result: deleteForHandleFn(this.sql, handle, this.#transact),
+    };
   }
 }
 

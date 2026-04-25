@@ -318,6 +318,26 @@ const migrations: Migration[] = [
       }
     },
   },
+  {
+    name: '009_token_revocation',
+    up(sql) {
+      // Bulk-invalidate a user's bearer tokens by stamping
+      // `tokens_revoked_at`. The auth path treats any KV token whose backing
+      // user has a `tokens_revoked_at` newer than the token's issue time as
+      // expired.
+      //
+      // KV-only token storage (the original design) has no per-user index, so
+      // there's no way to enumerate-and-delete a user's tokens. Stamping a
+      // user-level epoch is the cheapest way to add revocation without a
+      // schema rewrite. The cost: one extra column read per authed request,
+      // already done as part of the existing `getUser` lookup.
+      try {
+        sql.exec('ALTER TABLE users ADD COLUMN tokens_revoked_at TEXT DEFAULT NULL');
+      } catch (err) {
+        if (!getErrorMessage(err).toLowerCase().includes('duplicate column name')) throw err;
+      }
+    },
+  },
 ];
 
 export function ensureSchema(sql: SqlStorage, transact: <T>(fn: () => T) => T): void {

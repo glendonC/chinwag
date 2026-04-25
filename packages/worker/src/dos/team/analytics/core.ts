@@ -9,6 +9,7 @@ import type {
   DailyMetricEntry,
   TeamAnalytics,
 } from '@chinmeister/shared/contracts/analytics.js';
+import { type AnalyticsScope, buildScopeFilter } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
 
@@ -17,6 +18,7 @@ export const ANALYTICS_MAX_DAYS = 90;
 
 export function getAnalytics(
   sql: SqlStorage,
+  scope: AnalyticsScope,
   days: number,
   tzOffsetMinutes: number = 0,
 ): TeamAnalytics {
@@ -25,13 +27,13 @@ export function getAnalytics(
   return {
     ok: true,
     period_days: periodDays,
-    file_heatmap: queryFileHeatmap(sql, periodDays),
-    daily_trends: queryDailyTrends(sql, periodDays, tzOffsetMinutes),
-    tool_distribution: queryToolDistribution(sql, periodDays),
-    outcome_distribution: queryOutcomeDistribution(sql, periodDays),
-    daily_metrics: queryDailyMetrics(sql, periodDays),
-    files_touched_total: queryFilesTouchedTotal(sql, periodDays),
-    files_touched_half_split: queryFilesTouchedHalfSplit(sql, periodDays),
+    file_heatmap: queryFileHeatmap(sql, scope, periodDays),
+    daily_trends: queryDailyTrends(sql, scope, periodDays, tzOffsetMinutes),
+    tool_distribution: queryToolDistribution(sql, scope, periodDays),
+    outcome_distribution: queryOutcomeDistribution(sql, scope, periodDays),
+    daily_metrics: queryDailyMetrics(sql, scope, periodDays),
+    files_touched_total: queryFilesTouchedTotal(sql, scope, periodDays),
+    files_touched_half_split: queryFilesTouchedHalfSplit(sql, scope, periodDays),
   };
 }
 
@@ -40,14 +42,20 @@ export function getAnalytics(
 // list cap nor the ACTIVITY_MAX_FILES=50 per-session JSON cap apply. The
 // ranked file_heatmap list and this scalar answer different questions and
 // are computed from different sources on purpose.
-export function queryFilesTouchedTotal(sql: SqlStorage, days: number): number {
+export function queryFilesTouchedTotal(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): number {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT COUNT(DISTINCT file_path) AS total
          FROM edits
-         WHERE created_at > datetime('now', '-' || ? || ' days')`,
+         WHERE created_at > datetime('now', '-' || ? || ' days')${f.sql}`,
         days,
+        ...f.params,
       )
       .toArray();
     const row = rows[0] as Record<string, unknown> | undefined;
@@ -69,18 +77,21 @@ export function queryFilesTouchedTotal(sql: SqlStorage, days: number): number {
 // window is too short to split meaningfully.
 export function queryFilesTouchedHalfSplit(
   sql: SqlStorage,
+  scope: AnalyticsScope,
   periodDays: number,
 ): { current: number; previous: number } | null {
   if (periodDays < 2) return null;
   const halfDays = Math.floor(periodDays / 2);
   const prevEndDays = periodDays - halfDays; // > halfDays when periodDays is odd
   try {
+    const f = buildScopeFilter(scope);
     const currentRows = sql
       .exec(
         `SELECT COUNT(DISTINCT file_path) AS c
          FROM edits
-         WHERE created_at > datetime('now', '-' || ? || ' days')`,
+         WHERE created_at > datetime('now', '-' || ? || ' days')${f.sql}`,
         halfDays,
+        ...f.params,
       )
       .toArray();
     const previousRows = sql
@@ -88,9 +99,10 @@ export function queryFilesTouchedHalfSplit(
         `SELECT COUNT(DISTINCT file_path) AS c
          FROM edits
          WHERE created_at > datetime('now', '-' || ? || ' days')
-           AND created_at <= datetime('now', '-' || ? || ' days')`,
+           AND created_at <= datetime('now', '-' || ? || ' days')${f.sql}`,
         periodDays,
         prevEndDays,
+        ...f.params,
       )
       .toArray();
     const current = ((currentRows[0] as Record<string, unknown> | undefined)?.c as number) ?? 0;
@@ -102,18 +114,24 @@ export function queryFilesTouchedHalfSplit(
   }
 }
 
-export function queryFileHeatmap(sql: SqlStorage, days: number): FileHeatmapEntry[] {
+export function queryFileHeatmap(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): FileHeatmapEntry[] {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT value AS file, COUNT(*) AS touch_count
          FROM sessions, json_each(sessions.files_touched)
          WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND files_touched != '[]'
+           AND files_touched != '[]'${f.sql}
          GROUP BY value
          ORDER BY touch_count DESC
          LIMIT ?`,
         days,
+        ...f.params,
         HEATMAP_LIMIT,
       )
       .toArray();
@@ -133,6 +151,7 @@ export function queryFileHeatmap(sql: SqlStorage, days: number): FileHeatmapEntr
 
 export function queryDailyTrends(
   sql: SqlStorage,
+  scope: AnalyticsScope,
   days: number,
   tzOffsetMinutes: number = 0,
 ): DailyTrend[] {
@@ -142,7 +161,12 @@ export function queryDailyTrends(
   // prunes the scan regardless of TZ. Every day in the period appears in the
   // result — days with zero sessions return a row of zeros so the resulting
   // sparkline can't elide gaps and misrepresent activity density.
+  //
+  // Scope filter is spliced into the LEFT JOIN's ON clause so spine days with
+  // no scoped sessions still emit a zero row (a WHERE-side filter on s.handle
+  // would drop those days entirely).
   try {
+    const f = buildScopeFilter(scope, { handleColumn: 's.handle' });
     const rows = sql
       .exec(
         `WITH RECURSIVE spine(day) AS (
@@ -163,7 +187,7 @@ export function queryDailyTrends(
                 COALESCE(SUM(CASE WHEN s.outcome = 'failed' THEN 1 ELSE 0 END), 0) AS failed
          FROM spine
          LEFT JOIN sessions s ON date(datetime(s.started_at, ? || ' minutes')) = spine.day
-           AND s.started_at >= date('now', '-' || ? || ' days', '-1 day')
+           AND s.started_at >= date('now', '-' || ? || ' days', '-1 day')${f.sql}
          GROUP BY spine.day
          ORDER BY spine.day ASC`,
         tzOffsetMinutes,
@@ -171,6 +195,7 @@ export function queryDailyTrends(
         tzOffsetMinutes,
         tzOffsetMinutes,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -194,8 +219,13 @@ export function queryDailyTrends(
   }
 }
 
-export function queryToolDistribution(sql: SqlStorage, days: number): ToolDistribution[] {
+export function queryToolDistribution(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): ToolDistribution[] {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT host_tool,
@@ -203,10 +233,11 @@ export function queryToolDistribution(sql: SqlStorage, days: number): ToolDistri
                 COALESCE(SUM(edit_count), 0) AS edits
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND host_tool IS NOT NULL AND host_tool != 'unknown'
+           AND host_tool IS NOT NULL AND host_tool != 'unknown'${f.sql}
          GROUP BY host_tool
          ORDER BY sessions DESC`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -224,17 +255,23 @@ export function queryToolDistribution(sql: SqlStorage, days: number): ToolDistri
   }
 }
 
-export function queryOutcomeDistribution(sql: SqlStorage, days: number): OutcomeCount[] {
+export function queryOutcomeDistribution(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): OutcomeCount[] {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT COALESCE(outcome, 'unknown') AS outcome,
                 COUNT(*) AS count
          FROM sessions
-         WHERE started_at > datetime('now', '-' || ? || ' days')
+         WHERE started_at > datetime('now', '-' || ? || ' days')${f.sql}
          GROUP BY outcome
          ORDER BY count DESC`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -251,7 +288,12 @@ export function queryOutcomeDistribution(sql: SqlStorage, days: number): Outcome
   }
 }
 
-export function queryDailyMetrics(sql: SqlStorage, days: number): DailyMetricEntry[] {
+export function queryDailyMetrics(
+  sql: SqlStorage,
+  _scope: AnalyticsScope,
+  days: number,
+): DailyMetricEntry[] {
+  // Scope: not applicable — daily_metrics has no per-user dimension
   try {
     const rows = sql
       .exec(

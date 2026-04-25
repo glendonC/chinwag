@@ -5,6 +5,7 @@ import type {
   MemberAnalytics,
   MemberDailyLineTrend,
 } from '@chinmeister/shared/contracts/analytics.js';
+import { type AnalyticsScope } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
 
@@ -12,8 +13,9 @@ const log = createLogger('TeamDO.analytics');
 // `queryMemberAnalytics` rows so the renderer can honestly surface a "+N more"
 // affordance when the team has more active members than the rendered list.
 // Without this, LIMIT 50 truncation was silent.
-export function queryMemberCount(sql: SqlStorage, days: number): number {
+export function queryMemberCount(sql: SqlStorage, _scope: AnalyticsScope, days: number): number {
   try {
+    // Scope intentionally ignored — this metric is cross-member by design (team cohort view).
     const rows = sql
       .exec(
         `SELECT COUNT(DISTINCT handle) AS total
@@ -31,8 +33,13 @@ export function queryMemberCount(sql: SqlStorage, days: number): number {
   }
 }
 
-export function queryMemberAnalytics(sql: SqlStorage, days: number): MemberAnalytics[] {
+export function queryMemberAnalytics(
+  sql: SqlStorage,
+  _scope: AnalyticsScope,
+  days: number,
+): MemberAnalytics[] {
   try {
+    // Scope intentionally ignored — this metric is cross-member by design (team cohort view).
     // Audit 2026-04-21: SQL trimmed to the fields the contract still carries.
     // See memberAnalyticsSchema for the list of dropped fields and rationale.
     const rows = sql
@@ -103,8 +110,13 @@ export function queryMemberAnalytics(sql: SqlStorage, days: number): MemberAnaly
 // fields agree on which handles exist. Uses the recursive-CTE spine +
 // CROSS JOIN pattern from queryToolDaily for dense day axes — each
 // handle's sparkline stays legible when they worked on non-contiguous days.
-export function queryMemberDailyLines(sql: SqlStorage, days: number): MemberDailyLineTrend[] {
+export function queryMemberDailyLines(
+  sql: SqlStorage,
+  _scope: AnalyticsScope,
+  days: number,
+): MemberDailyLineTrend[] {
   try {
+    // Scope intentionally ignored — this metric is cross-member by design (team cohort view).
     const rows = sql
       .exec(
         `WITH RECURSIVE spine(day) AS (

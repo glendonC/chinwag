@@ -13,6 +13,7 @@ import type {
   FilesByWorkTypeEntry,
   FilesNewVsRevisited,
 } from '@chinmeister/shared/contracts/analytics.js';
+import { type AnalyticsScope, buildScopeFilter } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
 
@@ -81,8 +82,13 @@ function extractDirectory(filePath: string): string {
  * distinction. See `file-churn` vs `files` widget verdicts in the codebase
  * rubric pass (2026-04-21).
  */
-export function queryFileChurn(sql: SqlStorage, days: number): FileChurnEntry[] {
+export function queryFileChurn(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): FileChurnEntry[] {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT
@@ -91,12 +97,13 @@ export function queryFileChurn(sql: SqlStorage, days: number): FileChurnEntry[] 
            COUNT(*) AS total_edits,
            COALESCE(SUM(lines_added + lines_removed), 0) AS total_lines
          FROM edits
-         WHERE created_at > datetime('now', '-' || ? || ' days')
+         WHERE created_at > datetime('now', '-' || ? || ' days')${f.sql}
          GROUP BY file_path
          HAVING session_count >= ?
          ORDER BY session_count DESC
          LIMIT 30`,
         days,
+        ...f.params,
         FILE_CHURN_MIN_SESSIONS,
       )
       .toArray();
@@ -123,8 +130,13 @@ export function queryFileChurn(sql: SqlStorage, days: number): FileChurnEntry[] 
 // the scenario this widget exists to surface. Grouping by agent_id catches
 // both the solo-multi-tool case and the team case (different users → different
 // agent_ids by construction).
-export function queryConcurrentEdits(sql: SqlStorage, days: number): ConcurrentEditEntry[] {
+export function queryConcurrentEdits(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): ConcurrentEditEntry[] {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT
@@ -132,12 +144,13 @@ export function queryConcurrentEdits(sql: SqlStorage, days: number): ConcurrentE
            COUNT(DISTINCT agent_id) AS agents,
            COUNT(*) AS edit_count
          FROM edits
-         WHERE created_at > datetime('now', '-' || ? || ' days')
+         WHERE created_at > datetime('now', '-' || ? || ' days')${f.sql}
          GROUP BY file_path
          HAVING agents >= ?
          ORDER BY agents DESC, edit_count DESC
          LIMIT 20`,
         days,
+        ...f.params,
         CONCURRENT_EDITS_MIN_AGENTS,
       )
       .toArray();
@@ -167,8 +180,13 @@ export function queryConcurrentEdits(sql: SqlStorage, days: number): ConcurrentE
  * "most worked-on files in this period" (this one) vs "files with the widest
  * session spread" (churn). Do not unify without collapsing that distinction.
  */
-export function queryFileHeatmapEnhanced(sql: SqlStorage, days: number): FileHeatmapEntry[] {
+export function queryFileHeatmapEnhanced(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): FileHeatmapEntry[] {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT
@@ -180,11 +198,12 @@ export function queryFileHeatmapEnhanced(sql: SqlStorage, days: number): FileHea
            COALESCE(SUM(lines_removed), 0) AS total_lines_removed
          FROM sessions, json_each(sessions.files_touched)
          WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND files_touched != '[]'
+           AND files_touched != '[]'${f.sql}
          GROUP BY value
          ORDER BY touch_count DESC
          LIMIT ?`,
         days,
+        ...f.params,
         HEATMAP_LIMIT,
       )
       .toArray();
@@ -206,8 +225,13 @@ export function queryFileHeatmapEnhanced(sql: SqlStorage, days: number): FileHea
   }
 }
 
-export function queryFileRework(sql: SqlStorage, days: number): FileReworkEntry[] {
+export function queryFileRework(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): FileReworkEntry[] {
   try {
+    const f = buildScopeFilter(scope, { handleColumn: 'e.handle' });
     const rows = sql
       .exec(
         `SELECT
@@ -218,12 +242,13 @@ export function queryFileRework(sql: SqlStorage, days: number): FileReworkEntry[
              / NULLIF(COUNT(*), 0) * 100, 1) AS rework_ratio
          FROM edits e
          JOIN sessions s ON s.id = e.session_id
-         WHERE e.created_at > datetime('now', '-' || ? || ' days')
+         WHERE e.created_at > datetime('now', '-' || ? || ' days')${f.sql}
          GROUP BY e.file_path
          HAVING total_edits >= ? AND failed_edits >= ?
          ORDER BY rework_ratio DESC
          LIMIT 30`,
         days,
+        ...f.params,
         FILE_REWORK_MIN_TOTAL_EDITS,
         FILE_REWORK_MIN_FAILED_EDITS,
       )
@@ -244,8 +269,13 @@ export function queryFileRework(sql: SqlStorage, days: number): FileReworkEntry[
   }
 }
 
-export function queryDirectoryHeatmap(sql: SqlStorage, days: number): DirectoryHeatmapEntry[] {
+export function queryDirectoryHeatmap(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): DirectoryHeatmapEntry[] {
   try {
+    const f = buildScopeFilter(scope);
     // Query file-level data and roll up to directories in JS
     // (SQLite lacks a clean dirname function)
     const rows = sql
@@ -258,9 +288,10 @@ export function queryDirectoryHeatmap(sql: SqlStorage, days: number): DirectoryH
              / NULLIF(COUNT(*), 0) * 100, 1) AS completion_rate
          FROM sessions, json_each(sessions.files_touched)
          WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND files_touched != '[]'
+           AND files_touched != '[]'${f.sql}
          GROUP BY value`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -317,9 +348,12 @@ export function queryDirectoryHeatmap(sql: SqlStorage, days: number): DirectoryH
 // short-period views (a 7-day window cannot contain a 14-day-stale edit), so
 // the catalog declares timeScope: 'all-time' and the query reads the full
 // edits history. The period picker correctly does not apply to this widget.
-export function queryAuditStaleness(sql: SqlStorage): AuditStalenessEntry[] {
+export function queryAuditStaleness(sql: SqlStorage, scope: AnalyticsScope): AuditStalenessEntry[] {
   try {
     // Find directories with significant past activity that haven't been touched recently
+    const f = buildScopeFilter(scope);
+    // Use buildScopeFilter (with leading AND) and inject via WHERE 1=1 prefix
+    // so the splice works whether or not scope is set.
     const rows = sql
       .exec(
         `SELECT
@@ -327,8 +361,10 @@ export function queryAuditStaleness(sql: SqlStorage): AuditStalenessEntry[] {
            MAX(created_at) AS last_edit,
            COUNT(*) AS edit_count
          FROM edits
+         WHERE 1=1${f.sql}
          GROUP BY file_path
          HAVING edit_count >= ?`,
+        ...f.params,
         COLD_DIR_MIN_FILE_EDITS,
       )
       .toArray();
@@ -381,16 +417,22 @@ export function queryAuditStaleness(sql: SqlStorage): AuditStalenessEntry[] {
 // rather than re-classifying paths at query time. Unlike `file_heatmap`, this
 // is uncapped — every work_type bucket gets its real file count, which is what
 // the Files-Touched breadth strip visualises.
-export function queryFilesByWorkType(sql: SqlStorage, days: number): FilesByWorkTypeEntry[] {
+export function queryFilesByWorkType(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): FilesByWorkTypeEntry[] {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT work_type, COUNT(DISTINCT file_path) AS file_count
          FROM edits
-         WHERE created_at > datetime('now', '-' || ? || ' days')
+         WHERE created_at > datetime('now', '-' || ? || ' days')${f.sql}
          GROUP BY work_type
          ORDER BY file_count DESC`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -417,8 +459,13 @@ export function queryFilesByWorkType(sql: SqlStorage, days: number): FilesByWork
 // whole edits history is only paid for files that matter to this question.
 // Three `days` bindings: one for the new/revisited cutoff (twice, new vs. old)
 // and one for the HAVING clause.
-export function queryFilesNewVsRevisited(sql: SqlStorage, days: number): FilesNewVsRevisited {
+export function queryFilesNewVsRevisited(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): FilesNewVsRevisited {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT
@@ -427,11 +474,13 @@ export function queryFilesNewVsRevisited(sql: SqlStorage, days: number): FilesNe
          FROM (
            SELECT MIN(created_at) AS min_created
            FROM edits
+           WHERE 1=1${f.sql}
            GROUP BY file_path
            HAVING MAX(created_at) > datetime('now', '-' || ? || ' days')
          )`,
         days,
         days,
+        ...f.params,
         days,
       )
       .toArray();

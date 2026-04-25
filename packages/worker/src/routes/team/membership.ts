@@ -8,6 +8,7 @@ import { teamErrorStatus } from '../../lib/request-utils.js';
 import { createLogger } from '../../lib/logger.js';
 import { withRateLimit } from '../../lib/validation.js';
 import { auditLog } from '../../lib/audit.js';
+import { tryDORetry, withDORetry } from '../../lib/cross-do.js';
 import { RATE_LIMIT_JOINS, MAX_NAME_LENGTH } from '../../lib/constants.js';
 
 const log = createLogger('routes.membership');
@@ -60,7 +61,13 @@ export const handleTeamJoin = teamRoute(
           return json({ error: result.error }, 400);
         }
 
-        await db.addUserTeam(user.id, teamId, name);
+        // addUserTeam is INSERT ON CONFLICT DO UPDATE — fully idempotent.
+        // Retry on transient failure so the user_teams roster row converges
+        // with the TeamDO state. handleTeamContext also self-heals this row
+        // on the next read, but explicit retry catches the gap sooner.
+        await withDORetry(() => db.addUserTeam(user.id, teamId, name), {
+          label: 'addUserTeam after team.join',
+        });
 
         auditLog('team.join', {
           actor: user.handle,
@@ -89,7 +96,13 @@ export const handleTeamLeave = teamRoute(async ({ user, teamId, db, agentId, tea
     meta: { team_id: teamId, agent_id: agentId },
   });
 
-  await db.removeUserTeam(user.id, teamId);
+  // removeUserTeam is DELETE WHERE — idempotent. Retry transient failures.
+  // If retry exhausts, accept the orphan: TeamDO has marked the user gone,
+  // and the user can re-trigger cleanup by calling /leave again. Avoid
+  // surfacing a 500 to the client when the primary intent (leave) succeeded.
+  await tryDORetry(() => db.removeUserTeam(user.id, teamId), {
+    label: 'removeUserTeam after team.leave',
+  });
 
   return json(result);
 });

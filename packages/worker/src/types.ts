@@ -52,6 +52,13 @@ export interface User {
   last_active: string;
   /** Per-user context budget overrides. null when unset; partial allowed. */
   budgets?: Partial<BudgetConfig> | null;
+  /**
+   * Wall-clock timestamp (ISO) when the user last revoked all their tokens.
+   * Tokens whose KV metadata `issued_at` is older than this value must be
+   * rejected by the auth path. null/missing means the user has never
+   * revoked.
+   */
+  tokens_revoked_at?: string | null;
 }
 
 export interface NewUser {

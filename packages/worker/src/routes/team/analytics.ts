@@ -27,8 +27,16 @@ export const handleTeamAnalytics = teamRoute(async ({ request, agentId, team, us
   const extended = url.searchParams.get('extended') === '1';
   const tzOffsetMinutes = parseTzOffset(url.searchParams.get('tz_offset_minutes'));
 
+  // Privacy-by-default: scope per-user analytics (sessions, edits, tokens,
+  // outcomes, sentiment, etc.) to the caller. Cross-member cohort views
+  // (member_analytics, member_count, member_daily_lines in team.ts)
+  // intentionally ignore scope so each user still sees the team breakdown.
+  // Net effect: project view shows "my numbers in this project" + "team
+  // cohort overview" — neither leaks individual teammates' details.
   return doResult(
-    team.getAnalytics(agentId, days, user.id, extended, tzOffsetMinutes),
+    team.getAnalytics(agentId, days, user.id, extended, tzOffsetMinutes, {
+      handle: user.handle,
+    }),
     'getAnalytics',
   );
 });

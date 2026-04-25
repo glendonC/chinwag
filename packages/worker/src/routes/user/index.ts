@@ -19,8 +19,10 @@ export {
   handleUpdateAgentProfile,
   handleGlobalRank,
   handleUpdateBudgets,
+  handleRevokeTokens,
 } from './profile.js';
 export { handleGetUserTeams, handleChatUpgrade, handleCreateTeam } from './teams.js';
 export { handleUserAnalytics } from './analytics.js';
 export { handleUserSessions } from './sessions.js';
 export { handleDashboardSummary } from './dashboard.js';
+export { handleExportUserData, handleDeleteUserData } from './data.js';

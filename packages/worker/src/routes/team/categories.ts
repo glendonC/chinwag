@@ -3,6 +3,7 @@
 import { json } from '../../lib/http.js';
 import { teamJsonRoute, teamRoute, doResult } from '../../lib/middleware.js';
 import { requireString, withTeamRateLimit } from '../../lib/validation.js';
+import { auditLog } from '../../lib/audit.js';
 import { generateEmbedding } from '../../lib/ai.js';
 import {
   MAX_CATEGORY_NAME_LENGTH,
@@ -133,7 +134,17 @@ export const handleTeamDeleteCategory = teamJsonRoute(
       rateLimitKey: 'category',
       rateLimitMax: RATE_LIMIT_CATEGORIES,
       rateLimitMsg: 'Category limit reached (50/day). Try again tomorrow.',
-      action: (team, agentId) => team.deleteCategory(agentId, id, user.id),
+      action: async (team, agentId) => {
+        const result = await team.deleteCategory(agentId, id, user.id);
+        auditLog('team.category.delete', {
+          actor: user.handle,
+          actor_id: user.id,
+          team_id: teamId,
+          resource_id: id,
+          outcome: 'error' in result ? 'failure' : 'success',
+        });
+        return result;
+      },
     });
   },
 );

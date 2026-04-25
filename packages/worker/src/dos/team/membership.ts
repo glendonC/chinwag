@@ -47,6 +47,17 @@ export function join(
     return { error: 'Agent ID already claimed by another user', code: 'AGENT_CLAIMED' };
   }
 
+  // Persistent roster row. Idempotent: re-joining doesn't churn joined_at.
+  // Cleanup never touches this table, so #withOwner reads stay accurate
+  // even after a user's members rows age out from heartbeat staleness.
+  sql.exec(
+    `INSERT INTO team_owners (owner_id, handle, joined_at)
+     VALUES (?, ?, datetime('now'))
+     ON CONFLICT(owner_id) DO UPDATE SET handle = excluded.handle`,
+    ownerId,
+    handle,
+  );
+
   recordMetric(METRIC_KEYS.JOINS);
   recordMetric(`${METRIC_KEYS.HOST_PREFIX}${runtime.hostTool}`);
   if (runtime.agentSurface) recordMetric(`${METRIC_KEYS.SURFACE_PREFIX}${runtime.agentSurface}`);
@@ -86,6 +97,16 @@ export function leave(
         if (exists.length > 0) {
           return { error: 'Not your agent', code: 'NOT_OWNER' };
         }
+      }
+      // Roster cleanup mirrors what handleTeamLeave does at the DatabaseDO
+      // level (db.removeUserTeam). Only revoke the roster row when this owner
+      // has no remaining agents on the team — otherwise other agents owned
+      // by the same user would lose dashboard access.
+      const remaining = sql
+        .exec('SELECT 1 FROM members WHERE owner_id = ? LIMIT 1', ownerId)
+        .toArray();
+      if (remaining.length === 0) {
+        sql.exec('DELETE FROM team_owners WHERE owner_id = ?', ownerId);
       }
     } else {
       sql.exec('DELETE FROM locks WHERE agent_id = ?', agentId);

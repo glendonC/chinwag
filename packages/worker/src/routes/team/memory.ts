@@ -5,6 +5,7 @@ import { json } from '../../lib/http.js';
 import { teamJsonRoute, teamRoute, doResult } from '../../lib/middleware.js';
 import { createLogger } from '../../lib/logger.js';
 import { requireString, validateTagsArray, withTeamRateLimit } from '../../lib/validation.js';
+import { auditLog } from '../../lib/audit.js';
 import { generateEmbedding } from '../../lib/ai.js';
 import { detectSecrets } from '@chinmeister/shared/secret-detector.js';
 import { isLiteralQuery } from '../../dos/team/memory.js';
@@ -315,7 +316,17 @@ export const handleTeamDeleteMemory = teamJsonRoute(
       rateLimitKey: 'memory_delete',
       rateLimitMax: RATE_LIMIT_MEMORY_DELETES,
       rateLimitMsg: 'Memory delete limit reached (50/day). Try again tomorrow.',
-      action: (team, agentId) => team.deleteMemory(agentId, id, user.id),
+      action: async (team, agentId) => {
+        const result = await team.deleteMemory(agentId, id, user.id);
+        auditLog('team.memory.delete', {
+          actor: user.handle,
+          actor_id: user.id,
+          team_id: teamId,
+          resource_id: id,
+          outcome: 'error' in result ? 'failure' : 'success',
+        });
+        return result;
+      },
     });
   },
 );

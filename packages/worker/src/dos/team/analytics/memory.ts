@@ -7,6 +7,7 @@ import type {
   MemoryAccessEntry,
   FormationRecommendationCounts,
 } from '@chinmeister/shared/contracts/analytics.js';
+import { type AnalyticsScope, buildScopeFilter } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
 
@@ -16,13 +17,25 @@ const log = createLogger('TeamDO.analytics');
 // widget or a tunable setting can read from here instead of re-hardcoding.
 const STALE_MEMORY_DAYS = 30;
 
-export function queryMemoryUsage(sql: SqlStorage, days: number): MemoryUsageStats {
+export function queryMemoryUsage(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): MemoryUsageStats {
   try {
+    // Memories table carries `handle` as the author. Scoping filters to
+    // memories the caller authored (per ANALYTICS_SPEC.md §10, per-user
+    // memory access tracking is deferred).
+    const fMem = buildScopeFilter(scope);
+
     // Total memories — exclude soft-merged rows so the count reflects what
     // search would actually return. The merged rows stay in the table for
     // unmerge recourse but are not "live" memory.
     const totalRow = sql
-      .exec('SELECT COUNT(*) AS cnt FROM memories WHERE merged_into IS NULL AND invalid_at IS NULL')
+      .exec(
+        `SELECT COUNT(*) AS cnt FROM memories WHERE merged_into IS NULL AND invalid_at IS NULL${fMem.sql}`,
+        ...fMem.params,
+      )
       .one() as Record<string, unknown>;
     const total = (totalRow?.cnt as number) || 0;
 
@@ -32,8 +45,9 @@ export function queryMemoryUsage(sql: SqlStorage, days: number): MemoryUsageStat
         `SELECT
            SUM(CASE WHEN created_at > datetime('now', '-' || ? || ' days') THEN 1 ELSE 0 END) AS created
          FROM memories
-         WHERE merged_into IS NULL AND invalid_at IS NULL`,
+         WHERE merged_into IS NULL AND invalid_at IS NULL${fMem.sql}`,
         days,
+        ...fMem.params,
       )
       .one() as Record<string, unknown>;
 
@@ -45,9 +59,10 @@ export function queryMemoryUsage(sql: SqlStorage, days: number): MemoryUsageStat
         `SELECT COUNT(*) AS cnt FROM memories
          WHERE merged_into IS NULL AND invalid_at IS NULL
            AND ((last_accessed_at IS NULL AND created_at < datetime('now', '-' || ? || ' days'))
-                OR (last_accessed_at IS NOT NULL AND last_accessed_at < datetime('now', '-' || ? || ' days')))`,
+                OR (last_accessed_at IS NOT NULL AND last_accessed_at < datetime('now', '-' || ? || ' days')))${fMem.sql}`,
         STALE_MEMORY_DAYS,
         STALE_MEMORY_DAYS,
+        ...fMem.params,
       )
       .one() as Record<string, unknown>;
 
@@ -55,11 +70,13 @@ export function queryMemoryUsage(sql: SqlStorage, days: number): MemoryUsageStat
     const ageRow = sql
       .exec(
         `SELECT ROUND(AVG(julianday('now') - julianday(created_at)), 1) AS avg_age
-         FROM memories WHERE merged_into IS NULL AND invalid_at IS NULL`,
+         FROM memories WHERE merged_into IS NULL AND invalid_at IS NULL${fMem.sql}`,
+        ...fMem.params,
       )
       .one() as Record<string, unknown>;
 
-    // Search telemetry from daily_metrics (period-scoped, not lifetime)
+    // Search telemetry from daily_metrics (period-scoped, not lifetime).
+    // Scope not applied: daily_metrics has no handle column (team-wide rollup).
     const searchRow = sql
       .exec(
         `SELECT COALESCE(SUM(CASE WHEN metric = 'memories_searched' THEN count ELSE 0 END), 0) AS searches,
@@ -75,6 +92,7 @@ export function queryMemoryUsage(sql: SqlStorage, days: number): MemoryUsageStat
     const hits = (searchRow?.hits as number) || 0;
 
     // Live count of consolidation proposals awaiting review.
+    // Scope not applied: consolidation_proposals has no handle column.
     const pendingRow = safeOne(
       sql,
       "SELECT COUNT(*) AS cnt FROM consolidation_proposals WHERE status = 'pending'",
@@ -85,6 +103,7 @@ export function queryMemoryUsage(sql: SqlStorage, days: number): MemoryUsageStat
     // acted yet — that is the live review-queue signal the memory-safety
     // widget surfaces. Age does not gate the queue; a year-old unaddressed
     // flag still needs a decision.
+    // Scope not applied: formation_observations has no handle column.
     const formationRows = safeAll(
       sql,
       `SELECT recommendation, COUNT(*) AS cnt
@@ -109,6 +128,7 @@ export function queryMemoryUsage(sql: SqlStorage, days: number): MemoryUsageStat
     // (not the global date picker) because the memory-safety widget is a
     // live review surface — a recent block is actionable, an old block is
     // audit history that lives elsewhere.
+    // Scope not applied: daily_metrics has no handle column.
     const secretsRow = sql
       .exec(
         `SELECT COALESCE(SUM(count), 0) AS cnt
@@ -172,9 +192,11 @@ function safeAll(sql: SqlStorage, query: string, ...params: unknown[]): Record<s
 
 export function queryMemoryOutcomeCorrelation(
   sql: SqlStorage,
+  scope: AnalyticsScope,
   days: number,
 ): MemoryOutcomeCorrelation[] {
   try {
+    const f = buildScopeFilter(scope);
     // Three-bucket split:
     //   hit memory          — at least one search call returned results
     //   searched, no results — searched but every call came back empty
@@ -199,7 +221,7 @@ export function queryMemoryOutcomeCorrelation(
            ROUND(CAST(SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
              / NULLIF(COUNT(*), 0) * 100, 1) AS completion_rate
          FROM sessions
-         WHERE started_at > datetime('now', '-' || ? || ' days')
+         WHERE started_at > datetime('now', '-' || ? || ' days')${f.sql}
          GROUP BY bucket
          ORDER BY
            CASE bucket
@@ -208,6 +230,7 @@ export function queryMemoryOutcomeCorrelation(
              ELSE 2
            END`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -226,18 +249,24 @@ export function queryMemoryOutcomeCorrelation(
   }
 }
 
-export function queryTopMemories(sql: SqlStorage, days: number): MemoryAccessEntry[] {
+export function queryTopMemories(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): MemoryAccessEntry[] {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT id, text, access_count, last_accessed_at
          FROM memories
          WHERE merged_into IS NULL AND invalid_at IS NULL
            AND access_count > 0
-           AND (last_accessed_at IS NOT NULL AND last_accessed_at > datetime('now', '-' || ? || ' days'))
+           AND (last_accessed_at IS NOT NULL AND last_accessed_at > datetime('now', '-' || ? || ' days'))${f.sql}
          ORDER BY access_count DESC
          LIMIT 20`,
         days,
+        ...f.params,
       )
       .toArray();
 

@@ -6,6 +6,7 @@ import { json } from '../../lib/http.js';
 import { createLogger } from '../../lib/logger.js';
 import { sanitizeTags } from '../../lib/request-utils.js';
 import { authedRoute, authedJsonRoute, doResult } from '../../lib/middleware.js';
+import { auditLog } from '../../lib/audit.js';
 import { MAX_STATUS_LENGTH, MAX_FRAMEWORK_LENGTH, VALID_COLORS_SET } from '../../lib/constants.js';
 
 const log = createLogger('routes.user.profile');
@@ -124,4 +125,27 @@ export const handleUpdateBudgets = authedJsonRoute(async ({ user, env, body }) =
   // in the DO via parseBudgetConfig so unknown or malformed fields drop out.
   const input = body?.budgets === undefined ? null : body.budgets;
   return doResult(getDB(env).updateBudgets(user.id, input), 'updateBudgets');
+});
+
+/**
+ * POST /me/revoke-tokens — invalidate every bearer token issued to the
+ * caller. The current request's token stops working immediately on the next
+ * authed call. Use cases: credential rotation, suspected compromise, account
+ * security incidents.
+ *
+ * Implementation: stamps `tokens_revoked_at = now` on the user. The auth
+ * path compares this against each token's KV `issued_at` metadata and
+ * rejects any token issued before the stamp. No KV scan needed.
+ */
+export const handleRevokeTokens = authedRoute(async ({ user, env }) => {
+  const result = rpc(await getDB(env).revokeTokens(user.id));
+  if ('error' in result) {
+    return json({ error: result.error }, 400);
+  }
+  auditLog('auth.tokens_revoked', {
+    actor: user.handle,
+    outcome: 'success',
+    meta: { revoked_at: result.revoked_at },
+  });
+  return json({ ok: true, revoked_at: result.revoked_at });
 });

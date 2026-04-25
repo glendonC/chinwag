@@ -8,6 +8,7 @@ import { getAgentRuntime } from '../../lib/request-utils.js';
 import { withRateLimit } from '../../lib/validation.js';
 import { authedRoute } from '../../lib/middleware.js';
 import { auditLog } from '../../lib/audit.js';
+import { withDORetry } from '../../lib/cross-do.js';
 import { RATE_LIMIT_TEAMS, CHAT_COOLDOWN_MS, MAX_NAME_LENGTH } from '../../lib/constants.js';
 
 const log = createLogger('routes.user.teams');
@@ -91,7 +92,9 @@ export const handleCreateTeam = authedRoute(async ({ request, user, env }) => {
       const joinResult = rpc(await team.join(agentId, user.id, user.handle, runtime));
       if ('error' in joinResult) return json({ error: joinResult.error }, 500);
 
-      await db.addUserTeam(user.id, teamId, name);
+      await withDORetry(() => db.addUserTeam(user.id, teamId, name), {
+        label: 'addUserTeam after team.join (create)',
+      });
 
       auditLog('team.create', {
         actor: user.handle,

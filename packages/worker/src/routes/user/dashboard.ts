@@ -36,14 +36,16 @@ export const handleDashboardSummary = authedRoute(async ({ user, env }) => {
           ),
         );
         if (summary.error) {
-          try {
-            await db.removeUserTeam(user.id, teamEntry.team_id);
-          } catch (err) {
-            log.error('failed to reconcile stale team', {
-              teamId: teamEntry.team_id,
-              error: getErrorMessage(err),
-            });
-          }
+          // Treat any TeamDO error here as transient — surface the team in
+          // failed_teams so the frontend can render "summary unavailable",
+          // but never mutate the user's roster from a read path. Removing
+          // user_teams here was the cause of the "kicked out while idle" bug
+          // (idle → presence row aged out → NOT_MEMBER → roster wiped).
+          // Roster lifecycle belongs to the explicit /teams/:tid/leave route.
+          log.warn('team summary unavailable', {
+            teamId: teamEntry.team_id,
+            reason: summary.error,
+          });
           return {
             ok: false as const,
             team_id: teamEntry.team_id,

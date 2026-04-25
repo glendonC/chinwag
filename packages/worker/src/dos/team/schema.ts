@@ -821,6 +821,43 @@ const migrations: Migration[] = [
       addColumnIfMissing(sql, 'sessions', 'last_active_at TEXT');
     },
   },
+  {
+    name: '027_team_owners_roster',
+    up(sql) {
+      // Split roster from presence. `members` is presence: rows are inserted
+      // on join, refreshed on heartbeat, and deleted by cleanup when a
+      // heartbeat goes stale. That's correct for "who is active here right
+      // now." It is the wrong table to gate owner-scoped reads (dashboard
+      // summary, cross-team analytics): an idle user with no live agent has
+      // an empty members set but is still on the team. Using members as the
+      // gate caused idle dashboard users to be silently removed from
+      // user_teams via routes/user/dashboard.ts when getSummary returned
+      // NOT_MEMBER (see issue: "kicked out while idle").
+      //
+      // team_owners is the persistent roster: one row per (owner_id, team).
+      // Inserted on join, removed only on explicit leave, never touched by
+      // cleanup. #withOwner gates on this table.
+      sql.exec(`
+        CREATE TABLE IF NOT EXISTS team_owners (
+          owner_id TEXT PRIMARY KEY,
+          handle TEXT NOT NULL,
+          joined_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `);
+
+      // Backfill from existing members. Any owner with a current members row
+      // is by definition a roster member. Owners whose members rows already
+      // aged out before this migration runs cannot be recovered here —
+      // re-running `chinmeister init` re-adds them via join().
+      sql.exec(`
+        INSERT OR IGNORE INTO team_owners (owner_id, handle, joined_at)
+        SELECT owner_id, MIN(handle), MIN(joined_at)
+        FROM members
+        WHERE owner_id IS NOT NULL AND owner_id != ''
+        GROUP BY owner_id
+      `);
+    },
+  },
 ];
 
 export function ensureSchema(

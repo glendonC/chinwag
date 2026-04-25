@@ -3,10 +3,15 @@
 import { createLogger } from '../../../lib/logger.js';
 import type { TokenUsageStats } from '@chinmeister/shared/contracts/analytics.js';
 import type { WindowTokenAggregate } from '../../../lib/pricing-enrich.js';
+import { type AnalyticsScope, buildScopeFilter } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
 
-export function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats {
+export function queryTokenUsage(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): TokenUsageStats {
   // Cost enrichment happens outside this function (dos/team/pricing-enrich.ts)
   // so queryTokenUsage stays pure SQL: raw token sums per model / per tool,
   // no resolver, no cost math, no DO RPC. estimated_cost_usd is left at its
@@ -37,6 +42,7 @@ export function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats 
     // Totals — only count sessions that have token data (non-NULL input_tokens
     // is the presence signal; cache fields may still be NULL on sessions
     // uploaded before phase 2 even if input/output were captured).
+    const fTotals = buildScopeFilter(scope);
     const totals = sql
       .exec(
         `SELECT
@@ -48,8 +54,9 @@ export function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats 
            COUNT(CASE WHEN input_tokens IS NULL THEN 1 END) AS without_data,
            COALESCE(SUM(CASE WHEN input_tokens IS NOT NULL THEN edit_count ELSE 0 END), 0) AS edits_in_token_sessions
          FROM sessions
-         WHERE started_at > datetime('now', '-' || ? || ' days')`,
+         WHERE started_at > datetime('now', '-' || ? || ' days')${fTotals.sql}`,
         days,
+        ...fTotals.params,
       )
       .toArray();
 
@@ -82,6 +89,8 @@ export function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats 
     // Per-message rows land normalized via the extraction engine's
     // `normalizeTokens`, so the two sources can be summed without further
     // OpenAI/Anthropic math at query time.
+    const fPerMsg = buildScopeFilter(scope, { handleColumn: 'ce.handle' });
+    const fFallback = buildScopeFilter(scope, { handleColumn: 's.handle' });
     const modelRows = sql
       .exec(
         `WITH per_msg AS (
@@ -95,7 +104,7 @@ export function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats 
              JOIN sessions s ON s.id = ce.session_id
             WHERE s.started_at > datetime('now', '-' || ? || ' days')
               AND ce.input_tokens IS NOT NULL
-              AND ce.model IS NOT NULL AND ce.model != ''
+              AND ce.model IS NOT NULL AND ce.model != ''${fPerMsg.sql}
             GROUP BY ce.model
          ),
          fallback AS (
@@ -113,7 +122,7 @@ export function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats 
                 SELECT 1 FROM conversation_events ce2
                  WHERE ce2.session_id = s.id
                    AND ce2.input_tokens IS NOT NULL
-              )
+              )${fFallback.sql}
             GROUP BY s.agent_model
          )
          SELECT agent_model,
@@ -126,11 +135,14 @@ export function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats 
           GROUP BY agent_model
           ORDER BY input_tokens DESC`,
         days,
+        ...fPerMsg.params,
         days,
+        ...fFallback.params,
       )
       .toArray();
 
     // By tool
+    const fTool = buildScopeFilter(scope);
     const toolRows = sql
       .exec(
         `SELECT host_tool,
@@ -142,10 +154,11 @@ export function queryTokenUsage(sql: SqlStorage, days: number): TokenUsageStats 
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
            AND input_tokens IS NOT NULL
-           AND host_tool IS NOT NULL AND host_tool != 'unknown'
+           AND host_tool IS NOT NULL AND host_tool != 'unknown'${fTool.sql}
          GROUP BY host_tool
          ORDER BY input_tokens DESC`,
         days,
+        ...fTool.params,
       )
       .toArray();
 
@@ -233,6 +246,7 @@ export interface DailyTokenUsageRow {
  */
 export function queryTokenAggregateForWindow(
   sql: SqlStorage,
+  scope: AnalyticsScope,
   offsetStart: number,
   offsetEnd: number,
 ): WindowTokenAggregate {
@@ -242,19 +256,23 @@ export function queryTokenAggregateForWindow(
   };
 
   try {
+    const fEdits = buildScopeFilter(scope);
     const editsRows = sql
       .exec(
         `SELECT COALESCE(SUM(CASE WHEN input_tokens IS NOT NULL THEN edit_count ELSE 0 END), 0) AS edits
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND started_at <= datetime('now', '-' || ? || ' days')`,
+           AND started_at <= datetime('now', '-' || ? || ' days')${fEdits.sql}`,
         offsetStart,
         offsetEnd,
+        ...fEdits.params,
       )
       .toArray();
     const editsRow = (editsRows[0] || {}) as Record<string, unknown>;
     const totalEdits = (editsRow.edits as number) || 0;
 
+    const fPerMsg = buildScopeFilter(scope, { handleColumn: 'ce.handle' });
+    const fFallback = buildScopeFilter(scope, { handleColumn: 's.handle' });
     const modelRows = sql
       .exec(
         `WITH per_msg AS (
@@ -268,7 +286,7 @@ export function queryTokenAggregateForWindow(
             WHERE s.started_at > datetime('now', '-' || ? || ' days')
               AND s.started_at <= datetime('now', '-' || ? || ' days')
               AND ce.input_tokens IS NOT NULL
-              AND ce.model IS NOT NULL AND ce.model != ''
+              AND ce.model IS NOT NULL AND ce.model != ''${fPerMsg.sql}
             GROUP BY ce.model
          ),
          fallback AS (
@@ -286,7 +304,7 @@ export function queryTokenAggregateForWindow(
                 SELECT 1 FROM conversation_events ce2
                  WHERE ce2.session_id = s.id
                    AND ce2.input_tokens IS NOT NULL
-              )
+              )${fFallback.sql}
             GROUP BY s.agent_model
          )
          SELECT agent_model,
@@ -298,8 +316,10 @@ export function queryTokenAggregateForWindow(
           GROUP BY agent_model`,
         offsetStart,
         offsetEnd,
+        ...fPerMsg.params,
         offsetStart,
         offsetEnd,
+        ...fFallback.params,
       )
       .toArray();
 
@@ -324,10 +344,12 @@ export function queryTokenAggregateForWindow(
 
 export function queryDailyTokenUsage(
   sql: SqlStorage,
+  scope: AnalyticsScope,
   days: number,
   tzOffsetMinutes: number = 0,
 ): DailyTokenUsageRow[] {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT date(datetime(started_at, ? || ' minutes')) AS day,
@@ -339,11 +361,12 @@ export function queryDailyTokenUsage(
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days', '-1 day')
            AND input_tokens IS NOT NULL
-           AND agent_model IS NOT NULL AND agent_model != ''
+           AND agent_model IS NOT NULL AND agent_model != ''${f.sql}
          GROUP BY day, agent_model
          ORDER BY day ASC`,
         tzOffsetMinutes,
         days,
+        ...f.params,
       )
       .toArray();
 

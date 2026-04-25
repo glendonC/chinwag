@@ -7,11 +7,13 @@ import type {
   OutcomeTagCount,
   ToolHandoff,
 } from '@chinmeister/shared/contracts/analytics.js';
+import { type AnalyticsScope, buildScopeFilter } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
 
 export function queryPromptEfficiency(
   sql: SqlStorage,
+  scope: AnalyticsScope,
   days: number,
   tzOffsetMinutes: number = 0,
 ): PromptEfficiencyTrend[] {
@@ -22,6 +24,12 @@ export function queryPromptEfficiency(
   // than a literal 0. The downstream widget treats null as "skip this point"
   // so the sparkline tracks real behavior, not dead-day floors.
   try {
+    // Scope applied to ce.handle (the conversation event's author). Filtering
+    // ce in the JOIN narrows the universe; s.handle would be redundant since
+    // it's joined off ce.session_id, but for correctness we filter both — a
+    // shared session_id with mixed authors is rare but possible.
+    const fCe = buildScopeFilter(scope, { handleColumn: 'ce.handle' });
+    const fS = buildScopeFilter(scope, { handleColumn: 's.handle' });
     const rows = sql
       .exec(
         `WITH RECURSIVE spine(day) AS (
@@ -37,9 +45,9 @@ export function queryPromptEfficiency(
                 COUNT(DISTINCT s.id) AS sessions
          FROM spine
          LEFT JOIN conversation_events ce ON date(datetime(ce.created_at, ? || ' minutes')) = spine.day
-           AND ce.created_at >= date('now', '-' || ? || ' days', '-1 day')
+           AND ce.created_at >= date('now', '-' || ? || ' days', '-1 day')${fCe.sql}
          LEFT JOIN sessions s ON s.id = ce.session_id
-           AND s.edit_count > 0
+           AND s.edit_count > 0${fS.sql}
          GROUP BY spine.day
          ORDER BY spine.day ASC`,
         tzOffsetMinutes,
@@ -47,6 +55,8 @@ export function queryPromptEfficiency(
         tzOffsetMinutes,
         tzOffsetMinutes,
         days,
+        ...fCe.params,
+        ...fS.params,
       )
       .toArray();
 
@@ -67,12 +77,14 @@ export function queryPromptEfficiency(
 
 export function queryHourlyEffectiveness(
   sql: SqlStorage,
+  scope: AnalyticsScope,
   days: number,
   tzOffsetMinutes: number = 0,
 ): HourlyEffectiveness[] {
   // Hour-of-day is local to the caller. With tzOffsetMinutes=0 the buckets
   // are UTC hours; with a signed offset they reflect the user's local hours.
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT
@@ -82,11 +94,12 @@ export function queryHourlyEffectiveness(
              / NULLIF(COUNT(*), 0) * 100, 1) AS completion_rate,
            ROUND(AVG(edit_count), 1) AS avg_edits
          FROM sessions
-         WHERE started_at > datetime('now', '-' || ? || ' days')
+         WHERE started_at > datetime('now', '-' || ? || ' days')${f.sql}
          GROUP BY hour
          ORDER BY hour`,
         tzOffsetMinutes,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -105,8 +118,13 @@ export function queryHourlyEffectiveness(
   }
 }
 
-export function queryOutcomeTags(sql: SqlStorage, days: number): OutcomeTagCount[] {
+export function queryOutcomeTags(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): OutcomeTagCount[] {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT
@@ -115,11 +133,12 @@ export function queryOutcomeTags(sql: SqlStorage, days: number): OutcomeTagCount
            COUNT(*) AS count
          FROM sessions, json_each(sessions.outcome_tags)
          WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND outcome_tags != '[]'
+           AND outcome_tags != '[]'${f.sql}
          GROUP BY tag, outcome
          ORDER BY count DESC
          LIMIT 30`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -137,8 +156,20 @@ export function queryOutcomeTags(sql: SqlStorage, days: number): OutcomeTagCount
   }
 }
 
-export function queryToolHandoffs(sql: SqlStorage, days: number): ToolHandoff[] {
+export function queryToolHandoffs(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): ToolHandoff[] {
   try {
+    // Scope handling: a "handoff" is one user's edits picked up across tools
+    // (the primary chinmeister case is a single user running Claude Code +
+    // Cursor + Windsurf — same handle, different host_tools, same agent_id
+    // axis). Filter both sides on the scoped handle so per-user views show
+    // only that user's cross-tool transitions and team-wide views show all
+    // handoffs unfiltered.
+    const fA = buildScopeFilter(scope, { handleColumn: 'a.handle' });
+    const fB = buildScopeFilter(scope, { handleColumn: 'b.handle' });
     // Pair aggregates: files, completion, typical gap between A's edit and B's pickup.
     const pairRows = sql
       .exec(
@@ -155,12 +186,14 @@ export function queryToolHandoffs(sql: SqlStorage, days: number): ToolHandoff[] 
            AND b.created_at < datetime(a.created_at, '+1 day')
            AND a.host_tool != b.host_tool
          JOIN sessions s ON s.id = b.session_id
-         WHERE a.created_at > datetime('now', '-' || ? || ' days')
+         WHERE a.created_at > datetime('now', '-' || ? || ' days')${fA.sql}${fB.sql}
          GROUP BY from_tool, to_tool
          HAVING file_count >= 2
          ORDER BY file_count DESC
          LIMIT 10`,
         days,
+        ...fA.params,
+        ...fB.params,
       )
       .toArray();
 
@@ -198,7 +231,7 @@ export function queryToolHandoffs(sql: SqlStorage, days: number): ToolHandoff[] 
              AND b.created_at < datetime(a.created_at, '+1 day')
              AND a.host_tool != b.host_tool
            JOIN sessions s ON s.id = b.session_id
-           WHERE a.created_at > datetime('now', '-' || ? || ' days')
+           WHERE a.created_at > datetime('now', '-' || ? || ' days')${fA.sql}${fB.sql}
            GROUP BY a.host_tool, b.host_tool, a.file_path
          ),
          ranked AS (
@@ -213,6 +246,8 @@ export function queryToolHandoffs(sql: SqlStorage, days: number): ToolHandoff[] 
          FROM ranked
          WHERE rn <= 20`,
         days,
+        ...fA.params,
+        ...fB.params,
       )
       .toArray();
 

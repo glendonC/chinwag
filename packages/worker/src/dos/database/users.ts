@@ -10,7 +10,7 @@ import { parseBudgetConfig } from '@chinmeister/shared/budget-config.js';
 // Columns fetched whenever a full User profile is returned (auth, /me, etc.).
 // Kept as a constant so the three getters that produce a User stay in sync.
 const USER_COLUMNS =
-  'id, handle, color, status, github_id, github_login, avatar_url, created_at, last_active, budgets';
+  'id, handle, color, status, github_id, github_login, avatar_url, created_at, last_active, budgets, tokens_revoked_at';
 
 /** Shape of a users-table row as it comes back from SQLite, before parsing. */
 type UserRow = Omit<User, 'budgets'> & { budgets?: string | null };
@@ -282,6 +282,30 @@ export function updateColor(
 
   sql.exec('UPDATE users SET color = ? WHERE id = ?', color, userId);
   return { ok: true, color };
+}
+
+/**
+ * Stamp `tokens_revoked_at = now`. The auth path treats every KV token whose
+ * metadata `issued_at` is older than this stamp as expired. This is the
+ * blunt-force "log me out everywhere" primitive — used for credential
+ * rotation, suspected compromise, and account-level security incidents.
+ *
+ * Stored in ISO millisecond resolution to match `issued_at` metadata. SQLite's
+ * `datetime('now')` truncates to seconds, which would let a token issued and
+ * revoked in the same second slip through (issued_at carries millis, so the
+ * comparison `issued < revoked` rounds wrong).
+ *
+ * Returns the new revocation timestamp so callers can confirm.
+ */
+export function revokeTokens(
+  sql: SqlStorage,
+  userId: string,
+): DOResult<{ ok: true; revoked_at: string }> {
+  const exists = sql.exec('SELECT 1 FROM users WHERE id = ?', userId).toArray();
+  if (exists.length === 0) return { error: 'User not found', code: 'NOT_FOUND' };
+  const now = new Date().toISOString();
+  sql.exec('UPDATE users SET tokens_revoked_at = ? WHERE id = ?', now, userId);
+  return { ok: true, revoked_at: now };
 }
 
 export function setStatus(sql: SqlStorage, userId: string, status: string | null): { ok: true } {

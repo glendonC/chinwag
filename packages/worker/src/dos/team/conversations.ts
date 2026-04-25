@@ -13,6 +13,7 @@ import type {
   ConversationToolCoverage,
 } from '@chinmeister/shared/contracts/conversation.js';
 import { getToolsWithCapability } from '@chinmeister/shared/tool-registry.js';
+import { type AnalyticsScope, buildScopeFilter } from './analytics/scope.js';
 
 const log = createLogger('TeamDO.conversations');
 
@@ -147,23 +148,28 @@ export function getConversationForSession(
 
 // -- Analytics queries --
 
-export function getConversationAnalytics(sql: SqlStorage, days: number): ConversationAnalytics {
+export function getConversationAnalytics(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): ConversationAnalytics {
   const periodDays = Math.max(1, Math.min(days, ANALYTICS_MAX_DAYS));
 
   return {
     ok: true,
     period_days: periodDays,
-    ...queryMessageCounts(sql, periodDays),
-    sentiment_distribution: querySentimentDistribution(sql, periodDays),
-    topic_distribution: queryTopicDistribution(sql, periodDays),
-    sentiment_outcome_correlation: querySentimentOutcomeCorrelation(sql, periodDays),
-    sessions_with_conversations: querySessionsWithConversations(sql, periodDays),
-    tool_coverage: queryToolCoverage(sql, periodDays),
+    ...queryMessageCounts(sql, scope, periodDays),
+    sentiment_distribution: querySentimentDistribution(sql, scope, periodDays),
+    topic_distribution: queryTopicDistribution(sql, scope, periodDays),
+    sentiment_outcome_correlation: querySentimentOutcomeCorrelation(sql, scope, periodDays),
+    sessions_with_conversations: querySessionsWithConversations(sql, scope, periodDays),
+    tool_coverage: queryToolCoverage(sql, scope, periodDays),
   };
 }
 
 function queryMessageCounts(
   sql: SqlStorage,
+  scope: AnalyticsScope,
   days: number,
 ): {
   total_messages: number;
@@ -171,6 +177,7 @@ function queryMessageCounts(
   assistant_messages: number;
 } {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT
@@ -178,8 +185,9 @@ function queryMessageCounts(
            SUM(CASE WHEN role = 'user' THEN 1 ELSE 0 END) AS user_msgs,
            SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END) AS assistant_msgs
          FROM conversation_events
-         WHERE created_at > datetime('now', '-' || ? || ' days')`,
+         WHERE created_at > datetime('now', '-' || ? || ' days')${f.sql}`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -197,17 +205,23 @@ function queryMessageCounts(
   }
 }
 
-function querySentimentDistribution(sql: SqlStorage, days: number): SentimentDistribution[] {
+function querySentimentDistribution(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): SentimentDistribution[] {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT COALESCE(sentiment, 'unclassified') AS sentiment, COUNT(*) AS count
          FROM conversation_events
          WHERE created_at > datetime('now', '-' || ? || ' days')
-           AND role = 'user'
+           AND role = 'user'${f.sql}
          GROUP BY sentiment
          ORDER BY count DESC`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -224,18 +238,24 @@ function querySentimentDistribution(sql: SqlStorage, days: number): SentimentDis
   }
 }
 
-function queryTopicDistribution(sql: SqlStorage, days: number): TopicDistribution[] {
+function queryTopicDistribution(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): TopicDistribution[] {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT COALESCE(topic, 'unclassified') AS topic, COUNT(*) AS count
          FROM conversation_events
          WHERE created_at > datetime('now', '-' || ? || ' days')
-           AND role = 'user'
+           AND role = 'user'${f.sql}
          GROUP BY topic
          ORDER BY count DESC
          LIMIT 20`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -256,13 +276,18 @@ function queryTopicDistribution(sql: SqlStorage, days: number): TopicDistributio
  * Correlate user sentiment with session outcomes.
  * For each session, determine the dominant user sentiment,
  * then group sessions by that sentiment and show outcome rates.
+ *
+ * Scope handling: filtering ce.handle in the CTE restricts the universe of
+ * sessions the JOIN can lift in, so the caller's data is the only data
+ * surfaced. No second filter on `s` is needed.
  */
 function querySentimentOutcomeCorrelation(
   sql: SqlStorage,
+  scope: AnalyticsScope,
   days: number,
 ): SentimentOutcomeCorrelation[] {
   try {
-    // Subquery: for each session, find the most frequent user sentiment
+    const f = buildScopeFilter(scope, { handleColumn: 'ce.handle' });
     const rows = sql
       .exec(
         `WITH session_sentiment AS (
@@ -273,7 +298,7 @@ function querySentimentOutcomeCorrelation(
            FROM conversation_events ce
            WHERE ce.created_at > datetime('now', '-' || ? || ' days')
              AND ce.role = 'user'
-             AND ce.sentiment IS NOT NULL
+             AND ce.sentiment IS NOT NULL${f.sql}
            GROUP BY ce.session_id, ce.sentiment
          ),
          dominant AS (
@@ -292,6 +317,7 @@ function querySentimentOutcomeCorrelation(
          GROUP BY d.dominant_sentiment
          ORDER BY sessions DESC`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -312,14 +338,20 @@ function querySentimentOutcomeCorrelation(
   }
 }
 
-function querySessionsWithConversations(sql: SqlStorage, days: number): number {
+function querySessionsWithConversations(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): number {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT COUNT(DISTINCT session_id) AS count
          FROM conversation_events
-         WHERE created_at > datetime('now', '-' || ? || ' days')`,
+         WHERE created_at > datetime('now', '-' || ? || ' days')${f.sql}`,
         days,
+        ...f.params,
       )
       .toArray();
     return ((rows[0] as Record<string, unknown>)?.count as number) || 0;
@@ -331,20 +363,26 @@ function querySessionsWithConversations(sql: SqlStorage, days: number): number {
 
 /**
  * Report which tools in this team support conversation analytics and which don't.
- * Surfaces this to the UI so users know why some sessions lack conversation data.
+ * Scoped: when called per-user, lists tools the *caller* has used. When
+ * called team-wide, lists tools any teammate has used.
  */
-function queryToolCoverage(sql: SqlStorage, days: number): ConversationToolCoverage {
+function queryToolCoverage(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): ConversationToolCoverage {
   const capableTools = new Set(getToolsWithCapability('conversationLogs'));
 
   try {
-    // Get all tools active in this team in the period
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT DISTINCT host_tool
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND host_tool IS NOT NULL AND host_tool != 'unknown'`,
+           AND host_tool IS NOT NULL AND host_tool != 'unknown'${f.sql}`,
         days,
+        ...f.params,
       )
       .toArray();
 

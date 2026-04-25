@@ -85,13 +85,18 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
     capped.map(async (teamEntry) => {
       const team = getTeam(env, teamEntry.team_id);
       try {
+        // Privacy-by-default: cross-team analytics are scoped to the caller's
+        // own data. STRATEGY.md is explicit that developer-level data is
+        // private by default; aggregating teammates' sessions, edits, tokens,
+        // sentiment, etc. into one user's dashboard is the leak the analytics
+        // scope refactor closes. Team-tier admin views (when they ship) build
+        // a separate route that explicitly passes empty scope and gates on a
+        // role check.
         return rpc(
           await withTimeout(
-            team.getAnalyticsForOwner(
-              user.id,
-              effectiveDays,
-              tzOffsetMinutes,
-            ) as unknown as Promise<TeamResult>,
+            team.getAnalyticsForOwner(user.id, effectiveDays, tzOffsetMinutes, {
+              handle: user.handle,
+            }) as unknown as Promise<TeamResult>,
             DO_CALL_TIMEOUT_MS,
           ),
         );

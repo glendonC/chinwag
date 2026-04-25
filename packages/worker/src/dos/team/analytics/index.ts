@@ -30,6 +30,7 @@
 
 import type { UserAnalytics } from '@chinmeister/shared/contracts/analytics.js';
 
+import { type AnalyticsScope } from './scope.js';
 import { getAnalytics } from './core.js';
 import {
   queryHourlyDistribution,
@@ -67,7 +68,11 @@ import {
 } from './sessions.js';
 import { queryMemberAnalytics, queryMemberCount, queryMemberDailyLines } from './team.js';
 import { queryMemoryUsage, queryMemoryOutcomeCorrelation, queryTopMemories } from './memory.js';
-import { queryConversationEditCorrelation } from './conversations.js';
+import {
+  queryConversationEditCorrelation,
+  queryConfusedFiles,
+  queryUnansweredQuestions,
+} from './conversations.js';
 import { queryTokenUsage } from './tokens.js';
 import { queryToolCallStats } from './tool-calls.js';
 import { queryCommitStats } from './commits.js';
@@ -85,81 +90,84 @@ export { classifyWorkType } from './outcomes.js';
 
 export function getExtendedAnalytics(
   sql: SqlStorage,
+  scope: AnalyticsScope,
   days: number,
   tzOffsetMinutes: number = 0,
 ): Omit<UserAnalytics, 'teams_included' | 'degraded'> {
-  const base = getAnalytics(sql, days, tzOffsetMinutes);
+  const base = getAnalytics(sql, scope, days, tzOffsetMinutes);
   return {
     ...base,
 
     // ── Core overrides ─────────────────────────────────────────────────
     // Replace the basic heatmap with the enhanced variant that carries
     // work-type, outcome-rate, and lines-touched per file.
-    file_heatmap: queryFileHeatmapEnhanced(sql, days),
+    file_heatmap: queryFileHeatmapEnhanced(sql, scope, days),
 
     // ── Activity ───────────────────────────────────────────────────────
-    hourly_distribution: queryHourlyDistribution(sql, days, tzOffsetMinutes),
-    tool_daily: queryToolDaily(sql, days, tzOffsetMinutes),
-    duration_distribution: queryDurationDistribution(sql, days),
-    edit_velocity: queryEditVelocity(sql, days, tzOffsetMinutes),
+    hourly_distribution: queryHourlyDistribution(sql, scope, days, tzOffsetMinutes),
+    tool_daily: queryToolDaily(sql, scope, days, tzOffsetMinutes),
+    duration_distribution: queryDurationDistribution(sql, scope, days),
+    edit_velocity: queryEditVelocity(sql, scope, days, tzOffsetMinutes),
 
     // ── Outcomes ───────────────────────────────────────────────────────
-    model_outcomes: queryModelPerformance(sql, days),
-    tool_outcomes: queryToolOutcomes(sql, days),
-    completion_summary: queryCompletionSummary(sql, days),
-    tool_comparison: queryToolComparison(sql, days),
-    work_type_distribution: queryWorkTypeDistribution(sql, days),
-    tool_work_type: queryToolWorkType(sql, days),
-    work_type_outcomes: queryWorkTypeOutcomes(sql, days),
+    model_outcomes: queryModelPerformance(sql, scope, days),
+    tool_outcomes: queryToolOutcomes(sql, scope, days),
+    completion_summary: queryCompletionSummary(sql, scope, days),
+    tool_comparison: queryToolComparison(sql, scope, days),
+    work_type_distribution: queryWorkTypeDistribution(sql, scope, days),
+    tool_work_type: queryToolWorkType(sql, scope, days),
+    work_type_outcomes: queryWorkTypeOutcomes(sql, scope, days),
 
     // ── Codebase ───────────────────────────────────────────────────────
-    file_churn: queryFileChurn(sql, days),
-    concurrent_edits: queryConcurrentEdits(sql, days),
-    file_rework: queryFileRework(sql, days),
-    directory_heatmap: queryDirectoryHeatmap(sql, days),
-    audit_staleness: queryAuditStaleness(sql),
-    files_by_work_type: queryFilesByWorkType(sql, days),
-    files_new_vs_revisited: queryFilesNewVsRevisited(sql, days),
+    file_churn: queryFileChurn(sql, scope, days),
+    concurrent_edits: queryConcurrentEdits(sql, scope, days),
+    file_rework: queryFileRework(sql, scope, days),
+    directory_heatmap: queryDirectoryHeatmap(sql, scope, days),
+    audit_staleness: queryAuditStaleness(sql, scope),
+    files_by_work_type: queryFilesByWorkType(sql, scope, days),
+    files_new_vs_revisited: queryFilesNewVsRevisited(sql, scope, days),
 
     // ── Sessions ───────────────────────────────────────────────────────
-    retry_patterns: queryRetryPatterns(sql, days),
-    conflict_correlation: queryConflictCorrelation(sql, days),
-    conflict_stats: queryConflictStats(sql, days),
-    stuckness: queryStuckness(sql, days),
-    file_overlap: queryFileOverlap(sql, days),
-    first_edit_stats: queryFirstEditStats(sql, days),
-    scope_complexity: queryScopeComplexity(sql, days),
+    retry_patterns: queryRetryPatterns(sql, scope, days),
+    conflict_correlation: queryConflictCorrelation(sql, scope, days),
+    conflict_stats: queryConflictStats(sql, scope, days),
+    stuckness: queryStuckness(sql, scope, days),
+    file_overlap: queryFileOverlap(sql, scope, days),
+    first_edit_stats: queryFirstEditStats(sql, scope, days),
+    scope_complexity: queryScopeComplexity(sql, scope, days),
 
     // ── Team ───────────────────────────────────────────────────────────
-    member_analytics: queryMemberAnalytics(sql, days),
-    member_analytics_total: queryMemberCount(sql, days),
-    member_daily_lines: queryMemberDailyLines(sql, days),
+    member_analytics: queryMemberAnalytics(sql, scope, days),
+    member_analytics_total: queryMemberCount(sql, scope, days),
+    member_daily_lines: queryMemberDailyLines(sql, scope, days),
     // per_project_lines and per_project_velocity are cross-project by
     // construction; assembled at the user route from each team's totals
     // tagged with team_id/team_name. Empty here.
     per_project_lines: [],
 
     // ── Memory ─────────────────────────────────────────────────────────
-    memory_usage: queryMemoryUsage(sql, days),
-    memory_outcome_correlation: queryMemoryOutcomeCorrelation(sql, days),
-    top_memories: queryTopMemories(sql, days),
+    memory_usage: queryMemoryUsage(sql, scope, days),
+    memory_outcome_correlation: queryMemoryOutcomeCorrelation(sql, scope, days),
+    top_memories: queryTopMemories(sql, scope, days),
 
     // ── Conversations ──────────────────────────────────────────────────
-    conversation_edit_correlation: queryConversationEditCorrelation(sql, days),
+    conversation_edit_correlation: queryConversationEditCorrelation(sql, scope, days),
+    confused_files: queryConfusedFiles(sql, scope, days),
+    unanswered_questions: queryUnansweredQuestions(sql, scope, days),
 
     // ── Tokens, tool calls, commits ────────────────────────────────────
-    token_usage: queryTokenUsage(sql, days),
-    tool_call_stats: queryToolCallStats(sql, days, tzOffsetMinutes),
-    commit_stats: queryCommitStats(sql, days, tzOffsetMinutes),
+    token_usage: queryTokenUsage(sql, scope, days),
+    tool_call_stats: queryToolCallStats(sql, scope, days, tzOffsetMinutes),
+    commit_stats: queryCommitStats(sql, scope, days, tzOffsetMinutes),
 
     // ── Period comparison ──────────────────────────────────────────────
-    period_comparison: queryPeriodComparison(sql, days),
+    period_comparison: queryPeriodComparison(sql, scope, days),
 
     // ── Extended / derived ─────────────────────────────────────────────
-    prompt_efficiency: queryPromptEfficiency(sql, days, tzOffsetMinutes),
-    hourly_effectiveness: queryHourlyEffectiveness(sql, days, tzOffsetMinutes),
-    outcome_tags: queryOutcomeTags(sql, days),
-    tool_handoffs: queryToolHandoffs(sql, days),
+    prompt_efficiency: queryPromptEfficiency(sql, scope, days, tzOffsetMinutes),
+    hourly_effectiveness: queryHourlyEffectiveness(sql, scope, days, tzOffsetMinutes),
+    outcome_tags: queryOutcomeTags(sql, scope, days),
+    tool_handoffs: queryToolHandoffs(sql, scope, days),
 
     // per_project_velocity is a cross-project rollup; it's assembled at
     // the user route from each team's tool_comparison, not here.
@@ -169,6 +177,6 @@ export function getExtendedAnalytics(
     // partial cost/token totals to the reporting tool subset. The user
     // route recomputes this over the cross-team union after merge, so
     // the two scopes stay internally consistent.
-    data_coverage: buildDataCoverage(queryActiveTools(sql, days)),
+    data_coverage: buildDataCoverage(queryActiveTools(sql, scope, days)),
   };
 }

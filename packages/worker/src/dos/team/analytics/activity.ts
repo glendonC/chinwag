@@ -7,11 +7,13 @@ import type {
   DurationBucket,
   EditVelocityTrend,
 } from '@chinmeister/shared/contracts/analytics.js';
+import { type AnalyticsScope, buildScopeFilter } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
 
 export function queryHourlyDistribution(
   sql: SqlStorage,
+  scope: AnalyticsScope,
   days: number,
   tzOffsetMinutes: number = 0,
 ): HourlyBucket[] {
@@ -19,6 +21,7 @@ export function queryHourlyDistribution(
   // With tzOffsetMinutes=0 this is UTC; with a negative offset (e.g. PST)
   // the heatmap reflects when sessions happen in the user's local day.
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT CAST(strftime('%H', datetime(started_at, ? || ' minutes')) AS INTEGER) AS hour,
@@ -26,12 +29,13 @@ export function queryHourlyDistribution(
                 COUNT(*) AS sessions,
                 COALESCE(SUM(edit_count), 0) AS edits
          FROM sessions
-         WHERE started_at > datetime('now', '-' || ? || ' days')
+         WHERE started_at > datetime('now', '-' || ? || ' days')${f.sql}
          GROUP BY hour, dow
          ORDER BY hour, dow`,
         tzOffsetMinutes,
         tzOffsetMinutes,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -52,12 +56,19 @@ export function queryHourlyDistribution(
 
 export function queryToolDaily(
   sql: SqlStorage,
+  scope: AnalyticsScope,
   days: number,
   tzOffsetMinutes: number = 0,
 ): ToolDailyTrend[] {
   // Per-tool zero-fill: cross-join a local-TZ spine with distinct tools so
   // each tool's sparkline has a dense day axis in the caller's time zone.
+  //
+  // Scope filter applies twice: in the `tools` CTE (so tools never used by
+  // the scoped user are excluded entirely) and in the LEFT JOIN ON clause
+  // (so days are zero for the scoped user even if other users were active).
   try {
+    const fTools = buildScopeFilter(scope);
+    const fJoin = buildScopeFilter(scope, { handleColumn: 's.handle' });
     const rows = sql
       .exec(
         `WITH RECURSIVE spine(day) AS (
@@ -68,7 +79,7 @@ export function queryToolDaily(
          tools AS (
            SELECT DISTINCT host_tool FROM sessions
            WHERE host_tool IS NOT NULL AND host_tool != 'unknown'
-             AND started_at >= date('now', '-' || ? || ' days', '-1 day')
+             AND started_at >= date('now', '-' || ? || ' days', '-1 day')${fTools.sql}
          )
          SELECT tools.host_tool AS host_tool,
                 spine.day AS day,
@@ -83,15 +94,17 @@ export function queryToolDaily(
          CROSS JOIN tools
          LEFT JOIN sessions s ON s.host_tool = tools.host_tool
            AND date(datetime(s.started_at, ? || ' minutes')) = spine.day
-           AND s.started_at >= date('now', '-' || ? || ' days', '-1 day')
+           AND s.started_at >= date('now', '-' || ? || ' days', '-1 day')${fJoin.sql}
          GROUP BY tools.host_tool, spine.day
          ORDER BY spine.day ASC, tools.host_tool ASC`,
         tzOffsetMinutes,
         days,
         tzOffsetMinutes,
         days,
+        ...fTools.params,
         tzOffsetMinutes,
         days,
+        ...fJoin.params,
       )
       .toArray();
 
@@ -113,8 +126,13 @@ export function queryToolDaily(
   }
 }
 
-export function queryDurationDistribution(sql: SqlStorage, days: number): DurationBucket[] {
+export function queryDurationDistribution(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): DurationBucket[] {
   try {
+    const f = buildScopeFilter(scope);
     const rows = sql
       .exec(
         `SELECT
@@ -130,7 +148,7 @@ export function queryDurationDistribution(sql: SqlStorage, days: number): Durati
            SELECT ROUND((julianday(COALESCE(ended_at, datetime('now'))) - julianday(started_at)) * 24 * 60) AS duration_min
            FROM sessions
            WHERE started_at > datetime('now', '-' || ? || ' days')
-             AND ended_at IS NOT NULL
+             AND ended_at IS NOT NULL${f.sql}
          )
          GROUP BY bucket
          ORDER BY
@@ -142,6 +160,7 @@ export function queryDurationDistribution(sql: SqlStorage, days: number): Durati
              ELSE 5
            END`,
         days,
+        ...f.params,
       )
       .toArray();
 
@@ -160,12 +179,17 @@ export function queryDurationDistribution(sql: SqlStorage, days: number): Durati
 
 export function queryEditVelocity(
   sql: SqlStorage,
+  scope: AnalyticsScope,
   days: number,
   tzOffsetMinutes: number = 0,
 ): EditVelocityTrend[] {
   // Local-TZ zero-fill spine. Closed sessions only; the `ended_at IS NOT NULL`
   // predicate stays on the join.
+  //
+  // Scope filter goes in the LEFT JOIN ON so spine days with no matching
+  // sessions still emit a zero row for the scoped user.
   try {
+    const f = buildScopeFilter(scope, { handleColumn: 's.handle' });
     const rows = sql
       .exec(
         `WITH RECURSIVE spine(day) AS (
@@ -182,7 +206,7 @@ export function queryEditVelocity(
          FROM spine
          LEFT JOIN sessions s ON date(datetime(s.started_at, ? || ' minutes')) = spine.day
            AND s.started_at >= date('now', '-' || ? || ' days', '-1 day')
-           AND s.ended_at IS NOT NULL
+           AND s.ended_at IS NOT NULL${f.sql}
          GROUP BY spine.day
          ORDER BY spine.day ASC`,
         tzOffsetMinutes,
@@ -190,6 +214,7 @@ export function queryEditVelocity(
         tzOffsetMinutes,
         tzOffsetMinutes,
         days,
+        ...f.params,
       )
       .toArray();
 

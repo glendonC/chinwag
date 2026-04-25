@@ -166,8 +166,13 @@ export const handleTeamConversationAnalytics = teamRoute(
       Math.min(isNaN(parsed) ? ANALYTICS_DEFAULT_DAYS : parsed, ANALYTICS_MAX_DAYS),
     );
 
+    // Privacy-by-default: scope conversation analytics to the caller's own
+    // messages. Aggregating across teammates exposed sentiment/topic/length
+    // distributions and outcome correlations that should stay personal.
+    // Team-tier admin views, when they ship, must build a separate route
+    // that explicitly passes an empty scope and gates on a role check.
     return doResult(
-      team.getConversationAnalytics(agentId, days, user.id),
+      team.getConversationAnalytics(agentId, days, user.id, { handle: user.handle }),
       'getConversationAnalytics',
     );
   },

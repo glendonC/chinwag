@@ -1035,6 +1035,120 @@ describe('GET /me/dashboard', () => {
     expect(body.failed_teams).toHaveLength(1);
     expect(body.teams).toEqual([]);
   });
+
+  // Regression: idle dashboard users were silently kicked out of every team.
+  // Cleanup deletes stale `members` rows after the heartbeat window. Before
+  // the fix, #withOwner gated on `members` (presence), so the next /me/dashboard
+  // call returned NOT_MEMBER for every team, and the route handler "reconciled"
+  // by deleting `user_teams` rows — permanently removing the user from each
+  // team's roster. The fix splits roster (`team_owners`) from presence and
+  // stops the handler from ever mutating roster on a transient summary error.
+  it('keeps roster intact when an idle user has no live presence rows', async () => {
+    const { headers, user } = await createAuthUser();
+    const db = env.DATABASE.get(env.DATABASE.idFromName('main'));
+
+    // Create the team. POST /teams runs join() which populates both members
+    // (presence) and team_owners (roster).
+    const createRes = await SELF.fetch('http://localhost/teams', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ name: 'My Project' }),
+    });
+    expect(createRes.status).toBe(201);
+    const { team_id } = await createRes.json();
+
+    // Simulate the cleanup path. leave(value, null) first tries to delete
+    // members by agent_id; on no match it falls through to deleting by
+    // owner_id. Passing user.id forces the owner_id fallback, wiping every
+    // members row for this user — the same shape as the cleanup.ts staleness
+    // DELETE that fires after 15 min idle. This branch intentionally does
+    // not touch team_owners.
+    const team = env.TEAM.get(env.TEAM.idFromName(team_id));
+    await team.leave(user.id, null);
+
+    // Roster still admits the user — getSummary succeeds even with zero
+    // members rows present.
+    const summaryAfter = await team.getSummary(user.id);
+    expect(summaryAfter.error).toBeUndefined();
+    expect(summaryAfter.active_members).toEqual([]);
+
+    // /me/dashboard returns the team in body.teams (not failed_teams) and
+    // must not remove the user from user_teams.
+    const dashRes = await SELF.fetch('http://localhost/me/dashboard', { headers });
+    expect(dashRes.status).toBe(200);
+    const dashBody = await dashRes.json();
+    expect(dashBody.failed_teams).toEqual([]);
+    expect(dashBody.teams.map((t) => t.team_id)).toContain(team_id);
+
+    // Roster row in DatabaseDO is intact.
+    const userTeams = await db.getUserTeams(user.id);
+    expect(userTeams.teams.map((t) => t.team_id)).toContain(team_id);
+  });
+
+  // --- Cross-DO chaos coverage ---
+  //
+  // /me/dashboard fans out across N TeamDOs via Promise.allSettled. These
+  // tests verify the partial-failure path doesn't leak data, doesn't
+  // mutate the user's roster, and surfaces a `degraded` flag the frontend
+  // can render. Important regression target: an earlier bug deleted
+  // user_teams rows on transient summary errors (the "kicked out while
+  // idle" issue).
+
+  it('chaos: a partial-failure dashboard does NOT mutate user_teams', async () => {
+    const { headers, user } = await createAuthUser();
+    const db = env.DATABASE.get(env.DATABASE.idFromName('main'));
+
+    // One real team and one broken team
+    const createRes = await SELF.fetch('http://localhost/teams', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({}),
+    });
+    const { team_id: realTeamId } = await createRes.json();
+    const brokenTeamId = makeTeamId();
+    await db.addUserTeam(user.id, brokenTeamId, 'Broken Project');
+
+    // Capture roster before the call
+    const before = await db.getUserTeams(user.id);
+    expect(before.teams.map((t) => t.team_id).sort()).toEqual([realTeamId, brokenTeamId].sort());
+
+    // Dashboard call should degrade gracefully
+    const res = await SELF.fetch('http://localhost/me/dashboard', { headers });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.degraded).toBe(true);
+    expect(body.failed_teams).toHaveLength(1);
+    expect(body.failed_teams[0].team_id).toBe(brokenTeamId);
+    expect(body.teams).toHaveLength(1);
+    expect(body.teams[0].team_id).toBe(realTeamId);
+
+    // Roster should be unchanged — the bug we fixed was a destructive
+    // removeUserTeam call from the dashboard handler. The broken team
+    // stays on the roster so a future retry can succeed.
+    const after = await db.getUserTeams(user.id);
+    expect(after.teams.map((t) => t.team_id).sort()).toEqual([realTeamId, brokenTeamId].sort());
+  });
+
+  it('chaos: /me/analytics with a broken team returns partial data', async () => {
+    const { headers, user } = await createAuthUser();
+    const db = env.DATABASE.get(env.DATABASE.idFromName('main'));
+
+    const createRes = await SELF.fetch('http://localhost/teams', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({}),
+    });
+    expect(createRes.status).toBe(201);
+    await db.addUserTeam(user.id, makeTeamId(), 'Broken Analytics');
+
+    const res = await SELF.fetch('http://localhost/me/analytics?days=7', { headers });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    // Cross-team analytics merges over the surviving teams; the response
+    // includes a degraded marker so the dashboard can flag partial data.
+    expect(body.degraded).toBe(true);
+    expect(body.teams_included).toBeLessThanOrEqual(1);
+  });
 });
 
 // --- /presence/heartbeat ---

@@ -4,6 +4,7 @@
 // the shape the client expects under `UserAnalytics.data_coverage`.
 
 import { getToolsWithCapability } from '@chinmeister/shared/tool-registry.js';
+import { type AnalyticsScope, buildScopeFilter } from '../dos/team/analytics/scope.js';
 
 export interface DataCoverage {
   tools_reporting: string[];
@@ -50,16 +51,26 @@ export function buildDataCoverage(activeToolsSet: Set<string>): DataCoverage {
  * Separated so both team DOs and any future scope can reuse the exact same
  * "what host_tools ran a session here" definition. Empty and 'unknown' are
  * filtered — those are sentinel values for sessions we couldn't attribute.
+ *
+ * Scope: when set, returns only the tools the caller has run sessions with
+ * (matches the personal-scope contract used everywhere else in analytics).
+ * Empty scope returns the team-wide tool set.
  */
-export function queryActiveTools(sql: SqlStorage, days: number): Set<string> {
+export function queryActiveTools(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): Set<string> {
+  const f = buildScopeFilter(scope);
   const rows = sql
     .exec(
       `SELECT DISTINCT host_tool FROM sessions
        WHERE started_at > datetime('now', '-' || ? || ' days')
          AND host_tool IS NOT NULL
          AND host_tool != ''
-         AND host_tool != 'unknown'`,
+         AND host_tool != 'unknown'${f.sql}`,
       days,
+      ...f.params,
     )
     .toArray();
   return new Set(rows.map((r) => (r as { host_tool: string }).host_tool));

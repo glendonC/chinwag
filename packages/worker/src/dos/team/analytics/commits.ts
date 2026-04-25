@@ -8,11 +8,13 @@ import type {
   CommitOutcomeCorrelation,
   CommitEditRatioBucket,
 } from '@chinmeister/shared/contracts/analytics.js';
+import { type AnalyticsScope, buildScopeFilter } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
 
 export function queryCommitStats(
   sql: SqlStorage,
+  scope: AnalyticsScope,
   days: number,
   tzOffsetMinutes: number = 0,
 ): CommitStats {
@@ -31,6 +33,7 @@ export function queryCommitStats(
     // Totals — substantive commits only. Noise (dep bumps, formatting, WIP
     // checkpoints, merges) stays in the table for audit but is excluded from
     // analytics so per-session and per-tool averages aren't diluted.
+    const fTotals = buildScopeFilter(scope);
     const totalsRows = sql
       .exec(
         `SELECT
@@ -38,8 +41,9 @@ export function queryCommitStats(
            COUNT(DISTINCT session_id) AS sessions_with_commits
          FROM commits
          WHERE created_at > datetime('now', '-' || ? || ' days')
-           AND is_noise = 0`,
+           AND is_noise = 0${fTotals.sql}`,
         days,
+        ...fTotals.params,
       )
       .toArray();
     const totals = (totalsRows[0] || {}) as Record<string, unknown>;
@@ -49,15 +53,18 @@ export function queryCommitStats(
     if (totalCommits === 0) return empty;
 
     // Total sessions in period for per-session average
+    const fSess = buildScopeFilter(scope);
     const sessionRows = sql
       .exec(
-        `SELECT COUNT(*) AS total FROM sessions WHERE started_at > datetime('now', '-' || ? || ' days')`,
+        `SELECT COUNT(*) AS total FROM sessions WHERE started_at > datetime('now', '-' || ? || ' days')${fSess.sql}`,
         days,
+        ...fSess.params,
       )
       .toArray();
     const totalSessions = ((sessionRows[0] as Record<string, unknown>)?.total as number) || 1;
 
     // Time-to-first-commit (mirrors first_edit_stats pattern)
+    const fTtfc = buildScopeFilter(scope);
     const ttfcRows = sql
       .exec(
         `SELECT ROUND(AVG(
@@ -65,14 +72,16 @@ export function queryCommitStats(
          ), 1) AS avg_min
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND first_commit_at IS NOT NULL`,
+           AND first_commit_at IS NOT NULL${fTtfc.sql}`,
         days,
+        ...fTtfc.params,
       )
       .toArray();
     const avgTimeToFirstCommit =
       ((ttfcRows[0] as Record<string, unknown>)?.avg_min as number) ?? null;
 
     // By tool
+    const fTool = buildScopeFilter(scope);
     const toolRows = sql
       .exec(
         `SELECT host_tool,
@@ -82,10 +91,11 @@ export function queryCommitStats(
          FROM commits
          WHERE created_at > datetime('now', '-' || ? || ' days')
            AND host_tool IS NOT NULL AND host_tool != 'unknown'
-           AND is_noise = 0
+           AND is_noise = 0${fTool.sql}
          GROUP BY host_tool
          ORDER BY commits DESC`,
         days,
+        ...fTool.params,
       )
       .toArray();
     const by_tool: CommitToolBreakdown[] = toolRows.map((r) => {
@@ -101,16 +111,18 @@ export function queryCommitStats(
     // Daily commits — substantive only. Day buckets follow the caller's
     // timezone via the offset modifier so a commit made at 11:55pm PT lands
     // on the same local day the user sees in the rest of the dashboard.
+    const fDaily = buildScopeFilter(scope);
     const dailyRows = sql
       .exec(
         `SELECT date(datetime(committed_at, ? || ' minutes')) AS day, COUNT(*) AS commits
          FROM commits
          WHERE created_at > datetime('now', '-' || ? || ' days')
-           AND is_noise = 0
+           AND is_noise = 0${fDaily.sql}
          GROUP BY day
          ORDER BY day ASC`,
         tzOffsetMinutes,
         days,
+        ...fDaily.params,
       )
       .toArray();
     const daily_commits: DailyCommit[] = dailyRows.map((r) => {
@@ -122,6 +134,7 @@ export function queryCommitStats(
     });
 
     // Commit-to-outcome correlation: sessions with 0 commits vs 1+ commits
+    const fOutcome = buildScopeFilter(scope);
     const outcomeRows = sql
       .exec(
         `SELECT
@@ -130,9 +143,10 @@ export function queryCommitStats(
            SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS completed
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND ended_at IS NOT NULL
+           AND ended_at IS NOT NULL${fOutcome.sql}
          GROUP BY bucket`,
         days,
+        ...fOutcome.params,
       )
       .toArray();
     const outcome_correlation: CommitOutcomeCorrelation[] = outcomeRows.map((r) => {
@@ -148,6 +162,7 @@ export function queryCommitStats(
     });
 
     // Commit-to-edit ratio: bucket sessions by what fraction of edits resulted in commits
+    const fRatio = buildScopeFilter(scope);
     const ratioRows = sql
       .exec(
         `SELECT
@@ -164,7 +179,7 @@ export function queryCommitStats(
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
            AND ended_at IS NOT NULL
-           AND commit_count > 0
+           AND commit_count > 0${fRatio.sql}
          GROUP BY bucket
          ORDER BY
            CASE bucket
@@ -174,6 +189,7 @@ export function queryCommitStats(
              ELSE 4
            END`,
         days,
+        ...fRatio.params,
       )
       .toArray();
     const commit_edit_ratio: CommitEditRatioBucket[] = ratioRows.map((r) => {
