@@ -1,5 +1,6 @@
 // Conversation intelligence routes — upload and query conversation events.
 
+import type { RouteDefinition } from '../../lib/router.js';
 import { rpc } from '../../lib/env.js';
 import { json } from '../../lib/http.js';
 import { teamJsonRoute, teamRoute, doResult } from '../../lib/middleware.js';
@@ -177,3 +178,18 @@ export const handleTeamConversationAnalytics = teamRoute(
     );
   },
 );
+
+/**
+ * Conversation upload, query, and analytics routes.
+ */
+export function registerConversationsRoutes(TID: string): RouteDefinition[] {
+  return [
+    { method: 'POST', path: `/teams/${TID}/conversations`, handler: handleTeamRecordConversation },
+    { method: 'GET', path: `/teams/${TID}/conversations`, handler: handleTeamGetConversation },
+    {
+      method: 'GET',
+      path: `/teams/${TID}/conversations/analytics`,
+      handler: handleTeamConversationAnalytics,
+    },
+  ];
+}

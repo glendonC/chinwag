@@ -1,5 +1,6 @@
 // Team membership routes — join, leave, heartbeat, context.
 
+import type { RouteDefinition } from '../../lib/router.js';
 import { checkContent } from '../../moderation.js';
 import { getLobby, rpc } from '../../lib/env.js';
 import { json } from '../../lib/http.js';
@@ -152,3 +153,18 @@ export const handleTeamWebSocket = teamRoute(async ({ request, user, agentId, te
     }),
   );
 });
+
+/**
+ * Membership-related team routes plus the team WebSocket upgrade.
+ * The WS upgrade is registered first so that it stays adjacent to /ws/chat
+ * in the matcher's parametric scan order, matching the legacy table.
+ */
+export function registerMembershipRoutes(TID: string): RouteDefinition[] {
+  return [
+    { method: 'GET', path: `/teams/${TID}/ws`, handler: handleTeamWebSocket },
+    { method: 'POST', path: `/teams/${TID}/join`, handler: handleTeamJoin },
+    { method: 'POST', path: `/teams/${TID}/leave`, handler: handleTeamLeave },
+    { method: 'GET', path: `/teams/${TID}/context`, handler: handleTeamContext },
+    { method: 'POST', path: `/teams/${TID}/heartbeat`, handler: handleTeamHeartbeat },
+  ];
+}

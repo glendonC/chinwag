@@ -1,5 +1,6 @@
 // Team activity routes — activity reporting, conflicts, file reporting, sessions, history.
 
+import type { RouteDefinition } from '../../lib/router.js';
 import { checkContent } from '../../moderation.js';
 import { rpc } from '../../lib/env.js';
 import { json } from '../../lib/http.js';
@@ -424,3 +425,24 @@ export const handleTeamToolCalls = teamJsonRoute(
     );
   },
 );
+
+/**
+ * Activity, session, and history routes for a team.
+ */
+export function registerActivityRoutes(TID: string): RouteDefinition[] {
+  return [
+    { method: 'PUT', path: `/teams/${TID}/activity`, handler: handleTeamActivity },
+    { method: 'POST', path: `/teams/${TID}/conflicts`, handler: handleTeamConflicts },
+    { method: 'POST', path: `/teams/${TID}/file`, handler: handleTeamFile },
+    { method: 'POST', path: `/teams/${TID}/sessions`, handler: handleTeamStartSession },
+    { method: 'POST', path: `/teams/${TID}/sessionend`, handler: handleTeamEndSession },
+    { method: 'PUT', path: `/teams/${TID}/sessionmodel`, handler: handleTeamEnrichModel },
+    { method: 'POST', path: `/teams/${TID}/sessionedit`, handler: handleTeamSessionEdit },
+    { method: 'PUT', path: `/teams/${TID}/sessionoutcome`, handler: handleTeamReportOutcome },
+    { method: 'POST', path: `/teams/${TID}/sessiontokens`, handler: handleTeamRecordTokens },
+    { method: 'POST', path: `/teams/${TID}/tool-calls`, handler: handleTeamToolCalls },
+    { method: 'POST', path: `/teams/${TID}/commits`, handler: handleTeamRecordCommits },
+    { method: 'GET', path: `/teams/${TID}/history`, handler: handleTeamHistory },
+    { method: 'GET', path: `/teams/${TID}/edits`, handler: handleTeamEditHistory },
+  ];
+}

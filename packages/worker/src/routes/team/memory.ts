@@ -1,5 +1,6 @@
 // Team memory routes — save, search, update, delete memory.
 
+import type { RouteDefinition } from '../../lib/router.js';
 import { checkContent, isBlocked } from '../../moderation.js';
 import { json } from '../../lib/http.js';
 import { teamJsonRoute, teamRoute, doResult } from '../../lib/middleware.js';
@@ -455,3 +456,56 @@ export const handleTeamDeleteMemoryBatch = teamJsonRoute(
     });
   },
 );
+
+/**
+ * Memory CRUD plus consolidation and formation orchestration routes.
+ */
+export function registerMemoryRoutes(TID: string): RouteDefinition[] {
+  return [
+    { method: 'POST', path: `/teams/${TID}/memory`, handler: handleTeamSaveMemory },
+    { method: 'GET', path: `/teams/${TID}/memory`, handler: handleTeamSearchMemory },
+    { method: 'PUT', path: `/teams/${TID}/memory`, handler: handleTeamUpdateMemory },
+    { method: 'DELETE', path: `/teams/${TID}/memory`, handler: handleTeamDeleteMemory },
+    {
+      method: 'DELETE',
+      path: `/teams/${TID}/memory/batch`,
+      handler: handleTeamDeleteMemoryBatch,
+    },
+    {
+      method: 'POST',
+      path: `/teams/${TID}/memory/consolidation/run`,
+      handler: handleTeamRunConsolidation,
+    },
+    {
+      method: 'GET',
+      path: `/teams/${TID}/memory/consolidation/proposals`,
+      handler: handleTeamListConsolidationProposals,
+    },
+    {
+      method: 'POST',
+      path: `/teams/${TID}/memory/consolidation/apply`,
+      handler: handleTeamApplyConsolidation,
+    },
+    {
+      method: 'POST',
+      path: `/teams/${TID}/memory/consolidation/reject`,
+      handler: handleTeamRejectConsolidation,
+    },
+    { method: 'POST', path: `/teams/${TID}/memory/unmerge`, handler: handleTeamUnmergeMemory },
+    {
+      method: 'POST',
+      path: `/teams/${TID}/memory/formation/sweep`,
+      handler: handleTeamRunFormationSweep,
+    },
+    {
+      method: 'POST',
+      path: `/teams/${TID}/memory/formation/one`,
+      handler: handleTeamRunFormationOne,
+    },
+    {
+      method: 'GET',
+      path: `/teams/${TID}/memory/formation/observations`,
+      handler: handleTeamListFormationObservations,
+    },
+  ];
+}

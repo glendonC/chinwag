@@ -1,5 +1,7 @@
 // Profile management -- handle, color, status, agent profile, presence heartbeat.
 
+import type { Env, User } from '../../types.js';
+import type { RouteHandler } from '../../lib/router.js';
 import { checkContent } from '../../moderation.js';
 import { getDB, getLobby, rpc } from '../../lib/env.js';
 import { json } from '../../lib/http.js';
@@ -10,6 +12,13 @@ import { auditLog } from '../../lib/audit.js';
 import { MAX_STATUS_LENGTH, MAX_FRAMEWORK_LENGTH, VALID_COLORS_SET } from '../../lib/constants.js';
 
 const log = createLogger('routes.user.profile');
+
+// GET /me — return the caller's profile minus the internal id.
+// The id is the DO storage key and not something the client needs.
+export const handleMe: RouteHandler = (_req: Request, _env: Env, user: User | null) => {
+  const { id: _id, ...profile } = user as User;
+  return json(profile);
+};
 
 export const handleUnlinkGithub = authedRoute(async ({ user, env }) => {
   return doResult(getDB(env).unlinkGithub(user.id), 'unlinkGithub');

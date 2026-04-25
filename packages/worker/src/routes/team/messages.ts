@@ -1,5 +1,6 @@
 // Team message routes — send and get messages.
 
+import type { RouteDefinition } from '../../lib/router.js';
 import { checkContent } from '../../moderation.js';
 import { rpc } from '../../lib/env.js';
 import { json } from '../../lib/http.js';
@@ -64,3 +65,13 @@ export const handleTeamGetMessages = teamRoute(async ({ request, agentId, team, 
 
   return doResult(team.getMessages(agentId, since, user.id), 'getMessages');
 });
+
+/**
+ * Per-team chat-style message routes.
+ */
+export function registerMessagesRoutes(TID: string): RouteDefinition[] {
+  return [
+    { method: 'POST', path: `/teams/${TID}/messages`, handler: handleTeamSendMessage },
+    { method: 'GET', path: `/teams/${TID}/messages`, handler: handleTeamGetMessages },
+  ];
+}

@@ -1,62 +1,36 @@
-// Team route dispatcher — re-exports all team route handlers.
+// Team route registration -- composes the per-team route table.
+//
+// Each submodule exports a registerXyzRoutes(TID) factory returning
+// RouteDefinition[]. registerTeamRoutes concatenates them in the same
+// order the original flat table used. Cross-group ordering is safe to
+// shift only because every team path has a unique distinguishing
+// segment after `/teams/:tid/...`, so no two parametric regexes can
+// match the same URL. If you add a route that overlaps with another
+// (e.g. a wildcard tail), reconsider this composition.
 
-export {
-  handleTeamJoin,
-  handleTeamLeave,
-  handleTeamContext,
-  handleTeamHeartbeat,
-  handleTeamWebSocket,
-} from './membership.js';
-export {
-  handleTeamActivity,
-  handleTeamConflicts,
-  handleTeamFile,
-  handleTeamStartSession,
-  handleTeamEndSession,
-  handleTeamSessionEdit,
-  handleTeamReportOutcome,
-  handleTeamHistory,
-  handleTeamEditHistory,
-  handleTeamEnrichModel,
-  handleTeamRecordTokens,
-  handleTeamToolCalls,
-  handleTeamRecordCommits,
-} from './activity.js';
-export {
-  handleTeamSaveMemory,
-  handleTeamSearchMemory,
-  handleTeamUpdateMemory,
-  handleTeamDeleteMemory,
-  handleTeamDeleteMemoryBatch,
-  handleTeamRunConsolidation,
-  handleTeamListConsolidationProposals,
-  handleTeamApplyConsolidation,
-  handleTeamRejectConsolidation,
-  handleTeamUnmergeMemory,
-  handleTeamRunFormationSweep,
-  handleTeamRunFormationOne,
-  handleTeamListFormationObservations,
-} from './memory.js';
-export {
-  handleTeamCreateCategory,
-  handleTeamListCategories,
-  handleTeamCategoryNames,
-  handleTeamUpdateCategory,
-  handleTeamDeleteCategory,
-  handleTeamPromotableTags,
-} from './categories.js';
-export {
-  handleTeamClaimFiles,
-  handleTeamReleaseFiles,
-  handleTeamGetLocks,
-  handleTeamCheckLocks,
-} from './locks.js';
-export { handleTeamSendMessage, handleTeamGetMessages } from './messages.js';
-export { handleTeamSubmitCommand, handleTeamGetCommands } from './commands.js';
-export { handleTeamAnalytics } from './analytics.js';
-export { handleTeamBillingBlocks } from './billing-blocks.js';
-export {
-  handleTeamRecordConversation,
-  handleTeamGetConversation,
-  handleTeamConversationAnalytics,
-} from './conversations.js';
+import type { RouteDefinition } from '../../lib/router.js';
+import { registerMembershipRoutes } from './membership.js';
+import { registerActivityRoutes } from './activity.js';
+import { registerMemoryRoutes } from './memory.js';
+import { registerCategoriesRoutes } from './categories.js';
+import { registerLocksRoutes } from './locks.js';
+import { registerMessagesRoutes } from './messages.js';
+import { registerCommandsRoutes } from './commands.js';
+import { registerAnalyticsRoutes } from './analytics.js';
+import { registerBillingBlocksRoutes } from './billing-blocks.js';
+import { registerConversationsRoutes } from './conversations.js';
+
+export function registerTeamRoutes(TID: string): RouteDefinition[] {
+  return [
+    ...registerMembershipRoutes(TID),
+    ...registerActivityRoutes(TID),
+    ...registerMemoryRoutes(TID),
+    ...registerCategoriesRoutes(TID),
+    ...registerLocksRoutes(TID),
+    ...registerMessagesRoutes(TID),
+    ...registerCommandsRoutes(TID),
+    ...registerAnalyticsRoutes(TID),
+    ...registerBillingBlocksRoutes(TID),
+    ...registerConversationsRoutes(TID),
+  ];
+}

@@ -1,5 +1,6 @@
 // Team memory category routes — CRUD for per-project categories.
 
+import type { RouteDefinition } from '../../lib/router.js';
 import { json } from '../../lib/http.js';
 import { teamJsonRoute, teamRoute, doResult } from '../../lib/middleware.js';
 import { requireString, withTeamRateLimit } from '../../lib/validation.js';
@@ -157,3 +158,17 @@ export const handleTeamPromotableTags = teamRoute(async ({ agentId, team, user }
     'getPromotableTags',
   );
 });
+
+/**
+ * Per-team memory category CRUD plus tag promotion helpers.
+ */
+export function registerCategoriesRoutes(TID: string): RouteDefinition[] {
+  return [
+    { method: 'POST', path: `/teams/${TID}/categories`, handler: handleTeamCreateCategory },
+    { method: 'GET', path: `/teams/${TID}/categories`, handler: handleTeamListCategories },
+    { method: 'GET', path: `/teams/${TID}/categories/names`, handler: handleTeamCategoryNames },
+    { method: 'PUT', path: `/teams/${TID}/categories`, handler: handleTeamUpdateCategory },
+    { method: 'DELETE', path: `/teams/${TID}/categories`, handler: handleTeamDeleteCategory },
+    { method: 'GET', path: `/teams/${TID}/tags/promotable`, handler: handleTeamPromotableTags },
+  ];
+}
