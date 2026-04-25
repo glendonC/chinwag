@@ -6,7 +6,7 @@ import type {
   ConfusedFileEntry,
   UnansweredQuestionStats,
 } from '@chinmeister/shared/contracts/analytics.js';
-import { type AnalyticsScope, buildScopeFilter } from './scope.js';
+import { type AnalyticsScope, buildScopeFilter, withScope } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
 
@@ -164,20 +164,18 @@ export function queryUnansweredQuestions(
   days: number,
 ): UnansweredQuestionStats {
   try {
-    const f = buildScopeFilter(scope);
-    const row = sql
-      .exec(
-        `SELECT COUNT(*) AS count
+    const { sql: q, params } = withScope(
+      `SELECT COUNT(*) AS count
          FROM conversation_events ce
          JOIN sessions s ON s.id = ce.session_id
          WHERE ce.created_at > datetime('now', '-' || ? || ' days')
            AND ce.role = 'user'
            AND ce.topic = 'question'
-           AND s.outcome = 'abandoned'${f.sql}`,
-        days,
-        ...f.params,
-      )
-      .one() as Record<string, unknown>;
+           AND s.outcome = 'abandoned'`,
+      [days],
+      scope,
+    );
+    const row = sql.exec(q, ...params).one() as Record<string, unknown>;
     return { count: (row.count as number) || 0 };
   } catch (err) {
     log.warn(`unansweredQuestions query failed: ${err}`);

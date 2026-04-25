@@ -13,7 +13,7 @@ import type {
   ConversationToolCoverage,
 } from '@chinmeister/shared/contracts/conversation.js';
 import { getToolsWithCapability } from '@chinmeister/shared/tool-registry.js';
-import { type AnalyticsScope, buildScopeFilter } from './analytics/scope.js';
+import { type AnalyticsScope, buildScopeFilter, withScope } from './analytics/scope.js';
 
 const log = createLogger('TeamDO.conversations');
 
@@ -177,19 +177,17 @@ function queryMessageCounts(
   assistant_messages: number;
 } {
   try {
-    const f = buildScopeFilter(scope);
-    const rows = sql
-      .exec(
-        `SELECT
+    const { sql: q, params } = withScope(
+      `SELECT
            COUNT(*) AS total,
            SUM(CASE WHEN role = 'user' THEN 1 ELSE 0 END) AS user_msgs,
            SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END) AS assistant_msgs
          FROM conversation_events
-         WHERE created_at > datetime('now', '-' || ? || ' days')${f.sql}`,
-        days,
-        ...f.params,
-      )
-      .toArray();
+         WHERE created_at > datetime('now', '-' || ? || ' days')`,
+      [days],
+      scope,
+    );
+    const rows = sql.exec(q, ...params).toArray();
 
     if (rows.length === 0) return { total_messages: 0, user_messages: 0, assistant_messages: 0 };
 
@@ -344,16 +342,14 @@ function querySessionsWithConversations(
   days: number,
 ): number {
   try {
-    const f = buildScopeFilter(scope);
-    const rows = sql
-      .exec(
-        `SELECT COUNT(DISTINCT session_id) AS count
+    const { sql: q, params } = withScope(
+      `SELECT COUNT(DISTINCT session_id) AS count
          FROM conversation_events
-         WHERE created_at > datetime('now', '-' || ? || ' days')${f.sql}`,
-        days,
-        ...f.params,
-      )
-      .toArray();
+         WHERE created_at > datetime('now', '-' || ? || ' days')`,
+      [days],
+      scope,
+    );
+    const rows = sql.exec(q, ...params).toArray();
     return ((rows[0] as Record<string, unknown>)?.count as number) || 0;
   } catch (err) {
     log.warn(`sessionsWithConversations query failed: ${err}`);
@@ -374,17 +370,15 @@ function queryToolCoverage(
   const capableTools = new Set(getToolsWithCapability('conversationLogs'));
 
   try {
-    const f = buildScopeFilter(scope);
-    const rows = sql
-      .exec(
-        `SELECT DISTINCT host_tool
+    const { sql: q, params } = withScope(
+      `SELECT DISTINCT host_tool
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND host_tool IS NOT NULL AND host_tool != 'unknown'${f.sql}`,
-        days,
-        ...f.params,
-      )
-      .toArray();
+           AND host_tool IS NOT NULL AND host_tool != 'unknown'`,
+      [days],
+      scope,
+    );
+    const rows = sql.exec(q, ...params).toArray();
 
     const activeTools = rows.map((r) => (r as Record<string, unknown>).host_tool as string);
     const supported = activeTools.filter((t) => capableTools.has(t));
