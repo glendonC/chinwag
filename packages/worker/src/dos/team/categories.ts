@@ -4,6 +4,7 @@
 
 import type { DOResult, MemoryCategory } from '../../types.js';
 import { MEMORY_CATEGORY_MAX_COUNT } from '../../lib/constants.js';
+import { row, rows as mapRows } from '../../lib/row.js';
 import { sqlChanges } from '../../lib/validation.js';
 
 export interface CategoryWithEmbedding extends MemoryCategory {
@@ -19,7 +20,7 @@ export function createCategory(
 ): DOResult<{ ok: true; id: string }> {
   // Check capacity
   const countRow = sql.exec('SELECT COUNT(*) as cnt FROM memory_categories').one();
-  if (((countRow as Record<string, unknown>).cnt as number) >= MEMORY_CATEGORY_MAX_COUNT) {
+  if (row(countRow).number('cnt') >= MEMORY_CATEGORY_MAX_COUNT) {
     return {
       error: `Maximum ${MEMORY_CATEGORY_MAX_COUNT} categories per project`,
       code: 'VALIDATION',
@@ -58,7 +59,13 @@ export function listCategories(sql: SqlStorage): { ok: true; categories: MemoryC
 
   return {
     ok: true,
-    categories: rows as unknown as MemoryCategory[],
+    categories: mapRows<MemoryCategory>(rows, (r) => ({
+      id: r.string('id'),
+      name: r.string('name'),
+      description: r.string('description'),
+      color: r.nullableString('color'),
+      created_at: r.string('created_at'),
+    })),
   };
 }
 
@@ -76,7 +83,17 @@ export function listCategoriesWithEmbeddings(sql: SqlStorage): {
 
   return {
     ok: true,
-    categories: rows as unknown as CategoryWithEmbedding[],
+    categories: mapRows<CategoryWithEmbedding>(rows, (r) => {
+      const embedding = r.raw('embedding');
+      return {
+        id: r.string('id'),
+        name: r.string('name'),
+        description: r.string('description'),
+        color: r.nullableString('color'),
+        created_at: r.string('created_at'),
+        embedding: embedding instanceof ArrayBuffer ? embedding : null,
+      };
+    }),
   };
 }
 
@@ -139,7 +156,7 @@ export function deleteCategory(sql: SqlStorage, categoryId: string): DOResult<{ 
 /** Get category names as a simple list (for MCP tool enum injection). */
 export function getCategoryNames(sql: SqlStorage): string[] {
   const rows = sql.exec('SELECT name FROM memory_categories ORDER BY name ASC').toArray();
-  return rows.map((r) => (r as Record<string, unknown>).name as string);
+  return mapRows(rows, (r) => r.string('name'));
 }
 
 /** Increment tag usage stats (called on memory save). */
@@ -172,10 +189,10 @@ export function getPromotableTags(
       threshold,
     )
     .toArray();
-  return rows as unknown as {
-    tag: string;
-    use_count: number;
-    first_seen: string;
-    last_seen: string;
-  }[];
+  return mapRows(rows, (r) => ({
+    tag: r.string('tag'),
+    use_count: r.number('use_count'),
+    first_seen: r.string('first_seen'),
+    last_seen: r.string('last_seen'),
+  }));
 }

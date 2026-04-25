@@ -1,6 +1,7 @@
 // Session analytics: retry patterns, conflict correlation, stuckness, file overlap, scope complexity.
 
 import { createLogger } from '../../../lib/logger.js';
+import { row, rows as mapRows } from '../../../lib/row.js';
 import type {
   RetryPattern,
   ConflictCorrelation,
@@ -67,14 +68,13 @@ export function queryRetryPatterns(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      const finalOutcome = (row.final_outcome as string) || null;
-      const toolsCsv = (row.tools_csv as string) || '';
+    return mapRows(rows, (r) => {
+      const finalOutcome = r.nullableString('final_outcome') || null;
+      const toolsCsv = r.string('tools_csv');
       return {
-        file: row.file as string,
-        attempts: (row.attempts as number) || 0,
-        agents: (row.agents as number) || 0,
+        file: r.string('file'),
+        attempts: r.number('attempts'),
+        agents: r.number('agents'),
         tools: toolsCsv ? toolsCsv.split(',').filter(Boolean) : [],
         final_outcome: finalOutcome,
         resolved: finalOutcome === 'completed',
@@ -113,15 +113,12 @@ export function queryConflictCorrelation(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        bucket: row.bucket as string,
-        sessions: (row.sessions as number) || 0,
-        completed: (row.completed as number) || 0,
-        completion_rate: (row.completion_rate as number) || 0,
-      };
-    });
+    return mapRows(rows, (r) => ({
+      bucket: r.string('bucket'),
+      sessions: r.number('sessions'),
+      completed: r.number('completed'),
+      completion_rate: r.number('completion_rate'),
+    }));
   } catch (err) {
     log.warn(`conflictCorrelation query failed: ${err}`);
     return [];
@@ -147,10 +144,11 @@ export function queryConflictStats(
       .toArray();
     let blocked = 0;
     let found = 0;
-    for (const r of rows) {
-      const row = r as Record<string, unknown>;
-      if (row.metric === 'conflicts_blocked') blocked = (row.cnt as number) || 0;
-      if (row.metric === 'conflicts_found') found = (row.cnt as number) || 0;
+    for (const raw of rows) {
+      const r = row(raw);
+      const metric = r.string('metric');
+      if (metric === 'conflicts_blocked') blocked = r.number('cnt');
+      if (metric === 'conflicts_found') found = r.number('cnt');
     }
     // Daily breakdown for the conflicts-blocked widget's enhanced trend
     // sparkline. Same source as the period total (daily_metrics rolled up
@@ -166,10 +164,10 @@ export function queryConflictStats(
         days,
       )
       .toArray();
-    const daily_blocked = dailyRows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return { day: row.day as string, blocked: (row.blocked as number) || 0 };
-    });
+    const daily_blocked = mapRows(dailyRows, (r) => ({
+      day: r.string('day'),
+      blocked: r.number('blocked'),
+    }));
     return { blocked_period: blocked, found_period: found, daily_blocked };
   } catch (err) {
     log.warn(`conflictStats query failed: ${err}`);
@@ -209,13 +207,13 @@ export function queryStuckness(
         normal_completion_rate: 0,
       };
 
-    const row = rows[0] as Record<string, unknown>;
+    const r = row(rows[0]);
     return {
-      total_sessions: (row.total_sessions as number) || 0,
-      stuck_sessions: (row.stuck_sessions as number) || 0,
-      stuckness_rate: (row.stuckness_rate as number) || 0,
-      stuck_completion_rate: (row.stuck_completion_rate as number) || 0,
-      normal_completion_rate: (row.normal_completion_rate as number) || 0,
+      total_sessions: r.number('total_sessions'),
+      stuck_sessions: r.number('stuck_sessions'),
+      stuckness_rate: r.number('stuckness_rate'),
+      stuck_completion_rate: r.number('stuck_completion_rate'),
+      normal_completion_rate: r.number('normal_completion_rate'),
     };
   } catch (err) {
     log.warn(`stuckness query failed: ${err}`);
@@ -257,10 +255,10 @@ ${inner}
 
     if (rows.length === 0) return { total_files: 0, overlapping_files: 0 };
 
-    const row = rows[0] as Record<string, unknown>;
+    const r = row(rows[0]);
     return {
-      total_files: (row.total_files as number) || 0,
-      overlapping_files: (row.overlapping_files as number) || 0,
+      total_files: r.number('total_files'),
+      overlapping_files: r.number('overlapping_files'),
     };
   } catch (err) {
     log.warn(`fileOverlap query failed: ${err}`);
@@ -315,8 +313,7 @@ export function queryFirstEditStats(
       )
       .toArray();
 
-    const median =
-      medianRow.length > 0 ? ((medianRow[0] as Record<string, unknown>).mins as number) || 0 : 0;
+    const median = medianRow.length > 0 ? row(medianRow[0]).number('mins') : 0;
 
     // By tool
     const { sql: toolQ, params: toolParams } = withScope(
@@ -342,19 +339,16 @@ export function queryFirstEditStats(
       )
       .toArray();
 
-    const avgMin = ((overall[0] as Record<string, unknown>)?.avg_min as number) || 0;
+    const avgMin = overall.length > 0 ? row(overall[0]).number('avg_min') : 0;
 
     return {
       avg_minutes_to_first_edit: avgMin,
       median_minutes_to_first_edit: median,
-      by_tool: toolRows.map((r) => {
-        const row = r as Record<string, unknown>;
-        return {
-          host_tool: row.host_tool as string,
-          avg_minutes: (row.avg_minutes as number) || 0,
-          sessions: (row.sessions as number) || 0,
-        };
-      }),
+      by_tool: mapRows(toolRows, (r) => ({
+        host_tool: r.string('host_tool'),
+        avg_minutes: r.number('avg_minutes'),
+        sessions: r.number('sessions'),
+      })),
     };
   } catch (err) {
     log.warn(`firstEditStats query failed: ${err}`);
@@ -409,16 +403,13 @@ ${inner}
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        bucket: row.bucket as string,
-        sessions: (row.sessions as number) || 0,
-        avg_edits: (row.avg_edits as number) || 0,
-        avg_duration_min: (row.avg_duration_min as number) || 0,
-        completion_rate: (row.completion_rate as number) || 0,
-      };
-    });
+    return mapRows(rows, (r) => ({
+      bucket: r.string('bucket'),
+      sessions: r.number('sessions'),
+      avg_edits: r.number('avg_edits'),
+      avg_duration_min: r.number('avg_duration_min'),
+      completion_rate: r.number('completion_rate'),
+    }));
   } catch (err) {
     log.warn(`scopeComplexity query failed: ${err}`);
     return [];

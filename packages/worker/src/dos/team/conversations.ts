@@ -3,6 +3,7 @@
 // topic classification, and correlation with session outcomes.
 
 import { createLogger } from '../../lib/logger.js';
+import { row, rows as mapRows } from '../../lib/row.js';
 import type {
   ConversationEvent,
   SentimentDistribution,
@@ -120,29 +121,26 @@ export function getConversationForSession(
 
   return {
     ok: true,
-    events: rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        id: row.id as string,
-        session_id: row.session_id as string,
-        agent_id: row.agent_id as string,
-        handle: row.handle as string,
-        host_tool: row.host_tool as string,
-        role: row.role as 'user' | 'assistant',
-        content: row.content as string,
-        char_count: (row.char_count as number) || 0,
-        sentiment: (row.sentiment as string) || null,
-        topic: (row.topic as string) || null,
-        sequence: (row.sequence as number) || 0,
-        created_at: row.created_at as string,
-        input_tokens: (row.input_tokens as number) ?? null,
-        output_tokens: (row.output_tokens as number) ?? null,
-        cache_read_tokens: (row.cache_read_tokens as number) ?? null,
-        cache_creation_tokens: (row.cache_creation_tokens as number) ?? null,
-        model: (row.model as string) || null,
-        stop_reason: (row.stop_reason as string) || null,
-      };
-    }),
+    events: mapRows(rows, (r) => ({
+      id: r.string('id'),
+      session_id: r.string('session_id'),
+      agent_id: r.string('agent_id'),
+      handle: r.string('handle'),
+      host_tool: r.string('host_tool'),
+      role: r.string('role') as 'user' | 'assistant',
+      content: r.string('content'),
+      char_count: r.number('char_count'),
+      sentiment: r.nullableString('sentiment') || null,
+      topic: r.nullableString('topic') || null,
+      sequence: r.number('sequence'),
+      created_at: r.string('created_at'),
+      input_tokens: r.nullableNumber('input_tokens'),
+      output_tokens: r.nullableNumber('output_tokens'),
+      cache_read_tokens: r.nullableNumber('cache_read_tokens'),
+      cache_creation_tokens: r.nullableNumber('cache_creation_tokens'),
+      model: r.nullableString('model') || null,
+      stop_reason: r.nullableString('stop_reason') || null,
+    })),
   };
 }
 
@@ -191,11 +189,11 @@ function queryMessageCounts(
 
     if (rows.length === 0) return { total_messages: 0, user_messages: 0, assistant_messages: 0 };
 
-    const row = rows[0] as Record<string, unknown>;
+    const r = row(rows[0]);
     return {
-      total_messages: (row.total as number) || 0,
-      user_messages: (row.user_msgs as number) || 0,
-      assistant_messages: (row.assistant_msgs as number) || 0,
+      total_messages: r.number('total'),
+      user_messages: r.number('user_msgs'),
+      assistant_messages: r.number('assistant_msgs'),
     };
   } catch (err) {
     log.warn(`messageCounts query failed: ${err}`);
@@ -223,13 +221,10 @@ function querySentimentDistribution(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        sentiment: row.sentiment as string,
-        count: (row.count as number) || 0,
-      };
-    });
+    return mapRows(rows, (r) => ({
+      sentiment: r.string('sentiment'),
+      count: r.number('count'),
+    }));
   } catch (err) {
     log.warn(`sentimentDistribution query failed: ${err}`);
     return [];
@@ -257,13 +252,10 @@ function queryTopicDistribution(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        topic: row.topic as string,
-        count: (row.count as number) || 0,
-      };
-    });
+    return mapRows(rows, (r) => ({
+      topic: r.string('topic'),
+      count: r.number('count'),
+    }));
   } catch (err) {
     log.warn(`topicDistribution query failed: ${err}`);
     return [];
@@ -319,17 +311,14 @@ function querySentimentOutcomeCorrelation(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        dominant_sentiment: row.dominant_sentiment as string,
-        sessions: (row.sessions as number) || 0,
-        completed: (row.completed as number) || 0,
-        abandoned: (row.abandoned as number) || 0,
-        failed: (row.failed as number) || 0,
-        completion_rate: (row.completion_rate as number) || 0,
-      };
-    });
+    return mapRows(rows, (r) => ({
+      dominant_sentiment: r.string('dominant_sentiment'),
+      sessions: r.number('sessions'),
+      completed: r.number('completed'),
+      abandoned: r.number('abandoned'),
+      failed: r.number('failed'),
+      completion_rate: r.number('completion_rate'),
+    }));
   } catch (err) {
     log.warn(`sentimentOutcomeCorrelation query failed: ${err}`);
     return [];
@@ -350,7 +339,7 @@ function querySessionsWithConversations(
       scope,
     );
     const rows = sql.exec(q, ...params).toArray();
-    return ((rows[0] as Record<string, unknown>)?.count as number) || 0;
+    return rows.length > 0 ? row(rows[0]).number('count') : 0;
   } catch (err) {
     log.warn(`sessionsWithConversations query failed: ${err}`);
     return 0;
@@ -380,7 +369,7 @@ function queryToolCoverage(
     );
     const rows = sql.exec(q, ...params).toArray();
 
-    const activeTools = rows.map((r) => (r as Record<string, unknown>).host_tool as string);
+    const activeTools = mapRows(rows, (r) => r.string('host_tool'));
     const supported = activeTools.filter((t) => capableTools.has(t));
     const unsupported = activeTools.filter((t) => !capableTools.has(t));
 
@@ -421,32 +410,33 @@ export function getSessionConversationStats(
       .toArray();
 
     // For each session, also determine dominant sentiment and sentiment shift
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      const sid = row.session_id as string;
+    return mapRows(rows, (r) => {
+      const sid = r.string('session_id');
 
       // Get sentiment progression for this session
-      const sentiments = sql
-        .exec(
-          `SELECT sentiment FROM conversation_events
+      const sentiments = mapRows(
+        sql
+          .exec(
+            `SELECT sentiment FROM conversation_events
            WHERE session_id = ? AND role = 'user' AND sentiment IS NOT NULL
            ORDER BY sequence ASC`,
-          sid,
-        )
-        .toArray()
-        .map((s) => (s as Record<string, unknown>).sentiment as string);
+            sid,
+          )
+          .toArray(),
+        (s) => s.string('sentiment'),
+      );
 
       const dominant = getDominantSentiment(sentiments);
       const shift = getSentimentShift(sentiments);
-      const topicStr = (row.topics as string) || '';
+      const topicStr = r.string('topics');
 
       return {
         session_id: sid,
-        message_count: (row.message_count as number) || 0,
-        user_message_count: (row.user_count as number) || 0,
-        assistant_message_count: (row.assistant_count as number) || 0,
-        avg_user_msg_length: (row.avg_user_len as number) || 0,
-        avg_assistant_msg_length: (row.avg_assistant_len as number) || 0,
+        message_count: r.number('message_count'),
+        user_message_count: r.number('user_count'),
+        assistant_message_count: r.number('assistant_count'),
+        avg_user_msg_length: r.number('avg_user_len'),
+        avg_assistant_msg_length: r.number('avg_assistant_len'),
         dominant_sentiment: dominant,
         sentiment_shift: shift,
         topics: topicStr ? topicStr.split(',').filter(Boolean) : [],
