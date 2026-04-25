@@ -15,7 +15,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 async function loadMemoryWidget(id) {
   vi.resetModules();
-  const mod = await import('./MemoryWidgets.js');
+  const mod = await import('../MemoryWidgets.js');
   return mod.memoryWidgets[id];
 }
 

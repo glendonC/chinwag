@@ -3,6 +3,7 @@ import {
   DetailView,
   FocusedDetailView,
   Metric,
+  getCrossLinks,
   type DetailTabDef,
   type FocusedQuestion,
 } from '../../components/DetailView/index.js';
@@ -14,6 +15,7 @@ import { setQueryParam, useQueryParam } from '../../lib/router.js';
 import { completionColor, workTypeColor } from '../../widgets/utils.js';
 import type { UserAnalytics } from '../../lib/apiSchemas.js';
 import { RANGES, formatScope, type RangeDays } from './overview-utils.js';
+import { MISSING_DELTA, formatRateDelta } from './detailDelta.js';
 import styles from './OutcomesDetailView.module.css';
 
 /* OutcomesDetailView — "did the work land" at scale.
@@ -47,25 +49,6 @@ interface Props {
 
 function fmtCount(n: number): string {
   return n.toLocaleString();
-}
-
-const MISSING_DELTA = { text: '—', color: 'var(--soft)' } as const;
-
-function formatRateDelta(
-  current: number,
-  previous: number | null | undefined,
-  invert = false,
-): { text: string; color: string } {
-  if (previous == null || previous <= 0) return MISSING_DELTA;
-  const d = current - previous;
-  if (d === 0) return { text: '→0', color: 'var(--muted)' };
-  const arrow = d > 0 ? '↑' : '↓';
-  const magnitude = Math.abs(Math.round(d * 10) / 10);
-  const isGood = invert ? d < 0 : d > 0;
-  return {
-    text: `${arrow}${magnitude}`,
-    color: isGood ? 'var(--success)' : 'var(--danger)',
-  };
 }
 
 export default function OutcomesDetailView({
@@ -212,6 +195,7 @@ function SessionsPanel({ analytics }: { analytics: UserAnalytics }) {
       question: "Did this period's sessions land?",
       answer: completionAnswer,
       children: <DetailRing cs={cs} />,
+      relatedLinks: getCrossLinks('outcomes', 'sessions', 'completion'),
     },
   ];
   if (dailyTrendAnswer) {
@@ -288,6 +272,7 @@ function RetriesPanel({ analytics }: { analytics: UserAnalytics }) {
       question: 'How often do edits work on the first try?',
       answer: oneShotAnswer,
       children: <OneShotBlock oneShot={oneShot} />,
+      relatedLinks: getCrossLinks('outcomes', 'retries', 'one-shot'),
     });
   }
   if (sc.length >= 2) {
@@ -367,6 +352,7 @@ function WorkTypesPanel({ analytics }: { analytics: UserAnalytics }) {
           ))}
         </div>
       ),
+      relatedLinks: getCrossLinks('outcomes', 'types', 'finish'),
     },
   ];
 

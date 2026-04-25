@@ -122,3 +122,47 @@ export function useQueryParam(key: string): string | null {
     new URLSearchParams(window.location.search).get(key),
   );
 }
+
+/**
+ * Detail-view drill-param keys. Each key opens a category-level detail view
+ * inside OverviewView via `useDetailDrill(key)`. Listed here so cross-view
+ * navigation can clear all sibling drills atomically when jumping.
+ *
+ * Keep in sync with OverviewView's `useDetailDrill()` calls and any
+ * auxiliary drill params (e.g., 'live-tab' belongs to the live drill).
+ */
+export const DETAIL_DRILL_KEYS = [
+  'live',
+  'usage',
+  'outcomes',
+  'activity',
+  'codebase',
+  'tools',
+  'memory',
+] as const;
+
+export type DetailViewKey = (typeof DETAIL_DRILL_KEYS)[number];
+
+const DETAIL_AUX_KEYS = ['live-tab', 'q'] as const;
+
+/**
+ * Navigate atomically from any current detail view to a target detail view,
+ * tab, and optional question. Clears every other detail drill param + the
+ * shared `?q=` so the URL ends up with exactly one drill open. One history
+ * entry — back arrow returns to whichever surface the user was on before.
+ *
+ * Used by CrossViewLink to jump between detail views without flickering
+ * through Overview, and by widget click handlers to open a specific
+ * (view, tab, question) deep link from the cockpit.
+ */
+export function navigateToDetail(view: DetailViewKey, tab: string, q?: string): void {
+  const params: Record<string, string | null> = {};
+  for (const key of DETAIL_DRILL_KEYS) {
+    params[key] = key === view ? tab : null;
+  }
+  for (const aux of DETAIL_AUX_KEYS) {
+    if (aux === 'q') params[aux] = q ?? null;
+    else params[aux] = null;
+  }
+  setQueryParams(params);
+}

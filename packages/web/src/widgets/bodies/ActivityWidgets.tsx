@@ -1,12 +1,12 @@
 import { useMemo, type CSSProperties } from 'react';
 import SectionEmpty from '../../components/SectionEmpty/SectionEmpty.js';
-import { DAY_LABELS, buildHeatmapData, workTypeColor } from '../utils.js';
+import HourHeatmap, { type HourCell } from '../../components/viz/time/HourHeatmap.js';
+import { qualifyByVolume } from '../../lib/qualifyByVolume.js';
+import { completionColor, workTypeColor } from '../utils.js';
 import type { UserAnalytics } from '../../lib/apiSchemas.js';
 import shared from '../widget-shared.module.css';
 import styles from './ActivityWidgets.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
-
-const HOUR_LABELS = [0, 3, 6, 9, 12, 15, 18, 21];
 
 // Below this many populated hour×day cells the grid looks broken rather
 // than sparse — one or two lit squares against a 168-cell grid reads as
@@ -19,63 +19,28 @@ function HeatmapWidget({ analytics }: WidgetBodyProps) {
 }
 
 function Heatmap({ hourly }: { hourly: UserAnalytics['hourly_distribution'] }) {
-  const { grid, max, populatedCells } = useMemo(() => {
-    const built = buildHeatmapData(hourly);
-    let cells = 0;
-    for (const row of built.grid) for (const v of row) if (v > 0) cells++;
-    return { ...built, populatedCells: cells };
+  const { cells, populatedCells } = useMemo(() => {
+    const grid: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0));
+    for (const h of hourly) grid[h.dow][h.hour] = (grid[h.dow][h.hour] || 0) + h.sessions;
+    const out: HourCell[] = [];
+    let populated = 0;
+    for (let dow = 0; dow < 7; dow++) {
+      for (let hour = 0; hour < 24; hour++) {
+        const v = grid[dow][hour];
+        if (v > 0) {
+          out.push({ dow, hour, value: v });
+          populated++;
+        }
+      }
+    }
+    return { cells: out, populatedCells: populated };
   }, [hourly]);
 
   if (populatedCells < HEATMAP_MIN_POPULATED_CELLS) {
     return <SectionEmpty>Heatmap fills in as you run more sessions</SectionEmpty>;
   }
 
-  return (
-    <div className={styles.heatmapWrap}>
-      <div className={styles.heatmapGrid}>
-        <div className={styles.heatmapYLabels}>
-          {DAY_LABELS.map((d) => (
-            <span key={d} className={styles.heatmapYLabel}>
-              {d}
-            </span>
-          ))}
-        </div>
-        <div className={styles.heatmapCols}>
-          {Array.from({ length: 24 }, (_, hour) => (
-            <div
-              key={hour}
-              className={styles.heatmapCol}
-              style={{ '--row-index': hour } as CSSProperties}
-            >
-              {Array.from({ length: 7 }, (_, dow) => {
-                const val = grid[dow][hour];
-                // Clamp val/max to 1 so cells above p95 (see
-                // buildHeatmapData) saturate at full ink rather than
-                // exceeding the intended opacity range.
-                const norm = max > 0 ? Math.min(1, val / max) : 0;
-                const opacity = max > 0 ? 0.05 + norm * 0.7 : 0.04;
-                return (
-                  <div
-                    key={dow}
-                    className={styles.heatmapCell}
-                    style={{ background: 'var(--ink)', opacity }}
-                    title={`${DAY_LABELS[dow]} ${hour}:00 — ${val} sessions`}
-                  />
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className={styles.heatmapXLabels}>
-        {HOUR_LABELS.map((h) => (
-          <span key={h} className={styles.heatmapXLabel}>
-            {h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
+  return <HourHeatmap data={cells} />;
 }
 
 function WorkTypesWidget({ analytics }: WidgetBodyProps) {
@@ -130,12 +95,72 @@ function WorkTypesWidget({ analytics }: WidgetBodyProps) {
   );
 }
 
+// Below this many qualifying hours the bar chart is too thin to read
+// usefully. Off-hour bursts wash a 2-hour view, and the slice-by-volume
+// rule (qualifyByVolume p25) usually keeps 6+ hours when sessions are
+// real — so under 4 indicates "not enough data yet" rather than "show
+// a degenerate viz."
+const EFFECTIVE_HOURS_MIN_QUALIFIED = 4;
+
+function hourGlyph(h: number): string {
+  if (h === 0) return '12a';
+  if (h < 12) return `${h}a`;
+  if (h === 12) return '12p';
+  return `${h - 12}p`;
+}
+
+function HourlyEffectivenessWidget({ analytics }: WidgetBodyProps) {
+  const qualified = useMemo(
+    () => qualifyByVolume(analytics.hourly_effectiveness, (h) => h.sessions, 25),
+    [analytics.hourly_effectiveness],
+  );
+
+  if (qualified.length < EFFECTIVE_HOURS_MIN_QUALIFIED) {
+    return <SectionEmpty>Needs at least 4 high-volume hours — keep working.</SectionEmpty>;
+  }
+
+  // Bars ordered by clock so the user can scan their day; height encodes
+  // session volume, color encodes completion rate. Mirror of the
+  // peak-completion question in ActivityDetailView.
+  const byClock = [...qualified].sort((a, b) => a.hour - b.hour);
+  const maxSessions = Math.max(1, ...byClock.map((h) => h.sessions));
+
+  return (
+    <div className={styles.effFrame}>
+      <div className={styles.effBars}>
+        {byClock.map((h) => {
+          const heightPct = Math.max(8, Math.round((h.sessions / maxSessions) * 100));
+          const color = completionColor(h.completion_rate);
+          return (
+            <div key={h.hour} className={styles.effColumn}>
+              <span className={styles.effRate}>{Math.round(h.completion_rate)}%</span>
+              <span
+                className={styles.effBar}
+                style={
+                  {
+                    '--bar-height': `${heightPct}%`,
+                    background: color,
+                  } as CSSProperties
+                }
+                title={`${hourGlyph(h.hour)}: ${h.sessions} sessions, ${Math.round(h.completion_rate)}% completed`}
+              />
+              <span className={styles.effHourLabel}>{hourGlyph(h.hour)}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // Note: duration-dist, scope-complexity, and first-edit live in
 // OutcomeWidgets.tsx — they are categorized as 'outcomes' in the catalog
 // and share the category's visualization vocabulary (ring / histogram /
-// curve). This registry only owns heatmap and work-types.
+// curve). This registry only owns heatmap, work-types, and
+// hourly-effectiveness.
 
 export const activityWidgets: WidgetRegistry = {
   heatmap: HeatmapWidget,
   'work-types': WorkTypesWidget,
+  'hourly-effectiveness': HourlyEffectivenessWidget,
 };

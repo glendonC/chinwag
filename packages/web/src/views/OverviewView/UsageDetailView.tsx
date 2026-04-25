@@ -1,37 +1,40 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import clsx from 'clsx';
 import {
+  DetailView,
+  FocusedDetailView,
+  Metric,
+  getCrossLinks,
+  type DetailTabDef,
+  type FocusedQuestion,
+} from '../../components/DetailView/index.js';
+import {
   BreakdownList,
   BreakdownMeta,
-  DetailView,
-  DirectoryConstellation,
+  DeltaChip,
   DirectoryColumns,
+  DirectoryConstellation,
   DivergingColumns,
   DivergingRows,
   DotMatrix,
   FileChurnScatter,
   FileConstellation,
   FileTreemap,
-  FocusedDetailView,
-  Metric,
-  SmallMultiples,
   HeroStatRow,
-  DeltaChip,
   InteractiveDailyChurn,
   LegendDot,
   LegendHatch,
+  SmallMultiples,
   StackedArea,
   TrueShareBars,
-  type DetailTabDef,
   type DivergingRowEntry,
   type DivergingSeries,
-  type FocusedQuestion,
   type HeroStatDef,
   type InteractiveDailyChurnEntry,
   type SmallMultipleItem,
   type StackedAreaEntry,
   type TrueShareEntry,
-} from '../../components/DetailView/index.js';
+} from '../../components/viz/index.js';
 import RangePills from '../../components/RangePills/RangePills.jsx';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.js';
 import { WorkTypeStrip } from '../../components/WorkTypeStrip/index.js';
@@ -44,6 +47,7 @@ import type { UserAnalytics } from '../../lib/apiSchemas.js';
 import { formatCost } from '../../widgets/utils.js';
 import { hasCostData } from '../../widgets/bodies/shared.js';
 import { RANGES, formatScope, type RangeDays } from './overview-utils.js';
+import { MISSING_DELTA, formatCountDelta, formatUsdDelta, splitDelta } from './detailDelta.js';
 import styles from './UsageDetailView.module.css';
 
 const USAGE_TABS = [
@@ -76,74 +80,6 @@ function fmtCount(n: number): string {
 }
 function fmtPct(n: number, digits = 0): string {
   return `${(n * 100).toFixed(digits)}%`;
-}
-
-// Em-dash placeholder for tabs without a comparable previous-period
-// value (e.g. files-touched has no per-day breakdown). Keeps the delta
-// caption visible on every tab so the strip stays visually uniform —
-// no conditional renders that hide treatment during testing.
-const MISSING_DELTA = { text: '—', color: 'var(--soft)' } as const;
-
-/**
- * In-window delta: split a daily series in half by position and compare
- * sums. Matches the widget convention (see `splitPeriodDelta` in
- * `widgets/bodies/UsageWidgets.tsx`) — preferred over `period_comparison`
- * because the worker's 30-day session retention empties the previous
- * window for production users, which would null every cross-window
- * delta. Splitting the current window sidesteps retention and keeps the
- * arrow honest at any range.
- */
-function splitDelta<T>(
-  days: ReadonlyArray<T>,
-  select: (row: T) => number,
-): { current: number; previous: number } | null {
-  if (days.length < 2) return null;
-  const mid = Math.floor(days.length / 2);
-  const currentStart = days.length % 2 === 0 ? mid : mid + 1;
-  const previous = days.slice(0, mid).reduce((s, d) => s + select(d), 0);
-  const current = days.slice(currentStart).reduce((s, d) => s + select(d), 0);
-  return { current, previous };
-}
-
-/**
- * Format a numeric delta into an arrow + magnitude pill matching the
- * StatWidget convention (`↑26`, `↓4`, `→0`). Returns the placeholder
- * em-dash when the comparison can't be established (no previous data,
- * or `previous <= 0` which is divide-by-infinity territory).
- */
-function formatCountDelta(
-  delta: { current: number; previous: number } | null,
-  invert = false,
-): { text: string; color: string } {
-  if (!delta || delta.previous <= 0) return MISSING_DELTA;
-  const d = delta.current - delta.previous;
-  if (d === 0) return { text: '→0', color: 'var(--muted)' };
-  const arrow = d > 0 ? '↑' : '↓';
-  const magnitude = String(Math.abs(Math.round(d * 10) / 10));
-  const isGood = invert ? d < 0 : d > 0;
-  return { text: `${arrow}${magnitude}`, color: isGood ? 'var(--success)' : 'var(--danger)' };
-}
-
-/**
- * USD-flavored delta formatter. Matches StatWidget's `usd-fine` path
- * (sub-cent precision) for cost-per-edit, and falls back to plain
- * cost formatting for whole-dollar deltas.
- */
-function formatUsdDelta(
-  current: number | null | undefined,
-  previous: number | null | undefined,
-  digits: number,
-  invert = false,
-): { text: string; color: string } {
-  if (current == null || previous == null || previous <= 0) return MISSING_DELTA;
-  const d = current - previous;
-  if (d === 0) return { text: '→0', color: 'var(--muted)' };
-  const arrow = d > 0 ? '↑' : '↓';
-  const isGood = invert ? d < 0 : d > 0;
-  return {
-    text: `${arrow}${formatCost(Math.abs(d), digits)}`,
-    color: isGood ? 'var(--success)' : 'var(--danger)',
-  };
 }
 
 export default function UsageDetailView({
@@ -466,6 +402,7 @@ function SessionsPanel({ analytics }: { analytics: UserAnalytics }) {
       question: 'Which tool finishes the job?',
       answer: byToolAnswer,
       children: <ToolRing entries={byTool} total={totalSessions} />,
+      relatedLinks: getCrossLinks('usage', 'sessions', 'by-tool'),
     });
   }
   if (analytics.daily_trends.length >= 2 && dailyAnswer) {
@@ -1723,7 +1660,7 @@ type ChurnPivot = 'teammate' | 'project';
 
 // Inline pivot selector + stacked area chart. Lives inside the Lines panel
 // since it's the only caller; if another tab grows an equivalent pair of
-// entity lists it's straightforward to lift into DetailView/viz/.
+// entity lists it's straightforward to lift into components/viz/.
 function DailyChurnSection({
   memberEntries,
   projectEntries,
@@ -1898,6 +1835,7 @@ function CostPanel({ analytics }: { analytics: UserAnalytics }) {
           }))}
         />
       ),
+      relatedLinks: getCrossLinks('usage', 'cost', 'by-model'),
     });
   }
   if (byTool.length > 0 && byToolAnswer) {
@@ -1925,6 +1863,7 @@ function CostPanel({ analytics }: { analytics: UserAnalytics }) {
           })}
         />
       ),
+      relatedLinks: getCrossLinks('usage', 'cost', 'by-tool'),
     });
   }
   if (t.cache_hit_rate != null && cacheAnswer) {

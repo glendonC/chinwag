@@ -1,0 +1,118 @@
+/* Canonical row for the file-friction widget family — confused-files,
+ * file-rework, concurrent-edits, audit-staleness, memory-bus-factor.
+ * Five widgets, one shape: filename + severity-tinted bar + dimmed meta
+ * + optional drill arrow. Phase 1 lands the primitive; Phase 3 migrates
+ * the widget bodies. */
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(80px, 1fr) minmax(0, auto) 14px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-xs);
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  width: 100%;
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
+}
+
+button.row {
+  cursor: pointer;
+}
+
+.row:hover {
+  background: var(--hover-bg);
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.label {
+  font-size: var(--text-sm);
+  color: var(--ink);
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.barTrack {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--ghost);
+  overflow: hidden;
+  min-width: 0;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s var(--motion);
+  opacity: 0.85;
+}
+
+.meta {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* Drill arrow column. Always reserves the 14px slot so a list with mixed
+ * clickable/static rows keeps a consistent gutter. The arrow itself only
+ * paints on hover for clickable rows. */
+.arrow {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--soft);
+  opacity: 0;
+  transition: opacity var(--motion-fast) ease;
+  width: 14px;
+  text-align: right;
+}
+
+button.row:hover .arrow,
+button.row:focus-visible .arrow {
+  opacity: 0.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row {
+    animation: none;
+  }
+  .barFill,
+  .arrow {
+    transition: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+    grid-template-rows: auto auto;
+    gap: 4px 12px;
+  }
+  .label {
+    grid-column: 1 / -1;
+  }
+  .barTrack {
+    grid-column: 1 / 2;
+  }
+  .meta {
+    grid-column: 2 / 3;
+    text-align: right;
+  }
+  .arrow {
+    display: none;
+  }
+}

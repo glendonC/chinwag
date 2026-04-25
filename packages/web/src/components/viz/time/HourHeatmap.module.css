@@ -1,0 +1,87 @@
+/* Hour × day-of-week heatmap. Cell opacity = volume normalized against the
+ * p95 of populated cells (caller passes `max`); ink color stays constant
+ * so dark mode flows through token. Layout reads as a chart, not a list —
+ * y axis is day labels, x axis is hour labels. */
+
+.wrap {
+  overflow-x: auto;
+}
+
+.grid {
+  display: flex;
+  gap: 3px;
+}
+
+.yLabels {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.yLabel {
+  font-family: var(--mono);
+  font-size: var(--text-3xs);
+  color: var(--soft);
+  display: flex;
+  align-items: center;
+  letter-spacing: var(--tracking-stat);
+  padding-right: 6px;
+  height: var(--cell-size, 14px);
+}
+
+.cols {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 18ms);
+}
+
+.cell {
+  height: var(--cell-size, 14px);
+  border-radius: 2px;
+  min-width: 4px;
+  transition: opacity 0.15s ease;
+}
+
+.cell:hover {
+  opacity: 0.7;
+}
+
+.xLabels {
+  display: flex;
+  gap: 2px;
+  padding-top: 4px;
+  padding-left: 28px;
+}
+
+.xLabel {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: var(--text-3xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .wrap {
+    overflow-x: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .col {
+    animation: none;
+  }
+  .cell {
+    transition: none;
+  }
+}

@@ -182,3 +182,35 @@
     animation: none !important;
   }
 }
+
+/* ── Hero stat with supporting facts ──────────────
+ * Used by conflicts-blocked and file-overlap. The hero number renders
+ * via the shared .heroStatValue (light display 56pt-ish); supporting
+ * facts hang beneath in muted mono so the eye reads "big number, quiet
+ * caption" rather than parallel parity. The wrapper stacks vertically
+ * with a small gap so the supporting line tucks just under the digit
+ * baseline. */
+.heroBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.heroSupportFact {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  letter-spacing: var(--tracking-stat);
+}
+
+/* Sparkline lead-in — sits between the sparkline and the coverage note,
+ * narrating what the trace shows ("blocked across N active days"). Same
+ * muted-caption treatment as .heroSupportFact but tightened above the
+ * sparkline so it reads as the chart's caption rather than a body row. */
+.sparklineCaption {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  letter-spacing: var(--tracking-stat);
+  margin-top: 4px;
+}

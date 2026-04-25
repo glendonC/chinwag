@@ -1,0 +1,219 @@
+/* CodebaseDetailView — file/directory axis on cross-tool agent activity.
+ *
+ * Mirrors OutcomesDetailView/ActivityDetailView's compact tab pattern.
+ * Four tabs: landscape / directories / risk / commits. This module owns
+ * only the chrome that sits between the shared FocusedDetailView shell
+ * and the reusable viz primitives — empty-state copy, the cold-dirs
+ * inline list (per spec, not a new primitive), the risk friction-list
+ * wrapper, and the commits-vs-completion bucket bars. Treemap, file
+ * constellations, churn scatter, directory columns/constellation, the
+ * daily-churn stack, and the file-friction primitive are all consumed
+ * from `components/DetailView/viz/`.
+ */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.empty {
+  display: block;
+  padding: var(--space-lg) 0;
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+}
+
+/* ── Cold-dirs inline list ───────────────────────────
+ * Per the spec: "build only if it adds <50 LOC; otherwise reuse
+ * dataList styles." Inlined here as a styled list so we don't promote a
+ * StalenessLadder primitive before a third caller exists. Three columns:
+ * directory name / severity strip / right-aligned facts. The strip's
+ * width encodes days_since (capped at 90) and color tracks the severity
+ * thresholds in the panel (14-30d muted, 30-60d warn, 60+ ghost). */
+
+.dataList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dataRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(120px, 1fr) minmax(0, auto);
+  align-items: center;
+  gap: var(--space-md);
+  padding: 8px 12px;
+  border-radius: var(--radius-xs);
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
+}
+
+.dataRow:hover {
+  background: var(--hover-bg);
+}
+
+.dataName {
+  font-size: var(--text-sm);
+  color: var(--ink);
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daysStrip {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--ghost);
+  overflow: hidden;
+}
+
+.daysStrip::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--strip-fill, 0%);
+  background: var(--strip-color, var(--muted));
+  border-radius: 3px;
+  opacity: 0.85;
+  transition: width 0.4s var(--motion);
+}
+
+.dataMeta {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.dataStatValue {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Friction list wrapper ───────────────────────────
+ * The FileFrictionRow primitive ships with its own row chrome; this
+ * wrapper just stacks the rows with a stable gap so the panel has one
+ * predictable rhythm regardless of how many entries land. */
+
+.frictionList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* FileList rendered inside the collisions question wants the meta block
+ * to read "N agents · N edits" with the numeric values pulled forward in
+ * weight. The primitive renders `meta` as a single span; we lean into
+ * the inline span here. */
+
+.fileListStat {
+  font-weight: 500;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Commits-vs-completion bucket bars ───────────────
+ * Two-row horizontal bars. Uses the same wtBarTrack/wtBarFill semantics
+ * as OutcomesDetailView's WorkTypesPanel so the visual rhythm is shared
+ * across detail views without reaching into a sibling's CSS module. */
+
+.bucketList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.bucketRow {
+  display: grid;
+  grid-template-columns: 160px 1fr auto;
+  align-items: center;
+  gap: var(--space-md);
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 50ms);
+}
+
+.bucketLabel {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--muted);
+  letter-spacing: var(--tracking-stat);
+  text-transform: lowercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bucketTrack {
+  height: 16px;
+  background: var(--ghost);
+  border-radius: var(--radius-2xs);
+  overflow: hidden;
+}
+
+.bucketFill {
+  height: 100%;
+  opacity: var(--opacity-bar-fill);
+  transition: width 0.4s var(--motion);
+  border-radius: var(--radius-2xs);
+}
+
+.bucketValue {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.bucketValueSoft {
+  color: var(--soft);
+  margin-left: 8px;
+}
+
+.bucketFooter {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  margin: 4px 0 0 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dataRow,
+  .bucketRow {
+    animation: none !important;
+  }
+  .daysStrip::after,
+  .bucketFill {
+    transition: none !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .dataRow {
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+    grid-template-rows: auto auto;
+    gap: 4px var(--space-md);
+  }
+  .dataName {
+    grid-column: 1 / -1;
+  }
+  .daysStrip {
+    grid-column: 1 / 2;
+  }
+  .dataMeta {
+    grid-column: 2 / 3;
+  }
+  .bucketRow {
+    grid-template-columns: 110px 1fr auto;
+  }
+}

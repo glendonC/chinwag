@@ -153,6 +153,12 @@ function ProjectsWidget({ summaries, liveAgents, selectTeam }: WidgetBodyProps) 
 // answer is "you're alone," not "your tool lacks hooks." Prefer the solo
 // note in that case. Populated state keeps the capability attribution as-is
 // because partial hook coverage does affect the number's interpretation.
+//
+// Typographic hierarchy: `blocked` is the visual hero (heroStatValue,
+// light display 56pt-ish) because prevention is the substrate-unique
+// value, not detection. `detected` demotes to a muted ratio caption
+// ("X of Y collisions blocked before they landed") so the user reads
+// the prevention rate, not parallel parity.
 function ConflictsBlockedWidget({ analytics }: WidgetBodyProps) {
   const cs = analytics.conflict_stats;
   const tools = analytics.data_coverage?.tools_reporting ?? [];
@@ -175,19 +181,25 @@ function ConflictsBlockedWidget({ analytics }: WidgetBodyProps) {
   // prevention trend, which is the daily-aggregate version of the question.
   const dailyBlocks = (cs.daily_blocked ?? []).map((d) => d.blocked);
   const showSparkline = dailyBlocks.length >= SPARKLINE_DAILY_MIN_POINTS;
+  const activeDays = dailyBlocks.filter((d) => d > 0).length;
   return (
     <>
-      <div className={shared.statRow}>
-        <div className={shared.statBlock}>
-          <span className={shared.statBlockValue}>{cs.blocked_period}</span>
-          <span className={shared.statBlockLabel}>blocked</span>
-        </div>
-        <div className={shared.statBlock}>
-          <span className={shared.statBlockValue}>{cs.found_period}</span>
-          <span className={shared.statBlockLabel}>detected</span>
-        </div>
+      <div className={styles.heroBlock}>
+        <span className={shared.heroStatValue}>{cs.blocked_period}</span>
+        <span className={styles.heroSupportFact}>
+          {cs.blocked_period} of {cs.found_period} collisions blocked before they landed
+        </span>
       </div>
-      {showSparkline && <Sparkline data={dailyBlocks} height={24} />}
+      {showSparkline ? (
+        <>
+          <Sparkline data={dailyBlocks} height={24} />
+          <div className={styles.sparklineCaption}>
+            blocked across {activeDays} active {activeDays === 1 ? 'day' : 'days'}
+          </div>
+        </>
+      ) : (
+        <div className={styles.sparklineCaption}>single-day window — trend needs 2+ days</div>
+      )}
       <CoverageNote text={note} />
     </>
   );
@@ -201,6 +213,12 @@ function ConflictsBlockedWidget({ analytics }: WidgetBodyProps) {
 // no IDE produces. Detail questions: overlap rate by directory, period
 // trend, average agents-per-file in overlap subset, claim coverage of
 // overlap files (when auto-claim ships), tool-pair contribution.
+//
+// Hero is the rate (overlapping/total as %). The §10 #4-adjacent guardrail:
+// NO tone color on the hero — high overlap isn't inherently bad (paired
+// work) and low overlap isn't inherently good (silos), so it stays
+// var(--ink) via the shared heroStatValue class. Raw counts demote to a
+// muted supporting fact beneath ("47 of 380 files").
 function FileOverlapWidget({ analytics }: WidgetBodyProps) {
   const fo = analytics.file_overlap;
   const solo = isSoloTeam(analytics);
@@ -222,16 +240,13 @@ function FileOverlapWidget({ analytics }: WidgetBodyProps) {
       </>
     );
   }
+  const overlapRate = Math.round((fo.overlapping_files / fo.total_files) * 100);
   return (
-    <div className={shared.statRow}>
-      <div className={shared.statBlock}>
-        <span className={shared.statBlockValue}>{fo.overlapping_files}</span>
-        <span className={shared.statBlockLabel}>shared files</span>
-      </div>
-      <div className={shared.statBlock}>
-        <span className={shared.statBlockValue}>{fo.total_files}</span>
-        <span className={shared.statBlockLabel}>total files</span>
-      </div>
+    <div className={styles.heroBlock}>
+      <span className={shared.heroStatValue}>{overlapRate}%</span>
+      <span className={styles.heroSupportFact}>
+        {fo.overlapping_files.toLocaleString()} of {fo.total_files.toLocaleString()} files
+      </span>
     </div>
   );
 }

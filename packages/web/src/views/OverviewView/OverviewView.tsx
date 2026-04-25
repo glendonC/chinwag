@@ -64,6 +64,10 @@ import { getDemoData } from '../../lib/demo/index.js';
 import LiveNowView from './LiveNowView.js';
 import UsageDetailView from './UsageDetailView.js';
 import OutcomesDetailView from './OutcomesDetailView.js';
+import ActivityDetailView from './ActivityDetailView.js';
+import CodebaseDetailView from './CodebaseDetailView.js';
+import ToolsDetailView from './ToolsDetailView.js';
+import MemoryDetailView from './MemoryDetailView.js';
 import { RANGES, type RangeDays, summarizeNames } from './overview-utils.js';
 import { useOverviewLayout } from './useOverviewLayout.js';
 import { useProjectFilter } from './useProjectFilter.js';
@@ -280,6 +284,26 @@ export default function OverviewView() {
   const outcomes = useDetailDrill('outcomes');
   const outcomesShifted = outcomes.shifted;
 
+  // Activity Detail — same pattern. Tabs: rhythm / mix / effective-hours.
+  const activity = useDetailDrill('activity');
+  const activityShifted = activity.shifted;
+
+  // Codebase Detail — same pattern. Tabs: landscape / directories / risk / commits.
+  const codebase = useDetailDrill('codebase');
+  const codebaseShifted = codebase.shifted;
+
+  // Tools Detail — same pattern. Tabs: tools / flow / errors.
+  const tools = useDetailDrill('tools');
+  const toolsShifted = tools.shifted;
+
+  // Memory Detail — same pattern. Tabs: health / freshness / cross-tool /
+  // authorship / hygiene. Memory mixes three time scopes on one surface
+  // (live + period + all-time); the detail view renders an explicit
+  // ScopeChip per tab so readers know which clock the numbers below
+  // answer to.
+  const memory = useDetailDrill('memory');
+  const memoryShifted = memory.shifted;
+
   // Escape closes whichever detail view is open. Collapsing to a single
   // active close handler keeps one listener regardless of how many
   // drill-ins exist; adding a new category extends the chain by one line.
@@ -289,7 +313,15 @@ export default function OverviewView() {
       ? usage.close
       : outcomesShifted
         ? outcomes.close
-        : null;
+        : activityShifted
+          ? activity.close
+          : codebaseShifted
+            ? codebase.close
+            : toolsShifted
+              ? tools.close
+              : memoryShifted
+                ? memory.close
+                : null;
   useEffect(() => {
     if (!activeClose) return;
     const onKey = (e: KeyboardEvent) => {
@@ -507,7 +539,17 @@ export default function OverviewView() {
   // Per-widget resize/remove lives on the hover kebab, so there is no
   // global rearrange mode and no `r` / `Escape` handling for it here.
   useEffect(() => {
-    if (isMobile || liveShifted || usageShifted || outcomesShifted) return;
+    if (
+      isMobile ||
+      liveShifted ||
+      usageShifted ||
+      outcomesShifted ||
+      activityShifted ||
+      codebaseShifted ||
+      toolsShifted ||
+      memoryShifted
+    )
+      return;
     const handler = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
       const target = e.target as HTMLElement | null;
@@ -523,7 +565,16 @@ export default function OverviewView() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isMobile, liveShifted, usageShifted, outcomesShifted]);
+  }, [
+    isMobile,
+    liveShifted,
+    usageShifted,
+    outcomesShifted,
+    activityShifted,
+    codebaseShifted,
+    toolsShifted,
+    memoryShifted,
+  ]);
 
   // ── Guards ──────────────────────────────────────
   const isLoading = !dashboardData && (dashboardStatus === 'idle' || dashboardStatus === 'loading');
@@ -641,6 +692,38 @@ export default function OverviewView() {
             analytics={analytics}
             initialTab={outcomes.param}
             onBack={outcomes.close}
+            rangeDays={rangeDays}
+            onRangeChange={setRangeDays}
+          />
+        ) : activityShifted ? (
+          <ActivityDetailView
+            analytics={analytics}
+            initialTab={activity.param}
+            onBack={activity.close}
+            rangeDays={rangeDays}
+            onRangeChange={setRangeDays}
+          />
+        ) : codebaseShifted ? (
+          <CodebaseDetailView
+            analytics={analytics}
+            initialTab={codebase.param}
+            onBack={codebase.close}
+            rangeDays={rangeDays}
+            onRangeChange={setRangeDays}
+          />
+        ) : toolsShifted ? (
+          <ToolsDetailView
+            analytics={analytics}
+            initialTab={tools.param}
+            onBack={tools.close}
+            rangeDays={rangeDays}
+            onRangeChange={setRangeDays}
+          />
+        ) : memoryShifted ? (
+          <MemoryDetailView
+            analytics={analytics}
+            initialTab={memory.param}
+            onBack={memory.close}
             rangeDays={rangeDays}
             onRangeChange={setRangeDays}
           />

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import TrueShareBars, { type TrueShareEntry } from './TrueShareBars.js';
+import TrueShareBars, { type TrueShareEntry } from '../compare/TrueShareBars.js';
 import { workTypeColor } from '../../../widgets/utils.js';
 import styles from './FileHeatgrid.module.css';
 

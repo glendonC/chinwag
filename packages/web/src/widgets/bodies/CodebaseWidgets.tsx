@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import SectionEmpty from '../../components/SectionEmpty/SectionEmpty.js';
+import FileFrictionRow from '../../components/viz/file/FileFrictionRow.js';
 import styles from '../widget-shared.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
 import {
@@ -8,6 +9,8 @@ import {
   GhostBars,
   GhostRows,
   GhostStatRow,
+  MoreHidden,
+  isSoloTeam,
 } from './shared.js';
 
 // Color the per-file/directory completion rate so a top-of-list entry with a
@@ -122,105 +125,136 @@ function FilesWidget({ analytics }: WidgetBodyProps) {
   );
 }
 
-// Rework ratio severity. Flat danger on every row trains the eye to ignore
-// the color — if every entry is red, the color carries no signal. Gradient
-// preserves the "this is a real problem" vs "this is mildly interesting"
-// distinction:
+// Rework ratio severity. Bicolor split — file-friction rows already carry a
+// dimmed track behind a tinted fill, so the canonical ramp is warn → danger
+// at the 50% inflection (majority of edits sat inside failing sessions).
+// Below 50% reads as "real signal but not alarm"; the FileFrictionRow's
+// dimmed meta carries the precise ratio.
 //   ≥50% → danger (majority of edits failed; high-signal refactor target)
-//   25–49% → warn
-//   <25%  → muted (still on the list because of the query floor, but not alarm)
+//   <50% → warn
 function reworkSeverityColor(ratio: number): string {
-  if (ratio >= 50) return 'var(--danger)';
-  if (ratio >= 25) return 'var(--warn)';
-  return 'var(--muted)';
+  return ratio >= 50 ? 'var(--danger)' : 'var(--warn)';
 }
 
 // Note on the metric: `rework_ratio` (kept as the schema field name for back-
 // compat) measures share of this file's edits that occurred inside sessions
 // that later ended abandoned or failed. It is NOT edit-level retry — a clean
 // edit on a file inside a session that gave up on a different file still
-// counts here. The user-facing framing now says "in failed sessions" so the
+// counts here. The user-facing framing now says "in failing sessions" so the
 // label matches the math; description elaborates.
+const FILE_REWORK_VISIBLE = 10;
 function FileReworkWidget({ analytics }: WidgetBodyProps) {
   const fr = analytics.file_rework;
   if (fr.length === 0) return <GhostRows count={3} />;
+  const visible = fr.slice(0, FILE_REWORK_VISIBLE);
+  const hidden = fr.length - visible.length;
   return (
-    <div className={styles.dataList}>
-      {fr.slice(0, 10).map((f, i) => (
-        <div key={f.file} className={styles.dataRow} style={{ '--row-index': i } as CSSProperties}>
-          <span className={styles.dataName} title={f.file}>
-            {f.file.split('/').slice(-2).join('/')}
-          </span>
-          <div className={styles.dataMeta}>
-            <span className={styles.dataStat}>
-              <span
-                className={styles.dataStatValue}
-                style={{ color: reworkSeverityColor(f.rework_ratio) }}
-              >
-                {f.rework_ratio}%
-              </span>{' '}
-              in failed sessions
-            </span>
-            <span className={styles.dataStat}>
-              <span className={styles.dataStatValue}>
-                {f.failed_edits}/{f.total_edits}
-              </span>{' '}
-              edits
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
+    <>
+      <div className={styles.dataList}>
+        {visible.map((f, i) => (
+          <FileFrictionRow
+            key={f.file}
+            index={i}
+            label={f.file.split('/').slice(-2).join('/')}
+            title={f.file}
+            barFill={f.rework_ratio / 100}
+            barColor={reworkSeverityColor(f.rework_ratio)}
+            meta={
+              <>
+                {f.rework_ratio}% in failing sessions · {f.failed_edits}/{f.total_edits} edits
+              </>
+            }
+          />
+        ))}
+      </div>
+      <MoreHidden count={hidden} />
+    </>
   );
 }
 
+// Cold-directory severity by days_since. Old/cold isn't a hard failure
+// (--danger would over-alarm); it's a candidate for pruning or
+// re-ownership. Three-tier ramp keeps the color carrying signal:
+//   14–29d → soft (recently quiet)
+//   30–59d → warn (drifting)
+//   60d+   → ghost (effectively abandoned in this window)
+function stalenessSeverityColor(days: number): string {
+  if (days >= 60) return 'var(--ghost)';
+  if (days >= 30) return 'var(--warn)';
+  return 'var(--soft)';
+}
+
+const AUDIT_STALENESS_VISIBLE = 10;
 function AuditStalenessWidget({ analytics }: WidgetBodyProps) {
   const as_ = analytics.audit_staleness;
   if (as_.length === 0) return <SectionEmpty>No stale directories</SectionEmpty>;
+  const visible = as_.slice(0, AUDIT_STALENESS_VISIBLE);
+  const hidden = as_.length - visible.length;
   return (
-    <div className={styles.dataList}>
-      {as_.slice(0, 10).map((d, i) => (
-        <div
-          key={d.directory}
-          className={styles.dataRow}
-          style={{ '--row-index': i } as CSSProperties}
-        >
-          <span className={styles.dataName}>{d.directory}</span>
-          <div className={styles.dataMeta}>
-            <span className={styles.dataStat}>
-              <span className={styles.dataStatValue}>{d.days_since}d</span> ago
-            </span>
-            <span className={styles.dataStat}>
-              <span className={styles.dataStatValue}>{d.prior_edit_count}</span> prior edits
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
+    <>
+      <div className={styles.dataList}>
+        {visible.map((d, i) => (
+          <FileFrictionRow
+            key={d.directory}
+            index={i}
+            label={d.directory}
+            title={d.directory}
+            barFill={Math.min(d.days_since / 90, 1)}
+            barColor={stalenessSeverityColor(d.days_since)}
+            meta={
+              <>
+                {d.days_since}d since · {d.prior_edit_count} prior edits
+              </>
+            }
+          />
+        ))}
+      </div>
+      <MoreHidden count={hidden} />
+    </>
   );
 }
 
+const CONCURRENT_EDITS_VISIBLE = 10;
 function ConcurrentEditsWidget({ analytics }: WidgetBodyProps) {
   const ce = analytics.concurrent_edits;
-  if (ce.length === 0) return <SectionEmpty>No concurrent edits detected</SectionEmpty>;
+  if (ce.length === 0) {
+    // Solo-team framing is structurally honest: a single-developer team
+    // can't generate multi-agent edit collisions, so "no data" isn't a gap,
+    // it's the truth. Match the detail-view's collisions empty copy.
+    if (isSoloTeam(analytics)) {
+      return (
+        <SectionEmpty>No multi-agent edits — the team is touching disjoint files.</SectionEmpty>
+      );
+    }
+    return <SectionEmpty>No concurrent edits detected</SectionEmpty>;
+  }
+  const visible = ce.slice(0, CONCURRENT_EDITS_VISIBLE);
+  const hidden = ce.length - visible.length;
+  // Relative scale across the visible set — collisions are coordination
+  // friction, so the bar reads as "how loud is this row vs the loudest
+  // row," not "fraction of some absolute team size."
+  const maxAgents = Math.max(...visible.map((f) => f.agents), 1);
   return (
-    <div className={styles.dataList}>
-      {ce.slice(0, 10).map((f, i) => (
-        <div key={f.file} className={styles.dataRow} style={{ '--row-index': i } as CSSProperties}>
-          <span className={styles.dataName} title={f.file}>
-            {f.file.split('/').slice(-2).join('/')}
-          </span>
-          <div className={styles.dataMeta}>
-            <span className={styles.dataStat}>
-              <span className={styles.dataStatValue}>{f.agents}</span> agents
-            </span>
-            <span className={styles.dataStat}>
-              <span className={styles.dataStatValue}>{f.edit_count}</span> edits
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
+    <>
+      <div className={styles.dataList}>
+        {visible.map((f, i) => (
+          <FileFrictionRow
+            key={f.file}
+            index={i}
+            label={f.file.split('/').slice(-2).join('/')}
+            title={f.file}
+            barFill={f.agents / maxAgents}
+            barColor="var(--warn)"
+            meta={
+              <>
+                {f.agents} agents · {f.edit_count} edits
+              </>
+            }
+          />
+        ))}
+      </div>
+      <MoreHidden count={hidden} />
+    </>
   );
 }
 

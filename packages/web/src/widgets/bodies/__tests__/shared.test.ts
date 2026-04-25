@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hasCostData, costEmptyReason } from './shared.js';
+import { hasCostData, costEmptyReason } from '../shared.js';
 
 // Minimal token_usage fixture — the reliability helpers consume a structural
 // subset of TokenUsageStats, so tests don't need to fill unrelated fields.
