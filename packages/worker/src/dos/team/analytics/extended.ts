@@ -7,7 +7,7 @@ import type {
   OutcomeTagCount,
   ToolHandoff,
 } from '@chinmeister/shared/contracts/analytics.js';
-import { type AnalyticsScope, buildScopeFilter } from './scope.js';
+import { type AnalyticsScope, buildScopeFilter, withScope } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
 
@@ -84,22 +84,24 @@ export function queryHourlyEffectiveness(
   // Hour-of-day is local to the caller. With tzOffsetMinutes=0 the buckets
   // are UTC hours; with a signed offset they reflect the user's local hours.
   try {
-    const f = buildScopeFilter(scope);
-    const rows = sql
-      .exec(
-        `SELECT
+    const { sql: q, params } = withScope(
+      `SELECT
            CAST(strftime('%H', datetime(started_at, ? || ' minutes')) AS INTEGER) AS hour,
            COUNT(*) AS sessions,
            ROUND(CAST(SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
              / NULLIF(COUNT(*), 0) * 100, 1) AS completion_rate,
            ROUND(AVG(edit_count), 1) AS avg_edits
          FROM sessions
-         WHERE started_at > datetime('now', '-' || ? || ' days')${f.sql}
+         WHERE started_at > datetime('now', '-' || ? || ' days')`,
+      [tzOffsetMinutes, days],
+      scope,
+    );
+    const rows = sql
+      .exec(
+        `${q}
          GROUP BY hour
          ORDER BY hour`,
-        tzOffsetMinutes,
-        days,
-        ...f.params,
+        ...params,
       )
       .toArray();
 
@@ -124,21 +126,24 @@ export function queryOutcomeTags(
   days: number,
 ): OutcomeTagCount[] {
   try {
-    const f = buildScopeFilter(scope);
-    const rows = sql
-      .exec(
-        `SELECT
+    const { sql: q, params } = withScope(
+      `SELECT
            value AS tag,
            COALESCE(outcome, 'unknown') AS outcome,
            COUNT(*) AS count
          FROM sessions, json_each(sessions.outcome_tags)
          WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND outcome_tags != '[]'${f.sql}
+           AND outcome_tags != '[]'`,
+      [days],
+      scope,
+    );
+    const rows = sql
+      .exec(
+        `${q}
          GROUP BY tag, outcome
          ORDER BY count DESC
          LIMIT 30`,
-        days,
-        ...f.params,
+        ...params,
       )
       .toArray();
 
