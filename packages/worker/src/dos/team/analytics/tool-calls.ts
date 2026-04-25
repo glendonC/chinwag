@@ -8,6 +8,7 @@ import type {
   ToolCallErrorPattern,
   ToolCallTimeline,
 } from '@chinmeister/shared/contracts/analytics.js';
+import { row, rows } from '../../../lib/row.js';
 import { type AnalyticsScope, withScope } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
@@ -44,15 +45,13 @@ export function queryToolCallStats(
       [days],
       scope,
     );
-    const totalsRow = sql.exec(totalsQ, ...totalsP).toArray()[0] as
-      | Record<string, unknown>
-      | undefined;
+    const totalsRow = row(sql.exec(totalsQ, ...totalsP).toArray()[0]);
 
-    if (!totalsRow || (totalsRow.total_calls as number) === 0) return empty;
+    if (totalsRow.number('total_calls') === 0) return empty;
 
-    const totalCalls = (totalsRow.total_calls as number) || 0;
-    const totalErrors = (totalsRow.total_errors as number) || 0;
-    const distinctSessions = (totalsRow.distinct_sessions as number) || 1;
+    const totalCalls = totalsRow.number('total_calls');
+    const totalErrors = totalsRow.number('total_errors');
+    const distinctSessions = totalsRow.number('distinct_sessions') || 1;
 
     // Research-to-edit ratio. Tool lists come from the shared classifier
     // in packages/shared/tool-call-categories.ts — do not hardcode here.
@@ -67,12 +66,10 @@ export function queryToolCallStats(
       [days],
       scope,
     );
-    const ratioRow = sql.exec(ratioQ, ...ratioP).toArray()[0] as
-      | Record<string, unknown>
-      | undefined;
+    const ratioRow = row(sql.exec(ratioQ, ...ratioP).toArray()[0]);
 
-    const researchCount = (ratioRow?.research as number) || 0;
-    const editCount = (ratioRow?.edits as number) || 0;
+    const researchCount = ratioRow.number('research');
+    const editCount = ratioRow.number('edits');
 
     // Per-tool frequency
     const { sql: freqQ, params: freqP } = withScope(
@@ -96,17 +93,16 @@ export function queryToolCallStats(
       )
       .toArray();
 
-    const frequency: ToolCallFrequency[] = freqRows.map((r) => {
-      const row = r as Record<string, unknown>;
-      const calls = (row.calls as number) || 0;
-      const errors = (row.errors as number) || 0;
+    const frequency: ToolCallFrequency[] = rows<ToolCallFrequency>(freqRows, (r) => {
+      const calls = r.number('calls');
+      const errors = r.number('errors');
       return {
-        tool: row.tool as string,
+        tool: r.string('tool'),
         calls,
         errors,
         error_rate: calls > 0 ? Math.round((errors / calls) * 10000) / 100 : 0,
-        avg_duration_ms: (row.avg_duration_ms as number) || 0,
-        sessions: (row.sessions as number) || 0,
+        avg_duration_ms: r.number('avg_duration_ms'),
+        sessions: r.number('sessions'),
       };
     });
 
@@ -133,15 +129,12 @@ export function queryToolCallStats(
       )
       .toArray();
 
-    const error_patterns: ToolCallErrorPattern[] = errorRows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        tool: row.tool as string,
-        error_preview: row.error_preview as string,
-        count: (row.count as number) || 0,
-        last_at: (row.last_at as string) || null,
-      };
-    });
+    const error_patterns: ToolCallErrorPattern[] = rows<ToolCallErrorPattern>(errorRows, (r) => ({
+      tool: r.string('tool'),
+      error_preview: r.string('error_preview'),
+      count: r.number('count'),
+      last_at: r.nullableString('last_at'),
+    }));
 
     // Hourly activity, bucketed in the caller's local TZ.
     const { sql: hourlyQ, params: hourlyP } = withScope(
@@ -162,14 +155,11 @@ export function queryToolCallStats(
       )
       .toArray();
 
-    const hourly_activity: ToolCallTimeline[] = hourlyRows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        hour: (row.hour as number) || 0,
-        calls: (row.calls as number) || 0,
-        errors: (row.errors as number) || 0,
-      };
-    });
+    const hourly_activity: ToolCallTimeline[] = rows<ToolCallTimeline>(hourlyRows, (r) => ({
+      hour: r.number('hour'),
+      calls: r.number('calls'),
+      errors: r.number('errors'),
+    }));
 
     // One-shot success rate: sessions where edits worked without retry cycles.
     // A retry = Edit→Bash→Edit pattern (edit, test, re-edit).
@@ -191,11 +181,11 @@ export function queryToolCallStats(
         .toArray();
 
       const bySession = new Map<string, string[]>();
-      for (const row of sessionCalls) {
-        const r = row as Record<string, unknown>;
-        const sid = r.session_id as string;
+      for (const raw of sessionCalls) {
+        const r = row(raw);
+        const sid = r.string('session_id');
         if (!bySession.has(sid)) bySession.set(sid, []);
-        bySession.get(sid)!.push(r.tool as string);
+        bySession.get(sid)!.push(r.string('tool'));
       }
 
       for (const tools of bySession.values()) {
@@ -225,7 +215,7 @@ export function queryToolCallStats(
       total_calls: totalCalls,
       total_errors: totalErrors,
       error_rate: totalCalls > 0 ? Math.round((totalErrors / totalCalls) * 10000) / 100 : 0,
-      avg_duration_ms: (totalsRow.avg_duration_ms as number) || 0,
+      avg_duration_ms: totalsRow.number('avg_duration_ms'),
       calls_per_session: Math.round((totalCalls / distinctSessions) * 10) / 10,
       research_to_edit_ratio: editCount > 0 ? Math.round((researchCount / editCount) * 10) / 10 : 0,
       one_shot_rate:

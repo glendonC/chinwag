@@ -5,6 +5,7 @@ import type {
   MemberAnalytics,
   MemberDailyLineTrend,
 } from '@chinmeister/shared/contracts/analytics.js';
+import { row, rows } from '../../../lib/row.js';
 import { type AnalyticsScope } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
@@ -16,7 +17,7 @@ const log = createLogger('TeamDO.analytics');
 export function queryMemberCount(sql: SqlStorage, _scope: AnalyticsScope, days: number): number {
   try {
     // Scope intentionally ignored — this metric is cross-member by design (team cohort view).
-    const rows = sql
+    const countRows = sql
       .exec(
         `SELECT COUNT(DISTINCT handle) AS total
          FROM sessions
@@ -25,8 +26,7 @@ export function queryMemberCount(sql: SqlStorage, _scope: AnalyticsScope, days: 
         days,
       )
       .toArray();
-    const row = rows[0] as Record<string, unknown> | undefined;
-    return (row?.total as number) || 0;
+    return row(countRows[0]).number('total');
   } catch (err) {
     log.warn(`memberCount query failed: ${err}`);
     return 0;
@@ -42,7 +42,7 @@ export function queryMemberAnalytics(
     // Scope intentionally ignored — this metric is cross-member by design (team cohort view).
     // Audit 2026-04-21: SQL trimmed to the fields the contract still carries.
     // See memberAnalyticsSchema for the list of dropped fields and rationale.
-    const rows = sql
+    const memberRows = sql
       .exec(
         `SELECT
            handle,
@@ -81,22 +81,21 @@ export function queryMemberAnalytics(
 
     const primaryTools = new Map<string, string>();
     for (const t of toolRows) {
-      const row = t as Record<string, unknown>;
-      const h = row.handle as string;
-      if (!primaryTools.has(h)) primaryTools.set(h, row.host_tool as string);
+      const r = row(t);
+      const h = r.string('handle');
+      if (!primaryTools.has(h)) primaryTools.set(h, r.string('host_tool'));
     }
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      const handle = row.handle as string;
+    return rows<MemberAnalytics>(memberRows, (r) => {
+      const handle = r.string('handle');
       return {
         handle,
-        sessions: (row.sessions as number) || 0,
-        completed: (row.completed as number) || 0,
-        completion_rate: (row.completion_rate as number) || 0,
-        total_edits: (row.total_edits as number) || 0,
+        sessions: r.number('sessions'),
+        completed: r.number('completed'),
+        completion_rate: r.number('completion_rate'),
+        total_edits: r.number('total_edits'),
         primary_tool: primaryTools.get(handle) || null,
-        total_session_hours: (row.total_session_hours as number) || 0,
+        total_session_hours: r.number('total_session_hours'),
       };
     });
   } catch (err) {
@@ -117,7 +116,7 @@ export function queryMemberDailyLines(
 ): MemberDailyLineTrend[] {
   try {
     // Scope intentionally ignored — this metric is cross-member by design (team cohort view).
-    const rows = sql
+    const dailyRows = sql
       .exec(
         `WITH RECURSIVE spine(day) AS (
            SELECT date('now', '-' || ? || ' days')
@@ -151,17 +150,14 @@ export function queryMemberDailyLines(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        handle: row.handle as string,
-        day: row.day as string,
-        sessions: (row.sessions as number) || 0,
-        edits: (row.edits as number) || 0,
-        lines_added: (row.lines_added as number) || 0,
-        lines_removed: (row.lines_removed as number) || 0,
-      };
-    });
+    return rows<MemberDailyLineTrend>(dailyRows, (r) => ({
+      handle: r.string('handle'),
+      day: r.string('day'),
+      sessions: r.number('sessions'),
+      edits: r.number('edits'),
+      lines_added: r.number('lines_added'),
+      lines_removed: r.number('lines_removed'),
+    }));
   } catch (err) {
     log.warn(`memberDailyLines query failed: ${err}`);
     return [];
