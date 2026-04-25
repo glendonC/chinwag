@@ -119,3 +119,56 @@ export function buildScopeWhere(
 export function isScoped(scope: AnalyticsScope): boolean {
   return Boolean(scope.handle);
 }
+
+/**
+ * Compose a base query + base params with a scope filter in one call.
+ * Returns `{ sql, params }` already merged so callers cannot forget the
+ * param spread, the silent-bypass failure mode that motivated the audit.
+ *
+ * Usage:
+ *
+ *   const { sql: q, params } = withScope(
+ *     `SELECT COUNT(*) AS cnt FROM sessions WHERE ended_at > datetime('now', '-' || ? || ' days')`,
+ *     [days],
+ *     scope,
+ *   );
+ *   const row = sql.exec(q, ...params).one();
+ *
+ * Equivalent to the manual `buildScopeFilter` + concat dance, just with
+ * one call site for both halves so they cannot drift.
+ *
+ * For multi-filter queries (different handleColumn aliases in the same
+ * statement, e.g. joined tables), call `buildScopeFilter` per alias and
+ * concat manually. `withScope` is the safe path for the common single-
+ * filter case (~80% of analytics queries).
+ */
+export function withScope(
+  baseQuery: string,
+  baseParams: readonly unknown[],
+  scope: AnalyticsScope = {},
+  options: ScopeOptions = {},
+): { sql: string; params: unknown[] } {
+  const fragment = buildScopeFilter(scope, options);
+  return {
+    sql: baseQuery + fragment.sql,
+    params: [...baseParams, ...fragment.params],
+  };
+}
+
+/**
+ * `withScope` for queries that build their WHERE clause from scratch.
+ * Appends ` WHERE ...` when the scope is non-empty, otherwise leaves the
+ * base query untouched.
+ */
+export function withScopeWhere(
+  baseQuery: string,
+  baseParams: readonly unknown[],
+  scope: AnalyticsScope = {},
+  options: ScopeOptions = {},
+): { sql: string; params: unknown[] } {
+  const fragment = buildScopeWhere(scope, options);
+  return {
+    sql: baseQuery + fragment.sql,
+    params: [...baseParams, ...fragment.params],
+  };
+}
