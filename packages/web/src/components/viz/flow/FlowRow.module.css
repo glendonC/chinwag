@@ -1,0 +1,139 @@
+/* Paired tool-icon row with twin micro-bars beneath. Used by Memory's
+ * cross-tool-flow widget body and by the upcoming Tools handoff strip.
+ * Two-line read: "[from] → [to]" on top, [bars] beneath. */
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 4px;
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
+}
+
+.row + .row {
+  border-top: 1px solid var(--ghost);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--sans);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  letter-spacing: -0.005em;
+}
+
+.endpoint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.connector {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--soft);
+  /* Connector opacity is set inline as --connector-opacity so the caller
+   * can scale it by the primary bar's strength without our CSS having to
+   * know which bar carries the dominant signal. */
+  opacity: var(--connector-opacity, 0.45);
+}
+
+.meta {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.bars {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 8px 18px;
+  padding-left: 18px;
+}
+
+.bar {
+  display: grid;
+  grid-template-columns: minmax(0, 80px) minmax(0, 1fr) minmax(0, auto);
+  align-items: center;
+  gap: 8px;
+}
+
+.barLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.barTrack {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--hover-bg);
+  overflow: hidden;
+  min-width: 0;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s var(--motion);
+}
+
+.barValue {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row {
+    animation: none;
+  }
+  .barFill {
+    transition: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .bars {
+    padding-left: 0;
+  }
+  .bar {
+    grid-template-columns: minmax(0, 60px) minmax(0, 1fr) minmax(0, auto);
+    gap: 6px;
+  }
+}

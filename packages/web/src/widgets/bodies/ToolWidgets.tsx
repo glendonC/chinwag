@@ -1,27 +1,47 @@
 import { useMemo, type CSSProperties } from 'react';
 import SectionEmpty from '../../components/SectionEmpty/SectionEmpty.js';
-import { aggregateModels, getToolDepth } from '../utils.js';
+import { aggregateModels, completionColor } from '../utils.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
-import { navigateToTool } from '../../lib/router.js';
 import { formatRelativeTime } from '../../lib/relativeTime.js';
+import { getDataCapabilities, type DataCapabilities } from '@chinmeister/shared/tool-registry.js';
 import type { TokenUsageStats, UserAnalytics } from '../../lib/apiSchemas.js';
 import shared from '../widget-shared.module.css';
 import styles from './ToolWidgets.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
 import { GhostRows, CoverageNote, capabilityCoverageNote } from './shared.js';
 
-function ToolDepthBars({ toolId }: { toolId: string }) {
-  const { level, label } = getToolDepth(toolId);
+// Capability pills — the substrate-unique "what can each tool answer" affordance
+// rendered inline on each tool card. Order is fixed so the eye learns column
+// positions across rows; bright = present, dim = absent. No tooltip required —
+// the label is the affordance.
+type CapabilityPillKey = 'hooks' | 'tokens' | 'tool-calls' | 'commits' | 'conversations';
+const CAPABILITY_PILLS: ReadonlyArray<{ key: CapabilityPillKey; cap: keyof DataCapabilities }> = [
+  { key: 'hooks', cap: 'hooks' },
+  { key: 'tokens', cap: 'tokenUsage' },
+  { key: 'tool-calls', cap: 'toolCallLogs' },
+  { key: 'commits', cap: 'commitTracking' },
+  { key: 'conversations', cap: 'conversationLogs' },
+];
+
+function ToolCapabilityPills({ toolId }: { toolId: string }) {
+  const caps = getDataCapabilities(toolId);
   return (
-    <span className={styles.toolDepthBars} title={label}>
-      {[1, 2, 3].map((i) => (
-        <span
-          key={i}
-          className={styles.depthBar}
-          style={{ height: `${i * 4}px`, opacity: i <= level ? 0.8 : 0.15 }}
-        />
-      ))}
-    </span>
+    <div className={styles.capabilityPills} aria-label="Data capabilities">
+      {CAPABILITY_PILLS.map(({ key, cap }) => {
+        const present = caps[cap] === true;
+        return (
+          <span
+            key={key}
+            className={`${styles.capabilityPill} ${
+              present ? styles.capabilityPillOn : styles.capabilityPillOff
+            }`}
+            aria-label={`${key}: ${present ? 'available' : 'not available'}`}
+          >
+            {key}
+          </span>
+        );
+      })}
+    </div>
   );
 }
 
@@ -35,42 +55,41 @@ function ToolsWidget({ analytics }: WidgetBodyProps) {
       {tools.map((t, i) => {
         const meta = getToolMeta(t.host_tool);
         return (
-          <button
+          <div
             key={t.host_tool}
-            type="button"
             className={styles.factualItem}
             style={{ '--row-index': i } as CSSProperties}
-            onClick={() => navigateToTool(t.host_tool)}
-            aria-label={`View ${meta.label} details`}
           >
-            {meta.icon ? (
-              <span className={styles.toolIcon}>
-                <img src={meta.icon} alt="" />
-              </span>
-            ) : (
-              <span
-                className={styles.toolIconLetter}
-                style={{ '--tool-brand': meta.color } as CSSProperties}
-              >
-                {meta.label[0]}
-              </span>
-            )}
-            <div className={styles.factualBody}>
-              <span className={styles.factualLabel}>{meta.label}</span>
-              <div className={styles.factualMeta}>
-                <span className={styles.factualMetaValue}>{t.sessions}</span> sessions ·{' '}
-                <span className={styles.factualMetaValue}>{t.total_edits.toLocaleString()}</span>{' '}
-                edits
-                {t.completion_rate > 0 && (
-                  <>
-                    {' '}
-                    · <span className={styles.factualMetaValue}>{t.completion_rate}%</span>
-                  </>
-                )}
+            <div className={styles.factualHead}>
+              {meta.icon ? (
+                <span className={styles.toolIcon}>
+                  <img src={meta.icon} alt="" />
+                </span>
+              ) : (
+                <span
+                  className={styles.toolIconLetter}
+                  style={{ '--tool-brand': meta.color } as CSSProperties}
+                >
+                  {meta.label[0]}
+                </span>
+              )}
+              <div className={styles.factualBody}>
+                <span className={styles.factualLabel}>{meta.label}</span>
+                <div className={styles.factualMeta}>
+                  <span className={styles.factualMetaValue}>{t.sessions}</span> sessions ·{' '}
+                  <span className={styles.factualMetaValue}>{t.total_edits.toLocaleString()}</span>{' '}
+                  edits
+                  {t.completion_rate > 0 && (
+                    <>
+                      {' '}
+                      · <span className={styles.factualMetaValue}>{t.completion_rate}%</span>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
-            <ToolDepthBars toolId={t.host_tool} />
-          </button>
+            <ToolCapabilityPills toolId={t.host_tool} />
+          </div>
         );
       })}
     </div>
@@ -146,6 +165,26 @@ function ModelsList({ modelOutcomes }: { modelOutcomes: UserAnalytics['model_out
   );
 }
 
+function ToolHandoffIcon({ toolId }: { toolId: string }) {
+  const meta = getToolMeta(toolId);
+  if (meta.icon) {
+    return (
+      <span className={styles.handoffIcon} aria-hidden="true">
+        <img src={meta.icon} alt="" />
+      </span>
+    );
+  }
+  return (
+    <span
+      className={styles.handoffIconLetter}
+      style={{ '--tool-brand': meta.color } as CSSProperties}
+      aria-hidden="true"
+    >
+      {meta.label[0]}
+    </span>
+  );
+}
+
 function ToolHandoffsWidget({ analytics }: WidgetBodyProps) {
   const th = analytics.tool_handoffs;
   if (th.length === 0) {
@@ -159,27 +198,52 @@ function ToolHandoffsWidget({ analytics }: WidgetBodyProps) {
         : 'No cross-tool handoffs yet — agents are staying within one tool.';
     return <SectionEmpty>{message}</SectionEmpty>;
   }
+  // Substrate-unique signal: render each pair as a flow strip with the
+  // connector line thickness scaled to file count and color tinted by
+  // completion. This is the visual that makes "agents hand files between
+  // tools" legible at a glance — the list shape buried it.
+  const rows = th.slice(0, 10);
+  const maxFiles = rows.reduce((m, r) => Math.max(m, r.file_count), 1);
   return (
-    <div className={shared.dataList}>
-      {th.slice(0, 10).map((h, i) => (
-        <div
-          key={`${h.from_tool}-${h.to_tool}`}
-          className={shared.dataRow}
-          style={{ '--row-index': i } as CSSProperties}
-        >
-          <span className={shared.dataName}>
-            {getToolMeta(h.from_tool).label} → {getToolMeta(h.to_tool).label}
-          </span>
-          <div className={shared.dataMeta}>
-            <span className={shared.dataStat}>
-              <span className={shared.dataStatValue}>{h.file_count}</span> files
+    <div className={styles.handoffList}>
+      {rows.map((h, i) => {
+        const fromMeta = getToolMeta(h.from_tool);
+        const toMeta = getToolMeta(h.to_tool);
+        // Map file count to a 1-4px stroke. Even the rarest pair stays
+        // visible at 1px so the row reads as a track, not as missing chrome.
+        const share = Math.max(0, Math.min(1, h.file_count / Math.max(1, maxFiles)));
+        const strokePx = 1 + Math.round(share * 3);
+        const lineColor = completionColor(h.handoff_completion_rate);
+        return (
+          <div
+            key={`${h.from_tool}-${h.to_tool}`}
+            className={styles.handoffRow}
+            style={{ '--row-index': i } as CSSProperties}
+          >
+            <ToolHandoffIcon toolId={h.from_tool} />
+            <span className={styles.handoffEndpoint}>{fromMeta.label}</span>
+            <span
+              className={styles.handoffConnector}
+              style={
+                {
+                  '--handoff-stroke': `${strokePx}px`,
+                  '--handoff-color': lineColor,
+                } as CSSProperties
+              }
+              aria-hidden="true"
+            >
+              <span className={styles.handoffTrack} />
+              <span className={styles.handoffCount}>{h.file_count}</span>
+              <span className={styles.handoffArrow}>→</span>
             </span>
-            <span className={shared.dataStat}>
-              <span className={shared.dataStatValue}>{h.handoff_completion_rate}%</span> completed
+            <span className={styles.handoffEndpoint}>{toMeta.label}</span>
+            <ToolHandoffIcon toolId={h.to_tool} />
+            <span className={styles.handoffRate} style={{ color: lineColor }}>
+              {h.handoff_completion_rate}%
             </span>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -209,26 +273,34 @@ function ToolCallErrorsWidget({ analytics }: WidgetBodyProps) {
     .filter((e) => !byCountKeys.has(`${e.tool}|${e.error_preview}`))
     .slice(0, PANE_CAP);
 
-  const renderRow = (e: (typeof errs)[number], i: number, showRecency: boolean) => (
-    <div
-      key={`${e.tool}-${e.error_preview}-${i}`}
-      className={shared.dataRow}
-      style={{ '--row-index': i } as CSSProperties}
-    >
-      <span className={shared.dataName}>{e.tool}</span>
-      <div className={shared.dataMeta}>
-        <span className={shared.dataStat} style={{ color: 'var(--danger)' }}>
-          <span className={shared.dataStatValue}>{e.count}x</span>
-        </span>
-        {showRecency && e.last_at && (
-          <span className={shared.dataStat}>{formatRelativeTime(e.last_at)}</span>
-        )}
-        <span className={shared.dataStat} style={{ opacity: 0.7, fontSize: 'var(--text-2xs)' }}>
-          {e.error_preview.slice(0, 80)}
-        </span>
+  const renderRow = (e: (typeof errs)[number], i: number, showRecency: boolean) => {
+    const brand = getToolMeta(e.tool).color;
+    return (
+      <div
+        key={`${e.tool}-${e.error_preview}-${i}`}
+        className={`${shared.dataRow} ${styles.errorRow}`}
+        style={
+          {
+            '--row-index': i,
+            '--tool-brand': brand,
+          } as CSSProperties
+        }
+      >
+        <span className={shared.dataName}>{e.tool}</span>
+        <div className={shared.dataMeta}>
+          <span className={shared.dataStat} style={{ color: 'var(--danger)' }}>
+            <span className={shared.dataStatValue}>{e.count}x</span>
+          </span>
+          {showRecency && e.last_at && (
+            <span className={shared.dataStat}>{formatRelativeTime(e.last_at)}</span>
+          )}
+          <span className={shared.dataStat} style={{ opacity: 0.7, fontSize: 'var(--text-2xs)' }}>
+            {e.error_preview.slice(0, 80)}
+          </span>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <>

@@ -2,6 +2,8 @@ import { useEffect, useMemo, type ReactNode } from 'react';
 import clsx from 'clsx';
 import KeyboardHint, { useKeyboardHint } from '../KeyboardHint/KeyboardHint.js';
 import { useVerticalTabKeyboard } from '../../lib/useVerticalTabKeyboard.js';
+import CrossViewLink from './CrossViewLink.js';
+import type { CrossLink } from './crossLinkMap.js';
 import styles from './FocusedDetailView.module.css';
 
 export interface FocusedQuestion {
@@ -19,6 +21,13 @@ export interface FocusedQuestion {
   /** The viz that provides depth/support for the question. Gets the
    *  full remaining width of the main area when selected. */
   children: ReactNode;
+  /** Optional sibling-view drill chips rendered beneath the viz. Use
+   *  this when the question's data has a different lens in another
+   *  detail view (e.g., per-tool sessions live in Tools, not Usage).
+   *  Source from `getCrossLinks()` in `crossLinkMap.ts` so destinations
+   *  stay consistent across views — never hand-roll the chip array
+   *  inside a panel function. */
+  relatedLinks?: CrossLink[];
 }
 
 interface Props {
@@ -75,6 +84,19 @@ export default function FocusedDetailView({ activeId, onSelect, questions }: Pro
          *  attention from the finding. The answer IS the result. */}
         <p className={styles.mainAnswer}>{active.answer}</p>
         <div className={styles.viz}>{active.children}</div>
+        {active.relatedLinks && active.relatedLinks.length > 0 && (
+          <div className={styles.relatedLinks} aria-label="Related views">
+            {active.relatedLinks.map((link) => (
+              <CrossViewLink
+                key={`${link.view}:${link.tab}:${link.q ?? ''}`}
+                label={link.label}
+                view={link.view}
+                tab={link.tab}
+                q={link.q}
+              />
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

@@ -1,0 +1,131 @@
+/* MemoryWidgets-only viz vocabulary.
+ *
+ * Phase 3b density pass: hero stat above aging-curve, busFactor 3-column row
+ * with severity bar, secrets shield always-render. Tokens come from
+ * app.css / tokens.css — never hardcode hex. Classes that already exist in
+ * widget-shared.module.css (dataList/metricBars/statRow) are reused; this
+ * module only carries vocabulary specific to the memory category.
+ */
+
+/* ── memory-aging-curve hero ────────────────────────
+ *
+ * Inline hero share above the proportional bar so a reader scans the
+ * "fresh share" answer in 1s without summing legend rows. Light
+ * typography per the Apple-minimalistic frame; the suffix word is muted
+ * so the percent reads as the load-bearing token. */
+
+.agingHero {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.agingHeroValue {
+  font-family: var(--display);
+  font-size: var(--display-section);
+  font-weight: 200;
+  letter-spacing: var(--display-spacing);
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.agingHeroSuffix {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+}
+
+/* ── memory-bus-factor 3-column row ─────────────────
+ *
+ * Directory / single-author share bar (warn-tinted) / `n/m`. Same shape
+ * as FileFrictionRow but renders inline because the "directory + n/m"
+ * meta carries two values, not the single dimmed-meta blob the file-
+ * friction primitive accepts. Tracks the file-friction visual family
+ * (severity-tinted bar + dimmed meta) without forcing the primitive's
+ * single-meta contract. */
+
+.busRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(80px, 1fr) minmax(0, auto);
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
+}
+
+.busLabel {
+  font-size: var(--text-sm);
+  color: var(--ink);
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.busBarTrack {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--ghost);
+  overflow: hidden;
+  min-width: 0;
+}
+
+.busBarFill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--warn);
+  opacity: 0.85;
+  transition: width 0.4s var(--motion);
+}
+
+.busMeta {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.busMetaValue {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* ── memory-secrets-shield always-render ───────────
+ *
+ * Stat-row variant where the value is always rendered (even when 0)
+ * with token tone control: warn when n>0, ink when 0. The widget can
+ * never look broken-empty — the shield's "0 blocks today" is itself
+ * the readable, honest answer. */
+
+.shieldValueWarn {
+  color: var(--warn);
+}
+
+.shieldValueIdle {
+  color: var(--ink);
+}
+
+.shieldSubline {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  letter-spacing: var(--tracking-stat);
+  margin-top: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .busRow {
+    animation: none !important;
+  }
+  .busBarFill {
+    transition: none !important;
+  }
+}

@@ -1,77 +1,72 @@
-/* ActivityWidgets-only viz: hour×day heatmap.
- * Work-type bar, duration bars, metric bars, stat blocks all live in
- * widget-shared.module.css. */
+/*
+ * Hourly-effectiveness widget (cockpit).
+ *
+ * Mirror (Disposition A) of the `peak-completion` Q in
+ * ActivityDetailView's Effective-hours tab: bar height = sessions
+ * (volume), bar color = completionColor(rate). The rate label sits at
+ * the top of each bar, the hour glyph at the bottom. Y-axis is hidden
+ * intentionally — the twin encoding is the read.
+ *
+ * This module is widget-grade (compact); the detail view's full
+ * peakFrame styling lives in ActivityDetailView.module.css.
+ */
 
-.heatmapWrap {
-  overflow-x: auto;
-}
-
-.heatmapGrid {
-  display: flex;
-  gap: 3px;
-}
-
-.heatmapYLabels {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.heatmapYLabel {
-  font-family: var(--mono);
-  font-size: var(--text-3xs);
-  color: var(--soft);
-  height: 14px;
-  display: flex;
-  align-items: center;
-  letter-spacing: var(--tracking-stat);
-  padding-right: 6px;
-}
-
-.heatmapCols {
-  display: flex;
-  gap: 2px;
-  flex: 1;
-}
-
-.heatmapCol {
+.effFrame {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+}
+
+.effBars {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(16px, 1fr);
+  align-items: end;
+  gap: 4px;
   flex: 1;
-  animation: rowReveal 0.3s var(--motion) both;
-  animation-delay: calc(var(--row-index, 0) * 18ms);
+  min-height: 0;
 }
 
-.heatmapCell {
-  height: 14px;
-  border-radius: 2px;
-  min-width: 4px;
-  transition: opacity 0.15s ease;
+.effColumn {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  align-items: end;
+  gap: 4px;
+  min-width: 0;
 }
 
-.heatmapCell:hover {
-  opacity: 0.7;
-}
-
-.heatmapXLabels {
-  display: flex;
-  gap: 2px;
-  padding-top: 4px;
-  padding-left: 28px;
-}
-
-.heatmapXLabel {
-  flex: 1;
+.effRate {
   font-family: var(--mono);
-  font-size: var(--text-3xs);
+  font-size: var(--text-2xs);
   color: var(--soft);
   letter-spacing: var(--tracking-stat);
   text-align: center;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-@media (max-width: 640px) {
-  .heatmapWrap {
-    overflow-x: auto;
-  }
+.effBar {
+  display: block;
+  width: 100%;
+  height: var(--bar-height);
+  min-height: 6px;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+  opacity: var(--opacity-bar-fill);
+  transition: opacity var(--motion-fast) ease;
+}
+
+.effBar:hover {
+  opacity: 1;
+}
+
+.effHourLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }

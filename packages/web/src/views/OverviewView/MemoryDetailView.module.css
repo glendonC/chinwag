@@ -1,0 +1,283 @@
+/* MemoryDetailView — substrate-axis on living team memory.
+ *
+ * Densest detail view (5 tabs) and the only one that mixes time scopes
+ * (live + period + all-time) on a single picker. This module owns the
+ * scope-row chrome at the top of every tab plus the bespoke aging
+ * frame, accumulation strip, and flow list wrappers. HeroStatRow,
+ * DotMatrix, TrueShareBars, BreakdownList, FlowRow, and DirectoryColumns
+ * are all consumed from `components/DetailView/viz/`.
+ */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.empty {
+  display: block;
+  padding: var(--space-lg) 0;
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+}
+
+/* ── Scope row ────────────────────────────────────────
+ * Pinned above each tab's FocusedDetailView. Memory is the only detail
+ * view that mixes time scopes on one surface; the chip + label answer
+ * "which clock does this section run on" without requiring prose. */
+
+.scopeRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: var(--space-xs);
+}
+
+.scopeLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: lowercase;
+}
+
+/* ── Coverage caption ─────────────────────────────────
+ * Inline alternative to widget-shared `.coverageNote` for cases where
+ * the note hangs off a viz inside FocusedDetailView (which already has
+ * its own gap spacing). Same muted treatment, stripped pinning. */
+
+.coverageNote {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  margin: 8px 0 0 0;
+  line-height: 1.6;
+}
+
+/* ── Stat row + block (lifted from widget-shared) ─────
+ * Same shape as the secrets-shield and supersession widget bodies, so
+ * the in-detail render reads as the same surface the cockpit shows.
+ * Local copy avoids reaching into widget-shared from the views layer
+ * (the widget-shared module is hashed and should remain widget-only). */
+
+.statRow {
+  display: flex;
+  gap: var(--space-xl);
+  flex-wrap: wrap;
+  padding: var(--space-md) 0;
+}
+
+.statBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 120px;
+}
+
+.statBlockValue {
+  font-size: var(--text-3xl);
+  font-weight: 400;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.statBlockLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: lowercase;
+}
+
+/* ── Memory preview (top-read absorbed slot) ──────────
+ * The text_preview field is opaque without a denominator; we render it
+ * at the dim altitude with mono-tabular alignment so the reader's eye
+ * snaps to the access-count value on the right rather than skimming the
+ * preview as an entity name. */
+
+.memoryPreview {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  display: inline-block;
+  max-width: 36ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Aging frame (Q1 freshness) ───────────────────────
+ * Inline hero share above the proportional bar so a reader scans the
+ * answer in 1s without summing legend rows. Bar carries the four-bucket
+ * mix; legend lists absolute counts beneath. */
+
+.agingFrame {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.agingHero {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.agingHeroValue {
+  font-size: var(--display-hero, var(--text-4xl));
+  font-weight: 300;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.agingHeroUnit {
+  font-size: var(--text-xl);
+  color: var(--soft);
+}
+
+.agingHeroLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: lowercase;
+  margin-left: 12px;
+}
+
+.agingBar {
+  display: flex;
+  height: 18px;
+  border-radius: var(--radius-2xs);
+  overflow: hidden;
+  background: var(--ghost);
+}
+
+.agingSegment {
+  height: 100%;
+  opacity: var(--opacity-bar-fill);
+  transition: width 0.4s var(--motion);
+}
+
+.agingLegend {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.agingLegendRow {
+  display: grid;
+  grid-template-columns: 12px minmax(120px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
+}
+
+.agingDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-circle);
+}
+
+.agingLegendLabel {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--ink);
+  letter-spacing: var(--tracking-stat);
+}
+
+.agingLegendValue {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Accumulation strip (Q2 freshness) ────────────────
+ * Vertical 4-segment column. Each column carries an explicit count
+ * label above the bar so the reader doesn't have to map height back
+ * onto a count axis — the answer to "is the front weighted or the
+ * back?" reads at a glance. */
+
+.accumStrip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-md);
+  height: 220px;
+  align-items: end;
+}
+
+.accumColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 50ms);
+}
+
+.accumValue {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.accumBar {
+  width: 100%;
+  max-width: 80px;
+  border-radius: var(--radius-2xs) var(--radius-2xs) 0 0;
+  opacity: var(--opacity-bar-fill);
+  transition: height 0.4s var(--motion);
+  margin-top: auto;
+}
+
+.accumLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: lowercase;
+}
+
+/* ── Flow list (Q1 cross-tool) ────────────────────────
+ * Stacks FlowRow primitives with a stable gap so the panel has one
+ * predictable rhythm regardless of how many pairs land. The primitive
+ * already owns its own row chrome; the list wrapper only sets the
+ * vertical rhythm. */
+
+.flowList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agingLegendRow,
+  .accumColumn {
+    animation: none !important;
+  }
+  .agingSegment,
+  .accumBar {
+    transition: none !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .accumStrip {
+    height: 180px;
+    gap: var(--space-sm);
+  }
+  .agingLegendRow {
+    grid-template-columns: 12px minmax(0, 1fr) auto;
+  }
+}

@@ -1,3 +1,5 @@
+import type { DetailViewKey } from '../lib/router.js';
+
 /**
  * Widget catalog: every data point that can appear on the overview.
  *
@@ -130,6 +132,16 @@ export interface WidgetDef {
    * with intrinsic proportions.
    */
   fitContent?: boolean;
+  /**
+   * Click drill destination for the cockpit widget surface. When set,
+   * `WidgetRenderer` wraps the body in a clickable affordance that calls
+   * `navigateToDetail(view, tab, q)` so a single click opens the matching
+   * detail view, tab, and (optionally) question. Widgets whose body
+   * already owns its own click affordance (e.g. `StatWidget` with
+   * `onOpenDetail`) intentionally omit this field — those bodies wire
+   * the drill themselves so the wrapper doesn't double up.
+   */
+  drillTarget?: { view: DetailViewKey; tab: string; q?: string };
 }
 
 // ── The catalog ──────────────────────────────────
@@ -211,6 +223,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 2,
     minH: 2,
     dataKeys: ['daily_trends'],
+    drillTarget: { view: 'usage', tab: 'sessions' },
   },
   {
     id: 'edits',
@@ -224,6 +237,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 2,
     minH: 2,
     dataKeys: ['daily_trends'],
+    drillTarget: { view: 'usage', tab: 'edits' },
   },
   {
     id: 'lines-added',
@@ -237,6 +251,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 2,
     minH: 2,
     dataKeys: ['daily_trends'],
+    drillTarget: { view: 'usage', tab: 'lines' },
   },
   {
     id: 'lines-removed',
@@ -250,6 +265,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 2,
     minH: 2,
     dataKeys: ['daily_trends'],
+    drillTarget: { view: 'usage', tab: 'lines' },
   },
   {
     id: 'files-touched',
@@ -263,6 +279,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 2,
     minH: 2,
     dataKeys: ['file_heatmap'],
+    drillTarget: { view: 'usage', tab: 'files-touched' },
   },
   {
     id: 'cost',
@@ -276,6 +293,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 2,
     minH: 2,
     dataKeys: ['token_usage'],
+    drillTarget: { view: 'usage', tab: 'cost' },
   },
   {
     id: 'cost-per-edit',
@@ -289,6 +307,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 2,
     minH: 2,
     dataKeys: ['token_usage'],
+    drillTarget: { view: 'usage', tab: 'cost-per-edit' },
   },
   // ── Trends (sparklines) ───────────────
   // `session-trend` and `edit-velocity` were both cut 2026-04-25 after
@@ -327,6 +346,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     maxW: 12,
     dataKeys: ['completion_summary'],
+    drillTarget: { view: 'outcomes', tab: 'sessions' },
   },
   {
     id: 'outcome-trend',
@@ -341,6 +361,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['daily_trends'],
     fitContent: true,
+    drillTarget: { view: 'outcomes', tab: 'sessions' },
   },
   {
     id: 'one-shot-rate',
@@ -354,6 +375,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 2,
     minH: 2,
     dataKeys: ['tool_call_stats'],
+    drillTarget: { view: 'outcomes', tab: 'retries' },
   },
   {
     id: 'stuckness',
@@ -374,6 +396,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 3,
     minH: 2,
     dataKeys: ['stuckness'],
+    drillTarget: { view: 'outcomes', tab: 'sessions' },
   },
 
   // ── Activity ──────────────────────────
@@ -389,6 +412,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 6,
     minH: 3,
     dataKeys: ['hourly_distribution'],
+    drillTarget: { view: 'activity', tab: 'rhythm', q: 'peak-hour' },
   },
   {
     id: 'work-types',
@@ -403,6 +427,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['work_type_distribution'],
     fitContent: true,
+    drillTarget: { view: 'activity', tab: 'mix', q: 'share' },
   },
 
   // ── Codebase ──────────────────────────
@@ -418,6 +443,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 3,
     minH: 2,
     dataKeys: ['commit_stats'],
+    drillTarget: { view: 'codebase', tab: 'commits', q: 'commits-headline' },
   },
   {
     id: 'directories',
@@ -431,6 +457,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 3,
     dataKeys: ['directory_heatmap'],
+    drillTarget: { view: 'codebase', tab: 'directories', q: 'top-dirs' },
   },
   {
     id: 'files',
@@ -444,6 +471,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 3,
     dataKeys: ['file_heatmap'],
+    drillTarget: { view: 'codebase', tab: 'landscape', q: 'landscape' },
   },
 
   // ── Tools & Models ────────────────────
@@ -459,6 +487,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 3,
     minH: 2,
     dataKeys: ['tool_comparison'],
+    drillTarget: { view: 'tools', tab: 'tools', q: 'workload' },
   },
   {
     id: 'models',
@@ -472,6 +501,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 3,
     minH: 2,
     dataKeys: ['model_outcomes'],
+    drillTarget: { view: 'tools', tab: 'tools', q: 'models' },
   },
 
   // ── Projects ──────────────────────────
@@ -522,6 +552,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 6,
     minH: 2,
     dataKeys: ['scope_complexity'],
+    drillTarget: { view: 'outcomes', tab: 'retries' },
   },
 
   // ── Codebase (extended) ─────────────
@@ -538,6 +569,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 3,
     dataKeys: ['file_rework'],
+    drillTarget: { view: 'codebase', tab: 'risk', q: 'failing-files' },
   },
   {
     id: 'audit-staleness',
@@ -553,6 +585,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['audit_staleness'],
     timeScope: 'all-time',
+    drillTarget: { view: 'codebase', tab: 'directories', q: 'cold-dirs' },
   },
   {
     id: 'concurrent-edits',
@@ -566,6 +599,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 2,
     dataKeys: ['concurrent_edits'],
+    drillTarget: { view: 'codebase', tab: 'risk', q: 'collisions' },
   },
 
   // ── Tools (extended) ────────────────
@@ -581,6 +615,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 2,
     dataKeys: ['tool_handoffs'],
+    drillTarget: { view: 'tools', tab: 'flow', q: 'pairs' },
   },
   {
     id: 'tool-call-errors',
@@ -594,6 +629,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 2,
     dataKeys: ['tool_call_stats'],
+    drillTarget: { view: 'tools', tab: 'errors', q: 'top' },
   },
   {
     id: 'token-detail',
@@ -607,6 +643,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 3,
     dataKeys: ['token_usage'],
+    drillTarget: { view: 'tools', tab: 'errors', q: 'tokens' },
   },
   // ── Conversations (revived 2026-04-25) ──
   // Two file-axis widgets that use sentiment/topic as INPUTS to coordination
@@ -662,6 +699,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 2,
     dataKeys: ['cross_tool_memory_flow'],
+    drillTarget: { view: 'memory', tab: 'cross-tool', q: 'flow' },
   },
   {
     id: 'memory-aging-curve',
@@ -678,6 +716,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     dataKeys: ['memory_aging'],
     timeScope: 'all-time',
     fitContent: true,
+    drillTarget: { view: 'memory', tab: 'freshness', q: 'mix' },
   },
   {
     id: 'memory-categories',
@@ -692,6 +731,12 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 3,
     dataKeys: ['memory_categories'],
+    // fitContent so a sparse categories list (1-3 rows) doesn't reserve a
+    // 4th row of empty space. WidgetGrid measures the body's natural
+    // height and shrinks the cell — capped at h:4 so a populated list
+    // still gets the full slot.
+    fitContent: true,
+    drillTarget: { view: 'memory', tab: 'cross-tool', q: 'categories' },
   },
   // Memory + team revivals + density 2026-04-25 (post 18-month re-audit).
   {
@@ -708,6 +753,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['memory_usage'],
     timeScope: 'all-time',
+    drillTarget: { view: 'memory', tab: 'health', q: 'live' },
   },
   {
     id: 'memory-bus-factor',
@@ -722,6 +768,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 2,
     dataKeys: ['memory_single_author_directories'],
+    drillTarget: { view: 'memory', tab: 'authorship', q: 'concentration' },
   },
   {
     id: 'memory-supersession-flow',
@@ -737,6 +784,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['memory_supersession'],
     timeScope: 'live',
+    drillTarget: { view: 'memory', tab: 'hygiene', q: 'flow' },
   },
   {
     id: 'memory-secrets-shield',
@@ -751,6 +799,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 3,
     minH: 2,
     dataKeys: ['memory_secrets_shield'],
+    drillTarget: { view: 'memory', tab: 'health', q: 'secrets' },
   },
   {
     id: 'hourly-effectiveness',
@@ -765,6 +814,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 2,
     dataKeys: ['hourly_effectiveness'],
+    drillTarget: { view: 'activity', tab: 'effective-hours', q: 'peak-completion' },
   },
   {
     id: 'file-overlap',
@@ -793,23 +843,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 2,
     dataKeys: ['memory_outcome_correlation'],
-  },
-  // top-memories revived 2026-04-25 after the rubric bar shifted to "anchors
-  // a multi-question detail view." Click target opens MemoryDetailView when
-  // that surface ships; meanwhile the row preview is the read.
-  {
-    id: 'top-memories',
-    name: 'most-read memories',
-    description:
-      "Memories the team relies on most, ranked by access count with last-touch hint. Anchors questions like which memories never get read, which categories dominate the team's hot path, and how memory composition shifts over time.",
-    category: 'memory',
-    scope: 'both',
-    viz: 'data-list',
-    w: 6,
-    h: 3,
-    minW: 4,
-    minH: 2,
-    dataKeys: ['top_memories'],
+    drillTarget: { view: 'memory', tab: 'health', q: 'outcomes' },
   },
   // ── Team (extended) ─────────────────
   {
@@ -1005,6 +1039,14 @@ export const WIDGET_ALIASES: Record<string, string[]> = {
   // join lands).
   'memory-activity': [],
   'memory-safety': [],
+
+  // 2026-04-25: top-memories cut (alone-test fails per consolidated plan).
+  // Opaque previews and no denominator hit ANALYTICS_SPEC §10 #7 (hit-rate-
+  // as-quality). The schema field stays; the data is now consumed inside
+  // MemoryDetailView's Health tab as a focused question, where rank +
+  // last-touch + category + author can co-render without forcing a stat-
+  // shaped seat in the cockpit.
+  'top-memories': [],
 
   // Team cuts (4 of 5; only conflicts-blocked survives — substrate-
   // unique prevention proof). team-members triggers ANALYTICS_SPEC §10

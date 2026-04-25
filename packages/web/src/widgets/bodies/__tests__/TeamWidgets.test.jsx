@@ -9,7 +9,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 async function loadProjectsWidget() {
   vi.resetModules();
-  const mod = await import('./TeamWidgets.js');
+  const mod = await import('../TeamWidgets.js');
   return mod.teamWidgets.projects;
 }
 

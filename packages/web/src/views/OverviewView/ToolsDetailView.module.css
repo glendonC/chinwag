@@ -1,0 +1,402 @@
+/* ToolsDetailView — coordination axis on cross-tool agent activity.
+ *
+ * Three tabs: tools / flow / errors. This module owns only chrome that
+ * sits between the FocusedDetailView shell and reusable viz primitives —
+ * empty-state copy, the workload BreakdownList wrapper, the flow-pair
+ * row composition, the errors-by-tool grouped sections, the recent-
+ * errors timeline, and the token detail blocks. Brand colors come from
+ * `getToolMeta()`; coverage notes from `capabilityCoverageNote()`.
+ */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.empty {
+  display: block;
+  padding: var(--space-lg) 0;
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+}
+
+/* ── Workload row meta ──────────────────────────────
+ * The workload question's BreakdownList carries sessions/edits as the
+ * primary value plus a muted contextual stat for completion. The
+ * completion is NOT a sortable rank — it is a per-row context fact in
+ * dim text per spec §10 #5 guardrail. */
+
+.workloadValueSoft {
+  color: var(--soft);
+  margin-left: 8px;
+}
+
+/* ── Models list (lifted from ToolWidgets) ──────────
+ * Per-tool brand-color attribution pills around each model name. The
+ * pill row is the §10 #5 mitigation that earned `models` a question
+ * slot. Same chrome as the widget body so the catalog rendering stays
+ * visually consistent. */
+
+.modelList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.modelRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  margin: 0 -12px;
+  border-radius: var(--radius-2xs);
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
+}
+
+.modelRow:hover {
+  background: var(--hover-bg);
+}
+
+.modelHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.modelName {
+  font-size: var(--text-sm);
+  color: var(--ink);
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.modelStats {
+  display: flex;
+  gap: 16px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.modelStat {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  white-space: nowrap;
+}
+
+.modelStatValue {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.modelToolStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-left: 2px;
+}
+
+.modelToolPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+}
+
+.modelToolDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-circle);
+  background: var(--tool-brand, var(--soft));
+  flex-shrink: 0;
+}
+
+.modelToolLabel {
+  color: var(--ink);
+  opacity: 0.7;
+}
+
+.modelToolCount {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* ── Flow pair label composition ─────────────────────
+ * Each row in the pairs BreakdownList shows `[from-dot] from → [to-dot]
+ * to`. The dots are brand-colored; the arrow stays in --soft so it
+ * reads as the connector, not the entity. */
+
+.pairLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pairDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-circle);
+  flex-shrink: 0;
+}
+
+.pairArrow {
+  color: var(--soft);
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+}
+
+.pairText {
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+/* ── Errors-by-tool grouped sections ─────────────────
+ * Per-tool brand-color section header above a dataList of grouped
+ * errors. The section header dot mirrors the modelToolDot weight so
+ * the eye groups errors and models the same way. */
+
+.toolGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: var(--space-sm);
+}
+
+.toolGroupHead {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+}
+
+.toolGroupDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-circle);
+  flex-shrink: 0;
+}
+
+.toolGroupCount {
+  color: var(--soft);
+  margin-left: auto;
+}
+
+/* ── Errors row content ─────────────────────────────
+ * The error preview takes the bulk of the row width. Count pill is
+ * danger-colored, last-seen is muted mono. */
+
+.errCountPill {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--danger);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.errPreview {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  font-family: var(--mono);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.errLast {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Recent errors timeline ─────────────────────────
+ * Vertical list ordered newest-first per spec. Each row gets a leading
+ * relative-time chip, brand-color tool dot, and the error preview. */
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.timelineRow {
+  display: grid;
+  grid-template-columns: 88px auto 1fr;
+  align-items: center;
+  gap: var(--space-md);
+  padding: 8px 12px;
+  border-radius: var(--radius-xs);
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
+}
+
+.timelineRow:hover {
+  background: var(--hover-bg);
+}
+
+.timelineChip {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: lowercase;
+  white-space: nowrap;
+}
+
+.timelineToolPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--ink);
+  letter-spacing: var(--tracking-stat);
+}
+
+.timelineToolDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-circle);
+  flex-shrink: 0;
+}
+
+.timelinePreview {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Tokens panel chrome ────────────────────────────
+ * Grouped sections (by_model + by_tool) lifted from TokenDetailWidget.
+ * Headers, rows, and the pricing footer share visual rhythm with
+ * widget-shared `dataList` so the in-detail render reads as the same
+ * surface the cockpit widget shows. */
+
+.tokenList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tokenSectionHead {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+  margin-top: var(--space-sm);
+}
+
+.tokenRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-xs);
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
+}
+
+.tokenRow:hover {
+  background: var(--hover-bg);
+}
+
+.tokenName {
+  font-size: var(--text-sm);
+  color: var(--ink);
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.tokenMeta {
+  display: flex;
+  gap: 16px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.tokenStat {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  white-space: nowrap;
+}
+
+.tokenStatValue {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.tokenFooter {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  margin-top: var(--space-sm);
+}
+
+.tokenFooter a {
+  color: var(--muted);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modelRow,
+  .timelineRow,
+  .tokenRow {
+    animation: none !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .modelHead {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .modelStats {
+    margin-left: 0;
+  }
+  .timelineRow {
+    grid-template-columns: 80px 1fr;
+    grid-template-rows: auto auto;
+    gap: 4px var(--space-sm);
+  }
+  .timelineToolPill {
+    grid-row: 2;
+    grid-column: 1 / 2;
+  }
+  .timelinePreview {
+    grid-row: 2;
+    grid-column: 2 / 3;
+  }
+}

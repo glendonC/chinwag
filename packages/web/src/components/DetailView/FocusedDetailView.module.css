@@ -188,6 +188,19 @@
   min-width: 0;
 }
 
+/* Cross-view link strip. Lives beneath the viz, never inside the answer
+ * prose — clicking inside a sentence is a B1 affordance violation that
+ * reads like a tooltip but jumps the user to a new surface. Chip strip
+ * is a quiet "you might also want" cue; the viz remains the answer. */
+.relatedLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--divider);
+}
+
 @keyframes focusReveal {
   from {
     opacity: 0;

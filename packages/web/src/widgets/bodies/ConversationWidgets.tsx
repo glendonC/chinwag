@@ -1,8 +1,15 @@
-import type { CSSProperties } from 'react';
 import SectionEmpty from '../../components/SectionEmpty/SectionEmpty.js';
+import FileFrictionRow from '../../components/viz/file/FileFrictionRow.js';
+import { setQueryParams } from '../../lib/router.js';
 import styles from '../widget-shared.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
-import { CoverageNote, GhostStatRow, capabilityCoverageNote } from './shared.js';
+import {
+  CoverageNote,
+  GhostStatRow,
+  MoreHidden,
+  StatWidget,
+  capabilityCoverageNote,
+} from './shared.js';
 
 // Conversations category was dissolved in the 2026-04-25 audit (3 cuts:
 // topics, prompt-clarity, conversation-depth) for §10 anti-pattern
@@ -11,11 +18,26 @@ import { CoverageNote, GhostStatRow, capabilityCoverageNote } from './shared.js'
 // headline metric. This is the framing §10 explicitly endorses for
 // conversation data ("use as input to Failure Analysis, never alone").
 
+const CONFUSED_FILES_VISIBLE = 10;
+
 // confused-files: top files where the agent's user-side conversation
 // expressed confusion or frustration in 2+ sessions. The widget surfaces
 // FILES (a coordination axis), not sentiment polarity. Same E4 standing
 // as `file-rework` and `live-conflicts` — system-language framing about
 // where the work struggled, not personal commentary about messages.
+//
+// Phase 3b: lifted onto FileFrictionRow so the row reads as a member of
+// the file-friction widget family. Severity-tinted bar carries the rank
+// signal; trailing meta carries attribution. Color escalates --warn →
+// --danger when retried_sessions > 0 (boolean threshold; revisit per
+// open question in conversations-design.md once real data shape lands).
+//
+// Drill target: existing session-list filtered by file + sentiment=confused.
+// That route does not exist as of Phase 3b — the URL params written here
+// match the spec's intended shape so the drill is URL-traceable today and
+// becomes a live drill the moment the filter view ships. Until then, the
+// affordance is a hollow promise (documented gap, mirrors team-widget
+// Reports gap).
 function ConfusedFilesWidget({ analytics }: WidgetBodyProps) {
   const cf = analytics.confused_files;
   const tools = analytics.data_coverage?.tools_reporting ?? [];
@@ -31,32 +53,34 @@ function ConfusedFilesWidget({ analytics }: WidgetBodyProps) {
       </>
     );
   }
+  const visible = cf.slice(0, CONFUSED_FILES_VISIBLE);
+  const hidden = cf.length - visible.length;
+  const maxConfused = Math.max(...visible.map((f) => f.confused_sessions), 1);
   return (
     <>
       <div className={styles.dataList}>
-        {cf.slice(0, 10).map((f, i) => (
-          <div
-            key={f.file}
-            className={styles.dataRow}
-            style={{ '--row-index': i } as CSSProperties}
-          >
-            <span className={styles.dataName} title={f.file}>
-              {f.file.split('/').slice(-2).join('/')}
-            </span>
-            <div className={styles.dataMeta}>
-              <span className={styles.dataStat}>
-                <span className={styles.dataStatValue}>{f.confused_sessions}</span>{' '}
-                {f.confused_sessions === 1 ? 'session' : 'sessions'}
-              </span>
-              {f.retried_sessions > 0 && (
-                <span className={styles.dataStat} style={{ color: 'var(--warn)' }}>
-                  <span className={styles.dataStatValue}>{f.retried_sessions}</span> abandoned
-                </span>
-              )}
-            </div>
-          </div>
-        ))}
+        {visible.map((f, i) => {
+          const barColor = f.retried_sessions > 0 ? 'var(--danger)' : 'var(--warn)';
+          const labelText = f.file.split('/').slice(-2).join('/');
+          return (
+            <FileFrictionRow
+              key={f.file}
+              index={i}
+              label={labelText}
+              title={f.file}
+              barFill={f.confused_sessions / maxConfused}
+              barColor={barColor}
+              meta={
+                <>
+                  {f.confused_sessions} confused · {f.retried_sessions} abandoned
+                </>
+              }
+              onClick={() => setQueryParams({ file: f.file, sentiment: 'confused' })}
+            />
+          );
+        })}
       </div>
+      <MoreHidden count={hidden} />
       <CoverageNote text={note} />
     </>
   );
@@ -68,6 +92,19 @@ function ConfusedFilesWidget({ analytics }: WidgetBodyProps) {
 // to read what was asked, then save context as memory or spawn a follow-up.
 // Not a metric in the §10-anti-pattern sense; the action is "go read these,"
 // not "track this number."
+//
+// Phase 3b: promoted to StatWidget.onOpenDetail so the trailing ↗ makes the
+// drill affordance real instead of implied. Label reframed from "questions
+// abandoned" to "questions left open" — same number, slightly more action-
+// coded verb. Empty-state copy gains an explicit appears-when line so the
+// honesty matches confused-files's empty branch.
+//
+// Drill target: existing session-list filtered to abandoned + has_user_
+// question=true. That route does not exist as of Phase 3b — the URL params
+// written here match the spec's intended shape so the drill is URL-
+// traceable today and becomes a live drill the moment the filter view
+// ships. The widget is in SELF_DRILLING_WIDGETS so the renderer wrapper
+// doesn't double-wrap the inner button.
 function UnansweredQuestionsWidget({ analytics }: WidgetBodyProps) {
   const uq = analytics.unanswered_questions;
   const tools = analytics.data_coverage?.tools_reporting ?? [];
@@ -75,7 +112,10 @@ function UnansweredQuestionsWidget({ analytics }: WidgetBodyProps) {
   if (uq.count === 0) {
     return (
       <>
-        <GhostStatRow labels={['questions abandoned']} />
+        <GhostStatRow labels={['questions left open']} />
+        <div className={styles.coverageNote}>
+          Appears when a session ends abandoned with an open user question.
+        </div>
         <CoverageNote text={note} />
       </>
     );
@@ -84,8 +124,12 @@ function UnansweredQuestionsWidget({ analytics }: WidgetBodyProps) {
     <>
       <div className={styles.statRow}>
         <div className={styles.statBlock}>
-          <span className={styles.statBlockValue}>{uq.count.toLocaleString()}</span>
-          <span className={styles.statBlockLabel}>questions abandoned</span>
+          <StatWidget
+            value={uq.count.toLocaleString()}
+            onOpenDetail={() => setQueryParams({ outcome: 'abandoned', has_user_question: 'true' })}
+            detailAriaLabel="Open questions left open"
+          />
+          <span className={styles.statBlockLabel}>questions left open</span>
         </div>
       </div>
       <CoverageNote text={note} />

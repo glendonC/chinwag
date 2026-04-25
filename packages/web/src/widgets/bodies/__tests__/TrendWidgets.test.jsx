@@ -10,8 +10,8 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 async function loadModule() {
   vi.resetModules();
   const [trendsMod, schemasMod] = await Promise.all([
-    import('./TrendWidgets.js'),
-    import('../../lib/schemas/analytics.js'),
+    import('../TrendWidgets.js'),
+    import('../../../lib/schemas/analytics.js'),
   ]);
   return {
     OutcomeTrendWidget: trendsMod.trendWidgets['outcome-trend'],

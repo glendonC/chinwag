@@ -1,0 +1,276 @@
+/* ActivityDetailView — temporal/categorical lens on activity.
+ *
+ * Mirrors OutcomesDetailView's compact tab pattern (smaller than Usage).
+ * Three tabs: rhythm / mix / effective-hours. This module owns only the
+ * viz chrome that sits between the shared FocusedDetailView shell and
+ * the reusable viz primitives — empty-state copy, work-type detail
+ * legends, and the per-hour completion bar layout that the
+ * `effective-hours` tab needs.
+ */
+
+.empty {
+  display: block;
+  padding: var(--space-lg) 0;
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+}
+
+/* ── Weekday/weekend mini-grid wrapper ───────────────
+ * Two HourHeatmap renders stacked, one for weekday rows, one for
+ * weekend rows. The heatmap primitive carries the grid; this wrapper
+ * only adds the row caption stripe and the honest empty-weekend
+ * fallback. */
+
+.weekendBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.weekendRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.weekendCaption {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+}
+
+.weekendEmpty {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  padding: var(--space-md) 0;
+}
+
+/* ── Mix tab — work-type legend rows ─────────────────
+ * Sits beneath the proportional bar from widget-shared.workBar. Same
+ * left-label / track / right-value rhythm as OutcomesDetailView's wt
+ * rows; rebuilt here so the activity view doesn't reach into another
+ * detail view's private CSS module. */
+
+.mixBar {
+  height: 24px;
+  border-radius: var(--radius-2xs);
+  margin-bottom: var(--space-md);
+}
+
+.mixLegend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mixRow {
+  display: grid;
+  grid-template-columns: 130px 1fr auto;
+  align-items: center;
+  gap: var(--space-md);
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 40ms);
+}
+
+.mixDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.mixLabel {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--muted);
+  letter-spacing: var(--tracking-stat);
+  text-transform: lowercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mixShare {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.mixMeta {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* ── Effective-hours bar chart ───────────────────────
+ * One bar per qualifying hour, ordered by clock. Bar height encodes
+ * volume; bar color encodes completion via completionColor(). The rate
+ * label sits at the top of each column, the hour label at the bottom.
+ * Twin-encoding (height = volume, color = quality) is the whole point
+ * of this viz — no Y axis, no other metric squeezed in. */
+
+.peakFrame {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.peakBars {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(20px, 1fr);
+  align-items: end;
+  gap: 6px;
+  min-height: 180px;
+}
+
+.peakColumn {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  align-items: end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.peakRate {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.peakBar {
+  display: block;
+  width: 100%;
+  height: var(--peak-height);
+  min-height: 8px;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+  opacity: var(--opacity-bar-fill);
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 30ms);
+  transition:
+    opacity var(--motion-fast) ease,
+    transform var(--motion-fast) var(--motion);
+}
+
+.peakBar:hover {
+  opacity: 1;
+  transform: translateY(-2px);
+}
+
+.peakHourLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.peakLegend {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+}
+
+/* ── DOW dip mini-row ────────────────────────────────
+ * 7 small bars, one per day-of-week. Rate-colored, height encodes
+ * volume so a low-volume day's color doesn't carry false confidence. */
+
+.dowFrame {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.dowBars {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: end;
+  gap: 8px;
+  min-height: 120px;
+}
+
+.dowColumn {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  align-items: end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dowRate {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.dowBar {
+  display: block;
+  width: 100%;
+  height: var(--dow-height);
+  min-height: 6px;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+  opacity: var(--opacity-bar-fill);
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
+  transition: opacity var(--motion-fast) ease;
+}
+
+.dowBar:hover {
+  opacity: 1;
+}
+
+.dowLabel {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mixRow,
+  .peakBar,
+  .dowBar {
+    animation: none !important;
+  }
+  .peakBar,
+  .dowBar {
+    transition: none !important;
+  }
+  .peakBar:hover {
+    transform: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .mixRow {
+    grid-template-columns: 100px 1fr auto;
+  }
+}

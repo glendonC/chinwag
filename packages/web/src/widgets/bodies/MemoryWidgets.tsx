@@ -1,7 +1,9 @@
 import { useState, type CSSProperties } from 'react';
 import SectionEmpty from '../../components/SectionEmpty/SectionEmpty.js';
+import FlowRow from '../../components/viz/flow/FlowRow.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
 import styles from '../widget-shared.module.css';
+import memoryStyles from './MemoryWidgets.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
 import { CoverageNote } from './shared.js';
 
@@ -79,6 +81,12 @@ function MemoryCrossToolFlowWidget({ analytics }: WidgetBodyProps) {
   }
   const visible = flow.slice(0, 8);
   const hidden = flow.length - visible.length;
+  // Twin-bar shared scales: per-pair share against the strongest pair, so
+  // a reader compares strengths without an axis. Memories drives the
+  // primary signal (the connector arrow's opacity scales with it); the
+  // sessions-reachable secondary stays muted-tone --soft.
+  const maxMemories = Math.max(...visible.map((f) => f.memories), 1);
+  const maxSessions = Math.max(...visible.map((f) => f.consumer_sessions), 1);
   return (
     <>
       <div className={styles.dataList}>
@@ -86,25 +94,28 @@ function MemoryCrossToolFlowWidget({ analytics }: WidgetBodyProps) {
           const author = getToolMeta(f.author_tool);
           const consumer = getToolMeta(f.consumer_tool);
           return (
-            <div
+            <FlowRow
               key={`${f.author_tool}-${f.consumer_tool}`}
-              className={styles.dataRow}
-              style={{ '--row-index': i } as CSSProperties}
-            >
-              <span className={styles.dataName}>
-                {author.label} → {consumer.label}
-              </span>
-              <div className={styles.dataMeta}>
-                <span className={styles.dataStat}>
-                  <span className={styles.dataStatValue}>{f.memories}</span>{' '}
-                  {f.memories === 1 ? 'memory' : 'memories'}
-                </span>
-                <span className={styles.dataStat}>
-                  available to <span className={styles.dataStatValue}>{f.consumer_sessions}</span>{' '}
-                  {f.consumer_sessions === 1 ? 'session' : 'sessions'}
-                </span>
-              </div>
-            </div>
+              index={i}
+              from={{ id: author.id, label: author.label, color: author.color }}
+              to={{ id: consumer.id, label: consumer.label, color: consumer.color }}
+              bars={[
+                {
+                  label: 'memories',
+                  value: f.memories,
+                  max: maxMemories,
+                  color: 'var(--accent)',
+                  display: String(f.memories),
+                },
+                {
+                  label: 'sessions',
+                  value: f.consumer_sessions,
+                  max: maxSessions,
+                  color: 'var(--soft)',
+                  display: String(f.consumer_sessions),
+                },
+              ]}
+            />
           );
         })}
       </div>
@@ -135,8 +146,16 @@ function MemoryAgingCurveWidget({ analytics }: WidgetBodyProps) {
     { key: '31-90d', label: '31-90 days', count: a.recent_90d },
     { key: '90d+', label: '90+ days', count: a.older },
   ];
+  // Hero "fresh share" — the 0-7d + 8-30d buckets as a percent of all
+  // currently-live memories. Renders above the proportional bar so the
+  // headline answer reads in 1s without summing legend rows.
+  const freshPct = Math.round(((a.recent_7d + a.recent_30d) / total) * 100);
   return (
     <>
+      <div className={memoryStyles.agingHero}>
+        <span className={memoryStyles.agingHeroValue}>{freshPct}%</span>
+        <span className={memoryStyles.agingHeroSuffix}>under 30d</span>
+      </div>
       <div className={styles.workBar}>
         {buckets.map((b) => {
           const pct = (b.count / total) * 100;
@@ -329,30 +348,35 @@ function MemoryBusFactorWidget({ analytics }: WidgetBodyProps) {
   }
   const visible = dirs.slice(0, SINGLE_AUTHOR_VISIBLE);
   const hidden = dirs.length - visible.length;
+  // Three-column row: directory / warn-tinted single-author share bar /
+  // `n/m` numeric. Tracks the file-friction visual family (severity bar +
+  // dimmed meta) without adopting FileFrictionRow directly because the
+  // meta carries two values (`n/m`) rather than the single-string blob
+  // FileFrictionRow's API expects. Inline keeps the row honest about the
+  // dual-value meta and avoids forcing an awkward stringification.
   return (
     <>
       <div className={styles.dataList}>
         {visible.map((d, i) => {
-          const pct =
-            d.total_count > 0 ? Math.round((d.single_author_count / d.total_count) * 100) : 0;
+          const share = d.total_count > 0 ? d.single_author_count / d.total_count : 0;
           return (
             <div
               key={d.directory}
-              className={styles.dataRow}
+              className={memoryStyles.busRow}
               style={{ '--row-index': i } as CSSProperties}
+              title={d.directory}
             >
-              <span className={styles.dataName} title={d.directory}>
-                {d.directory}
-              </span>
-              <div className={styles.dataMeta}>
-                <span className={styles.dataStat}>
-                  <span className={styles.dataStatValue}>{pct}%</span> single-author
-                </span>
-                <span className={styles.dataStat}>
-                  <span className={styles.dataStatValue}>{d.single_author_count}</span>/
-                  <span className={styles.dataStatValue}>{d.total_count}</span>
-                </span>
+              <span className={memoryStyles.busLabel}>{d.directory}</span>
+              <div className={memoryStyles.busBarTrack}>
+                <div
+                  className={memoryStyles.busBarFill}
+                  style={{ width: `${Math.min(100, share * 100)}%` }}
+                />
               </div>
+              <span className={memoryStyles.busMeta}>
+                <span className={memoryStyles.busMetaValue}>{d.single_author_count}</span>
+                <span>/{d.total_count}</span>
+              </span>
             </div>
           );
         })}
@@ -403,22 +427,32 @@ function MemorySupersessionFlowWidget({ analytics }: WidgetBodyProps) {
 // tools tried, trend, patterns caught most, false-positive cost.
 function MemorySecretsShieldWidget({ analytics }: WidgetBodyProps) {
   const s = analytics.memory_secrets_shield;
-  if (s.blocked_period === 0 && s.blocked_24h === 0) {
-    return <SectionEmpty>No blocks this period. The shield is on.</SectionEmpty>;
-  }
+  // Always render a number — even when 0 — so the corner seat never reads
+  // as "broken empty." Tone the value warn when n>0, ink at 0, with a
+  // muted "working as designed" subline when nothing fired. Substrate-
+  // unique D1 (only chinmeister sees cross-tool memory writes); the value
+  // of the seat is permanent, the day-to-day signal is usually quiet.
+  const idle = s.blocked_period === 0 && s.blocked_24h === 0;
+  const valueClass =
+    s.blocked_period > 0 ? memoryStyles.shieldValueWarn : memoryStyles.shieldValueIdle;
   return (
-    <div className={styles.statRow}>
-      <div className={styles.statBlock}>
-        <span className={styles.statBlockValue}>{s.blocked_period}</span>
-        <span className={styles.statBlockLabel}>blocked this period</span>
-      </div>
-      {s.blocked_24h > 0 && (
+    <>
+      <div className={styles.statRow}>
         <div className={styles.statBlock}>
-          <span className={styles.statBlockValue}>{s.blocked_24h}</span>
-          <span className={styles.statBlockLabel}>last 24h</span>
+          <span className={`${styles.statBlockValue} ${valueClass}`}>{s.blocked_period}</span>
+          <span className={styles.statBlockLabel}>blocked this period</span>
         </div>
-      )}
-    </div>
+        {s.blocked_24h > 0 && (
+          <div className={styles.statBlock}>
+            <span className={`${styles.statBlockValue} ${memoryStyles.shieldValueWarn}`}>
+              {s.blocked_24h}
+            </span>
+            <span className={styles.statBlockLabel}>last 24h</span>
+          </div>
+        )}
+      </div>
+      {idle && <div className={memoryStyles.shieldSubline}>shield on, working as designed</div>}
+    </>
   );
 }
 
