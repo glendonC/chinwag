@@ -13,7 +13,7 @@ import type {
   FilesByWorkTypeEntry,
   FilesNewVsRevisited,
 } from '@chinmeister/shared/contracts/analytics.js';
-import { type AnalyticsScope, buildScopeFilter } from './scope.js';
+import { type AnalyticsScope, withScope } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
 
@@ -88,22 +88,25 @@ export function queryFileChurn(
   days: number,
 ): FileChurnEntry[] {
   try {
-    const f = buildScopeFilter(scope);
-    const rows = sql
-      .exec(
-        `SELECT
+    const { sql: q, params } = withScope(
+      `SELECT
            file_path AS file,
            COUNT(DISTINCT session_id) AS session_count,
            COUNT(*) AS total_edits,
            COALESCE(SUM(lines_added + lines_removed), 0) AS total_lines
          FROM edits
-         WHERE created_at > datetime('now', '-' || ? || ' days')${f.sql}
+         WHERE created_at > datetime('now', '-' || ? || ' days')`,
+      [days],
+      scope,
+    );
+    const rows = sql
+      .exec(
+        `${q}
          GROUP BY file_path
          HAVING session_count >= ?
          ORDER BY session_count DESC
          LIMIT 30`,
-        days,
-        ...f.params,
+        ...params,
         FILE_CHURN_MIN_SESSIONS,
       )
       .toArray();
@@ -136,21 +139,24 @@ export function queryConcurrentEdits(
   days: number,
 ): ConcurrentEditEntry[] {
   try {
-    const f = buildScopeFilter(scope);
-    const rows = sql
-      .exec(
-        `SELECT
+    const { sql: q, params } = withScope(
+      `SELECT
            file_path AS file,
            COUNT(DISTINCT agent_id) AS agents,
            COUNT(*) AS edit_count
          FROM edits
-         WHERE created_at > datetime('now', '-' || ? || ' days')${f.sql}
+         WHERE created_at > datetime('now', '-' || ? || ' days')`,
+      [days],
+      scope,
+    );
+    const rows = sql
+      .exec(
+        `${q}
          GROUP BY file_path
          HAVING agents >= ?
          ORDER BY agents DESC, edit_count DESC
          LIMIT 20`,
-        days,
-        ...f.params,
+        ...params,
         CONCURRENT_EDITS_MIN_AGENTS,
       )
       .toArray();
@@ -186,10 +192,8 @@ export function queryFileHeatmapEnhanced(
   days: number,
 ): FileHeatmapEntry[] {
   try {
-    const f = buildScopeFilter(scope);
-    const rows = sql
-      .exec(
-        `SELECT
+    const { sql: q, params } = withScope(
+      `SELECT
            value AS file,
            COUNT(*) AS touch_count,
            ROUND(CAST(SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS REAL)
@@ -198,12 +202,17 @@ export function queryFileHeatmapEnhanced(
            COALESCE(SUM(lines_removed), 0) AS total_lines_removed
          FROM sessions, json_each(sessions.files_touched)
          WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND files_touched != '[]'${f.sql}
+           AND files_touched != '[]'`,
+      [days],
+      scope,
+    );
+    const rows = sql
+      .exec(
+        `${q}
          GROUP BY value
          ORDER BY touch_count DESC
          LIMIT ?`,
-        days,
-        ...f.params,
+        ...params,
         HEATMAP_LIMIT,
       )
       .toArray();
@@ -231,10 +240,8 @@ export function queryFileRework(
   days: number,
 ): FileReworkEntry[] {
   try {
-    const f = buildScopeFilter(scope, { handleColumn: 'e.handle' });
-    const rows = sql
-      .exec(
-        `SELECT
+    const { sql: q, params } = withScope(
+      `SELECT
            e.file_path AS file,
            COUNT(*) AS total_edits,
            SUM(CASE WHEN s.outcome IN ('abandoned', 'failed') THEN 1 ELSE 0 END) AS failed_edits,
@@ -242,13 +249,19 @@ export function queryFileRework(
              / NULLIF(COUNT(*), 0) * 100, 1) AS rework_ratio
          FROM edits e
          JOIN sessions s ON s.id = e.session_id
-         WHERE e.created_at > datetime('now', '-' || ? || ' days')${f.sql}
+         WHERE e.created_at > datetime('now', '-' || ? || ' days')`,
+      [days],
+      scope,
+      { handleColumn: 'e.handle' },
+    );
+    const rows = sql
+      .exec(
+        `${q}
          GROUP BY e.file_path
          HAVING total_edits >= ? AND failed_edits >= ?
          ORDER BY rework_ratio DESC
          LIMIT 30`,
-        days,
-        ...f.params,
+        ...params,
         FILE_REWORK_MIN_TOTAL_EDITS,
         FILE_REWORK_MIN_FAILED_EDITS,
       )
@@ -275,12 +288,8 @@ export function queryDirectoryHeatmap(
   days: number,
 ): DirectoryHeatmapEntry[] {
   try {
-    const f = buildScopeFilter(scope);
-    // Query file-level data and roll up to directories in JS
-    // (SQLite lacks a clean dirname function)
-    const rows = sql
-      .exec(
-        `SELECT
+    const { sql: q, params } = withScope(
+      `SELECT
            value AS file,
            COUNT(*) AS touch_count,
            COALESCE(SUM(lines_added + lines_removed), 0) AS total_lines,
@@ -288,10 +297,17 @@ export function queryDirectoryHeatmap(
              / NULLIF(COUNT(*), 0) * 100, 1) AS completion_rate
          FROM sessions, json_each(sessions.files_touched)
          WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND files_touched != '[]'${f.sql}
+           AND files_touched != '[]'`,
+      [days],
+      scope,
+    );
+    // Query file-level data and roll up to directories in JS
+    // (SQLite lacks a clean dirname function)
+    const rows = sql
+      .exec(
+        `${q}
          GROUP BY value`,
-        days,
-        ...f.params,
+        ...params,
       )
       .toArray();
 
@@ -351,20 +367,24 @@ export function queryDirectoryHeatmap(
 export function queryAuditStaleness(sql: SqlStorage, scope: AnalyticsScope): AuditStalenessEntry[] {
   try {
     // Find directories with significant past activity that haven't been touched recently
-    const f = buildScopeFilter(scope);
     // Use buildScopeFilter (with leading AND) and inject via WHERE 1=1 prefix
     // so the splice works whether or not scope is set.
-    const rows = sql
-      .exec(
-        `SELECT
+    const { sql: q, params } = withScope(
+      `SELECT
            file_path,
            MAX(created_at) AS last_edit,
            COUNT(*) AS edit_count
          FROM edits
-         WHERE 1=1${f.sql}
+         WHERE 1=1`,
+      [],
+      scope,
+    );
+    const rows = sql
+      .exec(
+        `${q}
          GROUP BY file_path
          HAVING edit_count >= ?`,
-        ...f.params,
+        ...params,
         COLD_DIR_MIN_FILE_EDITS,
       )
       .toArray();
@@ -423,16 +443,19 @@ export function queryFilesByWorkType(
   days: number,
 ): FilesByWorkTypeEntry[] {
   try {
-    const f = buildScopeFilter(scope);
+    const { sql: q, params } = withScope(
+      `SELECT work_type, COUNT(DISTINCT file_path) AS file_count
+         FROM edits
+         WHERE created_at > datetime('now', '-' || ? || ' days')`,
+      [days],
+      scope,
+    );
     const rows = sql
       .exec(
-        `SELECT work_type, COUNT(DISTINCT file_path) AS file_count
-         FROM edits
-         WHERE created_at > datetime('now', '-' || ? || ' days')${f.sql}
+        `${q}
          GROUP BY work_type
          ORDER BY file_count DESC`,
-        days,
-        ...f.params,
+        ...params,
       )
       .toArray();
 
@@ -465,22 +488,24 @@ export function queryFilesNewVsRevisited(
   days: number,
 ): FilesNewVsRevisited {
   try {
-    const f = buildScopeFilter(scope);
-    const rows = sql
-      .exec(
-        `SELECT
+    const { sql: q, params } = withScope(
+      `SELECT
            COALESCE(SUM(CASE WHEN min_created > datetime('now', '-' || ? || ' days') THEN 1 ELSE 0 END), 0) AS new_files,
            COALESCE(SUM(CASE WHEN min_created <= datetime('now', '-' || ? || ' days') THEN 1 ELSE 0 END), 0) AS revisited_files
          FROM (
            SELECT MIN(created_at) AS min_created
            FROM edits
-           WHERE 1=1${f.sql}
+           WHERE 1=1`,
+      [days, days],
+      scope,
+    );
+    const rows = sql
+      .exec(
+        `${q}
            GROUP BY file_path
            HAVING MAX(created_at) > datetime('now', '-' || ? || ' days')
          )`,
-        days,
-        days,
-        ...f.params,
+        ...params,
         days,
       )
       .toArray();
