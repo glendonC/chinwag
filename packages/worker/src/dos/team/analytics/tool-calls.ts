@@ -8,7 +8,7 @@ import type {
   ToolCallErrorPattern,
   ToolCallTimeline,
 } from '@chinmeister/shared/contracts/analytics.js';
-import { type AnalyticsScope, buildScopeFilter } from './scope.js';
+import { type AnalyticsScope, withScope } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
 
@@ -34,19 +34,19 @@ export function queryToolCallStats(
 
   try {
     // Totals
-    const fTotals = buildScopeFilter(scope);
-    const totalsRow = sql
-      .exec(
-        `SELECT COUNT(*) AS total_calls,
+    const { sql: totalsQ, params: totalsP } = withScope(
+      `SELECT COUNT(*) AS total_calls,
                 COALESCE(SUM(is_error), 0) AS total_errors,
                 ROUND(AVG(duration_ms), 0) AS avg_duration_ms,
                 COUNT(DISTINCT session_id) AS distinct_sessions
          FROM tool_calls
-         WHERE called_at > datetime('now', '-' || ? || ' days')${fTotals.sql}`,
-        days,
-        ...fTotals.params,
-      )
-      .toArray()[0] as Record<string, unknown> | undefined;
+         WHERE called_at > datetime('now', '-' || ? || ' days')`,
+      [days],
+      scope,
+    );
+    const totalsRow = sql.exec(totalsQ, ...totalsP).toArray()[0] as
+      | Record<string, unknown>
+      | undefined;
 
     if (!totalsRow || (totalsRow.total_calls as number) === 0) return empty;
 
@@ -58,38 +58,41 @@ export function queryToolCallStats(
     // in packages/shared/tool-call-categories.ts — do not hardcode here.
     const researchList = sqlInList(RESEARCH_TOOLS);
     const editList = sqlInList(EDIT_TOOLS);
-    const fRatio = buildScopeFilter(scope);
-    const ratioRow = sql
-      .exec(
-        `SELECT
+    const { sql: ratioQ, params: ratioP } = withScope(
+      `SELECT
            SUM(CASE WHEN tool IN (${researchList}) THEN 1 ELSE 0 END) AS research,
            SUM(CASE WHEN tool IN (${editList}) THEN 1 ELSE 0 END) AS edits
          FROM tool_calls
-         WHERE called_at > datetime('now', '-' || ? || ' days')${fRatio.sql}`,
-        days,
-        ...fRatio.params,
-      )
-      .toArray()[0] as Record<string, unknown> | undefined;
+         WHERE called_at > datetime('now', '-' || ? || ' days')`,
+      [days],
+      scope,
+    );
+    const ratioRow = sql.exec(ratioQ, ...ratioP).toArray()[0] as
+      | Record<string, unknown>
+      | undefined;
 
     const researchCount = (ratioRow?.research as number) || 0;
     const editCount = (ratioRow?.edits as number) || 0;
 
     // Per-tool frequency
-    const fFreq = buildScopeFilter(scope);
-    const freqRows = sql
-      .exec(
-        `SELECT tool,
+    const { sql: freqQ, params: freqP } = withScope(
+      `SELECT tool,
                 COUNT(*) AS calls,
                 COALESCE(SUM(is_error), 0) AS errors,
                 ROUND(AVG(duration_ms), 0) AS avg_duration_ms,
                 COUNT(DISTINCT session_id) AS sessions
          FROM tool_calls
-         WHERE called_at > datetime('now', '-' || ? || ' days')${fFreq.sql}
+         WHERE called_at > datetime('now', '-' || ? || ' days')`,
+      [days],
+      scope,
+    );
+    const freqRows = sql
+      .exec(
+        `${freqQ}
          GROUP BY tool
          ORDER BY calls DESC
          LIMIT 25`,
-        days,
-        ...fFreq.params,
+        ...freqP,
       )
       .toArray();
 
@@ -111,19 +114,22 @@ export function queryToolCallStats(
     // MAX(called_at) so the frontend can render a two-pane view: "most
     // frequent" and "most recent." A top-N-by-count ordering alone buries
     // rare-but-recent errors under high-count historical ones.
-    const fErr = buildScopeFilter(scope);
-    const errorRows = sql
-      .exec(
-        `SELECT tool, error_preview, COUNT(*) AS count, MAX(called_at) AS last_at
+    const { sql: errQ, params: errP } = withScope(
+      `SELECT tool, error_preview, COUNT(*) AS count, MAX(called_at) AS last_at
          FROM tool_calls
          WHERE called_at > datetime('now', '-' || ? || ' days')
            AND is_error = 1
-           AND error_preview IS NOT NULL${fErr.sql}
+           AND error_preview IS NOT NULL`,
+      [days],
+      scope,
+    );
+    const errorRows = sql
+      .exec(
+        `${errQ}
          GROUP BY tool, error_preview
          ORDER BY count DESC
          LIMIT 30`,
-        days,
-        ...fErr.params,
+        ...errP,
       )
       .toArray();
 
@@ -138,19 +144,21 @@ export function queryToolCallStats(
     });
 
     // Hourly activity, bucketed in the caller's local TZ.
-    const fHourly = buildScopeFilter(scope);
-    const hourlyRows = sql
-      .exec(
-        `SELECT CAST(strftime('%H', datetime(called_at, ? || ' minutes')) AS INTEGER) AS hour,
+    const { sql: hourlyQ, params: hourlyP } = withScope(
+      `SELECT CAST(strftime('%H', datetime(called_at, ? || ' minutes')) AS INTEGER) AS hour,
                 COUNT(*) AS calls,
                 COALESCE(SUM(is_error), 0) AS errors
          FROM tool_calls
-         WHERE called_at > datetime('now', '-' || ? || ' days')${fHourly.sql}
+         WHERE called_at > datetime('now', '-' || ? || ' days')`,
+      [tzOffsetMinutes, days],
+      scope,
+    );
+    const hourlyRows = sql
+      .exec(
+        `${hourlyQ}
          GROUP BY hour
          ORDER BY hour`,
-        tzOffsetMinutes,
-        days,
-        ...fHourly.params,
+        ...hourlyP,
       )
       .toArray();
 
@@ -168,14 +176,17 @@ export function queryToolCallStats(
     let oneShotSessions = 0;
     let sessionsWithEdits = 0;
     try {
-      const fOneShot = buildScopeFilter(scope);
+      const { sql: oneShotQ, params: oneShotP } = withScope(
+        `SELECT session_id, tool FROM tool_calls
+           WHERE created_at > datetime('now', '-' || ? || ' days')`,
+        [days],
+        scope,
+      );
       const sessionCalls = sql
         .exec(
-          `SELECT session_id, tool FROM tool_calls
-           WHERE created_at > datetime('now', '-' || ? || ' days')${fOneShot.sql}
+          `${oneShotQ}
            ORDER BY session_id, called_at ASC`,
-          days,
-          ...fOneShot.params,
+          ...oneShotP,
         )
         .toArray();
 
