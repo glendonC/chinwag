@@ -41,9 +41,10 @@
  * frame (flex column, no min-height), adds a subtle hover lift via the
  * existing --hover-bg token, and parks a small ↗ corner affordance so the
  * surface reads as drillable without competing with the body's own
- * typography. The button role is on the div so the entire body area is
- * the click target — keyboard activation comes through the onKeyDown
- * handler in WidgetRenderer.
+ * typography. The arrow is softly visible at rest for touch discoverability,
+ * then strengthens on hover/focus. The button role is on the div so the
+ * entire body area is the click target — keyboard activation comes through
+ * the onKeyDown handler in WidgetRenderer.
  */
 .widgetBodyClickable {
   flex: 1;
@@ -54,7 +55,8 @@
   cursor: pointer;
   border-radius: 8px;
   margin: -8px;
-  padding: 8px;
+  /* Room for the corner ↗ so bar charts and edge-to-edge vizzes don’t run under it */
+  padding: 8px 2.25rem 8px 8px;
   transition: background 120ms ease;
   outline: none;
 }
@@ -73,10 +75,13 @@
   position: absolute;
   top: 8px;
   right: 8px;
+  font-family: var(--mono);
   font-size: 12px;
   color: var(--soft);
-  opacity: 0;
-  transition: opacity 120ms ease;
+  opacity: 0.38;
+  transition:
+    opacity 120ms ease,
+    color 120ms ease;
   pointer-events: none;
   line-height: 1;
 }
@@ -84,4 +89,5 @@
 .widgetBodyClickable:hover .drillArrow,
 .widgetBodyClickable:focus-visible .drillArrow {
   opacity: 1;
+  color: var(--ink);
 }

@@ -407,9 +407,9 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     category: 'activity',
     scope: 'both',
     viz: 'heatmap',
-    w: 8,
-    h: 4,
-    minW: 6,
+    w: 12,
+    h: 3,
+    minW: 8,
     minH: 3,
     dataKeys: ['hourly_distribution'],
     drillTarget: { view: 'activity', tab: 'rhythm', q: 'peak-hour' },
@@ -417,13 +417,14 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   {
     id: 'work-types',
     name: 'work types',
-    description: 'Share of edits by category — frontend, backend, test, docs, etc.',
+    description:
+      'Thick weft strip (width = share) with one summary line; tail merges at 6+ types. Full table in activity detail.',
     category: 'activity',
     scope: 'both',
     viz: 'proportional-bar',
-    w: 4,
+    w: 6,
     h: 3,
-    minW: 3,
+    minW: 6,
     minH: 2,
     dataKeys: ['work_type_distribution'],
     fitContent: true,
@@ -552,7 +553,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 6,
     minH: 2,
     dataKeys: ['scope_complexity'],
-    drillTarget: { view: 'outcomes', tab: 'retries' },
+    drillTarget: { view: 'outcomes', tab: 'retries', q: 'scope' },
   },
 
   // ── Codebase (extended) ─────────────
@@ -805,7 +806,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     id: 'hourly-effectiveness',
     name: 'completion rate by hour',
     description:
-      'Cross-tool, cross-agent completion rate by hour of day. The slice fix from the original cut: top hours by volume not clock order, so the rendered set is the high-traffic window. Anchors questions like the volume-vs-rate split, by-tool curve differences, work-type dependence, day-of-week dips, and off-hour failure attribution.',
+      'Cross-tool completion by clock hour, cockpit as a “diel” strip: 24 filaments, bar height = completion, intensity = session volume, strongest 3h window ringed. ActivityDetailView keeps curves and by-tool breakdowns.',
     category: 'activity',
     scope: 'both',
     viz: 'bar-chart',
@@ -1119,9 +1120,10 @@ export const DEFAULT_LAYOUT: WidgetSlot[] = [
   // the leftover 4 cols filled.
   { id: 'outcomes', colSpan: 8, rowSpan: 3 },
 
-  // Heatmap + work types — 8 + 4
-  { id: 'heatmap', colSpan: 8, rowSpan: 4 },
-  { id: 'work-types', colSpan: 4, rowSpan: 3 },
+  // Activity — heatmap gets a full row; mix + effectiveness share the next row.
+  { id: 'heatmap', colSpan: 12, rowSpan: 3 },
+  { id: 'work-types', colSpan: 6, rowSpan: 3 },
+  { id: 'hourly-effectiveness', colSpan: 6, rowSpan: 3 },
 
   // Codebase — directories + files. `directories` returned to default 2026-
   // 04-25 after the 18-month re-audit. The original demotion was a today-

@@ -48,8 +48,8 @@ function computeMax(grid: number[][], scale: 'p95' | 'max'): number {
   const populated: number[] = [];
   for (const row of grid) for (const v of row) if (v > 0) populated.push(v);
   if (populated.length === 0) return 0;
-  if (scale === 'max') return populated[populated.length - 1] ?? 0;
   populated.sort((a, b) => a - b);
+  if (scale === 'max') return populated[populated.length - 1] ?? 0;
   return populated[Math.max(0, Math.floor(populated.length * 0.95) - 1)] ?? 0;
 }
 

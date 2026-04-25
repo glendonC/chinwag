@@ -80,7 +80,7 @@ describe('Command claiming atomicity', () => {
   const owner1 = 'user-cc1';
   const owner2 = 'user-cc2';
 
-  let commandId;
+  let commandId: string;
 
   it('setup: join agents and submit a command', async () => {
     await team().join(dashboard, owner1, 'alice', 'dashboard');
