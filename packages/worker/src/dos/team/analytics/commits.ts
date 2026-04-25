@@ -8,6 +8,7 @@ import type {
   CommitOutcomeCorrelation,
   CommitEditRatioBucket,
 } from '@chinmeister/shared/contracts/analytics.js';
+import { row, rows } from '../../../lib/row.js';
 import { type AnalyticsScope, withScope } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
@@ -44,9 +45,9 @@ export function queryCommitStats(
       scope,
     );
     const totalsRows = sql.exec(totalsQ, ...totalsP).toArray();
-    const totals = (totalsRows[0] || {}) as Record<string, unknown>;
-    const totalCommits = (totals.total_commits as number) || 0;
-    const sessionsWithCommits = (totals.sessions_with_commits as number) || 0;
+    const totals = row(totalsRows[0]);
+    const totalCommits = totals.number('total_commits');
+    const sessionsWithCommits = totals.number('sessions_with_commits');
 
     if (totalCommits === 0) return empty;
 
@@ -57,7 +58,7 @@ export function queryCommitStats(
       scope,
     );
     const sessionRows = sql.exec(sessQ, ...sessP).toArray();
-    const totalSessions = ((sessionRows[0] as Record<string, unknown>)?.total as number) || 1;
+    const totalSessions = row(sessionRows[0]).number('total') || 1;
 
     // Time-to-first-commit (mirrors first_edit_stats pattern)
     const { sql: ttfcQ, params: ttfcP } = withScope(
@@ -71,8 +72,7 @@ export function queryCommitStats(
       scope,
     );
     const ttfcRows = sql.exec(ttfcQ, ...ttfcP).toArray();
-    const avgTimeToFirstCommit =
-      ((ttfcRows[0] as Record<string, unknown>)?.avg_min as number) ?? null;
+    const avgTimeToFirstCommit = row(ttfcRows[0]).nullableNumber('avg_min');
 
     // By tool
     const { sql: toolQ, params: toolP } = withScope(
@@ -95,15 +95,12 @@ export function queryCommitStats(
         ...toolP,
       )
       .toArray();
-    const by_tool: CommitToolBreakdown[] = toolRows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        host_tool: row.host_tool as string,
-        commits: (row.commits as number) || 0,
-        avg_files_changed: (row.avg_files_changed as number) || 0,
-        avg_lines: (row.avg_lines as number) || 0,
-      };
-    });
+    const by_tool: CommitToolBreakdown[] = rows<CommitToolBreakdown>(toolRows, (r) => ({
+      host_tool: r.string('host_tool'),
+      commits: r.number('commits'),
+      avg_files_changed: r.number('avg_files_changed'),
+      avg_lines: r.number('avg_lines'),
+    }));
 
     // Daily commits — substantive only. Day buckets follow the caller's
     // timezone via the offset modifier so a commit made at 11:55pm PT lands
@@ -124,13 +121,10 @@ export function queryCommitStats(
         ...dailyP,
       )
       .toArray();
-    const daily_commits: DailyCommit[] = dailyRows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        day: row.day as string,
-        commits: (row.commits as number) || 0,
-      };
-    });
+    const daily_commits: DailyCommit[] = rows<DailyCommit>(dailyRows, (r) => ({
+      day: r.string('day'),
+      commits: r.number('commits'),
+    }));
 
     // Commit-to-outcome correlation: sessions with 0 commits vs 1+ commits
     const { sql: outcomeQ, params: outcomeP } = withScope(
@@ -151,17 +145,19 @@ export function queryCommitStats(
         ...outcomeP,
       )
       .toArray();
-    const outcome_correlation: CommitOutcomeCorrelation[] = outcomeRows.map((r) => {
-      const row = r as Record<string, unknown>;
-      const sess = (row.sessions as number) || 0;
-      const comp = (row.completed as number) || 0;
-      return {
-        bucket: row.bucket as string,
-        sessions: sess,
-        completed: comp,
-        completion_rate: sess > 0 ? Math.round((comp / sess) * 1000) / 10 : 0,
-      };
-    });
+    const outcome_correlation: CommitOutcomeCorrelation[] = rows<CommitOutcomeCorrelation>(
+      outcomeRows,
+      (r) => {
+        const sess = r.number('sessions');
+        const comp = r.number('completed');
+        return {
+          bucket: r.string('bucket'),
+          sessions: sess,
+          completed: comp,
+          completion_rate: sess > 0 ? Math.round((comp / sess) * 1000) / 10 : 0,
+        };
+      },
+    );
 
     // Commit-to-edit ratio: bucket sessions by what fraction of edits resulted in commits
     const { sql: ratioQ, params: ratioP } = withScope(
@@ -197,18 +193,20 @@ export function queryCommitStats(
         ...ratioP,
       )
       .toArray();
-    const commit_edit_ratio: CommitEditRatioBucket[] = ratioRows.map((r) => {
-      const row = r as Record<string, unknown>;
-      const sess = (row.sessions as number) || 0;
-      const comp = (row.completed as number) || 0;
-      return {
-        bucket: row.bucket as string,
-        sessions: sess,
-        completion_rate: sess > 0 ? Math.round((comp / sess) * 1000) / 10 : 0,
-        avg_edits: (row.avg_edits as number) || 0,
-        avg_commits: (row.avg_commits as number) || 0,
-      };
-    });
+    const commit_edit_ratio: CommitEditRatioBucket[] = rows<CommitEditRatioBucket>(
+      ratioRows,
+      (r) => {
+        const sess = r.number('sessions');
+        const comp = r.number('completed');
+        return {
+          bucket: r.string('bucket'),
+          sessions: sess,
+          completion_rate: sess > 0 ? Math.round((comp / sess) * 1000) / 10 : 0,
+          avg_edits: r.number('avg_edits'),
+          avg_commits: r.number('avg_commits'),
+        };
+      },
+    );
 
     return {
       total_commits: totalCommits,

@@ -3,6 +3,7 @@
 import { createLogger } from '../../../lib/logger.js';
 import type { TokenUsageStats } from '@chinmeister/shared/contracts/analytics.js';
 import type { WindowTokenAggregate } from '../../../lib/pricing-enrich.js';
+import { row, rows } from '../../../lib/row.js';
 import { type AnalyticsScope, buildScopeFilter, withScope } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
@@ -58,14 +59,14 @@ export function queryTokenUsage(
     );
     const totals = sql.exec(totalsQ, ...totalsP).toArray();
 
-    const t = (totals[0] || {}) as Record<string, unknown>;
-    const totalInput = (t.total_input as number) || 0;
-    const totalOutput = (t.total_output as number) || 0;
-    const totalCacheRead = (t.total_cache_read as number) || 0;
-    const totalCacheCreation = (t.total_cache_creation as number) || 0;
-    const withData = (t.with_data as number) || 0;
-    const withoutData = (t.without_data as number) || 0;
-    const editsInTokenSessions = (t.edits_in_token_sessions as number) || 0;
+    const t = row(totals[0]);
+    const totalInput = t.number('total_input');
+    const totalOutput = t.number('total_output');
+    const totalCacheRead = t.number('total_cache_read');
+    const totalCacheCreation = t.number('total_cache_creation');
+    const withData = t.number('with_data');
+    const withoutData = t.number('without_data');
+    const editsInTokenSessions = t.number('edits_in_token_sessions');
 
     if (withData === 0) {
       return { ...empty, sessions_without_token_data: withoutData };
@@ -163,19 +164,16 @@ export function queryTokenUsage(
       )
       .toArray();
 
-    const byModel = modelRows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        agent_model: row.agent_model as string,
-        input_tokens: (row.input_tokens as number) || 0,
-        output_tokens: (row.output_tokens as number) || 0,
-        cache_read_tokens: (row.cache_read_tokens as number) || 0,
-        cache_creation_tokens: (row.cache_creation_tokens as number) || 0,
-        sessions: (row.sessions as number) || 0,
-        // Populated by enrichAnalyticsWithPricing, not here.
-        estimated_cost_usd: null,
-      };
-    });
+    const byModel = rows(modelRows, (r) => ({
+      agent_model: r.string('agent_model'),
+      input_tokens: r.number('input_tokens'),
+      output_tokens: r.number('output_tokens'),
+      cache_read_tokens: r.number('cache_read_tokens'),
+      cache_creation_tokens: r.number('cache_creation_tokens'),
+      sessions: r.number('sessions'),
+      // Populated by enrichAnalyticsWithPricing, not here.
+      estimated_cost_usd: null,
+    }));
 
     return {
       total_input_tokens: totalInput,
@@ -200,17 +198,14 @@ export function queryTokenUsage(
           : null;
       })(),
       by_model: byModel,
-      by_tool: toolRows.map((r) => {
-        const row = r as Record<string, unknown>;
-        return {
-          host_tool: row.host_tool as string,
-          input_tokens: (row.input_tokens as number) || 0,
-          output_tokens: (row.output_tokens as number) || 0,
-          cache_read_tokens: (row.cache_read_tokens as number) || 0,
-          cache_creation_tokens: (row.cache_creation_tokens as number) || 0,
-          sessions: (row.sessions as number) || 0,
-        };
-      }),
+      by_tool: rows(toolRows, (r) => ({
+        host_tool: r.string('host_tool'),
+        input_tokens: r.number('input_tokens'),
+        output_tokens: r.number('output_tokens'),
+        cache_read_tokens: r.number('cache_read_tokens'),
+        cache_creation_tokens: r.number('cache_creation_tokens'),
+        sessions: r.number('sessions'),
+      })),
     };
   } catch (err) {
     log.warn(`tokenUsage query failed: ${err}`);
@@ -266,8 +261,8 @@ export function queryTokenAggregateForWindow(
       scope,
     );
     const editsRows = sql.exec(editsQ, ...editsP).toArray();
-    const editsRow = (editsRows[0] || {}) as Record<string, unknown>;
-    const totalEdits = (editsRow.edits as number) || 0;
+    const editsRow = row(editsRows[0]);
+    const totalEdits = editsRow.number('edits');
 
     const fPerMsg = buildScopeFilter(scope, { handleColumn: 'ce.handle' });
     const fFallback = buildScopeFilter(scope, { handleColumn: 's.handle' });
@@ -322,16 +317,13 @@ export function queryTokenAggregateForWindow(
       .toArray();
 
     return {
-      by_model: modelRows.map((r) => {
-        const row = r as Record<string, unknown>;
-        return {
-          agent_model: row.agent_model as string,
-          input_tokens: (row.input_tokens as number) || 0,
-          output_tokens: (row.output_tokens as number) || 0,
-          cache_read_tokens: (row.cache_read_tokens as number) || 0,
-          cache_creation_tokens: (row.cache_creation_tokens as number) || 0,
-        };
-      }),
+      by_model: rows(modelRows, (r) => ({
+        agent_model: r.string('agent_model'),
+        input_tokens: r.number('input_tokens'),
+        output_tokens: r.number('output_tokens'),
+        cache_read_tokens: r.number('cache_read_tokens'),
+        cache_creation_tokens: r.number('cache_creation_tokens'),
+      })),
       total_edits_in_token_sessions: totalEdits,
     };
   } catch (err) {
@@ -361,7 +353,7 @@ export function queryDailyTokenUsage(
       [tzOffsetMinutes, days],
       scope,
     );
-    const rows = sql
+    const dailyRows = sql
       .exec(
         `${q}
          GROUP BY day, agent_model
@@ -370,17 +362,14 @@ export function queryDailyTokenUsage(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        day: row.day as string,
-        agent_model: row.agent_model as string,
-        input_tokens: (row.input_tokens as number) || 0,
-        output_tokens: (row.output_tokens as number) || 0,
-        cache_read_tokens: (row.cache_read_tokens as number) || 0,
-        cache_creation_tokens: (row.cache_creation_tokens as number) || 0,
-      };
-    });
+    return rows<DailyTokenUsageRow>(dailyRows, (r) => ({
+      day: r.string('day'),
+      agent_model: r.string('agent_model'),
+      input_tokens: r.number('input_tokens'),
+      output_tokens: r.number('output_tokens'),
+      cache_read_tokens: r.number('cache_read_tokens'),
+      cache_creation_tokens: r.number('cache_creation_tokens'),
+    }));
   } catch (err) {
     log.warn(`dailyTokenUsage query failed: ${err}`);
     return [];
