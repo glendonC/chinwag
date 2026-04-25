@@ -1,6 +1,7 @@
 // Analytics core: base analytics assembly and foundational queries.
 
 import { createLogger } from '../../../lib/logger.js';
+import { row, rows } from '../../../lib/row.js';
 import type {
   FileHeatmapEntry,
   DailyTrend,
@@ -55,9 +56,8 @@ export function queryFilesTouchedTotal(
       [days],
       scope,
     );
-    const rows = sql.exec(q, ...params).toArray();
-    const row = rows[0] as Record<string, unknown> | undefined;
-    return (row?.total as number) ?? 0;
+    const rawRows = sql.exec(q, ...params).toArray();
+    return row(rawRows[0]).number('total');
   } catch (err) {
     log.warn(`filesTouchedTotal query failed: ${err}`);
     return 0;
@@ -99,8 +99,8 @@ export function queryFilesTouchedHalfSplit(
       scope,
     );
     const previousRows = sql.exec(previousQ, ...previousParams).toArray();
-    const current = ((currentRows[0] as Record<string, unknown> | undefined)?.c as number) ?? 0;
-    const previous = ((previousRows[0] as Record<string, unknown> | undefined)?.c as number) ?? 0;
+    const current = row(currentRows[0]).number('c');
+    const previous = row(previousRows[0]).number('c');
     return { current, previous };
   } catch (err) {
     log.warn(`filesTouchedHalfSplit query failed: ${err}`);
@@ -122,7 +122,7 @@ export function queryFileHeatmap(
       [days],
       scope,
     );
-    const rows = sql
+    const rawRows = sql
       .exec(
         `${q}
          GROUP BY value
@@ -133,13 +133,10 @@ export function queryFileHeatmap(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        file: row.file as string,
-        touch_count: (row.touch_count as number) || 0,
-      };
-    });
+    return rows<FileHeatmapEntry>(rawRows, (r) => ({
+      file: r.string('file'),
+      touch_count: r.number('touch_count'),
+    }));
   } catch (err) {
     log.warn(`fileHeatmap query failed: ${err}`);
     return [];
@@ -187,7 +184,7 @@ export function queryDailyTrends(
       scope,
       { handleColumn: 's.handle' },
     );
-    const rows = sql
+    const rawRows = sql
       .exec(
         `${q}
          GROUP BY spine.day
@@ -196,20 +193,17 @@ export function queryDailyTrends(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        day: row.day as string,
-        sessions: (row.sessions as number) || 0,
-        edits: (row.edits as number) || 0,
-        lines_added: (row.lines_added as number) || 0,
-        lines_removed: (row.lines_removed as number) || 0,
-        avg_duration_min: (row.avg_duration_min as number) || 0,
-        completed: (row.completed as number) || 0,
-        abandoned: (row.abandoned as number) || 0,
-        failed: (row.failed as number) || 0,
-      };
-    });
+    return rows<DailyTrend>(rawRows, (r) => ({
+      day: r.string('day'),
+      sessions: r.number('sessions'),
+      edits: r.number('edits'),
+      lines_added: r.number('lines_added'),
+      lines_removed: r.number('lines_removed'),
+      avg_duration_min: r.number('avg_duration_min'),
+      completed: r.number('completed'),
+      abandoned: r.number('abandoned'),
+      failed: r.number('failed'),
+    }));
   } catch (err) {
     log.warn(`dailyTrends query failed: ${err}`);
     return [];
@@ -232,7 +226,7 @@ export function queryToolDistribution(
       [days],
       scope,
     );
-    const rows = sql
+    const rawRows = sql
       .exec(
         `${q}
          GROUP BY host_tool
@@ -241,14 +235,11 @@ export function queryToolDistribution(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        host_tool: row.host_tool as string,
-        sessions: (row.sessions as number) || 0,
-        edits: (row.edits as number) || 0,
-      };
-    });
+    return rows<ToolDistribution>(rawRows, (r) => ({
+      host_tool: r.string('host_tool'),
+      sessions: r.number('sessions'),
+      edits: r.number('edits'),
+    }));
   } catch (err) {
     log.warn(`toolDistribution query failed: ${err}`);
     return [];
@@ -269,7 +260,7 @@ export function queryOutcomeDistribution(
       [days],
       scope,
     );
-    const rows = sql
+    const rawRows = sql
       .exec(
         `${q}
          GROUP BY outcome
@@ -278,13 +269,10 @@ export function queryOutcomeDistribution(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        outcome: row.outcome as string,
-        count: (row.count as number) || 0,
-      };
-    });
+    return rows<OutcomeCount>(rawRows, (r) => ({
+      outcome: r.string('outcome'),
+      count: r.number('count'),
+    }));
   } catch (err) {
     log.warn(`outcomeDistribution query failed: ${err}`);
     return [];
@@ -298,7 +286,7 @@ export function queryDailyMetrics(
 ): DailyMetricEntry[] {
   // Scope: not applicable — daily_metrics has no per-user dimension
   try {
-    const rows = sql
+    const rawRows = sql
       .exec(
         `SELECT date, metric, count
          FROM daily_metrics
@@ -308,14 +296,11 @@ export function queryDailyMetrics(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        date: row.date as string,
-        metric: row.metric as string,
-        count: (row.count as number) || 0,
-      };
-    });
+    return rows<DailyMetricEntry>(rawRows, (r) => ({
+      date: r.string('date'),
+      metric: r.string('metric'),
+      count: r.number('count'),
+    }));
   } catch (err) {
     log.warn(`dailyMetrics query failed: ${err}`);
     return [];

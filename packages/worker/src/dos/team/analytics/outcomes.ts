@@ -1,6 +1,7 @@
 // Outcome analytics: model performance, tool outcomes, work type classification.
 
 import { createLogger } from '../../../lib/logger.js';
+import { row, rows } from '../../../lib/row.js';
 import type {
   ModelOutcome,
   ToolOutcome,
@@ -73,7 +74,7 @@ export function queryModelPerformance(
       [days],
       scope,
     );
-    const rows = sql
+    const rawRows = sql
       .exec(
         `${q}
          GROUP BY agent_model, host_tool, outcome
@@ -82,19 +83,16 @@ export function queryModelPerformance(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        agent_model: row.agent_model as string,
-        host_tool: (row.host_tool as string) || null,
-        outcome: row.outcome as string,
-        count: (row.count as number) || 0,
-        avg_duration_min: (row.avg_duration_min as number) || 0,
-        total_edits: (row.total_edits as number) || 0,
-        total_lines_added: (row.total_lines_added as number) || 0,
-        total_lines_removed: (row.total_lines_removed as number) || 0,
-      };
-    });
+    return rows<ModelOutcome>(rawRows, (r) => ({
+      agent_model: r.string('agent_model'),
+      host_tool: r.string('host_tool') || null,
+      outcome: r.string('outcome'),
+      count: r.number('count'),
+      avg_duration_min: r.number('avg_duration_min'),
+      total_edits: r.number('total_edits'),
+      total_lines_added: r.number('total_lines_added'),
+      total_lines_removed: r.number('total_lines_removed'),
+    }));
   } catch (err) {
     log.warn(`modelPerformance query failed: ${err}`);
     return [];
@@ -117,7 +115,7 @@ export function queryToolOutcomes(
       [days],
       scope,
     );
-    const rows = sql
+    const rawRows = sql
       .exec(
         `${q}
          GROUP BY host_tool, outcome
@@ -126,14 +124,11 @@ export function queryToolOutcomes(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        host_tool: row.host_tool as string,
-        outcome: row.outcome as string,
-        count: (row.count as number) || 0,
-      };
-    });
+    return rows<ToolOutcome>(rawRows, (r) => ({
+      host_tool: r.string('host_tool'),
+      outcome: r.string('outcome'),
+      count: r.number('count'),
+    }));
   } catch (err) {
     log.warn(`toolOutcomes query failed: ${err}`);
     return [];
@@ -160,9 +155,9 @@ export function queryCompletionSummary(
     );
     const current = sql.exec(currentQ, ...currentParams).toArray();
 
-    const c = (current[0] || {}) as Record<string, unknown>;
-    const total = (c.total_sessions as number) || 0;
-    const completed = (c.completed as number) || 0;
+    const c = row(current[0]);
+    const total = c.number('total_sessions');
+    const completed = c.number('completed');
     const completionRate = total > 0 ? Math.round((completed / total) * 1000) / 10 : 0;
 
     // Previous period for comparison
@@ -179,9 +174,9 @@ export function queryCompletionSummary(
         scope,
       );
       const prev = sql.exec(prevQ, ...prevParams).toArray();
-      const p = (prev[0] || {}) as Record<string, unknown>;
-      const pTotal = (p.total_sessions as number) || 0;
-      const pCompleted = (p.completed as number) || 0;
+      const p = row(prev[0]);
+      const pTotal = p.number('total_sessions');
+      const pCompleted = p.number('completed');
       if (pTotal > 0) prevRate = Math.round((pCompleted / pTotal) * 1000) / 10;
     } catch {
       // previous period comparison is best-effort
@@ -190,9 +185,9 @@ export function queryCompletionSummary(
     return {
       total_sessions: total,
       completed,
-      abandoned: (c.abandoned as number) || 0,
-      failed: (c.failed as number) || 0,
-      unknown: (c.unknown as number) || 0,
+      abandoned: c.number('abandoned'),
+      failed: c.number('failed'),
+      unknown: c.number('unknown'),
       completion_rate: completionRate,
       prev_completion_rate: prevRate,
     };
@@ -243,7 +238,7 @@ export function queryToolComparison(
       [days],
       scope,
     );
-    const rows = sql
+    const rawRows = sql
       .exec(
         `${q}
          GROUP BY host_tool
@@ -252,22 +247,19 @@ export function queryToolComparison(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        host_tool: row.host_tool as string,
-        sessions: (row.sessions as number) || 0,
-        completed: (row.completed as number) || 0,
-        abandoned: (row.abandoned as number) || 0,
-        failed: (row.failed as number) || 0,
-        completion_rate: (row.completion_rate as number) || 0,
-        avg_duration_min: (row.avg_duration_min as number) || 0,
-        total_edits: (row.total_edits as number) || 0,
-        total_lines_added: (row.total_lines_added as number) || 0,
-        total_lines_removed: (row.total_lines_removed as number) || 0,
-        total_session_hours: (row.total_session_hours as number) || 0,
-      };
-    });
+    return rows<ToolComparison>(rawRows, (r) => ({
+      host_tool: r.string('host_tool'),
+      sessions: r.number('sessions'),
+      completed: r.number('completed'),
+      abandoned: r.number('abandoned'),
+      failed: r.number('failed'),
+      completion_rate: r.number('completion_rate'),
+      avg_duration_min: r.number('avg_duration_min'),
+      total_edits: r.number('total_edits'),
+      total_lines_added: r.number('total_lines_added'),
+      total_lines_removed: r.number('total_lines_removed'),
+      total_session_hours: r.number('total_session_hours'),
+    }));
   } catch (err) {
     log.warn(`toolComparison query failed: ${err}`);
     return [];
@@ -293,7 +285,7 @@ export function queryWorkTypeDistribution(
       [days],
       scope,
     );
-    const rows = sql
+    const rawRows = sql
       .exec(
         `${q}
          GROUP BY work_type
@@ -302,17 +294,14 @@ export function queryWorkTypeDistribution(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        work_type: row.work_type as string,
-        sessions: (row.sessions as number) || 0,
-        edits: (row.edits as number) || 0,
-        lines_added: (row.lines_added as number) || 0,
-        lines_removed: (row.lines_removed as number) || 0,
-        files: (row.files as number) || 0,
-      };
-    });
+    return rows<WorkTypeDistribution>(rawRows, (r) => ({
+      work_type: r.string('work_type'),
+      sessions: r.number('sessions'),
+      edits: r.number('edits'),
+      lines_added: r.number('lines_added'),
+      lines_removed: r.number('lines_removed'),
+      files: r.number('files'),
+    }));
   } catch (err) {
     log.warn(`workTypeDistribution query failed: ${err}`);
     return [];
@@ -337,7 +326,7 @@ export function queryToolWorkType(
       [days],
       scope,
     );
-    const rows = sql
+    const rawRows = sql
       .exec(
         `${q}
          GROUP BY host_tool, work_type
@@ -346,15 +335,12 @@ export function queryToolWorkType(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        host_tool: row.host_tool as string,
-        work_type: row.work_type as string,
-        sessions: (row.sessions as number) || 0,
-        edits: (row.edits as number) || 0,
-      };
-    });
+    return rows<ToolWorkTypeBreakdown>(rawRows, (r) => ({
+      host_tool: r.string('host_tool'),
+      work_type: r.string('work_type'),
+      sessions: r.number('sessions'),
+      edits: r.number('edits'),
+    }));
   } catch (err) {
     log.warn(`toolWorkType query failed: ${err}`);
     return [];
@@ -382,7 +368,7 @@ export function queryWorkTypeOutcomes(
       scope,
       { handleColumn: 's.handle' },
     );
-    const rows = sql
+    const rawRows = sql
       .exec(
         `${q}
          )
@@ -401,17 +387,14 @@ export function queryWorkTypeOutcomes(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        work_type: row.work_type as string,
-        sessions: (row.sessions as number) || 0,
-        completed: (row.completed as number) || 0,
-        abandoned: (row.abandoned as number) || 0,
-        failed: (row.failed as number) || 0,
-        completion_rate: (row.completion_rate as number) || 0,
-      };
-    });
+    return rows<WorkTypeOutcome>(rawRows, (r) => ({
+      work_type: r.string('work_type'),
+      sessions: r.number('sessions'),
+      completed: r.number('completed'),
+      abandoned: r.number('abandoned'),
+      failed: r.number('failed'),
+      completion_rate: r.number('completion_rate'),
+    }));
   } catch (err) {
     log.warn(`workTypeOutcomes query failed: ${err}`);
     return [];

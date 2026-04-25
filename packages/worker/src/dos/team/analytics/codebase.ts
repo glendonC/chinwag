@@ -1,6 +1,7 @@
 // Codebase analytics: file churn, concurrent edits, heatmaps, rework, staleness.
 
 import { createLogger } from '../../../lib/logger.js';
+import { row, rows } from '../../../lib/row.js';
 import { classifyWorkType } from './outcomes.js';
 import { HEATMAP_LIMIT } from './core.js';
 import type {
@@ -99,7 +100,7 @@ export function queryFileChurn(
       [days],
       scope,
     );
-    const rows = sql
+    const rawRows = sql
       .exec(
         `${q}
          GROUP BY file_path
@@ -111,15 +112,12 @@ export function queryFileChurn(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        file: row.file as string,
-        session_count: (row.session_count as number) || 0,
-        total_edits: (row.total_edits as number) || 0,
-        total_lines: (row.total_lines as number) || 0,
-      };
-    });
+    return rows<FileChurnEntry>(rawRows, (r) => ({
+      file: r.string('file'),
+      session_count: r.number('session_count'),
+      total_edits: r.number('total_edits'),
+      total_lines: r.number('total_lines'),
+    }));
   } catch (err) {
     log.warn(`fileChurn query failed: ${err}`);
     return [];
@@ -149,7 +147,7 @@ export function queryConcurrentEdits(
       [days],
       scope,
     );
-    const rows = sql
+    const rawRows = sql
       .exec(
         `${q}
          GROUP BY file_path
@@ -161,14 +159,11 @@ export function queryConcurrentEdits(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        file: row.file as string,
-        agents: (row.agents as number) || 0,
-        edit_count: (row.edit_count as number) || 0,
-      };
-    });
+    return rows<ConcurrentEditEntry>(rawRows, (r) => ({
+      file: r.string('file'),
+      agents: r.number('agents'),
+      edit_count: r.number('edit_count'),
+    }));
   } catch (err) {
     log.warn(`concurrentEdits query failed: ${err}`);
     return [];
@@ -206,7 +201,7 @@ export function queryFileHeatmapEnhanced(
       [days],
       scope,
     );
-    const rows = sql
+    const rawRows = sql
       .exec(
         `${q}
          GROUP BY value
@@ -217,15 +212,15 @@ export function queryFileHeatmapEnhanced(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
+    return rows<FileHeatmapEntry>(rawRows, (r) => {
+      const file = r.string('file');
       return {
-        file: row.file as string,
-        touch_count: (row.touch_count as number) || 0,
-        work_type: classifyWorkType(row.file as string),
-        outcome_rate: (row.outcome_rate as number) || 0,
-        total_lines_added: (row.total_lines_added as number) || 0,
-        total_lines_removed: (row.total_lines_removed as number) || 0,
+        file,
+        touch_count: r.number('touch_count'),
+        work_type: classifyWorkType(file),
+        outcome_rate: r.number('outcome_rate'),
+        total_lines_added: r.number('total_lines_added'),
+        total_lines_removed: r.number('total_lines_removed'),
       };
     });
   } catch (err) {
@@ -254,7 +249,7 @@ export function queryFileRework(
       scope,
       { handleColumn: 'e.handle' },
     );
-    const rows = sql
+    const rawRows = sql
       .exec(
         `${q}
          GROUP BY e.file_path
@@ -267,15 +262,12 @@ export function queryFileRework(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        file: row.file as string,
-        total_edits: (row.total_edits as number) || 0,
-        failed_edits: (row.failed_edits as number) || 0,
-        rework_ratio: (row.rework_ratio as number) || 0,
-      };
-    });
+    return rows<FileReworkEntry>(rawRows, (r) => ({
+      file: r.string('file'),
+      total_edits: r.number('total_edits'),
+      failed_edits: r.number('failed_edits'),
+      rework_ratio: r.number('rework_ratio'),
+    }));
   } catch (err) {
     log.warn(`fileRework query failed: ${err}`);
     return [];
@@ -303,7 +295,7 @@ export function queryDirectoryHeatmap(
     );
     // Query file-level data and roll up to directories in JS
     // (SQLite lacks a clean dirname function)
-    const rows = sql
+    const rawRows = sql
       .exec(
         `${q}
          GROUP BY value`,
@@ -322,9 +314,9 @@ export function queryDirectoryHeatmap(
       }
     >();
 
-    for (const r of rows) {
-      const row = r as Record<string, unknown>;
-      const dir = extractDirectory(row.file as string);
+    for (const raw of rawRows) {
+      const r = row(raw);
+      const dir = extractDirectory(r.string('file'));
       const existing = dirMap.get(dir) || {
         touch_count: 0,
         file_count: 0,
@@ -332,11 +324,11 @@ export function queryDirectoryHeatmap(
         completed_sum: 0,
         total_sum: 0,
       };
-      const touches = (row.touch_count as number) || 0;
+      const touches = r.number('touch_count');
       existing.touch_count += touches;
       existing.file_count += 1;
-      existing.total_lines += (row.total_lines as number) || 0;
-      existing.completed_sum += ((row.completion_rate as number) || 0) * touches;
+      existing.total_lines += r.number('total_lines');
+      existing.completed_sum += r.number('completion_rate') * touches;
       existing.total_sum += touches;
       dirMap.set(dir, existing);
     }
@@ -379,7 +371,7 @@ export function queryAuditStaleness(sql: SqlStorage, scope: AnalyticsScope): Aud
       [],
       scope,
     );
-    const rows = sql
+    const rawRows = sql
       .exec(
         `${q}
          GROUP BY file_path
@@ -392,12 +384,12 @@ export function queryAuditStaleness(sql: SqlStorage, scope: AnalyticsScope): Aud
     // Roll up to directory level and filter for stale ones
     const dirMap = new Map<string, { last_edit: string; edit_count: number }>();
 
-    for (const r of rows) {
-      const row = r as Record<string, unknown>;
-      const dir = extractDirectory(row.file_path as string);
+    for (const raw of rawRows) {
+      const r = row(raw);
+      const dir = extractDirectory(r.string('file_path'));
       const existing = dirMap.get(dir);
-      const lastEdit = row.last_edit as string;
-      const editCount = (row.edit_count as number) || 0;
+      const lastEdit = r.string('last_edit');
+      const editCount = r.number('edit_count');
 
       if (!existing || lastEdit > existing.last_edit) {
         dirMap.set(dir, {
@@ -450,7 +442,7 @@ export function queryFilesByWorkType(
       [days],
       scope,
     );
-    const rows = sql
+    const rawRows = sql
       .exec(
         `${q}
          GROUP BY work_type
@@ -459,13 +451,10 @@ export function queryFilesByWorkType(
       )
       .toArray();
 
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        work_type: (row.work_type as string) || 'other',
-        file_count: (row.file_count as number) || 0,
-      };
-    });
+    return rows<FilesByWorkTypeEntry>(rawRows, (r) => ({
+      work_type: r.string('work_type') || 'other',
+      file_count: r.number('file_count'),
+    }));
   } catch (err) {
     log.warn(`filesByWorkType query failed: ${err}`);
     return [];
@@ -499,7 +488,7 @@ export function queryFilesNewVsRevisited(
       [days, days],
       scope,
     );
-    const rows = sql
+    const rawRows = sql
       .exec(
         `${q}
            GROUP BY file_path
@@ -509,10 +498,10 @@ export function queryFilesNewVsRevisited(
         days,
       )
       .toArray();
-    const row = rows[0] as Record<string, unknown> | undefined;
+    const r = row(rawRows[0]);
     return {
-      new_files: (row?.new_files as number) ?? 0,
-      revisited_files: (row?.revisited_files as number) ?? 0,
+      new_files: r.number('new_files'),
+      revisited_files: r.number('revisited_files'),
     };
   } catch (err) {
     log.warn(`filesNewVsRevisited query failed: ${err}`);
