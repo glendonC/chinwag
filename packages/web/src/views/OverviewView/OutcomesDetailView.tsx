@@ -11,7 +11,7 @@ import { getToolMeta } from '../../lib/toolMeta.js';
 import { arcPath } from '../../lib/svgArcs.js';
 import { useTabs } from '../../hooks/useTabs.js';
 import { setQueryParam, useQueryParam } from '../../lib/router.js';
-import { COMPLETION_THRESHOLDS, completionColor, workTypeColor } from '../../widgets/utils.js';
+import { completionColor, workTypeColor } from '../../widgets/utils.js';
 import type { UserAnalytics } from '../../lib/apiSchemas.js';
 import { RANGES, formatScope, type RangeDays } from './overview-utils.js';
 import styles from './OutcomesDetailView.module.css';
@@ -22,7 +22,7 @@ import styles from './OutcomesDetailView.module.css';
  * blocks, tab-driven panels) but answers a different question family:
  *
  *   sessions — completion health, stuckness, first edit, duration shape
- *   retries  — one-shot rate, scope complexity curve
+ *   retries  — one-shot rate, scope completion scale
  *   types    — work-type completion bars
  *
  * Deliberate duplication: DurationStrip lives here as well as in
@@ -158,6 +158,9 @@ function SessionsPanel({ analytics }: { analytics: UserAnalytics }) {
       sessions completed (<Metric tone="positive">{Math.round(cs.completion_rate)}%</Metric>).
     </>
   );
+  const observedDays = analytics.daily_trends.filter((d) => (d.sessions ?? 0) > 0);
+  const dailyTrendAnswer =
+    observedDays.length >= 2 ? completionDailyTrendSentence(observedDays) : null;
 
   const stuckAnswer =
     stuck.stuck_sessions === 0 ? (
@@ -210,13 +213,21 @@ function SessionsPanel({ analytics }: { analytics: UserAnalytics }) {
       answer: completionAnswer,
       children: <DetailRing cs={cs} />,
     },
-    {
-      id: 'stall',
-      question: 'How often did agents stall?',
-      answer: stuckAnswer,
-      children: <StuckBlock stuck={stuck} />,
-    },
   ];
+  if (dailyTrendAnswer) {
+    questions.push({
+      id: 'trend',
+      question: 'Is completion improving?',
+      answer: dailyTrendAnswer,
+      children: <CompletionTrendDetail trends={analytics.daily_trends} />,
+    });
+  }
+  questions.push({
+    id: 'stall',
+    question: 'How often did agents stall?',
+    answer: stuckAnswer,
+    children: <StuckBlock stuck={stuck} />,
+  });
   if (
     (fe.median_minutes_to_first_edit > 0 || fe.avg_minutes_to_first_edit > 0) &&
     firstEditAnswer
@@ -284,7 +295,7 @@ function RetriesPanel({ analytics }: { analytics: UserAnalytics }) {
       id: 'scope',
       question: 'Does scope hurt completion?',
       answer: completionTrendSentence(sc),
-      children: <ScopeCurve sc={sc} />,
+      children: <ScopeLadder sc={sc} />,
     });
   }
 
@@ -615,6 +626,49 @@ function DurationStrip({
   );
 }
 
+function CompletionTrendDetail({ trends }: { trends: UserAnalytics['daily_trends'] }) {
+  const observed = trends.filter((d) => (d.sessions ?? 0) > 0);
+  const maxSessions = Math.max(...observed.map((d) => d.sessions ?? 0), 1);
+  return (
+    <div className={styles.dailyTrendDetail}>
+      <div className={styles.dailyTrendBars}>
+        {trends.map((d, i) => {
+          const sessions = d.sessions ?? 0;
+          const rate = sessions > 0 ? Math.round(((d.completed ?? 0) / sessions) * 100) : null;
+          const color = rate == null ? 'var(--ghost)' : completionColor(rate);
+          const height = rate == null ? 10 : Math.max(10, rate);
+          const opacity = sessions > 0 ? Math.max(0.45, sessions / maxSessions) : 0.16;
+          return (
+            <span key={d.day} className={styles.dailyTrendColumn}>
+              <span
+                className={styles.dailyTrendBar}
+                style={
+                  {
+                    '--row-index': i,
+                    '--trend-height': `${height}%`,
+                    background: color,
+                    opacity,
+                  } as CSSProperties
+                }
+                title={
+                  rate == null
+                    ? `${d.day}: no sessions`
+                    : `${d.day}: ${rate}% completed, ${d.completed ?? 0} of ${sessions} sessions`
+                }
+              />
+              <span className={styles.dailyTrendRate}>{rate == null ? '—' : `${rate}%`}</span>
+            </span>
+          );
+        })}
+      </div>
+      <div className={styles.dailyTrendLegend}>
+        <span>daily completion rate</span>
+        <span>opacity shows session volume</span>
+      </div>
+    </div>
+  );
+}
+
 function OneShotBlock({ oneShot }: { oneShot: UserAnalytics['tool_call_stats'] }) {
   return (
     <div className={styles.stuckRow}>
@@ -638,85 +692,38 @@ function OneShotBlock({ oneShot }: { oneShot: UserAnalytics['tool_call_stats'] }
   );
 }
 
-const CURVE_W = 600;
-const CURVE_H = 220;
-const CURVE_PAD = { top: 16, right: 20, bottom: 8, left: 44 };
-
-function ScopeCurve({ sc }: { sc: UserAnalytics['scope_complexity'] }) {
-  const plotW = CURVE_W - CURVE_PAD.left - CURVE_PAD.right;
-  const plotH = CURVE_H - CURVE_PAD.top - CURVE_PAD.bottom;
-
-  const points = sc.map((b, i) => {
-    const x = CURVE_PAD.left + (sc.length === 1 ? plotW / 2 : (i / (sc.length - 1)) * plotW);
-    const y = CURVE_PAD.top + (1 - Math.min(1, b.completion_rate / 100)) * plotH;
-    return { x, y, bucket: b.bucket, rate: b.completion_rate, sessions: b.sessions };
-  });
-
-  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
-  const areaPath = `${linePath} L${points[points.length - 1].x},${CURVE_PAD.top + plotH} L${points[0].x},${CURVE_PAD.top + plotH} Z`;
-  const gridLines = [0, COMPLETION_THRESHOLDS.warning, COMPLETION_THRESHOLDS.good, 100];
-
+function ScopeLadder({ sc }: { sc: UserAnalytics['scope_complexity'] }) {
   return (
-    <div className={styles.curveBlock}>
-      <div className={styles.curveMedia}>
-        <svg
-          viewBox={`0 0 ${CURVE_W} ${CURVE_H}`}
-          className={styles.curveSvg}
-          role="img"
-          aria-label="Completion rate by scope bucket"
-        >
-          {gridLines.map((pct) => {
-            const y = CURVE_PAD.top + (1 - pct / 100) * plotH;
-            return (
-              <g key={pct}>
-                <line
-                  x1={CURVE_PAD.left}
-                  y1={y}
-                  x2={CURVE_W - CURVE_PAD.right}
-                  y2={y}
-                  className={styles.curveGrid}
-                />
-                <text
-                  x={CURVE_PAD.left - 8}
-                  y={y}
-                  textAnchor="end"
-                  dominantBaseline="central"
-                  className={styles.curveAxis}
-                >
-                  {pct}
-                </text>
-              </g>
-            );
-          })}
-          <path d={areaPath} className={styles.curveArea} />
-          <path d={linePath} className={styles.curveLine} />
-          {points.map((p) => (
-            <circle
-              key={p.bucket}
-              cx={p.x}
-              cy={p.y}
-              r={6}
-              className={styles.curveDot}
-              style={{ stroke: completionColor(p.rate) }}
-            >
-              <title>
-                {p.bucket}: {p.rate}% · {p.sessions} sessions
-              </title>
-            </circle>
-          ))}
-        </svg>
-      </div>
-      <div
-        className={styles.curveLabels}
-        style={{ paddingLeft: CURVE_PAD.left, paddingRight: CURVE_PAD.right }}
-      >
-        {points.map((p) => (
-          <div key={p.bucket} className={styles.curveLabelCell}>
-            <span className={styles.curveBucketLabel}>{p.bucket}</span>
-            <span className={styles.curveSessionCount}>{fmtCount(p.sessions)} sessions</span>
+    <div className={styles.scopeLadder}>
+      {sc.map((b, i) => {
+        const color = completionColor(b.completion_rate);
+        return (
+          <div
+            key={b.bucket}
+            className={styles.scopeLadderRow}
+            style={{ '--row-index': i, '--scope-rate': `${b.completion_rate}%` } as CSSProperties}
+          >
+            <span className={styles.scopeLadderBucket}>{b.bucket}</span>
+            <span className={styles.scopeLadderTrack}>
+              <span className={styles.scopeLadderFill} style={{ background: color }} />
+            </span>
+            <span className={styles.scopeLadderRate} style={{ color }}>
+              {b.completion_rate}%
+            </span>
+            <span className={styles.scopeLadderFacts}>
+              <span>
+                <span className={styles.scopeLadderFactValue}>{fmtCount(b.sessions)}</span> sessions
+              </span>
+              <span>
+                <span className={styles.scopeLadderFactValue}>
+                  {formatMinutes(b.avg_duration_min)}m
+                </span>{' '}
+                average
+              </span>
+            </span>
           </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }
@@ -739,4 +746,38 @@ function completionTrendSentence(sc: UserAnalytics['scope_complexity']): string 
     return `Completion drops from ${first.completion_rate}% at ${first.bucket} to ${last.completion_rate}% at ${last.bucket}. Larger scope sessions fail more.`;
   }
   return `Completion rises from ${first.completion_rate}% at ${first.bucket} to ${last.completion_rate}% at ${last.bucket} — wider scope doesn't hurt in this window.`;
+}
+
+function completionDailyTrendSentence(trends: UserAnalytics['daily_trends']) {
+  const rates = trends
+    .filter((d) => (d.sessions ?? 0) > 0)
+    .map((d) => Math.round(((d.completed ?? 0) / (d.sessions ?? 1)) * 100));
+  const first = rates[0] ?? 0;
+  const last = rates[rates.length - 1] ?? first;
+  const delta = last - first;
+  const low = Math.min(...rates);
+  const high = Math.max(...rates);
+  if (Math.abs(delta) >= 10) {
+    const tone = delta > 0 ? 'positive' : 'negative';
+    return (
+      <>
+        Completion moved from <Metric>{first}%</Metric> to <Metric tone={tone}>{last}%</Metric>{' '}
+        across active days.
+      </>
+    );
+  }
+  if (high - low >= 30) {
+    return (
+      <>
+        Completion is volatile, ranging from <Metric tone="warning">{low}%</Metric> to{' '}
+        <Metric>{high}%</Metric> across active days.
+      </>
+    );
+  }
+  return (
+    <>
+      Completion held steady around <Metric tone="positive">{last}%</Metric> on the latest active
+      day.
+    </>
+  );
 }

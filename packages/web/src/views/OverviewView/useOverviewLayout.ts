@@ -122,6 +122,16 @@ function healOutcomesWidth(slots: WidgetSlot[]): WidgetSlot[] {
   return slots.map((s) => (s.id === 'outcomes' && s.colSpan < 6 ? { ...s, colSpan: 8 } : s));
 }
 
+// 2026-04-25: scope-complexity moved from a row/table experiment to a
+// scope-tax composition. The design needs enough horizontal room for the
+// hero + bucket marks to breathe; 6-col saved slots collapse into cramped
+// typography. Heal existing saved layouts to the catalog's 8-col default.
+function healScopeComplexityWidth(slots: WidgetSlot[]): WidgetSlot[] {
+  return slots.map((s) =>
+    s.id === 'scope-complexity' && s.colSpan < 8 ? { ...s, colSpan: 8 } : s,
+  );
+}
+
 function migrateFromLegacyKeys(): DashboardLayout | null {
   try {
     const idsRaw = localStorage.getItem(LEGACY_IDS_KEY);
@@ -163,7 +173,9 @@ function loadDashboard(): DashboardLayout {
       }
       if (parsed?.version === STORAGE_VERSION && Array.isArray(parsed.widgets)) {
         const expanded = resolveAliases(parsed.widgets as WidgetSlot[]);
-        const healed = healOutcomesWidth(healProjectsWidth(healLiveAgentsWidth(expanded)));
+        const healed = healScopeComplexityWidth(
+          healOutcomesWidth(healProjectsWidth(healLiveAgentsWidth(expanded))),
+        );
         const stored = parsed.widgets as WidgetSlot[];
         const changed =
           healed.length !== stored.length ||

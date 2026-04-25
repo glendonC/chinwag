@@ -67,9 +67,7 @@ afterEach(() => {
 
 describe('OutcomeTrendWidget resilience', () => {
   it('ignores zero-outcome days and renders a named empty state when no active days remain', async () => {
-    // 2026-04-24: OutcomeTrendWidget switched from continuous stacked
-    // area (SVG paths) to discrete stacked columns per day. Empty state
-    // path is unchanged — SectionEmpty when <2 observed days.
+    // Empty state is keyed to days with sessions, not fake zero-fill rows.
     const { OutcomeTrendWidget, createEmptyUserAnalytics } = await loadModule();
     const analytics = createEmptyUserAnalytics();
     analytics.daily_trends = Array.from({ length: 11 }, (_, i) =>
@@ -80,11 +78,7 @@ describe('OutcomeTrendWidget resilience', () => {
     r.unmount();
   });
 
-  it('renders per-day groups and a legend when outcomes are recorded', async () => {
-    // 2026-04-24: outcome-trend switched from HTML grid columns back
-    // to SVG bars (flex/grid %-height kept collapsing). Each day
-    // renders a <g> group with rects for the present outcomes plus
-    // a hit rect for tooltip + hover tint.
+  it('renders per-day completion-rate cells when outcomes are recorded', async () => {
     const { OutcomeTrendWidget, createEmptyUserAnalytics } = await loadModule();
     const analytics = createEmptyUserAnalytics();
     analytics.daily_trends = [
@@ -94,11 +88,10 @@ describe('OutcomeTrendWidget resilience', () => {
       { ...zeroTrendRow('2026-04-17'), sessions: 5, completed: 2, failed: 1 },
     ];
     const r = render(OutcomeTrendWidget, makeProps(analytics));
-    const dayGroups = r.container.querySelectorAll('svg g');
-    expect(dayGroups.length).toBe(analytics.daily_trends.length);
-    expect(r.container.textContent).toMatch(/completed/);
-    expect(r.container.textContent).toMatch(/abandoned/);
-    expect(r.container.textContent).toMatch(/failed/);
+    const cells = r.container.querySelectorAll('[title]');
+    expect(cells.length).toBe(analytics.daily_trends.length);
+    expect(r.container.textContent).toMatch(/active days/);
+    expect(r.container.textContent).toMatch(/healthy/);
     r.unmount();
   });
 });

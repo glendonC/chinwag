@@ -2,7 +2,7 @@
  *
  * Structure mirrors UsageDetailView: DetailView shell + DetailSection
  * blocks. This module owns only viz-specific chrome (the detail ring,
- * the scope curve at detail size, empty states). Spacing and typography
+ * the scope scale at detail size, empty states). Spacing and typography
  * come from shared tokens.
  */
 
@@ -307,94 +307,138 @@
   margin-left: 6px;
 }
 
-/* ── Scope curve (detail size) ────────────────────── */
+/* ── Daily completion trend (detail size) ─────────── */
 
-.curveBlock {
+.dailyTrendDetail {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  gap: var(--space-md);
 }
 
-.curveMedia {
-  width: 100%;
-  aspect-ratio: 3 / 1;
-  max-height: 240px;
-}
-
-.curveSvg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.curveArea {
-  fill: var(--ink);
-  opacity: 0.06;
-}
-
-.curveLine {
-  fill: none;
-  stroke: var(--ink);
-  stroke-width: 1.25;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: 3 4;
-  opacity: 0.5;
-}
-
-.curveDot {
-  fill: var(--page-bg);
-  stroke-width: 2.25;
-  transition:
-    r 0.15s ease,
-    stroke-width 0.15s ease;
-}
-
-.curveDot:hover {
-  stroke-width: 3;
-}
-
-.curveGrid {
-  stroke: var(--ghost);
-  stroke-width: 1;
-  stroke-dasharray: 2 4;
-  opacity: 0.4;
-}
-
-.curveAxis {
-  font-family: var(--mono);
-  font-size: var(--text-xs);
-  fill: var(--soft);
-  letter-spacing: var(--tracking-stat);
-}
-
-.curveLabels {
+.dailyTrendBars {
   display: grid;
-  grid-auto-columns: minmax(0, 1fr);
   grid-auto-flow: column;
-  gap: var(--space-sm);
+  grid-auto-columns: minmax(10px, 1fr);
+  align-items: end;
+  gap: 5px;
+  min-height: 180px;
 }
 
-.curveLabelCell {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
+.dailyTrendColumn {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  align-items: end;
+  gap: 8px;
+  min-width: 0;
 }
 
-.curveBucketLabel {
+.dailyTrendBar {
+  display: block;
+  height: var(--trend-height);
+  min-height: 10px;
+  width: 100%;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 25ms);
+  transition:
+    opacity var(--motion-fast) ease,
+    transform var(--motion-fast) var(--motion);
+}
+
+.dailyTrendBar:hover {
+  opacity: 1 !important;
+  transform: translateY(-2px);
+}
+
+.dailyTrendRate {
   font-family: var(--mono);
-  font-size: var(--text-xs);
-  color: var(--muted);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dailyTrendLegend {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
   letter-spacing: var(--tracking-stat);
   text-transform: uppercase;
 }
 
-.curveSessionCount {
+/* ── Scope ladder (detail size) ───────────────────── */
+
+.scopeLadder {
+  display: grid;
+  gap: 14px;
+}
+
+.scopeLadderRow {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) 74px minmax(140px, auto);
+  align-items: center;
+  gap: var(--space-md);
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 45ms);
+}
+
+.scopeLadderBucket {
   font-family: var(--mono);
-  font-size: var(--text-2xs);
+  font-size: var(--text-xs);
   color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.scopeLadderTrack {
+  height: 13px;
+  background: var(--ghost);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.scopeLadderFill {
+  display: block;
+  width: var(--scope-rate);
+  height: 100%;
+  border-radius: var(--radius-pill);
+  opacity: 0.72;
+  transition:
+    width var(--motion-fast) var(--motion),
+    opacity var(--motion-fast) ease;
+}
+
+.scopeLadderRate {
+  font-family: var(--display);
+  font-size: var(--display-inline);
+  line-height: var(--display-line);
+  font-weight: 300;
+  letter-spacing: var(--display-spacing);
   font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.scopeLadderFacts {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.scopeLadderFactValue {
+  color: var(--muted);
+  font-weight: 500;
 }
 
 /* ── Work-type bars (detail size) ─────────────────── */
@@ -452,13 +496,19 @@
 
 @media (prefers-reduced-motion: reduce) {
   .legendRow,
-  .wtRow {
+  .wtRow,
+  .dailyTrendBar {
     animation: none !important;
   }
   .durationSegment,
-  .wtBarFill,
-  .curveDot {
+  .dailyTrendBar,
+  .scopeLadderFill,
+  .wtBarFill {
     transition: none !important;
+  }
+
+  .dailyTrendBar:hover {
+    transform: none;
   }
 }
 
@@ -468,5 +518,13 @@
   .firstEditBlock {
     grid-template-columns: 1fr;
     gap: var(--space-md);
+  }
+
+  .scopeLadderRow {
+    grid-template-columns: 92px minmax(0, 1fr) 64px;
+  }
+
+  .scopeLadderFacts {
+    display: none;
   }
 }

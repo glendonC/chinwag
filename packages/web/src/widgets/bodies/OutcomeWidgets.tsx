@@ -29,7 +29,7 @@ function useIsDrillable(): boolean {
  *   outcomes             — ring (4×3)
  *   one-shot-rate        — stat (3×2)
  *   stuckness            — stat-row (4×2)
- *   scope-complexity     — curve (6×3)
+ *   scope-complexity     — scope band (6×3)
  *   work-type-outcomes   — horizontal bars (6×3)
  *
  * `first-edit` and `duration-dist` used to live here; both were cut
@@ -157,11 +157,7 @@ function OutcomesWidget({ analytics }: WidgetBodyProps) {
               <span className={styles.outcomeTrendCell}>
                 <MiniSparkline values={series} color={s.color} muted={s.muted} />
               </span>
-              {drillable && (
-                <span className={styles.outcomeRowArrow} aria-hidden="true">
-                  ↗
-                </span>
-              )}
+              {drillable && <span className={styles.outcomeViewButton}>View</span>}
             </>
           );
           if (drillable) {
@@ -408,15 +404,9 @@ function StucknessWidget({ analytics }: WidgetBodyProps) {
 
 // ── Completion by scope (6×3) ───────────────────────
 //
-// Row-per-bucket layout matching the `tools` widget's factual-grid
-// pattern the user referenced. Each row carries four facts the SVG
-// curve hid inside dots: the bucket label, the completion bar, the
-// rate %, and a small caption with session count + avg duration.
-// The bar color comes from the `completionColor` threshold so the
-// ordinal decline (1 file → 7+ files) reads as a visual gradient
-// from green at the top to warn/danger at the bottom. Substrate
-// value: chinmeister aggregates files_touched across every tool the
-// user runs, so this bucket mix is cross-tool by construction.
+// Scope terrace. Scope is ordinal, so render a stepped terrain: each
+// terrace is one file-scope bucket, with vertical position carrying
+// completion. Labels stay in DOM outside the geometry to avoid overlap.
 
 function ScopeComplexityWidget({ analytics }: WidgetBodyProps) {
   const drillable = useIsDrillable();
@@ -431,61 +421,71 @@ function ScopeComplexityWidget({ analytics }: WidgetBodyProps) {
     );
   }
 
+  const content = (
+    <>
+      {drillable && <span className={styles.scopeViewButton}>View</span>}
+      <ScopeTerrace buckets={sc} />
+    </>
+  );
+
+  if (drillable) {
+    return (
+      <button
+        type="button"
+        className={styles.scopeFrame}
+        onClick={openOutcomes('retries')}
+        aria-label="Open outcomes detail · completion by scope"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return <div className={styles.scopeFrame}>{content}</div>;
+}
+
+function ScopeTerrace({ buckets }: { buckets: UserAnalytics['scope_complexity'] }) {
   return (
-    <div className={styles.scopeList}>
-      {sc.map((b, i) => {
-        const color = completionColor(b.completion_rate);
-        const minutes = Math.round(b.avg_duration_min);
-        const ariaLabel = `Open outcomes detail · ${b.bucket} ${b.completion_rate}% across ${b.sessions} sessions`;
-        const content = (
-          <>
-            <span className={styles.scopeLabel}>{b.bucket}</span>
-            <div className={styles.scopeTrack}>
-              <div
-                className={styles.scopeFill}
-                style={{
-                  width: `${b.completion_rate}%`,
-                  background: color,
-                }}
-              />
-            </div>
-            <span className={styles.scopeRate} style={{ color }}>
-              {b.completion_rate}%
-            </span>
-            <span className={styles.scopeMeta}>
-              {b.sessions.toLocaleString()} sessions · {minutes}m avg
-            </span>
-            {drillable && (
-              <span className={styles.scopeArrow} aria-hidden="true">
-                ↗
-              </span>
-            )}
-          </>
-        );
-        if (drillable) {
+    <div
+      className={styles.scopeTerrace}
+      role="img"
+      aria-label="Completion rate by touched-file scope"
+    >
+      <div className={styles.scopeTerraceViz} aria-hidden="true">
+        {buckets.map((b, i) => {
+          const color = completionColor(b.completion_rate);
           return (
-            <button
+            <span
               key={b.bucket}
-              type="button"
-              className={styles.scopeRow}
-              style={{ '--row-index': i } as CSSProperties}
-              onClick={openOutcomes('retries')}
-              aria-label={ariaLabel}
-            >
-              {content}
-            </button>
+              className={styles.scopeTerraceStep}
+              style={
+                {
+                  '--row-index': i,
+                  '--scope-y': `${100 - b.completion_rate}%`,
+                  '--scope-color': color,
+                } as CSSProperties
+              }
+            />
           );
-        }
-        return (
-          <div
-            key={b.bucket}
-            className={styles.scopeRow}
-            style={{ '--row-index': i } as CSSProperties}
-          >
-            {content}
-          </div>
-        );
-      })}
+        })}
+      </div>
+      <div className={styles.scopeTerraceLabels}>
+        {buckets.map((b, i) => {
+          const color = completionColor(b.completion_rate);
+          return (
+            <span
+              key={b.bucket}
+              className={styles.scopeTerraceLabel}
+              style={{ '--row-index': i } as CSSProperties}
+            >
+              <span className={styles.scopeTerraceRate} style={{ color }}>
+                {b.completion_rate}%
+              </span>
+              <span className={styles.scopeTerraceBucket}>{b.bucket}</span>
+            </span>
+          );
+        })}
+      </div>
     </div>
   );
 }
