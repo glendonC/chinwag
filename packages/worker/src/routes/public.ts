@@ -1,4 +1,5 @@
 import type { Env } from '../types.js';
+import type { RouteDefinition } from '../lib/router.js';
 import { resolveRuntimeTargets } from '@chinmeister/shared/runtime-profile.js';
 import { TOOL_CATALOG } from '../catalog.js';
 import { getCategoryNames } from '../lib/categories.js';
@@ -14,6 +15,22 @@ import {
   RATE_LIMIT_STATS_PER_IP,
   RATE_LIMIT_CATALOG_PER_IP,
 } from '../lib/constants.js';
+import { handleRefreshToken } from './user/auth.js';
+import {
+  handleListDirectory,
+  handleDirectoryStats,
+  handleGetDirectoryEntry,
+  handleAdminImport,
+  handleAdminDelete,
+  handleGetCategories,
+  handlePromoteCategory,
+  handleGetIcon,
+  handleBatchResolveIcons,
+  handleBatchExtractColors,
+  handleListSuggestions,
+  handleReviewSuggestion,
+  handleReportStale,
+} from './directory.js';
 
 const log = createLogger('routes.public');
 
@@ -433,3 +450,59 @@ export const handleGithubLinkCallback = publicRoute(async ({ request, env }) => 
 
   return Response.redirect(`${getDashboardUrl(env)}#github_linked=1`, 302);
 });
+
+/**
+ * All `auth: false` routes. Registration order is preserved so parametric
+ * route matching priority does not shift; do not reorder entries without
+ * checking the matcher in lib/router.ts.
+ */
+export function registerPublicRoutes(): RouteDefinition[] {
+  return [
+    { method: 'POST', path: '/auth/init', handler: handleInit, auth: false },
+    { method: 'POST', path: '/auth/refresh', handler: handleRefreshToken, auth: false },
+    { method: 'GET', path: '/stats', handler: handleStats, auth: false },
+    { method: 'GET', path: '/pricing-health', handler: handlePricingHealth, auth: false },
+    { method: 'GET', path: '/tools/catalog', handler: handleToolCatalog, auth: false },
+    { method: 'GET', path: '/tools/directory', handler: handleListDirectory, auth: false },
+    { method: 'GET', path: '/tools/categories', handler: handleGetCategories, auth: false },
+    { method: 'POST', path: '/tools/categories', handler: handlePromoteCategory, auth: false },
+    { method: 'GET', path: '/tools/icon/:id', handler: handleGetIcon, auth: false },
+    {
+      method: 'POST',
+      path: '/tools/batch-resolve-icons',
+      handler: handleBatchResolveIcons,
+      auth: false,
+    },
+    {
+      method: 'POST',
+      path: '/tools/batch-extract-colors',
+      handler: handleBatchExtractColors,
+      auth: false,
+    },
+    { method: 'POST', path: '/tools/admin-import', handler: handleAdminImport, auth: false },
+    { method: 'POST', path: '/tools/admin-delete', handler: handleAdminDelete, auth: false },
+    { method: 'GET', path: '/tools/directory/stats', handler: handleDirectoryStats, auth: false },
+    { method: 'GET', path: '/tools/directory/:id', handler: handleGetDirectoryEntry, auth: false },
+    {
+      method: 'POST',
+      path: '/tools/directory/:id/report-stale',
+      handler: handleReportStale,
+      auth: false,
+    },
+    { method: 'GET', path: '/tools/suggestions', handler: handleListSuggestions, auth: false },
+    {
+      method: 'POST',
+      path: '/tools/suggestions/:id/review',
+      handler: handleReviewSuggestion,
+      auth: false,
+    },
+    { method: 'GET', path: '/auth/github', handler: handleGithubAuth, auth: false },
+    { method: 'GET', path: '/auth/github/callback', handler: handleGithubCallback, auth: false },
+    {
+      method: 'GET',
+      path: '/auth/github/callback/link',
+      handler: handleGithubLinkCallback,
+      auth: false,
+    },
+  ];
+}

@@ -1,5 +1,6 @@
 // Team lock routes — claim, release, get locks.
 
+import type { RouteDefinition } from '../../lib/router.js';
 import { json } from '../../lib/http.js';
 import { teamJsonRoute, teamRoute, doResult } from '../../lib/middleware.js';
 import { validateFileArray, withTeamRateLimit } from '../../lib/validation.js';
@@ -70,3 +71,15 @@ export const handleTeamCheckLocks = teamJsonRoute(async ({ body, agentId, team, 
     'checkFileConflicts',
   );
 });
+
+/**
+ * File lock routes for a team.
+ */
+export function registerLocksRoutes(TID: string): RouteDefinition[] {
+  return [
+    { method: 'POST', path: `/teams/${TID}/locks`, handler: handleTeamClaimFiles },
+    { method: 'DELETE', path: `/teams/${TID}/locks`, handler: handleTeamReleaseFiles },
+    { method: 'GET', path: `/teams/${TID}/locks`, handler: handleTeamGetLocks },
+    { method: 'POST', path: `/teams/${TID}/locks/check`, handler: handleTeamCheckLocks },
+  ];
+}

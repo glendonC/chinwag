@@ -1,5 +1,6 @@
 // Team command routes — submit and list commands for daemon relay.
 
+import type { RouteDefinition } from '../../lib/router.js';
 import { rpc } from '../../lib/env.js';
 import { json } from '../../lib/http.js';
 import { teamJsonRoute, teamRoute, doResult } from '../../lib/middleware.js';
@@ -51,3 +52,13 @@ export const handleTeamSubmitCommand = teamJsonRoute(async ({ body, user, db, ag
 export const handleTeamGetCommands = teamRoute(async ({ agentId, team, user }) => {
   return doResult(team.getCommands(agentId, user.id), 'getCommands');
 });
+
+/**
+ * Per-team daemon relay commands.
+ */
+export function registerCommandsRoutes(TID: string): RouteDefinition[] {
+  return [
+    { method: 'POST', path: `/teams/${TID}/commands`, handler: handleTeamSubmitCommand },
+    { method: 'GET', path: `/teams/${TID}/commands`, handler: handleTeamGetCommands },
+  ];
+}

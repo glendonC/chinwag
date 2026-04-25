@@ -1,5 +1,6 @@
 // Team analytics route — aggregated workflow intelligence data.
 
+import type { RouteDefinition } from '../../lib/router.js';
 import { teamRoute, doResult } from '../../lib/middleware.js';
 
 const ANALYTICS_DEFAULT_DAYS = 7;
@@ -40,3 +41,10 @@ export const handleTeamAnalytics = teamRoute(async ({ request, agentId, team, us
     'getAnalytics',
   );
 });
+
+/**
+ * Per-team aggregated analytics route.
+ */
+export function registerAnalyticsRoutes(TID: string): RouteDefinition[] {
+  return [{ method: 'GET', path: `/teams/${TID}/analytics`, handler: handleTeamAnalytics }];
+}
