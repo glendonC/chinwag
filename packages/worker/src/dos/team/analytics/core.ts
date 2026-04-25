@@ -9,7 +9,7 @@ import type {
   DailyMetricEntry,
   TeamAnalytics,
 } from '@chinmeister/shared/contracts/analytics.js';
-import { type AnalyticsScope, buildScopeFilter } from './scope.js';
+import { type AnalyticsScope, withScope } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
 
@@ -48,16 +48,14 @@ export function queryFilesTouchedTotal(
   days: number,
 ): number {
   try {
-    const f = buildScopeFilter(scope);
-    const rows = sql
-      .exec(
-        `SELECT COUNT(DISTINCT file_path) AS total
+    const { sql: q, params } = withScope(
+      `SELECT COUNT(DISTINCT file_path) AS total
          FROM edits
-         WHERE created_at > datetime('now', '-' || ? || ' days')${f.sql}`,
-        days,
-        ...f.params,
-      )
-      .toArray();
+         WHERE created_at > datetime('now', '-' || ? || ' days')`,
+      [days],
+      scope,
+    );
+    const rows = sql.exec(q, ...params).toArray();
     const row = rows[0] as Record<string, unknown> | undefined;
     return (row?.total as number) ?? 0;
   } catch (err) {
@@ -84,27 +82,23 @@ export function queryFilesTouchedHalfSplit(
   const halfDays = Math.floor(periodDays / 2);
   const prevEndDays = periodDays - halfDays; // > halfDays when periodDays is odd
   try {
-    const f = buildScopeFilter(scope);
-    const currentRows = sql
-      .exec(
-        `SELECT COUNT(DISTINCT file_path) AS c
+    const { sql: currentQ, params: currentParams } = withScope(
+      `SELECT COUNT(DISTINCT file_path) AS c
          FROM edits
-         WHERE created_at > datetime('now', '-' || ? || ' days')${f.sql}`,
-        halfDays,
-        ...f.params,
-      )
-      .toArray();
-    const previousRows = sql
-      .exec(
-        `SELECT COUNT(DISTINCT file_path) AS c
+         WHERE created_at > datetime('now', '-' || ? || ' days')`,
+      [halfDays],
+      scope,
+    );
+    const currentRows = sql.exec(currentQ, ...currentParams).toArray();
+    const { sql: previousQ, params: previousParams } = withScope(
+      `SELECT COUNT(DISTINCT file_path) AS c
          FROM edits
          WHERE created_at > datetime('now', '-' || ? || ' days')
-           AND created_at <= datetime('now', '-' || ? || ' days')${f.sql}`,
-        periodDays,
-        prevEndDays,
-        ...f.params,
-      )
-      .toArray();
+           AND created_at <= datetime('now', '-' || ? || ' days')`,
+      [periodDays, prevEndDays],
+      scope,
+    );
+    const previousRows = sql.exec(previousQ, ...previousParams).toArray();
     const current = ((currentRows[0] as Record<string, unknown> | undefined)?.c as number) ?? 0;
     const previous = ((previousRows[0] as Record<string, unknown> | undefined)?.c as number) ?? 0;
     return { current, previous };
@@ -120,18 +114,21 @@ export function queryFileHeatmap(
   days: number,
 ): FileHeatmapEntry[] {
   try {
-    const f = buildScopeFilter(scope);
-    const rows = sql
-      .exec(
-        `SELECT value AS file, COUNT(*) AS touch_count
+    const { sql: q, params } = withScope(
+      `SELECT value AS file, COUNT(*) AS touch_count
          FROM sessions, json_each(sessions.files_touched)
          WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND files_touched != '[]'${f.sql}
+           AND files_touched != '[]'`,
+      [days],
+      scope,
+    );
+    const rows = sql
+      .exec(
+        `${q}
          GROUP BY value
          ORDER BY touch_count DESC
          LIMIT ?`,
-        days,
-        ...f.params,
+        ...params,
         HEATMAP_LIMIT,
       )
       .toArray();
@@ -166,10 +163,8 @@ export function queryDailyTrends(
   // no scoped sessions still emit a zero row (a WHERE-side filter on s.handle
   // would drop those days entirely).
   try {
-    const f = buildScopeFilter(scope, { handleColumn: 's.handle' });
-    const rows = sql
-      .exec(
-        `WITH RECURSIVE spine(day) AS (
+    const { sql: q, params } = withScope(
+      `WITH RECURSIVE spine(day) AS (
            SELECT date('now', ? || ' minutes', '-' || ? || ' days')
            UNION ALL
            SELECT date(day, '+1 day') FROM spine WHERE day < date('now', ? || ' minutes')
@@ -187,15 +182,17 @@ export function queryDailyTrends(
                 COALESCE(SUM(CASE WHEN s.outcome = 'failed' THEN 1 ELSE 0 END), 0) AS failed
          FROM spine
          LEFT JOIN sessions s ON date(datetime(s.started_at, ? || ' minutes')) = spine.day
-           AND s.started_at >= date('now', '-' || ? || ' days', '-1 day')${f.sql}
+           AND s.started_at >= date('now', '-' || ? || ' days', '-1 day')`,
+      [tzOffsetMinutes, days, tzOffsetMinutes, tzOffsetMinutes, days],
+      scope,
+      { handleColumn: 's.handle' },
+    );
+    const rows = sql
+      .exec(
+        `${q}
          GROUP BY spine.day
          ORDER BY spine.day ASC`,
-        tzOffsetMinutes,
-        days,
-        tzOffsetMinutes,
-        tzOffsetMinutes,
-        days,
-        ...f.params,
+        ...params,
       )
       .toArray();
 
@@ -225,19 +222,22 @@ export function queryToolDistribution(
   days: number,
 ): ToolDistribution[] {
   try {
-    const f = buildScopeFilter(scope);
-    const rows = sql
-      .exec(
-        `SELECT host_tool,
+    const { sql: q, params } = withScope(
+      `SELECT host_tool,
                 COUNT(*) AS sessions,
                 COALESCE(SUM(edit_count), 0) AS edits
          FROM sessions
          WHERE started_at > datetime('now', '-' || ? || ' days')
-           AND host_tool IS NOT NULL AND host_tool != 'unknown'${f.sql}
+           AND host_tool IS NOT NULL AND host_tool != 'unknown'`,
+      [days],
+      scope,
+    );
+    const rows = sql
+      .exec(
+        `${q}
          GROUP BY host_tool
          ORDER BY sessions DESC`,
-        days,
-        ...f.params,
+        ...params,
       )
       .toArray();
 
@@ -261,17 +261,20 @@ export function queryOutcomeDistribution(
   days: number,
 ): OutcomeCount[] {
   try {
-    const f = buildScopeFilter(scope);
-    const rows = sql
-      .exec(
-        `SELECT COALESCE(outcome, 'unknown') AS outcome,
+    const { sql: q, params } = withScope(
+      `SELECT COALESCE(outcome, 'unknown') AS outcome,
                 COUNT(*) AS count
          FROM sessions
-         WHERE started_at > datetime('now', '-' || ? || ' days')${f.sql}
+         WHERE started_at > datetime('now', '-' || ? || ' days')`,
+      [days],
+      scope,
+    );
+    const rows = sql
+      .exec(
+        `${q}
          GROUP BY outcome
          ORDER BY count DESC`,
-        days,
-        ...f.params,
+        ...params,
       )
       .toArray();
 

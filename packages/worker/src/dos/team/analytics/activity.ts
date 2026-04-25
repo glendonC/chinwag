@@ -7,7 +7,7 @@ import type {
   DurationBucket,
   EditVelocityTrend,
 } from '@chinmeister/shared/contracts/analytics.js';
-import { type AnalyticsScope, buildScopeFilter } from './scope.js';
+import { type AnalyticsScope, buildScopeFilter, withScope } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
 
@@ -21,21 +21,22 @@ export function queryHourlyDistribution(
   // With tzOffsetMinutes=0 this is UTC; with a negative offset (e.g. PST)
   // the heatmap reflects when sessions happen in the user's local day.
   try {
-    const f = buildScopeFilter(scope);
-    const rows = sql
-      .exec(
-        `SELECT CAST(strftime('%H', datetime(started_at, ? || ' minutes')) AS INTEGER) AS hour,
+    const { sql: q, params } = withScope(
+      `SELECT CAST(strftime('%H', datetime(started_at, ? || ' minutes')) AS INTEGER) AS hour,
                 CAST(strftime('%w', datetime(started_at, ? || ' minutes')) AS INTEGER) AS dow,
                 COUNT(*) AS sessions,
                 COALESCE(SUM(edit_count), 0) AS edits
          FROM sessions
-         WHERE started_at > datetime('now', '-' || ? || ' days')${f.sql}
+         WHERE started_at > datetime('now', '-' || ? || ' days')`,
+      [tzOffsetMinutes, tzOffsetMinutes, days],
+      scope,
+    );
+    const rows = sql
+      .exec(
+        `${q}
          GROUP BY hour, dow
          ORDER BY hour, dow`,
-        tzOffsetMinutes,
-        tzOffsetMinutes,
-        days,
-        ...f.params,
+        ...params,
       )
       .toArray();
 
@@ -132,10 +133,8 @@ export function queryDurationDistribution(
   days: number,
 ): DurationBucket[] {
   try {
-    const f = buildScopeFilter(scope);
-    const rows = sql
-      .exec(
-        `SELECT
+    const { sql: q, params } = withScope(
+      `SELECT
            CASE
              WHEN duration_min < 5 THEN '0-5m'
              WHEN duration_min < 15 THEN '5-15m'
@@ -148,7 +147,13 @@ export function queryDurationDistribution(
            SELECT ROUND((julianday(COALESCE(ended_at, datetime('now'))) - julianday(started_at)) * 24 * 60) AS duration_min
            FROM sessions
            WHERE started_at > datetime('now', '-' || ? || ' days')
-             AND ended_at IS NOT NULL${f.sql}
+             AND ended_at IS NOT NULL`,
+      [days],
+      scope,
+    );
+    const rows = sql
+      .exec(
+        `${q}
          )
          GROUP BY bucket
          ORDER BY
@@ -159,8 +164,7 @@ export function queryDurationDistribution(
              WHEN '30-60m' THEN 4
              ELSE 5
            END`,
-        days,
-        ...f.params,
+        ...params,
       )
       .toArray();
 
@@ -189,10 +193,8 @@ export function queryEditVelocity(
   // Scope filter goes in the LEFT JOIN ON so spine days with no matching
   // sessions still emit a zero row for the scoped user.
   try {
-    const f = buildScopeFilter(scope, { handleColumn: 's.handle' });
-    const rows = sql
-      .exec(
-        `WITH RECURSIVE spine(day) AS (
+    const { sql: q, params } = withScope(
+      `WITH RECURSIVE spine(day) AS (
            SELECT date('now', ? || ' minutes', '-' || ? || ' days')
            UNION ALL
            SELECT date(day, '+1 day') FROM spine WHERE day < date('now', ? || ' minutes')
@@ -206,15 +208,17 @@ export function queryEditVelocity(
          FROM spine
          LEFT JOIN sessions s ON date(datetime(s.started_at, ? || ' minutes')) = spine.day
            AND s.started_at >= date('now', '-' || ? || ' days', '-1 day')
-           AND s.ended_at IS NOT NULL${f.sql}
+           AND s.ended_at IS NOT NULL`,
+      [tzOffsetMinutes, days, tzOffsetMinutes, tzOffsetMinutes, days],
+      scope,
+      { handleColumn: 's.handle' },
+    );
+    const rows = sql
+      .exec(
+        `${q}
          GROUP BY spine.day
          ORDER BY spine.day ASC`,
-        tzOffsetMinutes,
-        days,
-        tzOffsetMinutes,
-        tzOffsetMinutes,
-        days,
-        ...f.params,
+        ...params,
       )
       .toArray();
 

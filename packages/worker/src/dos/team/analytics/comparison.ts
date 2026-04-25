@@ -11,7 +11,7 @@
 
 import { createLogger } from '../../../lib/logger.js';
 import type { PeriodComparison, PeriodMetrics } from '@chinmeister/shared/contracts/analytics.js';
-import { type AnalyticsScope, buildScopeFilter } from './scope.js';
+import { type AnalyticsScope, withScope } from './scope.js';
 
 const log = createLogger('TeamDO.analytics');
 
@@ -21,13 +21,11 @@ export function queryPeriodComparison(
   days: number,
 ): PeriodComparison {
   const effectiveDays = days;
-  const f = buildScopeFilter(scope);
 
   function queryPeriodMetrics(offsetStart: number, offsetEnd: number): PeriodMetrics | null {
     try {
-      const rows = sql
-        .exec(
-          `SELECT
+      const { sql: q, params } = withScope(
+        `SELECT
              COUNT(*) AS total_sessions,
              SUM(CASE WHEN outcome = 'completed' THEN 1 ELSE 0 END) AS completed,
              ROUND(AVG(
@@ -44,12 +42,11 @@ export function queryPeriodComparison(
              SUM(CASE WHEN memories_searched > 0 THEN 1 ELSE 0 END) AS sessions_with_memory
            FROM sessions
            WHERE started_at > datetime('now', '-' || ? || ' days')
-             AND started_at <= datetime('now', '-' || ? || ' days')${f.sql}`,
-          offsetStart,
-          offsetEnd,
-          ...f.params,
-        )
-        .toArray();
+             AND started_at <= datetime('now', '-' || ? || ' days')`,
+        [offsetStart, offsetEnd],
+        scope,
+      );
+      const rows = sql.exec(q, ...params).toArray();
 
       const r = (rows[0] || {}) as Record<string, unknown>;
       const total = (r.total_sessions as number) || 0;
