@@ -1,6 +1,7 @@
 // Extended analytics: prompt efficiency, hourly effectiveness, outcome tags, tool handoffs.
 
 import { createLogger } from '../../../lib/logger.js';
+import { row, rows } from '../../../lib/row.js';
 import type {
   PromptEfficiencyTrend,
   HourlyEffectiveness,
@@ -30,9 +31,10 @@ export function queryPromptEfficiency(
     // shared session_id with mixed authors is rare but possible.
     const fCe = buildScopeFilter(scope, { handleColumn: 'ce.handle' });
     const fS = buildScopeFilter(scope, { handleColumn: 's.handle' });
-    const rows = sql
-      .exec(
-        `WITH RECURSIVE spine(day) AS (
+    return rows(
+      sql
+        .exec(
+          `WITH RECURSIVE spine(day) AS (
            SELECT date('now', ? || ' minutes', '-' || ? || ' days')
            UNION ALL
            SELECT date(day, '+1 day') FROM spine WHERE day < date('now', ? || ' minutes')
@@ -50,25 +52,21 @@ export function queryPromptEfficiency(
            AND s.edit_count > 0${fS.sql}
          GROUP BY spine.day
          ORDER BY spine.day ASC`,
-        tzOffsetMinutes,
-        days,
-        tzOffsetMinutes,
-        tzOffsetMinutes,
-        days,
-        ...fCe.params,
-        ...fS.params,
-      )
-      .toArray();
-
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      const raw = row.avg_turns_per_edit;
-      return {
-        day: row.day as string,
-        avg_turns_per_edit: typeof raw === 'number' ? raw : null,
-        sessions: (row.sessions as number) || 0,
-      };
-    });
+          tzOffsetMinutes,
+          days,
+          tzOffsetMinutes,
+          tzOffsetMinutes,
+          days,
+          ...fCe.params,
+          ...fS.params,
+        )
+        .toArray(),
+      (r) => ({
+        day: r.string('day'),
+        avg_turns_per_edit: r.nullableNumber('avg_turns_per_edit'),
+        sessions: r.number('sessions'),
+      }),
+    );
   } catch (err) {
     log.warn(`promptEfficiency query failed: ${err}`);
     return [];
@@ -96,24 +94,22 @@ export function queryHourlyEffectiveness(
       [tzOffsetMinutes, days],
       scope,
     );
-    const rows = sql
-      .exec(
-        `${q}
+    return rows(
+      sql
+        .exec(
+          `${q}
          GROUP BY hour
          ORDER BY hour`,
-        ...params,
-      )
-      .toArray();
-
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        hour: (row.hour as number) || 0,
-        sessions: (row.sessions as number) || 0,
-        completion_rate: (row.completion_rate as number) || 0,
-        avg_edits: (row.avg_edits as number) || 0,
-      };
-    });
+          ...params,
+        )
+        .toArray(),
+      (r) => ({
+        hour: r.number('hour'),
+        sessions: r.number('sessions'),
+        completion_rate: r.number('completion_rate'),
+        avg_edits: r.number('avg_edits'),
+      }),
+    );
   } catch (err) {
     log.warn(`hourlyEffectiveness query failed: ${err}`);
     return [];
@@ -137,24 +133,22 @@ export function queryOutcomeTags(
       [days],
       scope,
     );
-    const rows = sql
-      .exec(
-        `${q}
+    return rows(
+      sql
+        .exec(
+          `${q}
          GROUP BY tag, outcome
          ORDER BY count DESC
          LIMIT 30`,
-        ...params,
-      )
-      .toArray();
-
-    return rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        tag: row.tag as string,
-        outcome: row.outcome as string,
-        count: (row.count as number) || 0,
-      };
-    });
+          ...params,
+        )
+        .toArray(),
+      (r) => ({
+        tag: r.string('tag'),
+        outcome: r.string('outcome'),
+        count: r.number('count'),
+      }),
+    );
   } catch (err) {
     log.warn(`outcomeTags query failed: ${err}`);
     return [];
@@ -204,17 +198,18 @@ export function queryToolHandoffs(
 
     if (pairRows.length === 0) return [];
 
-    const pairs = pairRows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        from_tool: row.from_tool as string,
-        to_tool: row.to_tool as string,
-        file_count: (row.file_count as number) || 0,
-        handoff_completion_rate: (row.handoff_completion_rate as number) || 0,
-        avg_gap_minutes: (row.avg_gap_minutes as number) || 0,
-        recent_files: [] as ToolHandoff['recent_files'],
-      } satisfies ToolHandoff;
-    });
+    const pairs = rows(
+      pairRows,
+      (r) =>
+        ({
+          from_tool: r.string('from_tool'),
+          to_tool: r.string('to_tool'),
+          file_count: r.number('file_count'),
+          handoff_completion_rate: r.number('handoff_completion_rate'),
+          avg_gap_minutes: r.number('avg_gap_minutes'),
+          recent_files: [] as ToolHandoff['recent_files'],
+        }) satisfies ToolHandoff,
+    );
 
     // Per-pair recent file samples, capped at 20 per pair. Filtered to the
     // top-10 pairs so payload stays bounded.
@@ -257,17 +252,17 @@ export function queryToolHandoffs(
       .toArray();
 
     const byPair = new Map<string, ToolHandoff['recent_files']>();
-    for (const r of fileRows) {
-      const row = r as Record<string, unknown>;
-      const key = `${row.from_tool as string}:${row.to_tool as string}`;
+    for (const raw of fileRows) {
+      const r = row(raw);
+      const key = `${r.string('from_tool')}:${r.string('to_tool')}`;
       if (!pairKeys.has(key)) continue;
       const list = byPair.get(key) ?? [];
       list.push({
-        file_path: row.file_path as string,
-        last_transition_at: row.last_transition_at as string,
-        a_edits: (row.a_edits as number) || 0,
-        b_edits: (row.b_edits as number) || 0,
-        completed: !!row.completed,
+        file_path: r.string('file_path'),
+        last_transition_at: r.string('last_transition_at'),
+        a_edits: r.number('a_edits'),
+        b_edits: r.number('b_edits'),
+        completed: r.bool('completed'),
       });
       byPair.set(key, list);
     }

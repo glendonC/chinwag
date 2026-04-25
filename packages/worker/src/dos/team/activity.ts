@@ -3,12 +3,9 @@
 
 import type { DOResult } from '../../types.js';
 import { normalizePath } from '../../lib/text-utils.js';
-import { createLogger } from '../../lib/logger.js';
-import { safeParse } from '../../lib/safe-parse.js';
+import { row } from '../../lib/row.js';
 import { HEARTBEAT_ACTIVE_WINDOW_S, ACTIVITY_MAX_FILES, METRIC_KEYS } from '../../lib/constants.js';
 import { buildInClause, withTransaction } from '../../lib/validation.js';
-
-const log = createLogger('TeamDO.activity');
 
 interface ConflictEntry {
   owner_handle: string;
@@ -88,23 +85,22 @@ export function checkConflicts(
   const myFiles = new Set(files.map(normalizePath));
   const conflicts: ConflictEntry[] = [];
 
-  for (const row of others) {
-    const r = row as Record<string, unknown>;
-    if (!r.files) continue;
-    const theirFiles = safeParse(
-      r.files as string,
-      `checkConflicts agent=${r.agent_id} files`,
-      [] as string[],
-      log,
-    );
+  for (const rawRow of others) {
+    const r = row(rawRow);
+    if (!r.raw('files')) continue;
+    const agentId = r.string('agent_id');
+    const theirFiles = r.json<string[]>('files', {
+      default: [],
+      context: `checkConflicts agent=${agentId} files`,
+    });
     if (theirFiles.length === 0) continue;
     const overlap = theirFiles.filter((f: string) => myFiles.has(f));
     if (overlap.length > 0) {
       conflicts.push({
-        owner_handle: r.owner_handle as string,
-        tool: (r.tool as string) || 'unknown',
+        owner_handle: r.string('owner_handle'),
+        tool: r.string('tool') || 'unknown',
         files: overlap,
-        summary: (r.summary as string) || '',
+        summary: r.string('summary'),
       });
     }
   }
@@ -128,12 +124,12 @@ export function checkConflicts(
       )
       .toArray();
     for (const lock of lockRows) {
-      const l = lock as Record<string, unknown>;
+      const l = row(lock);
       lockedFiles.push({
-        file: l.file_path as string,
-        held_by: l.owner_handle as string,
-        tool: (l.tool as string) || 'unknown',
-        claimed_at: l.claimed_at as string,
+        file: l.string('file_path'),
+        held_by: l.string('owner_handle'),
+        tool: l.string('tool') || 'unknown',
+        claimed_at: l.string('claimed_at'),
       });
     }
   }
@@ -169,13 +165,14 @@ export function reportFile(
     .toArray();
 
   let files: string[] = [];
-  if (existing.length > 0 && (existing[0] as Record<string, unknown>).files) {
-    files = safeParse(
-      (existing[0] as Record<string, unknown>).files as string,
-      `reportFile agent=${resolvedAgentId} stored files`,
-      [] as string[],
-      log,
-    );
+  if (existing.length > 0) {
+    const r = row(existing[0]);
+    if (r.raw('files')) {
+      files = r.json<string[]>('files', {
+        default: [],
+        context: `reportFile agent=${resolvedAgentId} stored files`,
+      });
+    }
   }
 
   if (!files.includes(normalized)) {

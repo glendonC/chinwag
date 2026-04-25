@@ -21,6 +21,7 @@
 
 import type { LockClaim, BlockedLock, LockEntry, DOResult, DOError } from '../../types.js';
 import { normalizePath } from '../../lib/text-utils.js';
+import { rows } from '../../lib/row.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
 import { HEARTBEAT_ACTIVE_WINDOW_S } from '../../lib/constants.js';
 import { buildInClause, sqlChanges } from '../../lib/validation.js';
@@ -72,14 +73,26 @@ function reapExpiredLocks(sql: SqlStorage): void {
 
 /** Load every glob-shaped lock except the caller's own, for conflict scans. */
 function loadActiveGlobLocks(sql: SqlStorage, excludeAgentId: string): ActiveLockRow[] {
-  return sql
-    .exec(
-      `SELECT file_path, agent_id, handle, host_tool, agent_surface, claimed_at, path_glob, expires_ts
+  return rows(
+    sql
+      .exec(
+        `SELECT file_path, agent_id, handle, host_tool, agent_surface, claimed_at, path_glob, expires_ts
        FROM locks
        WHERE path_glob IS NOT NULL AND agent_id != ?`,
-      excludeAgentId,
-    )
-    .toArray() as unknown as ActiveLockRow[];
+        excludeAgentId,
+      )
+      .toArray(),
+    (r) => ({
+      file_path: r.string('file_path'),
+      agent_id: r.string('agent_id'),
+      handle: r.string('handle'),
+      host_tool: r.string('host_tool'),
+      agent_surface: r.nullableString('agent_surface'),
+      claimed_at: r.string('claimed_at'),
+      path_glob: r.nullableString('path_glob'),
+      expires_ts: r.nullableString('expires_ts'),
+    }),
+  );
 }
 
 function rowToBlocked(
@@ -228,17 +241,29 @@ export function checkFileConflicts(
 
   // Exact-path conflicts
   const placeholders = normalized.map(() => '?').join(',');
-  const exact = sql
-    .exec(
-      `SELECT file_path, agent_id, handle, host_tool, agent_surface, claimed_at, path_glob, expires_ts
+  const exact = rows(
+    sql
+      .exec(
+        `SELECT file_path, agent_id, handle, host_tool, agent_surface, claimed_at, path_glob, expires_ts
        FROM locks
        WHERE file_path IN (${placeholders}) AND agent_id != ? AND path_glob IS NULL`,
-      ...normalized,
-      resolvedAgentId,
-    )
-    .toArray() as unknown as ActiveLockRow[];
-  for (const row of exact) {
-    blocked.push(rowToBlocked(row, row.file_path, null));
+        ...normalized,
+        resolvedAgentId,
+      )
+      .toArray(),
+    (r) => ({
+      file_path: r.string('file_path'),
+      agent_id: r.string('agent_id'),
+      handle: r.string('handle'),
+      host_tool: r.string('host_tool'),
+      agent_surface: r.nullableString('agent_surface'),
+      claimed_at: r.string('claimed_at'),
+      path_glob: r.nullableString('path_glob'),
+      expires_ts: r.nullableString('expires_ts'),
+    }),
+  );
+  for (const lockRow of exact) {
+    blocked.push(rowToBlocked(lockRow, lockRow.file_path, null));
   }
 
   // Glob-umbrella conflicts
@@ -288,9 +313,10 @@ export function getLockedFiles(
   reapExpiredLocks(sql);
   const ws = buildInClause([...connectedAgentIds]);
 
-  const locks = sql
-    .exec(
-      `SELECT l.file_path, l.agent_id, l.handle, l.host_tool, l.agent_surface, l.claimed_at,
+  const locks = rows(
+    sql
+      .exec(
+        `SELECT l.file_path, l.agent_id, l.handle, l.host_tool, l.agent_surface, l.claimed_at,
             l.path_glob, l.expires_ts,
             ROUND((julianday('now') - julianday(l.claimed_at)) * 1440) as minutes_held
      FROM locks l
@@ -298,10 +324,22 @@ export function getLockedFiles(
      WHERE m.last_heartbeat > datetime('now', '-' || ? || ' seconds')
         OR m.agent_id IN (${ws.sql})
      ORDER BY l.claimed_at DESC`,
-      HEARTBEAT_ACTIVE_WINDOW_S,
-      ...ws.params,
-    )
-    .toArray() as unknown as LockEntry[];
+        HEARTBEAT_ACTIVE_WINDOW_S,
+        ...ws.params,
+      )
+      .toArray(),
+    (r) => ({
+      file_path: r.string('file_path'),
+      agent_id: r.string('agent_id'),
+      handle: r.string('handle'),
+      host_tool: r.string('host_tool'),
+      agent_surface: r.nullableString('agent_surface'),
+      claimed_at: r.string('claimed_at'),
+      minutes_held: r.number('minutes_held'),
+      path_glob: r.nullableString('path_glob'),
+      expires_ts: r.nullableString('expires_ts'),
+    }),
+  );
 
   return { ok: true, locks };
 }

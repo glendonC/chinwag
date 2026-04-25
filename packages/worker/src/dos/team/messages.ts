@@ -4,6 +4,7 @@
 
 import type { AgentMessage } from '../../types.js';
 import { METRIC_KEYS } from '../../lib/constants.js';
+import { rows } from '../../lib/row.js';
 import { normalizeRuntimeMetadata } from './runtime.js';
 
 export function sendMessage(
@@ -37,18 +38,29 @@ export function getMessages(
   resolvedAgentId: string,
   since: string | null | undefined,
 ): { ok: true; messages: AgentMessage[] } {
-  const messages = sql
-    .exec(
-      `SELECT id, handle, host_tool, agent_surface, target_agent, text, created_at
+  const messages = rows(
+    sql
+      .exec(
+        `SELECT id, handle, host_tool, agent_surface, target_agent, text, created_at
      FROM messages
      WHERE created_at > COALESCE(?, datetime('now', '-1 hour'))
        AND (target_agent IS NULL OR target_agent = ?)
      ORDER BY created_at DESC
      LIMIT 50`,
-      since || null,
-      resolvedAgentId,
-    )
-    .toArray() as unknown as AgentMessage[];
+        since || null,
+        resolvedAgentId,
+      )
+      .toArray(),
+    (r) => ({
+      id: r.string('id'),
+      handle: r.string('handle'),
+      host_tool: r.string('host_tool'),
+      agent_surface: r.nullableString('agent_surface'),
+      target_agent: r.nullableString('target_agent'),
+      text: r.string('text'),
+      created_at: r.string('created_at'),
+    }),
+  );
 
   return { ok: true, messages };
 }
