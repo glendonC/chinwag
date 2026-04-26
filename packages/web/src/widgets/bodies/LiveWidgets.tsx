@@ -12,6 +12,7 @@ import { groupFilesByTeam, type FileGroup } from '../live-data.js';
 import type { LiveAgent } from '../types.js';
 import type { Lock } from '../../lib/schemas/common.js';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
+import { FilePath } from './shared.js';
 
 // Simultaneous-visibility cap per the 04-19 audit: cap-at-3 hid 70% of a
 // 10-agent team behind a "+N more" link, which defeated the cockpit thesis
@@ -101,27 +102,6 @@ function LiveAgentsWidget({ liveAgents }: WidgetBodyProps) {
   );
 }
 
-// Split a file path into the directory prefix (everything up to and including
-// the last slash) and the file name. The filename is the row's primary
-// identifier; the directory is only surfaced when it's needed to disambiguate
-// two visible rows sharing a basename.
-function splitFilePath(filePath: string): { dir: string; name: string } {
-  const lastSlash = filePath.lastIndexOf('/');
-  if (lastSlash < 0) return { dir: '', name: filePath };
-  return { dir: filePath.slice(0, lastSlash + 1), name: filePath.slice(lastSlash + 1) };
-}
-
-// Returns the immediate parent directory name, e.g.
-// `packages/web/src/widgets/types.ts` → `widgets`. Empty string for root-
-// level files. Used as the disambiguating suffix next to the filename.
-function parentDirName(filePath: string): string {
-  const lastSlash = filePath.lastIndexOf('/');
-  if (lastSlash < 0) return '';
-  const withoutFile = filePath.slice(0, lastSlash);
-  const prevSlash = withoutFile.lastIndexOf('/');
-  return prevSlash < 0 ? withoutFile : withoutFile.slice(prevSlash + 1);
-}
-
 // Sort editors longest-session-first so the first-mover renders at the
 // left of the row. Handle tie-break keeps the order stable between polls
 // when two editors share a session_minutes value.
@@ -163,8 +143,6 @@ interface FileRowProps {
 //   Editors   — up to 3 tool-colored handles + `+N` overflow. Cell font-
 //               weight scales with editor count for at-a-glance severity.
 function FileRow({ group, lock, index, onClick }: FileRowProps) {
-  const { name } = splitFilePath(group.file);
-  const parent = parentDirName(group.file);
   const editors = sortEditors(group.agents);
   const visibleEditors = editors.slice(0, EDITOR_CAP);
   const extra = editors.length - visibleEditors.length;
@@ -183,13 +161,10 @@ function FileRow({ group, lock, index, onClick }: FileRowProps) {
       type="button"
       className={styles.conflictTableRow}
       style={{ '--row-index': index } as CSSProperties}
-      title={group.file}
       onClick={onClick}
     >
-      <span className={styles.conflictFileCell}>
-        <span className={styles.conflictFileName}>{name}</span>
-        {parent && <span className={styles.conflictFileParent}>{parent}/</span>}
-      </span>
+      <FilePath path={group.file} order="name-first" />
+
       <span className={styles.conflictStatusCell}>
         {statusIsNone ? (
           <span className={styles.conflictStatusNone}>—</span>
@@ -359,9 +334,8 @@ function ClaimedFilesWidget({ locks }: WidgetBodyProps) {
             key={`${lock.agent_id ?? lock.handle}\u0000${lock.file_path}`}
             className={shared.dataRow}
             style={{ '--row-index': i } as CSSProperties}
-            title={lock.file_path}
           >
-            <span className={shared.dataName}>{lock.file_path}</span>
+            <FilePath path={lock.file_path} order="name-first" />
             <div className={shared.dataMeta}>
               <span className={shared.dataStat} style={{ color: meta.color }}>
                 {lock.handle}

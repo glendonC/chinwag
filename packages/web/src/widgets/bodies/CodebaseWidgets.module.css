@@ -181,26 +181,6 @@
   animation-delay: calc(var(--row-index, 0) * 45ms);
 }
 
-.dirPath {
-  font-size: var(--text-sm);
-  color: var(--ink);
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  letter-spacing: -0.01em;
-}
-
-.dirPathDot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  margin-right: 8px;
-  vertical-align: 1px;
-  flex-shrink: 0;
-}
-
 .dirTouches {
   font-family: var(--mono);
   font-size: var(--text-sm);
@@ -277,33 +257,6 @@
   padding: 9px 10px;
   margin: 0 -10px;
   animation-delay: calc(var(--row-index, 0) * 45ms);
-}
-
-.beamFile {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.beamFileParent {
-  font-family: var(--mono);
-  font-size: var(--text-xs);
-  color: var(--soft);
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.beamFileName {
-  font-size: var(--text-sm);
-  color: var(--ink);
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
 }
 
 .beamCell {
@@ -411,33 +364,6 @@
   padding: 9px 10px;
   margin: 0 -10px;
   animation-delay: calc(var(--row-index, 0) * 45ms);
-}
-
-.lollipopFile {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.lollipopFileParent {
-  font-family: var(--mono);
-  font-size: var(--text-xs);
-  color: var(--soft);
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.lollipopFileName {
-  font-size: var(--text-sm);
-  color: var(--ink);
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
 }
 
 .lollipopCell {
@@ -581,33 +507,6 @@
   padding: 8px 10px;
   margin: 0 -10px;
   animation-delay: calc(var(--row-index, 0) * 45ms);
-}
-
-.collisionFile {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.collisionFileParent {
-  font-family: var(--mono);
-  font-size: var(--text-xs);
-  color: var(--soft);
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.collisionFileName {
-  font-size: var(--text-sm);
-  color: var(--ink);
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
 }
 
 .collisionStackCell {

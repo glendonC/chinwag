@@ -5,7 +5,7 @@ import styles from './CodebaseWidgets.module.css';
 import { arcPath, computeArcSlices } from '../../lib/svgArcs.js';
 import { setQueryParams, useRoute } from '../../lib/router.js';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
-import { GhostBars, GhostRows, GhostStatRow, isSoloTeam } from './shared.js';
+import { FilePath, GhostBars, GhostRows, GhostStatRow, isSoloTeam } from './shared.js';
 
 function openCodebase(tab: string, q: string) {
   return () => setQueryParams({ codebase: tab, q });
@@ -48,16 +48,6 @@ const DIR_RING_PALETTE = [
   'var(--success)',
   'var(--info)',
 ];
-
-function splitPath(file: string): { parent: string; basename: string } {
-  const parts = file.split('/').filter(Boolean);
-  if (parts.length === 0) return { parent: '', basename: file };
-  if (parts.length === 1) return { parent: '', basename: parts[0] };
-  return {
-    parent: parts.slice(-2, -1).join('/') + '/',
-    basename: parts[parts.length - 1] ?? '',
-  };
-}
 
 // ── commit-stats ─────────────────────────────────────
 // Hero count alone (no inline delta). To the right, a skyline of vertical
@@ -196,20 +186,10 @@ function DirectoriesWidget({ analytics }: WidgetBodyProps) {
         </div>
         {visible.map((d, i) => {
           const completionColor = outcomeRateColor(d.completion_rate);
-          const inRing = i < DIR_RING_SLICES;
           const completionPct = Math.round(d.completion_rate);
           const content = (
             <>
-              <span className={styles.dirPath} title={d.directory}>
-                {inRing && (
-                  <span
-                    className={styles.dirPathDot}
-                    style={{ background: DIR_RING_PALETTE[i] }}
-                    aria-hidden="true"
-                  />
-                )}
-                {d.directory}
-              </span>
+              <FilePath path={d.directory} parentSegments={1} />
               <span className={styles.dirTouches}>{d.touch_count.toLocaleString()}</span>
               <span className={styles.dirCompletion}>
                 <span className={styles.dirCompletionTrack}>
@@ -294,13 +274,10 @@ function FilesWidget({ analytics }: WidgetBodyProps) {
         const hasOutcome = f.outcome_rate != null && f.outcome_rate > 0;
         const beamColor = hasOutcome ? outcomeRateColor(f.outcome_rate as number) : 'var(--soft)';
         const beamWidth = (f.touch_count / maxTouches) * 100;
-        const { parent, basename } = splitPath(f.file);
         const content = (
           <>
-            <span className={styles.beamFile} title={f.file}>
-              {parent && <span className={styles.beamFileParent}>{parent}</span>}
-              <span className={styles.beamFileName}>{basename}</span>
-            </span>
+            <FilePath path={f.file} />
+
             <span className={styles.beamCell}>
               <span className={styles.beamTrack}>
                 <span
@@ -442,13 +419,10 @@ function FileReworkWidget({ analytics }: WidgetBodyProps) {
       </div>
       {sorted.map((f, i) => {
         const color = reworkSeverityColor(f.rework_ratio);
-        const { parent, basename } = splitPath(f.file);
         const content = (
           <>
-            <span className={styles.lollipopFile} title={f.file}>
-              {parent && <span className={styles.lollipopFileParent}>{parent}</span>}
-              <span className={styles.lollipopFileName}>{basename}</span>
-            </span>
+            <FilePath path={f.file} />
+
             <span className={styles.lollipopCell}>
               <ReworkSpark ratio={f.rework_ratio} max={maxRatio} color={color} />
               <span className={styles.lollipopValue} style={{ color }}>
@@ -622,13 +596,10 @@ function ConcurrentEditsWidget({ analytics }: WidgetBodyProps) {
         const overflow = Math.max(0, f.agents - CONTENTION_STACK_CAP);
         const color = contentionColor(f.agents);
         const editPct = (f.edit_count / maxEdits) * 100;
-        const { parent, basename } = splitPath(f.file);
         const content = (
           <>
-            <span className={styles.collisionFile} title={f.file}>
-              {parent && <span className={styles.collisionFileParent}>{parent}</span>}
-              <span className={styles.collisionFileName}>{basename}</span>
-            </span>
+            <FilePath path={f.file} />
+
             <span className={styles.collisionStackCell} aria-label={`${f.agents} agents`}>
               <span className={styles.collisionStack}>
                 {Array.from({ length: stackCount }, (_, j) => (

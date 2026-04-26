@@ -280,6 +280,65 @@ button.rowBase {
   transition: width 0.4s var(--motion);
 }
 
+/* ── File path (filename + dir prefix) ─────────────────
+ *
+ * Canonical primitive for any widget that renders a file or directory
+ * path. Replaces the three local splitters (CodebaseWidgets `splitPath`,
+ * ConversationWidgets `splitFile`, LiveWidgets `splitFilePath` /
+ * `parentDirName`) and unifies the visual rules.
+ *
+ * Rules:
+ *   - Filename is ink, sans 500, NEVER truncates (`flex-shrink: 0`).
+ *     The filename is the load-bearing identifier in every consuming widget.
+ *   - Parent prefix is soft, mono xs, may truncate via ellipsis when the
+ *     row is too narrow to fit both.
+ *   - In `parent-first` order, the parent uses `direction: rtl` so the
+ *     ellipsis appears at the FRONT of the prefix on overflow — the
+ *     immediate-parent segment (closest to the filename, most informative
+ *     for disambiguation) survives. ASCII paths are unaffected by the
+ *     bidi reorder; `text-align: left` keeps the visible text aligned to
+ *     the left of its track.
+ *   - Native `title` carries the full path for hover/keyboard reveal.
+ *
+ * The wrapper is the cell element — composing widgets do not need their own
+ * `.fileCell` class. If a grid track expects this primitive, give the track
+ * `min-width: 0` so the parent can shrink.
+ */
+.filePath {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.filePathName {
+  font-size: var(--text-sm);
+  color: var(--ink);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.filePathParent {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Parent-first variant: ellipsis from the front of the prefix when the
+ * cell is too narrow, so the immediate-parent segment survives. */
+.filePathParentLead {
+  direction: rtl;
+  text-align: left;
+}
+
 /* ── Data rows (generic list rows) ────────────────── */
 
 .dataList {

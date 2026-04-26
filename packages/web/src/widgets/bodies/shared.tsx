@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import {
   getToolsWithCapability,
   type DataCapabilities,
@@ -328,6 +329,68 @@ export function isSoloTeam(analytics: { member_analytics: { length: number } }):
 export function MoreHidden({ count }: { count: number }) {
   if (count <= 0) return null;
   return <div className={styles.moreHidden}>+{count} more hidden</div>;
+}
+
+/**
+ * Canonical file-path renderer. Filename is ink and never truncates; the
+ * directory prefix is soft and ellipses if the cell is too narrow. Head-
+ * truncation in `parent-first` order is handled in CSS via `direction:
+ * rtl` so the immediate parent (closest to the filename) survives as long
+ * as possible. The formatter caps how many trailing parent segments to
+ * surface; deeper context above that cap is hinted to the user via the
+ * `title` attribute on hover and assistive tech.
+ *
+ *   `order='parent-first'` (default) renders `dir/ name` — the codebase-
+ *   table convention where the file's location reads before its name.
+ *   On overflow, the front of the prefix gets ellipsed (`…s/dos/team/`).
+ *   `order='name-first'` renders `name dir/` — the scannable variant used
+ *   by conversation and live widgets where the basename is identity. On
+ *   overflow, the tail of the prefix gets ellipsed.
+ */
+export function FilePath({
+  path,
+  order = 'parent-first',
+  parentSegments = 2,
+  className,
+}: {
+  path: string;
+  order?: 'parent-first' | 'name-first';
+  parentSegments?: number;
+  className?: string;
+}) {
+  const { parent, name } = formatFilePath(path, parentSegments);
+  const parentClass =
+    order === 'parent-first'
+      ? clsx(styles.filePathParent, styles.filePathParentLead)
+      : styles.filePathParent;
+  const parentEl = parent ? <span className={parentClass}>{parent}</span> : null;
+  const nameEl = <span className={styles.filePathName}>{name}</span>;
+  return (
+    <span className={clsx(styles.filePath, className)} title={path}>
+      {order === 'parent-first' ? (
+        <>
+          {parentEl}
+          {nameEl}
+        </>
+      ) : (
+        <>
+          {nameEl}
+          {parentEl}
+        </>
+      )}
+    </span>
+  );
+}
+
+function formatFilePath(path: string, parentSegments: number): { parent: string; name: string } {
+  if (!path) return { parent: '', name: '' };
+  const segments = path.split('/').filter(Boolean);
+  if (segments.length <= 1) return { parent: '', name: path };
+  const name = segments[segments.length - 1] ?? '';
+  const parentParts = segments.slice(0, -1);
+  const visible = parentParts.slice(-Math.max(0, parentSegments));
+  const parent = visible.length > 0 ? `${visible.join('/')}/` : '';
+  return { parent, name };
 }
 
 // Display prefix shown in coverage notes for each capability. These phrase

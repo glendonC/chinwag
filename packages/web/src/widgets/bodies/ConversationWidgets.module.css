@@ -51,26 +51,12 @@
   padding: 12px 14px;
 }
 
-/* Filename cell — name + parent dir below. Mirrors live's
- * `conflictFileCell` so the file-axis read is consistent across the
- * dashboard's table widgets. */
-.fileCell {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.fileName {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--ink);
-  letter-spacing: -0.01em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
+/*
+ * Muted mono xs marker — currently only the "+N" overflow indicator at
+ * the tail of the confused-sessions dot stripe. The file-path render
+ * itself is now the shared `FilePath` primitive in widgets/bodies/
+ * shared.tsx, so this class no longer pairs with a filename label.
+ */
 .fileParent {
   font-family: var(--mono);
   font-size: var(--text-2xs);

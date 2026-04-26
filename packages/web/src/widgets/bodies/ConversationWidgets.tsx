@@ -6,7 +6,7 @@ import { setQueryParams } from '../../lib/router.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
 import styles from './ConversationWidgets.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
-import { MoreHidden, StatWidget } from './shared.js';
+import { FilePath, MoreHidden, StatWidget } from './shared.js';
 
 // Conversations category. Three widgets, all using sentiment/topic as
 // INPUTS to coordination questions (never headline) per ANALYTICS_SPEC §10.
@@ -52,21 +52,17 @@ function ConfusedFilesWidget({ analytics }: WidgetBodyProps) {
         </div>
         <div className={styles.convoBody}>
           {visible.map((f, i) => {
-            const { name, parent } = splitFile(f.file);
+            const baseName = f.file.split('/').filter(Boolean).pop() ?? f.file;
             return (
               <button
                 key={f.file}
                 type="button"
                 className={styles.convoRow}
                 style={{ '--row-index': i } as CSSProperties}
-                title={f.file}
-                aria-label={`${name}: ${f.confused_sessions} confused sessions, ${f.retried_sessions} abandoned`}
+                aria-label={`${baseName}: ${f.confused_sessions} confused sessions, ${f.retried_sessions} abandoned`}
                 onClick={() => setQueryParams({ file: f.file, sentiment: 'confused' })}
               >
-                <span className={styles.fileCell}>
-                  <span className={styles.fileName}>{name}</span>
-                  {parent && <span className={styles.fileParent}>{parent}</span>}
-                </span>
+                <FilePath path={f.file} order="name-first" />
                 <ConfusedSessionsStripe
                   total={f.confused_sessions}
                   abandoned={f.retried_sessions}
@@ -133,7 +129,7 @@ function CrossToolHandoffsWidget({ analytics }: WidgetBodyProps) {
         </div>
         <div className={styles.convoBody}>
           {visible.map((e, i) => {
-            const { name, parent } = splitFile(e.file);
+            const baseName = e.file.split('/').filter(Boolean).pop() ?? e.file;
             const fromLabel = getToolMeta(e.tool_from).label;
             const toLabel = getToolMeta(e.tool_to).label;
             return (
@@ -142,8 +138,7 @@ function CrossToolHandoffsWidget({ analytics }: WidgetBodyProps) {
                 type="button"
                 className={styles.convoRow}
                 style={{ '--row-index': i } as CSSProperties}
-                title={e.file}
-                aria-label={`${fromLabel} to ${toLabel} on ${name}, ${formatGap(e.gap_minutes)} gap`}
+                aria-label={`${fromLabel} to ${toLabel} on ${baseName}, ${formatGap(e.gap_minutes)} gap`}
                 onClick={() =>
                   setQueryParams({
                     tool: e.tool_to,
@@ -166,10 +161,7 @@ function CrossToolHandoffsWidget({ analytics }: WidgetBodyProps) {
                   </span>
                 </span>
                 <span className={styles.gapCell}>{formatGap(e.gap_minutes)}</span>
-                <span className={styles.fileCell}>
-                  <span className={styles.fileName}>{name}</span>
-                  {parent && <span className={styles.fileParent}>{parent}</span>}
-                </span>
+                <FilePath path={e.file} order="name-first" />
               </button>
             );
           })}
@@ -202,16 +194,6 @@ function UnansweredQuestionsWidget({ analytics }: WidgetBodyProps) {
 }
 
 // ── helpers ─────────────────────────────────────────
-
-function splitFile(filePath: string): { name: string; parent: string } {
-  const lastSlash = filePath.lastIndexOf('/');
-  if (lastSlash < 0) return { name: filePath, parent: '' };
-  const name = filePath.slice(lastSlash + 1);
-  const before = filePath.slice(0, lastSlash);
-  const prevSlash = before.lastIndexOf('/');
-  const parent = prevSlash < 0 ? before : before.slice(prevSlash + 1);
-  return { name, parent: parent ? `${parent}/` : '' };
-}
 
 // Compact gap formatter. Window is capped at 24h server-side so the
 // day branch is defensive only.
