@@ -175,6 +175,7 @@ export function projectToolDaily(acc: ToolDailyAcc): ToolDailyTrend[] {
 interface ToolWorkTypeBucket {
   sessions: number;
   edits: number;
+  completed: number;
 }
 
 export type ToolWorkTypeAcc = Map<string, ToolWorkTypeBucket>;
@@ -186,9 +187,10 @@ export function createToolWorkTypeAcc(): ToolWorkTypeAcc {
 export function mergeToolWorkType(acc: ToolWorkTypeAcc, team: TeamResult): void {
   for (const tw of team.tool_work_type ?? []) {
     const key = `${tw.host_tool}:${tw.work_type}`;
-    const existing = acc.get(key) ?? { sessions: 0, edits: 0 };
+    const existing = acc.get(key) ?? { sessions: 0, edits: 0, completed: 0 };
     existing.sessions += tw.sessions;
     existing.edits += tw.edits;
+    existing.completed += tw.completed ?? 0;
     acc.set(key, existing);
   }
 }
@@ -203,6 +205,11 @@ export function projectToolWorkType(acc: ToolWorkTypeAcc): ToolWorkTypeBreakdown
         work_type: key.slice(sep + 1),
         sessions: v.sessions,
         edits: v.edits,
+        completed: v.completed,
+        // Reproject against the merged denominator so the user-level rate
+        // doesn't average per-team rates (which would weight a 1-session
+        // team the same as a 100-session team).
+        completion_rate: v.sessions > 0 ? Math.round((v.completed / v.sessions) * 1000) / 10 : 0,
       };
     });
 }

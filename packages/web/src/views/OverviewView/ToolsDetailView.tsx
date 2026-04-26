@@ -22,6 +22,7 @@ import { getToolMeta } from '../../lib/toolMeta.js';
 import { aggregateModels } from '../../widgets/utils.js';
 import { formatRelativeTime } from '../../lib/relativeTime.js';
 import { CoverageNote, capabilityCoverageNote, GhostRows } from '../../widgets/bodies/shared.js';
+import { MIN_TOOL_SAMPLE } from '../../widgets/bodies/ToolWidgets.js';
 import { getDataCapabilities } from '@chinmeister/shared/tool-registry.js';
 import type { UserAnalytics } from '../../lib/apiSchemas.js';
 import shared from '../../widgets/widget-shared.module.css';
@@ -191,6 +192,42 @@ function ToolsPanel({ analytics }: { analytics: UserAnalytics }) {
     return set.size;
   }, [modelRows]);
 
+  const workTypeRows = analytics.tool_work_type;
+  const workTypeByType = useMemo(() => {
+    const map = new Map<string, typeof workTypeRows>();
+    for (const row of workTypeRows) {
+      const list = map.get(row.work_type) ?? [];
+      list.push(row);
+      map.set(row.work_type, list);
+    }
+    return [...map.entries()]
+      .map(([work_type, rows]) => ({
+        work_type,
+        rows: [...rows].sort((a, b) => b.sessions - a.sessions),
+        totalSessions: rows.reduce((s, r) => s + r.sessions, 0),
+      }))
+      .sort((a, b) => b.totalSessions - a.totalSessions);
+  }, [workTypeRows]);
+
+  const bestFitByType = useMemo(() => {
+    return workTypeByType
+      .map((g) => {
+        const eligible = g.rows.filter((r) => r.sessions >= MIN_TOOL_SAMPLE);
+        const winner =
+          eligible.length === 0
+            ? null
+            : [...eligible].sort((a, b) => b.completion_rate - a.completion_rate)[0];
+        return { work_type: g.work_type, totalSessions: g.totalSessions, winner };
+      })
+      .filter((g) => g.totalSessions > 0);
+  }, [workTypeByType]);
+
+  const oneShot = analytics.tool_call_stats.host_one_shot;
+  const sortedOneShot = useMemo(
+    () => [...oneShot].filter((r) => r.sessions > 0).sort((a, b) => b.sessions - a.sessions),
+    [oneShot],
+  );
+
   if (tools.length === 0) {
     return (
       <div className={styles.panel}>
@@ -260,9 +297,45 @@ function ToolsPanel({ analytics }: { analytics: UserAnalytics }) {
     </>
   ) : null;
 
+  // ── Q4 work-type ── per-work-type, which tool fits best (highest
+  // completion at sample sufficient to mean something). Keyed off the
+  // backend's tool_work_type with completion_rate already attached.
+  const fittedCount = bestFitByType.filter((g) => g.winner !== null).length;
+  const workTypeAnswer =
+    bestFitByType.length > 0 ? (
+      <>
+        <Metric>{fmtCount(fittedCount)}</Metric> of{' '}
+        <Metric>{fmtCount(bestFitByType.length)}</Metric> work-types have a tool with enough
+        sessions to call a fit. Cells below carry per-tool completion at sample.
+      </>
+    ) : null;
+
+  // ── Q5 one-shot ── per-tool first-try rate from host_one_shot.
+  // First-try = session that produced edits without an Edit→Bash→Edit
+  // retry loop. The metric makes sense only when the tool is the one
+  // doing edits, so we filter to tools that show up in tool_comparison
+  // with sessions > 0.
+  const oneShotEligible = sortedOneShot.filter((r) => r.sessions >= MIN_TOOL_SAMPLE);
+  const oneShotLeader =
+    oneShotEligible.length === 0
+      ? null
+      : [...oneShotEligible].sort((a, b) => b.one_shot_rate - a.one_shot_rate)[0];
+  const maxOneShotSessions = Math.max(...sortedOneShot.map((r) => r.sessions), 1);
+
+  const oneShotAnswer = oneShotLeader ? (
+    <>
+      <Metric>{getToolMeta(oneShotLeader.host_tool).label}</Metric> lands edits first try{' '}
+      <Metric tone={completionTone(oneShotLeader.one_shot_rate)}>
+        {oneShotLeader.one_shot_rate}%
+      </Metric>{' '}
+      of the time across <Metric>{fmtCount(oneShotLeader.sessions)}</Metric> sessions. Below sample
+      threshold ({MIN_TOOL_SAMPLE}) shows em-dash.
+    </>
+  ) : null;
+
   const questions: FocusedQuestion[] = [
     {
-      id: 'coverage',
+      id: 'capability',
       question: 'Which tools are reporting, and how deeply?',
       answer: coverageAnswer,
       children: <ToolCoverageMatrix tools={coverageEntries} />,
@@ -305,6 +378,121 @@ function ToolsPanel({ analytics }: { analytics: UserAnalytics }) {
       relatedLinks: getCrossLinks('tools', 'tools', 'workload'),
     },
   ];
+
+  if (workTypeRows.length > 0 && workTypeAnswer) {
+    questions.push({
+      id: 'work-type',
+      question: 'Which tool fits which kind of work?',
+      answer: workTypeAnswer,
+      children: (
+        <div className={styles.workTypeList}>
+          {bestFitByType.map((g, i) => (
+            <div
+              key={g.work_type}
+              className={styles.workTypeRow}
+              style={{ '--row-index': i } as CSSProperties}
+            >
+              <div className={styles.workTypeHead}>
+                <span className={styles.workTypeLabel}>{g.work_type}</span>
+                <span className={styles.workTypeMeta}>
+                  {g.winner ? (
+                    <>
+                      <span
+                        className={styles.workTypeDot}
+                        style={{ background: getToolMeta(g.winner.host_tool).color }}
+                      />
+                      <span className={styles.workTypeWinner}>
+                        {getToolMeta(g.winner.host_tool).label}
+                      </span>
+                      <span className={styles.workTypeWinnerRate}>
+                        {g.winner.completion_rate}% complete
+                      </span>
+                    </>
+                  ) : (
+                    <span className={styles.workTypeMeta}>—</span>
+                  )}
+                </span>
+              </div>
+              <div className={styles.workTypeStrip}>
+                {workTypeByType
+                  .find((w) => w.work_type === g.work_type)!
+                  .rows.map((row) => {
+                    const meta = getToolMeta(row.host_tool);
+                    const enough = row.sessions >= MIN_TOOL_SAMPLE;
+                    return (
+                      <span
+                        key={row.host_tool}
+                        className={styles.workTypeCell}
+                        style={{ '--tool-brand': meta.color } as CSSProperties}
+                      >
+                        <span className={styles.workTypeCellDot} />
+                        <span className={styles.workTypeCellLabel}>{meta.label}</span>
+                        <span className={styles.workTypeCellRate}>
+                          {enough ? `${row.completion_rate}%` : '—'}
+                        </span>
+                        <span className={styles.workTypeCellSessions}>{row.sessions}s</span>
+                      </span>
+                    );
+                  })}
+              </div>
+            </div>
+          ))}
+        </div>
+      ),
+      relatedLinks: getCrossLinks('tools', 'tools', 'work-type'),
+    });
+  } else {
+    questions.push({
+      id: 'work-type',
+      question: 'Which tool fits which kind of work?',
+      answer: <>Work-type fit appears once tools record edits across multiple work-types.</>,
+      children: <GhostRows count={3} />,
+    });
+  }
+
+  if (sortedOneShot.length > 0) {
+    questions.push({
+      id: 'one-shot',
+      question: 'Which tool lands edits without a retry loop?',
+      answer: oneShotAnswer ?? (
+        <>
+          Sample under <Metric>{MIN_TOOL_SAMPLE}</Metric> sessions per tool — first-try rate shown
+          but not ranked.
+        </>
+      ),
+      children: (
+        <BreakdownList
+          items={sortedOneShot.map((r) => {
+            const meta = getToolMeta(r.host_tool);
+            const enough = r.sessions >= MIN_TOOL_SAMPLE;
+            return {
+              key: r.host_tool,
+              label: meta.label,
+              fillPct: enough ? r.one_shot_rate : (r.sessions / maxOneShotSessions) * 100,
+              fillColor: meta.color,
+              value: (
+                <>
+                  {enough ? `${r.one_shot_rate}% first try` : '—'}
+                  <BreakdownMeta>
+                    {' · '}
+                    {fmtCount(r.sessions)} sessions
+                  </BreakdownMeta>
+                </>
+              ),
+            };
+          })}
+        />
+      ),
+      relatedLinks: getCrossLinks('tools', 'tools', 'one-shot'),
+    });
+  } else {
+    questions.push({
+      id: 'one-shot',
+      question: 'Which tool lands edits without a retry loop?',
+      answer: <>First-try rate appears once tools log Edit and Bash tool calls.</>,
+      children: <GhostRows count={3} />,
+    });
+  }
 
   if (modelRows.length > 0 && modelsAnswer) {
     questions.push({

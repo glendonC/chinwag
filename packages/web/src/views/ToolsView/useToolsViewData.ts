@@ -23,16 +23,14 @@ import { normalizeToolId, isKnownTool } from '../../lib/toolMeta.js';
 import { computeSignalScore, extractScoringInput } from '../../lib/signalScore.js';
 import {
   arcPath,
+  computeArcSlices,
+  computeLeaderGeometry,
+  pickLabeledArcs,
   CX,
   CY,
   R,
   SW,
   GAP,
-  DEG,
-  LEADER_GAP,
-  LEADER_STUB,
-  LEADER_H,
-  MIN_LABEL_GAP,
 } from '../../lib/svgArcs.js';
 
 export { arcPath, CX, CY, R, SW };
@@ -222,60 +220,37 @@ export function useToolsViewData(): ToolsViewData {
     ].filter((s) => s.value > 0);
     if (!slices.length) return [];
 
-    const totalGap = GAP * slices.length;
-    const available = 360 - totalGap;
     const total = slices.reduce((s, e) => s + e.value, 0);
-    const anchorR = R + SW / 2 + LEADER_GAP;
-    const elbowR = R + SW / 2 + LEADER_GAP + LEADER_STUB;
-
     // No min-floor needed: top-N guarantees every rendered slice is meaningful,
     // and the Other aggregate is always substantial enough to render cleanly.
-    const sweeps = slices.map((s) => (total > 0 ? s.value / total : 0) * available);
-    const offsets = sweeps.map((_, i, arr) => arr.slice(0, i).reduce((s, sw) => s + sw + GAP, 0));
+    const segments = computeArcSlices(
+      slices.map((s) => s.value),
+      GAP,
+    );
+    const leaders = computeLeaderGeometry(segments);
 
-    const entries: ArcEntry[] = slices.map((slice, i) => {
-      const share = total > 0 ? slice.value / total : 0;
-      const sweep = sweeps[i];
-      const offset = offsets[i];
-      const midDeg = (offset + sweep / 2 - 90) * DEG;
-      const side: 'left' | 'right' = Math.cos(midDeg) >= 0 ? 'right' : 'left';
-      const anchorX = CX + anchorR * Math.cos(midDeg);
-      const anchorY = CY + anchorR * Math.sin(midDeg);
-      const elbowX = CX + elbowR * Math.cos(midDeg);
-      const elbowY = CY + elbowR * Math.sin(midDeg);
-      return {
-        tool: slice.tool,
-        joins: slice.value,
-        share,
-        startDeg: offset,
-        sweepDeg: sweep,
-        anchorX,
-        anchorY,
-        elbowX,
-        elbowY,
-        labelX: side === 'right' ? elbowX + LEADER_H : elbowX - LEADER_H,
-        labelY: elbowY,
-        side,
-        labeled: false,
-      };
-    });
+    const entries: ArcEntry[] = slices.map((slice, i) => ({
+      tool: slice.tool,
+      joins: slice.value,
+      share: total > 0 ? slice.value / total : 0,
+      startDeg: segments[i].startDeg,
+      sweepDeg: segments[i].sweepDeg,
+      ...leaders[i],
+      labeled: false,
+    }));
 
     // Per-side label collision: highest-value branded arcs win. Other is
     // excluded — the muted slice never claims a leader line.
-    for (const side of ['left', 'right'] as const) {
-      const candidates = entries
-        .map((e, i) => ({ i, value: e.joins, y: e.labelY }))
-        .filter(({ i }) => entries[i].side === side && entries[i].tool !== OTHER_KEY)
-        .sort((a, b) => b.value - a.value);
-
-      const placed: number[] = [];
-      for (const { i, y } of candidates) {
-        if (placed.every((py) => Math.abs(py - y) >= MIN_LABEL_GAP)) {
-          entries[i].labeled = true;
-          placed.push(y);
-        }
-      }
-    }
+    const labeled = pickLabeledArcs(
+      entries.map((e) => ({
+        value: e.joins,
+        labelY: e.labelY,
+        side: e.side,
+        isOther: e.tool === OTHER_KEY,
+      })),
+      { exclude: (e) => e.isOther },
+    );
+    for (const i of labeled) entries[i].labeled = true;
 
     return entries;
   }, [knownToolShare]);

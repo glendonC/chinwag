@@ -2,7 +2,6 @@ import type { CSSProperties } from 'react';
 import SectionEmpty from '../../components/SectionEmpty/SectionEmpty.js';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
-import { Sparkline } from '../charts.js';
 import shared from '../widget-shared.module.css';
 import styles from './TeamWidgets.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
@@ -12,6 +11,7 @@ import {
   GhostStatRow,
   InlineDelta,
   isSoloTeam,
+  Sparkline,
 } from './shared.js';
 
 const SPARKLINE_DAILY_MIN_POINTS = 2;
@@ -115,7 +115,7 @@ function ProjectsWidget({ summaries, liveAgents, selectTeam }: WidgetBodyProps) 
                 title="Daily sessions over the last 7 days"
               >
                 {daily && daily.length >= 2 ? (
-                  <Sparkline data={daily} height={20} />
+                  <Sparkline values={daily} height={20} endDot />
                 ) : (
                   <span className={styles.projectsEmpty}>—</span>
                 )}
@@ -192,7 +192,7 @@ function ConflictsBlockedWidget({ analytics }: WidgetBodyProps) {
       </div>
       {showSparkline ? (
         <>
-          <Sparkline data={dailyBlocks} height={24} />
+          <Sparkline values={dailyBlocks} height={24} endDot />
           <div className={styles.sparklineCaption}>
             blocked across {activeDays} active {activeDays === 1 ? 'day' : 'days'}
           </div>

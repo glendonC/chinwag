@@ -39,10 +39,10 @@ import RangePills from '../../components/RangePills/RangePills.jsx';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.js';
 import { WorkTypeStrip } from '../../components/WorkTypeStrip/index.js';
 import { useTabs } from '../../hooks/useTabs.js';
-import { arcPath } from '../../lib/svgArcs.js';
+import { arcPath, computeArcSlices } from '../../lib/svgArcs.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
 import { navigate, setQueryParam, useQueryParam } from '../../lib/router.js';
-import { Sparkline } from '../../widgets/charts.js';
+import { Sparkline } from '../../widgets/bodies/shared.js';
 import type { UserAnalytics } from '../../lib/apiSchemas.js';
 import { formatCost } from '../../widgets/utils.js';
 import { hasCostData } from '../../widgets/bodies/shared.js';
@@ -469,14 +469,6 @@ function ToolRing({
   total: number;
 }) {
   const arcs = useMemo(() => {
-    const out: Array<{
-      tool: string;
-      color: string;
-      startDeg: number;
-      sweepDeg: number;
-      sessions: number;
-    }> = [];
-    const safeTotal = Math.max(1, total);
     const sorted = [...entries].sort((a, b) => b.sessions - a.sessions);
     const top = sorted.slice(0, RING_TOP_N);
     const tail = sorted.slice(RING_TOP_N);
@@ -491,24 +483,13 @@ function ToolRing({
         ? [{ tool: OTHER_KEY, color: 'var(--soft)', sessions: tailSessions }]
         : []),
     ].filter((s) => s.sessions > 0);
-    const gaps = slices.length * RING_GAP_DEG;
-    const available = Math.max(0, 360 - gaps);
-    let cursor = 0;
-    for (const s of slices) {
-      const sweep = (s.sessions / safeTotal) * available;
-      if (sweep > 0.2) {
-        out.push({
-          tool: s.tool,
-          color: s.color,
-          startDeg: cursor,
-          sweepDeg: sweep,
-          sessions: s.sessions,
-        });
-      }
-      cursor += sweep + RING_GAP_DEG;
-    }
-    return out;
-  }, [entries, total]);
+    return computeArcSlices(
+      slices.map((s) => s.sessions),
+      RING_GAP_DEG,
+    )
+      .map((seg, i) => ({ ...slices[i], ...seg }))
+      .filter((arc) => arc.sweepDeg > 0.2);
+  }, [entries]);
 
   return (
     <div className={styles.ringBlock}>
@@ -623,14 +604,6 @@ function EditsToolRing({
   total: number;
 }) {
   const arcs = useMemo(() => {
-    const out: Array<{
-      tool: string;
-      color: string;
-      startDeg: number;
-      sweepDeg: number;
-      edits: number;
-    }> = [];
-    const safeTotal = Math.max(1, total);
     const sorted = [...entries].sort((a, b) => b.total_edits - a.total_edits);
     const top = sorted.slice(0, RING_TOP_N);
     const tail = sorted.slice(RING_TOP_N);
@@ -643,24 +616,13 @@ function EditsToolRing({
       })),
       ...(tailEdits > 0 ? [{ tool: OTHER_KEY, color: 'var(--soft)', edits: tailEdits }] : []),
     ].filter((s) => s.edits > 0);
-    const gaps = slices.length * RING_GAP_DEG;
-    const available = Math.max(0, 360 - gaps);
-    let cursor = 0;
-    for (const s of slices) {
-      const sweep = (s.edits / safeTotal) * available;
-      if (sweep > 0.2) {
-        out.push({
-          tool: s.tool,
-          color: s.color,
-          startDeg: cursor,
-          sweepDeg: sweep,
-          edits: s.edits,
-        });
-      }
-      cursor += sweep + RING_GAP_DEG;
-    }
-    return out;
-  }, [entries, total]);
+    return computeArcSlices(
+      slices.map((s) => s.edits),
+      RING_GAP_DEG,
+    )
+      .map((seg, i) => ({ ...slices[i], ...seg }))
+      .filter((arc) => arc.sweepDeg > 0.2);
+  }, [entries]);
 
   const rows = useMemo(
     () =>
@@ -1075,7 +1037,7 @@ function EditsPanel({ analytics }: { analytics: UserAnalytics }) {
           </>
         ),
         meta: `${fmtCount(p.total)} edits`,
-        body: <Sparkline data={p.series.map((s) => s.edits)} height={48} color={color} />,
+        body: <Sparkline values={p.series.map((s) => s.edits)} height={48} color={color} endDot />,
       };
     });
   }, [analytics.per_project_lines, analytics.per_project_velocity]);

@@ -136,12 +136,21 @@ export interface WidgetDef {
    * Click drill destination for the cockpit widget surface. When set,
    * `WidgetRenderer` wraps the body in a clickable affordance that calls
    * `navigateToDetail(view, tab, q)` so a single click opens the matching
-   * detail view, tab, and (optionally) question. Widgets whose body
-   * already owns its own click affordance (e.g. `StatWidget` with
-   * `onOpenDetail`) intentionally omit this field — those bodies wire
-   * the drill themselves so the wrapper doesn't double up.
+   * detail view, tab, and (optionally) question.
    */
   drillTarget?: { view: DetailViewKey; tab: string; q?: string };
+  /**
+   * The widget body wires its own click affordance — either an inline
+   * `StatWidget` with `onOpenDetail`, or a table whose rows are buttons
+   * with their own `View` pill. When true, `WidgetRenderer` skips the
+   * outer `widgetBodyClickable` wrapper so we don't double-stack drill
+   * affordances (full-container hover background + ↗ corner arrow on
+   * top of an already-clickable body). The principle: full-container
+   * hover is reserved for vizzes whose drill target is otherwise
+   * unclear (single chart, heatmap). Tables and stat-with-deltas have
+   * their own obvious click target and don't need it.
+   */
+  ownsClick?: boolean;
 }
 
 // ── The catalog ──────────────────────────────────
@@ -224,6 +233,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['daily_trends'],
     drillTarget: { view: 'usage', tab: 'sessions' },
+    ownsClick: true,
   },
   {
     id: 'edits',
@@ -238,6 +248,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['daily_trends'],
     drillTarget: { view: 'usage', tab: 'edits' },
+    ownsClick: true,
   },
   {
     id: 'lines-added',
@@ -252,6 +263,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['daily_trends'],
     drillTarget: { view: 'usage', tab: 'lines' },
+    ownsClick: true,
   },
   {
     id: 'lines-removed',
@@ -266,6 +278,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['daily_trends'],
     drillTarget: { view: 'usage', tab: 'lines' },
+    ownsClick: true,
   },
   {
     id: 'files-touched',
@@ -280,6 +293,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['file_heatmap'],
     drillTarget: { view: 'usage', tab: 'files-touched' },
+    ownsClick: true,
   },
   {
     id: 'cost',
@@ -294,6 +308,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['token_usage'],
     drillTarget: { view: 'usage', tab: 'cost' },
+    ownsClick: true,
   },
   {
     id: 'cost-per-edit',
@@ -308,6 +323,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['token_usage'],
     drillTarget: { view: 'usage', tab: 'cost-per-edit' },
+    ownsClick: true,
   },
   // ── Trends (sparklines) ───────────────
   // `session-trend` and `edit-velocity` were both cut 2026-04-25 after
@@ -347,6 +363,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     maxW: 12,
     dataKeys: ['completion_summary'],
     drillTarget: { view: 'outcomes', tab: 'sessions' },
+    ownsClick: true,
   },
   {
     id: 'outcome-trend',
@@ -376,6 +393,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['tool_call_stats'],
     drillTarget: { view: 'outcomes', tab: 'retries' },
+    ownsClick: true,
   },
   {
     id: 'stuckness',
@@ -397,6 +415,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['stuckness'],
     drillTarget: { view: 'outcomes', tab: 'sessions' },
+    ownsClick: true,
   },
 
   // ── Activity ──────────────────────────
@@ -459,6 +478,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 3,
     dataKeys: ['directory_heatmap'],
     drillTarget: { view: 'codebase', tab: 'directories', q: 'top-dirs' },
+    ownsClick: true,
   },
   {
     id: 'files',
@@ -473,35 +493,83 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 3,
     dataKeys: ['file_heatmap'],
     drillTarget: { view: 'codebase', tab: 'landscape', q: 'landscape' },
+    ownsClick: true,
   },
 
   // ── Tools & Models ────────────────────
+  // Category redesigned 2026-04-26 (post 18-month re-audit). The previous
+  // five widgets (tools, models, tool-handoffs, tool-call-errors, token-
+  // detail) were a list-of-tools / list-of-models / list-of-handoffs /
+  // list-of-errors / list-of-tokens spread that read as generic-APM
+  // territory. The redesign leads with substrate-unique signals:
+  //   - tool-handoffs: completion-weighted cross-tool flow (default head)
+  //   - tool-work-type-fit: head-to-head completion on identical work-types
+  //   - one-shot-by-tool: per-vendor first-try rate, same repo
+  //   - tool-capability-coverage: per-tool capability matrix (catalog)
+  //   - tool-call-errors: error rate hero + top patterns (catalog)
+  //   - model-mix: model session share with tab-selector (catalog)
+  //   - token-attribution: model × tool token cross-attribution (catalog)
+  // Renames: tools→tool-capability-coverage, models→model-mix,
+  //          token-detail→token-attribution. Aliases below preserve saved
+  //          layouts.
   {
-    id: 'tools',
-    name: 'tool comparison',
-    description: 'AI tools in use, with sessions, edits, and how much data each tool captures',
+    id: 'tool-capability-coverage',
+    name: 'capability coverage',
+    description:
+      'Per-tool capability matrix. Rows = tools, columns = data capabilities (hooks, commits, tool calls, tokens, conversations). Substrate-unique: chinmeister is the only place to see which of your tools can answer which questions, head to head.',
     category: 'tools',
     scope: 'both',
     viz: 'factual-grid',
     w: 6,
     h: 3,
-    minW: 3,
+    minW: 4,
     minH: 2,
     dataKeys: ['tool_comparison'],
-    drillTarget: { view: 'tools', tab: 'tools', q: 'workload' },
+    drillTarget: { view: 'tools', tab: 'tools', q: 'capability' },
   },
   {
-    id: 'models',
-    name: 'models',
-    description: 'Which models your agents use, split by the tool that ran them',
+    id: 'tool-work-type-fit',
+    name: 'tool fit by work type',
+    description:
+      'Heatmap of completion rate per (tool, work-type). Cells faded when sample size is small. Substrate-unique: head-to-head outcomes on identical work-types in the same repo. Read each row to see where each tool wins; route work to higher-completion cells.',
+    category: 'tools',
+    scope: 'both',
+    viz: 'heatmap',
+    w: 8,
+    h: 3,
+    minW: 6,
+    minH: 3,
+    dataKeys: ['tool_work_type', 'tool_comparison'],
+    drillTarget: { view: 'tools', tab: 'tools', q: 'work-type' },
+  },
+  {
+    id: 'one-shot-by-tool',
+    name: 'first-try rate by tool',
+    description:
+      "Per-tool one-shot rate — % of each tool's sessions where edits worked without an Edit→Bash→Edit retry cycle. CodeBurn's killer metric, sliced by host_tool. Tools below 3 sessions render '—' to keep the bar honest.",
     category: 'tools',
     scope: 'both',
     viz: 'data-list',
-    w: 6,
+    w: 4,
+    h: 3,
+    minW: 4,
+    minH: 2,
+    dataKeys: ['tool_call_stats'],
+    drillTarget: { view: 'tools', tab: 'tools', q: 'one-shot' },
+  },
+  {
+    id: 'model-mix',
+    name: 'model mix',
+    description:
+      'Stacked share strip of models running across all tools. Click a segment to inspect that model. Avoids the model A > B ranking anti-pattern; shows distribution as a fact.',
+    category: 'tools',
+    scope: 'both',
+    viz: 'proportional-bar',
+    w: 4,
     h: 3,
     minW: 3,
     minH: 2,
-    dataKeys: ['model_outcomes'],
+    dataKeys: ['model_outcomes', 'token_usage'],
     drillTarget: { view: 'tools', tab: 'tools', q: 'models' },
   },
 
@@ -571,6 +639,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 3,
     dataKeys: ['file_rework'],
     drillTarget: { view: 'codebase', tab: 'risk', q: 'failing-files' },
+    ownsClick: true,
   },
   {
     id: 'audit-staleness',
@@ -587,6 +656,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     dataKeys: ['audit_staleness'],
     timeScope: 'all-time',
     drillTarget: { view: 'codebase', tab: 'directories', q: 'cold-dirs' },
+    ownsClick: true,
   },
   {
     id: 'concurrent-edits',
@@ -601,27 +671,34 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['concurrent_edits'],
     drillTarget: { view: 'codebase', tab: 'risk', q: 'collisions' },
+    ownsClick: true,
   },
 
   // ── Tools (extended) ────────────────
+  // tool-handoffs is the substrate-unique headline of the redesigned Tools
+  // category. Reframed as completion-weighted flow: opacity carries file
+  // count (volume), color carries handoff_completion_rate (quality). Top-8
+  // pair cap with truthful tail row keeps the viz legible at team scale.
   {
     id: 'tool-handoffs',
-    name: 'tool handoffs',
-    description: 'Files that move between different tools',
+    name: 'cross-tool flow',
+    description:
+      'Files that move between different tools, weighted by completion rate. The substrate-unique signal: no IDE or APM can show files that travel across competing vendor agents in the same repo. Hover a line to inspect the pair.',
     category: 'tools',
     scope: 'both',
-    viz: 'data-list',
-    w: 6,
-    h: 3,
-    minW: 4,
-    minH: 2,
-    dataKeys: ['tool_handoffs'],
+    viz: 'bar-chart',
+    w: 12,
+    h: 4,
+    minW: 8,
+    minH: 3,
+    dataKeys: ['tool_handoffs', 'tool_comparison'],
     drillTarget: { view: 'tools', tab: 'flow', q: 'pairs' },
   },
   {
     id: 'tool-call-errors',
     name: 'tool call errors',
-    description: 'Recurring errors when agents run tools, grouped by tool and error message',
+    description:
+      'Hero error rate plus the top three recurring patterns. Drill in for the frequent / recent split and per-tool error fingerprints.',
     category: 'tools',
     scope: 'both',
     viz: 'data-list',
@@ -633,9 +710,10 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     drillTarget: { view: 'tools', tab: 'errors', q: 'top' },
   },
   {
-    id: 'token-detail',
-    name: 'token usage',
-    description: 'Token consumption by model and tool',
+    id: 'token-attribution',
+    name: 'token attribution',
+    description:
+      'Cross-attribution matrix — which tool ran which model, and how much. The substrate-unique cell: only chinmeister can fill (model × tool) because no IDE sees competitor tokens. Cells render session counts; tokens row-totalled. Cost lives in Usage.',
     category: 'tools',
     scope: 'both',
     viz: 'data-list',
@@ -643,7 +721,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     h: 4,
     minW: 4,
     minH: 3,
-    dataKeys: ['token_usage'],
+    dataKeys: ['token_usage', 'model_outcomes'],
     drillTarget: { view: 'tools', tab: 'errors', q: 'tokens' },
   },
   // ── Conversations (revived 2026-04-25) ──
@@ -675,11 +753,38 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     category: 'conversations',
     scope: 'both',
     viz: 'stat',
-    w: 3,
+    // 4 cols (not 3) so the catalog title "questions in abandoned sessions"
+    // fits without truncation. Matches the canonical width for enriched
+    // stat cards (stuckness, one-shot-rate).
+    w: 4,
     h: 2,
-    minW: 2,
+    minW: 3,
     minH: 2,
     dataKeys: ['unanswered_questions'],
+  },
+  // cross-tool-handoff-questions (added 2026-04-26): substrate-unique, the
+  // category's strongest D1 entry. Surfaces handoff EVENTS (file × tool-from
+  // × tool-to × gap-time) where one tool's session abandoned mid-question
+  // and another tool's session opened on the same file with a question or
+  // confused/frustrated turn. Sentiment/topic are filter inputs only — never
+  // displayed (preserves §10 #1 firewall). Catalog-only because the data
+  // requires 2+ tools with conversation capture; the empty state names the
+  // condition. No detail view yet — drill emits URL params matching the
+  // session-list filter spec, becomes a live drill when that route ships
+  // (mirrors the hollow-promise pattern documented on confused-files).
+  {
+    id: 'cross-tool-handoff-questions',
+    name: 'cross-tool question handoffs',
+    description:
+      'Events where a session abandoned with the user mid-question and a session in a different tool picked up the same file with another question or a confused turn. Substrate-unique to chinmeister: no single-tool surface can see both sides of the handoff. Read each pair to decide whether to save context as a memory, claim the file, or set a routing rule.',
+    category: 'conversations',
+    scope: 'both',
+    viz: 'data-list',
+    w: 6,
+    h: 3,
+    minW: 4,
+    minH: 2,
+    dataKeys: ['cross_tool_handoff_questions'],
   },
 
   // ── Memory (extended) ───────────────
@@ -691,7 +796,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     id: 'memory-cross-tool-flow',
     name: 'memory across tools',
     description:
-      "Memories authored by one tool that are available to another tool's sessions in the period. Honest framing: this measures co-presence and the available pool, not exact read attribution. Anchors questions like which tools share knowledge, which categories cross tools, and whether cross-tool memory tracks completion.",
+      "Memories one tool wrote that another tool's sessions could read. Available-to, not read-by — exact attribution is pending.",
     category: 'memory',
     scope: 'both',
     viz: 'data-list',
@@ -705,8 +810,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   {
     id: 'memory-aging-curve',
     name: 'memory freshness',
-    description:
-      'Currently-live memories grouped by age: 0-7d, 8-30d, 31-90d, 90d+. Lifetime scope; the date picker does not apply. Anchors questions like which categories age fastest, whether the team is replacing or accumulating, and which directories carry the freshest knowledge.',
+    description: 'Live memories under 30 days old. Lifetime scope; the picker does not apply.',
     category: 'memory',
     scope: 'both',
     viz: 'proportional-bar',
@@ -722,8 +826,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   {
     id: 'memory-categories',
     name: 'knowledge categories',
-    description:
-      'Top agent-assigned categories on currently-live memories with last-touch hint. Empty until agents tag memories on save. Anchors questions like which categories help completion, which directories carry which knowledge, and how the mix shifts over time.',
+    description: 'Top agent-tagged categories. Empty until agents tag on save.',
     category: 'memory',
     scope: 'both',
     viz: 'bar-chart',
@@ -739,12 +842,11 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     fitContent: true,
     drillTarget: { view: 'memory', tab: 'cross-tool', q: 'categories' },
   },
-  // Memory + team revivals + density 2026-04-25 (post 18-month re-audit).
   {
     id: 'memory-health',
-    name: 'memory health',
+    name: 'memory',
     description:
-      "Lifetime steady-state of the team's living memory: total live count, average age, stale count. All-time scope; the date picker does not apply. Anchors questions like the live-vs-invalidated trend, formation-observation rate, hygiene-action backlog, per-category live count, and last-touched age distribution.",
+      'Total live memories with average age and stale count. Lifetime scope; the picker does not apply.',
     category: 'memory',
     scope: 'both',
     viz: 'stat-row',
@@ -758,9 +860,9 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'memory-bus-factor',
-    name: 'single-author directories',
+    name: 'memory concentration',
     description:
-      'Directories where memories cluster on one author. Surface is directory-axis, never names handles, so it shows concentration risk without surveillance. Anchors questions like which directories carry single-author knowledge, period delta on concentration, second-author resilience trend, concentrated dirs by traffic, and team-wide authorship spread.',
+      'Directories where memories cluster on one author. Directory-axis, never names handles.',
     category: 'memory',
     scope: 'both',
     viz: 'data-list',
@@ -773,9 +875,9 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   },
   {
     id: 'memory-supersession-flow',
-    name: 'memory supersession',
+    name: 'memory hygiene',
     description:
-      'Live counters for the consolidation pipeline: memories invalidated this period, memories merged, proposals pending review. Quiet today; load-bearing once Memory Hygiene Autopilot runs on cadence. Anchors questions like retired vs merged this period, queue depth and age, categories with most supersession, merge clustering by directory, and median memory lifespan.',
+      'Pending consolidation proposals with invalidated and merged counts for the window. Quiet until Memory Hygiene Autopilot runs on cadence.',
     category: 'memory',
     scope: 'both',
     viz: 'stat-row',
@@ -791,7 +893,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     id: 'memory-secrets-shield',
     name: 'secrets blocked',
     description:
-      'Secret writes the shield caught before they reached shared memory. Substrate-unique: only chinmeister sees cross-tool memory writes, so this is the security signal no IDE or generic DLP produces. Anchors questions like how many leak attempts, which tools tried, trend, patterns caught most, and false-positive cost.',
+      'Secret writes the shield caught before reaching shared memory. Substrate-unique — only chinmeister sees cross-tool memory writes.',
     category: 'memory',
     scope: 'both',
     viz: 'stat-row',
@@ -988,6 +1090,15 @@ export const WIDGET_ALIASES: Record<string, string[]> = {
   // invites the "high-on-all = bad" anti-pattern read.
   'file-churn': [],
 
+  // 2026-04-26: Tools & Models category redesign. The list-of-X grid was
+  // reframed around substrate-unique signals — capability coverage instead of
+  // tool-stats grid, model mix instead of model ranking, token attribution
+  // matrix instead of token-detail list, completion-weighted flow instead of
+  // bare flow strip. Renames preserve saved layouts.
+  tools: ['tool-capability-coverage'],
+  models: ['model-mix'],
+  'token-detail': ['token-attribution'],
+
   // Tools cuts (7). tool-outcomes B2-redundant with the `tools` factual
   // grid (which already shows completion%). cache-efficiency is plumbing
   // observability with no user control surface (B3 zero). tool-daily
@@ -1148,19 +1259,22 @@ export const DEFAULT_LAYOUT: WidgetSlot[] = [
   { id: 'commit-stats', colSpan: 12, rowSpan: 2 },
   { id: 'file-rework', colSpan: 12, rowSpan: 4 },
 
-  // Tools — `models` was demoted to catalog-only 2026-04-25 after the
-  // agent-team audit. ANALYTICS_SPEC §10 anti-pattern #5 ("raw Model A > B
-  // without scope control") + STRATEGY explicit demotion of model/tool
-  // routing recommendations from headline Autopilot to passive insight.
-  // Per-tool pill is partial mitigation only; needs a work-type filter
-  // affordance before re-promotion.
-  { id: 'tools', colSpan: 6, rowSpan: 3 },
-
-  // Cross-tool handoffs — full-width. Substrate-unique (no IDE can show
-  // "Cursor started this file, Claude Code finished it"), so it earns
-  // default placement. Capture-latency (ANALYTICS_SPEC Open Work line 13)
-  // can invert directionality today — gate on that pipeline fix.
-  { id: 'tool-handoffs', colSpan: 12, rowSpan: 3 },
+  // Tools & Models — redesigned 2026-04-26 (post 18-month re-audit). Three
+  // substrate-unique decisions, two rows:
+  //   Row 1: tool-handoffs (12×4) — completion-weighted cross-tool flow,
+  //     the headline. Sankey-style two-column SVG; opacity carries file
+  //     count, color carries handoff_completion_rate. Substrate-unique
+  //     (no IDE / APM sees competitor agents).
+  //   Row 2: tool-work-type-fit (8×3) + one-shot-by-tool (4×3) — recurring
+  //     routing decisions. Where does each tool win? Who lands first-try?
+  //
+  // The previous default placements (`tools` factual grid + bare `tool-
+  // handoffs`) were demoted: capability is near-static onboarding data
+  // (belongs in catalog / discovery surface), and the bare flow viz
+  // doesn't drive an action without the completion overlay.
+  { id: 'tool-handoffs', colSpan: 12, rowSpan: 4 },
+  { id: 'tool-work-type-fit', colSpan: 8, rowSpan: 3 },
+  { id: 'one-shot-by-tool', colSpan: 4, rowSpan: 3 },
 
   // memory-outcomes was demoted to catalog-only 2026-04-25 after the
   // agent-team audit. The 3-bucket session-grain proxy is honest about what

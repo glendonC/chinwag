@@ -32,6 +32,7 @@ import {
   conversationEditCorrelationSchema as baseConversationEditCorrelationSchema,
   confusedFileEntrySchema as baseConfusedFileEntrySchema,
   unansweredQuestionStatsSchema as baseUnansweredQuestionStatsSchema,
+  crossToolHandoffEntrySchema as baseCrossToolHandoffEntrySchema,
   crossToolMemoryFlowEntrySchema as baseCrossToolMemoryFlowEntrySchema,
   memoryAgingCompositionSchema as baseMemoryAgingCompositionSchema,
   memoryCategoryEntrySchema as baseMemoryCategoryEntrySchema,
@@ -61,6 +62,7 @@ import {
   toolCallFrequencySchema as baseToolCallFrequencySchema,
   toolCallErrorPatternSchema as baseToolCallErrorPatternSchema,
   toolCallTimelineSchema as baseToolCallTimelineSchema,
+  hostToolOneShotSchema as baseHostToolOneShotSchema,
   commitStatsSchema as baseCommitStatsSchema,
   memberDailyLineTrendSchema as baseMemberDailyLineTrendSchema,
   projectLinesTrendSchema as baseProjectLinesTrendSchema,
@@ -200,6 +202,8 @@ const workTypeDistributionSchema = baseWorkTypeDistributionSchema.extend({
 const toolWorkTypeBreakdownSchema = baseToolWorkTypeBreakdownSchema.extend({
   sessions: z.number().default(0),
   edits: z.number().default(0),
+  completed: z.number().default(0),
+  completion_rate: z.number().default(0),
 });
 
 const fileChurnEntrySchema = baseFileChurnEntrySchema.extend({
@@ -297,6 +301,10 @@ const confusedFileEntrySchema = baseConfusedFileEntrySchema.extend({
 
 const unansweredQuestionStatsSchema = baseUnansweredQuestionStatsSchema.extend({
   count: z.number().default(0),
+});
+
+const crossToolHandoffEntrySchema = baseCrossToolHandoffEntrySchema.extend({
+  gap_minutes: z.number().default(0),
 });
 
 const crossToolMemoryFlowEntrySchema = baseCrossToolMemoryFlowEntrySchema.extend({
@@ -503,6 +511,11 @@ const toolCallTimelineSchema = baseToolCallTimelineSchema.extend({
   errors: z.number().default(0),
 });
 
+const hostToolOneShotSchema = baseHostToolOneShotSchema.extend({
+  one_shot_rate: z.number().default(0),
+  sessions: z.number().default(0),
+});
+
 const toolCallStatsSchema = z.object({
   total_calls: z.number().default(0),
   total_errors: z.number().default(0),
@@ -515,6 +528,7 @@ const toolCallStatsSchema = z.object({
   frequency: z.array(toolCallFrequencySchema).default([]),
   error_patterns: z.array(toolCallErrorPatternSchema).default([]),
   hourly_activity: z.array(toolCallTimelineSchema).default([]),
+  host_one_shot: z.array(hostToolOneShotSchema).default([]),
 });
 
 // ── Data coverage (capability-based) ──────────────
@@ -581,6 +595,7 @@ export const userAnalyticsSchema = teamAnalyticsSchema.extend({
   conversation_edit_correlation: z.array(conversationEditCorrelationSchema).default([]),
   confused_files: z.array(confusedFileEntrySchema).default([]),
   unanswered_questions: unansweredQuestionStatsSchema.default({ count: 0 }),
+  cross_tool_handoff_questions: z.array(crossToolHandoffEntrySchema).default([]),
   cross_tool_memory_flow: z.array(crossToolMemoryFlowEntrySchema).default([]),
   memory_aging: memoryAgingCompositionSchema.default({
     recent_7d: 0,
@@ -666,6 +681,7 @@ export const userAnalyticsSchema = teamAnalyticsSchema.extend({
     frequency: [],
     error_patterns: [],
     hourly_activity: [],
+    host_one_shot: [],
   }),
   commit_stats: baseCommitStatsSchema.default({
     total_commits: 0,
@@ -777,6 +793,7 @@ export function createEmptyUserAnalytics(): UserAnalytics {
     conversation_edit_correlation: [],
     confused_files: [],
     unanswered_questions: { count: 0 },
+    cross_tool_handoff_questions: [],
     cross_tool_memory_flow: [],
     memory_aging: { recent_7d: 0, recent_30d: 0, recent_90d: 0, older: 0 },
     memory_categories: [],
@@ -857,6 +874,7 @@ export function createEmptyUserAnalytics(): UserAnalytics {
       frequency: [],
       error_patterns: [],
       hourly_activity: [],
+      host_one_shot: [],
     },
     commit_stats: {
       total_commits: 0,

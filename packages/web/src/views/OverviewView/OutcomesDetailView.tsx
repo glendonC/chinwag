@@ -9,7 +9,7 @@ import {
 } from '../../components/DetailView/index.js';
 import RangePills from '../../components/RangePills/RangePills.jsx';
 import { getToolMeta } from '../../lib/toolMeta.js';
-import { arcPath } from '../../lib/svgArcs.js';
+import { arcPath, computeArcSlices } from '../../lib/svgArcs.js';
 import { useTabs } from '../../hooks/useTabs.js';
 import { setQueryParam, useQueryParam } from '../../lib/router.js';
 import { completionColor, workTypeColor } from '../../widgets/utils.js';
@@ -403,29 +403,10 @@ function DetailRing({ cs }: { cs: UserAnalytics['completion_summary'] }) {
   const visibleSlices = allSlices.filter((s) => s.count > 0);
   const ringSlices = visibleSlices.filter((s) => !s.muted);
 
-  // Functional reduce — `let cursor` with in-map mutation trips React
-  // Compiler's immutability rule. Accumulate arcs + running cursor in
-  // a single reduce pass, then read arcs off the end. No useMemo —
-  // React Compiler auto-memos and the manual wrapper was tripping on
-  // `ringSlices` being flagged as a possibly-mutated dependency.
-  const total = ringSlices.reduce((s, x) => s + x.count, 0);
-  const safeTotal = Math.max(1, total);
-  const gaps = ringSlices.length > 1 ? ringSlices.length * RING_GAP_DEG : 0;
-  const available = Math.max(0, 360 - gaps);
-  const gap = ringSlices.length > 1 ? RING_GAP_DEG : 0;
-  const arcs = ringSlices.reduce<{
-    arcs: Array<(typeof ringSlices)[number] & { startDeg: number; sweepDeg: number }>;
-    cursor: number;
-  }>(
-    (acc, slice) => {
-      const sweep = (slice.count / safeTotal) * available;
-      return {
-        arcs: [...acc.arcs, { ...slice, startDeg: acc.cursor, sweepDeg: sweep }],
-        cursor: acc.cursor + sweep + gap,
-      };
-    },
-    { arcs: [], cursor: 0 },
-  ).arcs;
+  const arcs = computeArcSlices(
+    ringSlices.map((s) => s.count),
+    RING_GAP_DEG,
+  ).map((seg, i) => ({ ...ringSlices[i], ...seg }));
 
   const rate = Math.round(cs.completion_rate);
   const unreported = cs.unknown;

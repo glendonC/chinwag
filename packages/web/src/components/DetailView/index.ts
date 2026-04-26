@@ -12,6 +12,3 @@ export type { CrossLink } from './crossLinkMap.js';
 
 export { default as Metric } from './Metric.js';
 export type { MetricTone } from './Metric.js';
-
-export { default as ScopeChip } from './ScopeChip.js';
-export type { ScopeKind } from './ScopeChip.js';

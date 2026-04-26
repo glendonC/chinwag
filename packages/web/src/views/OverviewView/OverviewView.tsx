@@ -296,11 +296,9 @@ export default function OverviewView() {
   const tools = useDetailDrill('tools');
   const toolsShifted = tools.shifted;
 
-  // Memory Detail — same pattern. Tabs: health / freshness / cross-tool /
-  // authorship / hygiene. Memory mixes three time scopes on one surface
-  // (live + period + all-time); the detail view renders an explicit
-  // ScopeChip per tab so readers know which clock the numbers below
-  // answer to.
+  // Memory Detail. Tabs: health / freshness / cross-tool / authorship /
+  // hygiene. Memory mixes three time scopes on one surface (live +
+  // period + all-time).
   const memory = useDetailDrill('memory');
   const memoryShifted = memory.shifted;
 

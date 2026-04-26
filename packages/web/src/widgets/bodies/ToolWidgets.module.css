@@ -1,344 +1,249 @@
-/* ToolWidgets-only viz: factual list (icon + name + meta), tool depth bars,
- * and the section sub-label.
- * Shared list/metric/work primitives come from widget-shared.module.css. */
+/*
+ * Tools & Models widget category — chromeless visual primitives.
+ *
+ * No cards, no dividers. Hierarchy from font-weight, opacity, color.
+ * Mono for labels and metadata. Stagger via --row-index × 35ms (45ms for
+ * heatmap rows). Accent reserved for live data; static counts use --ink.
+ *
+ * Shared list/stat/coverage primitives come from widget-shared.module.css —
+ * this module owns only the per-widget visualizations specific to tools.
+ */
 
-/* ── Factual list (Tools/Models) ─────────────────── */
+/* ================================================================
+ * 1) tool-handoffs (Cross-Tool Flow)
+ * ================================================================ */
 
-.factualGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 24px;
-}
-
-.factualItem {
+.flowWrap {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 8px 10px;
-  margin: 0 -10px;
-  border-radius: var(--radius-2xs);
-  animation: rowReveal 0.3s var(--motion) both;
-  animation-delay: calc(var(--row-index, 0) * 35ms);
-  /* Drill is owned by the body wrapper in WidgetRenderer (drillTarget on
-   * the catalog), so the per-tool row is a non-interactive container — no
-   * nested buttons, no per-tool navigation chrome. */
-}
-
-.factualHead {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.factualBody {
+  gap: var(--space-md);
   flex: 1;
-  min-width: 0;
+  min-height: 0;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .factualItem {
-    animation: none !important;
-  }
-}
-
-.factualLabel {
-  font-weight: 500;
-  font-size: var(--text-sm);
-  color: var(--ink);
-}
-
-.factualMeta {
+.flowHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-md);
   font-family: var(--mono);
   font-size: var(--text-xs);
   color: var(--soft);
+  letter-spacing: var(--tracking-stat);
 }
 
-.factualMetaValue {
+.flowSummary,
+.flowHover {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.flowSummaryNum {
   color: var(--ink);
   font-weight: 500;
 }
 
-/* ── Tool icon + depth bars ──────────────────────── */
-
-.toolIcon {
-  width: 18px;
-  height: 18px;
-  border-radius: var(--radius-2xs);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
+.flowHover {
+  color: var(--ink);
+  animation: flowHoverIn 140ms var(--motion);
 }
 
-.toolIcon img {
+@keyframes flowHoverIn {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.flowSvg {
   width: 100%;
-  height: 100%;
-  object-fit: contain;
+  flex: 1;
+  min-height: 0;
+  display: block;
 }
 
-.toolIconLetter {
-  width: 18px;
-  height: 18px;
-  border-radius: var(--radius-2xs);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.flowNodeLabel {
   font-family: var(--mono);
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  color: var(--on-accent);
-  background: var(--tool-brand, var(--ink));
+  font-size: 3.6px;
+  fill: var(--ink);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  pointer-events: none;
 }
 
-/* ── Capability pills (Tools widget) ──────────────────
- * Replaces the legacy 3-bar depth indicator. Each tool card surfaces
- * the substrate-unique "what can this tool answer" affordance as five
- * small pills (hooks, tokens, tool-calls, commits, conversations).
- * Bright = present, dim = absent — same column position across all
- * cards so the eye scans down a column to compare coverage. No tooltip,
- * the label is the affordance. */
+@media (prefers-reduced-motion: reduce) {
+  .flowHover {
+    animation: none;
+  }
+}
 
-.capabilityPills {
+/* ================================================================
+ * 2) tool-work-type-fit (Tools × Work-Types Heatmap)
+ * ================================================================ */
+
+.heatmapWrap {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding-left: 28px; /* align under the icon column */
+  flex-direction: column;
+  gap: var(--space-md);
+  flex: 1;
+  min-height: 0;
 }
 
-.capabilityPill {
+.heatmapGrid {
+  display: grid;
+  grid-template-columns: minmax(120px, max-content) repeat(var(--heatmap-cols), 1fr);
+  gap: 2px 4px;
+  flex: 1;
+  min-height: 0;
+  align-content: start;
+}
+
+.heatmapCornerCell {
+  /* placeholder cell, intentionally blank */
+}
+
+.heatmapHeaderCell {
   display: inline-flex;
   align-items: center;
+  gap: 5px;
   font-family: var(--mono);
   font-size: var(--text-2xs);
+  color: var(--soft);
   letter-spacing: var(--tracking-stat);
-  text-transform: uppercase;
-  padding: 2px 6px;
-  border-radius: var(--radius-2xs);
+  text-transform: lowercase;
+  padding: 0 6px 4px;
   white-space: nowrap;
 }
 
-.capabilityPillOn {
-  color: var(--ink);
-  background: var(--hover-bg);
-}
-
-.capabilityPillOff {
-  color: var(--soft);
-  opacity: 0.4;
-  background: transparent;
-}
-
-/* ── Models list: model + per-tool attribution strip ──
- * Each model occupies a two-line row: a head line with the model name and
- * aggregate metadata, then a strip of tool pills (chromeless brand-dot +
- * mono label + count). The tool strip is what makes this widget
- * substrate-unique — cross-tool model attribution no IDE can produce. */
-
-.modelRow {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px 12px;
-  margin: 0 -12px;
-  border-radius: var(--radius-2xs);
-  animation: rowReveal 0.3s var(--motion) both;
-  animation-delay: calc(var(--row-index, 0) * 35ms);
-}
-
-.modelRow:hover {
-  background: var(--hover-bg);
-}
-
-.modelHead {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.modelToolStrip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding-left: 2px;
-}
-
-.modelToolPill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  color: var(--soft);
-  letter-spacing: var(--tracking-stat);
-}
-
-.modelToolDot {
+.heatmapHeaderDot {
   width: 6px;
   height: 6px;
   border-radius: var(--radius-circle);
-  background: var(--tool-brand, var(--soft));
   flex-shrink: 0;
 }
 
-.modelToolLabel {
-  color: var(--ink);
-  opacity: 0.7;
+.heatmapRow {
+  display: contents;
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 45ms);
 }
 
-.modelToolCount {
+.heatmapRowLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
   color: var(--ink);
   font-weight: 500;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .modelRow {
-    animation: none !important;
-  }
-}
-
-/* ── Small-multiples grid (tool-daily) ──────────────
- * One thumbnail per tool — label + sparkline + total count. No top-N cap:
- * the grid auto-fills at minmax(140px, 1fr) so a 10-tool team sees all of
- * them tiled rather than the long tail being silently hidden. Chromeless:
- * no borders, no cards, hierarchy from font-weight + opacity. Tool brand
- * color surfaces as a thin underline under each label via --tool-brand. */
-
-.sparkGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 16px 20px;
-}
-
-.sparkCell {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  animation: rowReveal 0.3s var(--motion) both;
-  animation-delay: calc(var(--row-index, 0) * 35ms);
-}
-
-.sparkHead {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.sparkLabel {
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  color: var(--ink);
-  letter-spacing: var(--tracking-stat);
-  flex: 1;
+  padding: 6px 10px 6px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   min-width: 0;
+}
+
+.heatmapToolDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-circle);
+  flex-shrink: 0;
+}
+
+.heatmapToolName {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  box-shadow: inset 0 -2px 0 var(--tool-brand, var(--soft));
-  padding-bottom: 2px;
+  min-width: 0;
 }
 
-.sparkCount {
+.heatmapCell,
+.heatmapCellEmpty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-family: var(--mono);
   font-size: var(--text-xs);
-  color: var(--ink);
   font-weight: 500;
-  flex-shrink: 0;
-}
-
-.sparkBody {
+  color: var(--on-accent, #fff);
+  border-radius: var(--radius-2xs);
   min-height: 28px;
-  display: flex;
-  align-items: center;
+  padding: 4px 6px;
 }
 
-.sparkEmpty {
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
+.heatmapCellValue {
+  /* Display the integer rate without unit — column headers already imply % */
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+.heatmapCellEmpty {
   color: var(--soft);
+  background: var(--ghost);
+  font-weight: 400;
   opacity: 0.5;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sparkCell {
+  .heatmapRow {
     animation: none !important;
   }
 }
 
-/* ── Section sub-label (used by TokenDetailWidget) ── */
+/* ================================================================
+ * 3) one-shot-by-tool (Per-Tool First-Try)
+ * ================================================================ */
 
-.sectionSublabel {
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  color: var(--muted);
-  letter-spacing: var(--tracking-stat);
-  margin-top: -12px;
-  margin-bottom: 16px;
-}
-
-@media (max-width: 640px) {
-  .factualGrid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-/* ── Tool handoffs flow strip ─────────────────────────
- * Each row reads as `[from-icon] from-label ──{n}──→ to-label [to-icon]`.
- * The connector track's stroke thickness scales with file count (1-4px)
- * and its color tints with completion via completionColor(). This is the
- * substrate-unique signal — the list shape buried it, the strip makes it
- * legible. Single-line layout per spec; chromeless icons match the small
- * altitude. */
-
-.handoffList {
+.oneShotWrap {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  flex: 1;
+  min-height: 0;
+  gap: var(--space-sm);
+}
+
+.oneShotList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
 }
 
-.handoffRow {
-  display: flex;
+.oneShotRow {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) minmax(60px, 2fr) auto;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
-  border-radius: var(--radius-xs);
   animation: rowReveal 0.3s var(--motion) both;
   animation-delay: calc(var(--row-index, 0) * 35ms);
 }
 
-.handoffRow:hover {
-  background: var(--hover-bg);
-}
-
-.handoffIcon,
-.handoffIconLetter {
-  width: 16px;
-  height: 16px;
-  border-radius: var(--radius-2xs);
+.oneShotLabel {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.oneShotDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-circle);
   flex-shrink: 0;
-  overflow: hidden;
+  align-self: center;
 }
 
-.handoffIcon img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.handoffIconLetter {
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  color: var(--on-accent);
-  background: var(--tool-brand, var(--ink));
-}
-
-.handoffEndpoint {
+.oneShotName {
   font-size: var(--text-sm);
   color: var(--ink);
   font-weight: 500;
@@ -348,72 +253,479 @@
   min-width: 0;
 }
 
-.handoffConnector {
-  flex: 1;
-  min-width: 48px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  gap: 6px;
-  padding: 0 4px;
-}
-
-.handoffTrack {
-  position: absolute;
-  left: 4px;
-  right: 4px;
-  top: 50%;
-  height: var(--handoff-stroke, 2px);
-  background: var(--handoff-color, var(--soft));
-  opacity: 0.55;
-  transform: translateY(-50%);
-  border-radius: 999px;
-}
-
-.handoffCount {
-  position: relative;
+.oneShotSubtle {
   font-family: var(--mono);
   font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  flex-shrink: 0;
+}
+
+.oneShotBarTrack {
+  composes: fillTrack from '../widget-shared.module.css';
+  height: 6px;
+  position: relative;
+}
+
+.oneShotBarFill {
+  composes: fillBar from '../widget-shared.module.css';
+  opacity: 0.75;
+}
+
+.oneShotValue {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
   font-weight: 500;
   color: var(--ink);
-  background: var(--page-bg);
-  padding: 0 6px;
-  letter-spacing: var(--tracking-stat);
-}
-
-.handoffArrow {
-  position: relative;
-  font-family: var(--mono);
-  font-size: var(--text-xs);
-  color: var(--handoff-color, var(--soft));
-  background: var(--page-bg);
-  padding: 0 2px;
-}
-
-.handoffRate {
-  font-family: var(--mono);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  margin-left: auto;
-  flex-shrink: 0;
   text-align: right;
   min-width: 40px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .handoffRow {
+  .oneShotRow {
+    animation: none !important;
+  }
+  .oneShotBarFill {
+    transition: none !important;
+  }
+}
+
+/* ================================================================
+ * 4) tool-capability-coverage (Capability Matrix)
+ * ================================================================ */
+
+.coverageWrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.coverageGrid {
+  display: grid;
+  grid-template-columns: minmax(120px, max-content) minmax(60px, max-content) repeat(
+      var(--coverage-cols),
+      minmax(48px, 1fr)
+    );
+  gap: 4px 6px;
+  align-content: start;
+}
+
+.coverageCornerCell {
+  /* placeholder */
+}
+
+.coverageHeaderCell {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: lowercase;
+  padding: 0 4px 6px;
+  text-align: center;
+}
+
+.coverageRow {
+  display: contents;
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
+}
+
+.coverageRowLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  font-weight: 500;
+  padding: 6px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.coverageToolDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-circle);
+  flex-shrink: 0;
+}
+
+.coverageToolName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coverageSessionCell {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  font-weight: 500;
+  text-align: center;
+  align-self: center;
+  padding: 6px 0;
+}
+
+.coverageCellOn,
+.coverageCellOff {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0;
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+}
+
+.coverageDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-circle);
+}
+
+.coverageCellOff {
+  color: var(--soft);
+  opacity: 0.45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coverageRow {
     animation: none !important;
   }
 }
 
-/* ── Tool-call error rows: per-tool brand stripe ─────
- * 4px leading vertical band colored by the tool's brand color so the eye
- * can group errors by tool without reading the label. The shared dataRow
- * gets the band via a left border; padding stays consistent so the count
- * and preview don't shift. */
+/* ================================================================
+ * 5) tool-call-errors (Error Hero + Top-3)
+ * ================================================================ */
 
-.errorRow {
-  border-left: 4px solid var(--tool-brand, var(--soft));
-  padding-left: 10px;
+.errorsWrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  flex: 1;
+  min-height: 0;
+}
+
+.errorsHero {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.errorsHeroCaption {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+}
+
+.errorsHeroNum {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.errorsList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.errorsListEmpty {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  padding: 8px 0;
+}
+
+.errorsRow {
+  display: grid;
+  grid-template-columns: auto minmax(90px, max-content) auto 1fr;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
+}
+
+.errorsRowDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-circle);
+  align-self: center;
+}
+
+.errorsRowTool {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--ink);
+  font-weight: 500;
+  letter-spacing: var(--tracking-stat);
+  white-space: nowrap;
+}
+
+.errorsRowCount {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--danger);
+  font-weight: 500;
+}
+
+.errorsRowPreview {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .errorsRow {
+    animation: none !important;
+  }
+}
+
+/* ================================================================
+ * 6) model-mix (Share Strip + Tab-Selector)
+ * ================================================================ */
+
+.mixWrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  flex: 1;
+  min-height: 0;
+}
+
+.mixHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.mixHeadCaption {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: uppercase;
+}
+
+.mixStrip {
+  display: flex;
+  height: 14px;
+  border-radius: 4px;
+  overflow: hidden;
+  gap: 1px;
+  background: var(--ghost);
+}
+
+.mixSegment {
+  appearance: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  height: 100%;
+  cursor: pointer;
+  transition:
+    opacity var(--motion-base) var(--motion),
+    transform var(--motion-fast) var(--motion);
+  transform-origin: bottom center;
+}
+
+.mixSegment:hover {
+  transform: scaleY(1.15);
+}
+
+.mixSegment[aria-pressed='true'] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.mixDetail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 32px;
+}
+
+.mixDetailName {
+  font-size: var(--text-sm);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.mixDetailMeta {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+}
+
+.mixDetailValue {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.mixDetailHint {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--muted);
+  letter-spacing: var(--tracking-stat);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mixSegment {
+    transition: none !important;
+  }
+  .mixSegment:hover {
+    transform: none;
+  }
+}
+
+/* ================================================================
+ * 7) token-attribution (Model × Tool Matrix)
+ * ================================================================ */
+
+.attribWrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  flex: 1;
+  min-height: 0;
+}
+
+.attribGrid {
+  display: grid;
+  grid-template-columns:
+    minmax(140px, max-content)
+    repeat(var(--attrib-cols, 3), minmax(48px, 1fr))
+    minmax(80px, max-content);
+  gap: 4px 8px;
+  align-content: start;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.attribCornerCell {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: lowercase;
+  padding: 0 4px 6px;
+}
+
+.attribHeaderCell,
+.attribHeaderCellRight {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+  text-transform: lowercase;
+  padding: 0 4px 6px;
+  white-space: nowrap;
+}
+
+.attribHeaderCellRight {
+  justify-content: flex-end;
+}
+
+.attribHeaderDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-circle);
+  flex-shrink: 0;
+}
+
+.attribRow {
+  display: contents;
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
+}
+
+.attribRowLabel {
+  font-size: var(--text-sm);
+  color: var(--ink);
+  font-weight: 500;
+  padding: 6px 4px 6px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.attribCell,
+.attribCellEmpty,
+.attribCellRight {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--ink);
+  padding: 6px 0;
+  text-align: center;
+  align-self: center;
+}
+
+.attribCellEmpty {
+  color: var(--soft);
+  opacity: 0.5;
+}
+
+.attribCellRight {
+  text-align: right;
+  font-weight: 500;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.attribCellSub {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: var(--text-2xs);
+}
+
+.attribFooter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  align-items: baseline;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+}
+
+.attribFooterStat {
+  white-space: nowrap;
+}
+
+.attribFooterValue {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.attribFooterCells {
+  margin-left: auto;
+  color: var(--muted);
+  font-style: italic;
+  font-family: var(--mono);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .attribRow {
+    animation: none !important;
+  }
 }

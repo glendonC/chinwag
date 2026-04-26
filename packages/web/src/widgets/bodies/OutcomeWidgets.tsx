@@ -1,13 +1,13 @@
 import { useMemo, type CSSProperties } from 'react';
 import SectionEmpty from '../../components/SectionEmpty/SectionEmpty.js';
 import { setQueryParam, useRoute } from '../../lib/router.js';
-import { arcPath } from '../../lib/svgArcs.js';
+import { arcPath, computeArcSlices } from '../../lib/svgArcs.js';
 import { completionColor, workTypeColor } from '../utils.js';
 import type { UserAnalytics } from '../../lib/apiSchemas.js';
 import shared from '../widget-shared.module.css';
 import styles from './OutcomeWidgets.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
-import { InlineDelta, StatWidget, CoverageNote } from './shared.js';
+import { InlineDelta, Sparkline, StatWidget, CoverageNote } from './shared.js';
 
 /** Outcomes detail-view drill. Gated to overview scope because the
  * detail view is only mounted there (same gating as UsageWidgets). */
@@ -155,7 +155,16 @@ function OutcomesWidget({ analytics }: WidgetBodyProps) {
                 <span className={styles.outcomeShareValue}>{sharePct}%</span>
               </span>
               <span className={styles.outcomeTrendCell}>
-                <MiniSparkline values={series} color={s.color} muted={s.muted} />
+                {series.length >= 2 ? (
+                  <Sparkline
+                    values={series}
+                    color={s.color}
+                    muted={s.muted}
+                    className={styles.outcomeSparkline}
+                  />
+                ) : (
+                  <span className={styles.outcomeTrendBlank}>—</span>
+                )}
               </span>
               {drillable && <span className={styles.outcomeViewButton}>View</span>}
             </>
@@ -208,26 +217,14 @@ function OutcomeRing({
   completionDelta: number | null;
   reported: number;
 }) {
-  const arcs = useMemo(() => {
-    const total = slices.reduce((s, x) => s + x.count, 0);
-    const safeTotal = Math.max(1, total);
-    const gaps = slices.length > 1 ? slices.length * RING_GAP_DEG : 0;
-    const available = Math.max(0, 360 - gaps);
-    const gap = slices.length > 1 ? RING_GAP_DEG : 0;
-    return slices.reduce<{
-      arcs: Array<OutcomeSlice & { startDeg: number; sweepDeg: number }>;
-      cursor: number;
-    }>(
-      (acc, slice) => {
-        const sweep = (slice.count / safeTotal) * available;
-        return {
-          arcs: [...acc.arcs, { ...slice, startDeg: acc.cursor, sweepDeg: sweep }],
-          cursor: acc.cursor + sweep + gap,
-        };
-      },
-      { arcs: [], cursor: 0 },
-    ).arcs;
-  }, [slices]);
+  const arcs = useMemo(
+    () =>
+      computeArcSlices(
+        slices.map((s) => s.count),
+        RING_GAP_DEG,
+      ).map((seg, i) => ({ ...slices[i], ...seg })),
+    [slices],
+  );
 
   const rate = Math.round(cs.completion_rate);
   const highUnknown = cs.unknown > 0 && reported / cs.total_sessions < 0.7;
@@ -291,51 +288,6 @@ function OutcomeRing({
         </span>
       )}
     </div>
-  );
-}
-
-/** Tiny inline sparkline for the trend column — area fill + line,
- *  no axes. Length normalizes to the widget's column width via SVG. */
-function MiniSparkline({
-  values,
-  color,
-  muted,
-}: {
-  values: number[];
-  color: string;
-  muted: boolean;
-}) {
-  if (values.length < 2) {
-    return <span className={styles.outcomeTrendBlank}>—</span>;
-  }
-  const max = Math.max(...values, 1);
-  const W = 100;
-  const H = 22;
-  const points = values.map((v, i) => ({
-    x: (i / (values.length - 1)) * W,
-    y: H - (v / max) * (H - 2) - 1,
-  }));
-  const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
-  const area = `${line} L${W},${H} L0,${H} Z`;
-  return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      preserveAspectRatio="none"
-      className={styles.outcomeSparkline}
-      aria-hidden="true"
-    >
-      <path d={area} fill={color} opacity={muted ? 0.1 : 0.15} />
-      <path
-        d={line}
-        fill="none"
-        stroke={color}
-        strokeWidth={1.25}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        opacity={muted ? 0.4 : 0.85}
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
   );
 }
 

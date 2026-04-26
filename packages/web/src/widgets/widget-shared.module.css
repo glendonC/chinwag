@@ -119,6 +119,167 @@
   align-content: flex-start;
 }
 
+/* ── Row interaction base ─────────────────────────────
+ *
+ * Canonical interaction shell for every clickable row across the widget
+ * catalog. Every widget table row class (`.dirDataRow`, `.beamRow`,
+ * `.outcomeDataRow`, `.projectsTableRow`, `.liveTableRow`, etc.)
+ * `composes: rowBase from '../widget-shared.module.css';` and adds only
+ * its own grid/flex layout on top.
+ *
+ * What this class owns:
+ *   - Button reset (so a row works identically as <div role="row"> or
+ *     <button>).
+ *   - Border radius for the hover background fill.
+ *   - Reveal animation with --row-index stagger (composing classes can
+ *     override the per-row delay multiplier if their density warrants).
+ *   - Hover and focus-visible states matching projects/live/memory.
+ *   - Background-color transition.
+ *
+ * What this class does NOT own (the composing class sets these):
+ *   - display: grid|flex, grid-template-columns, gap, padding, margin.
+ *   - Any layout-specific properties.
+ *
+ * Adding a new row class? Compose this; do not re-roll button reset or
+ * hover backgrounds. If you need a different hover idiom, that is a
+ * design discussion, not a per-widget override. */
+.rowBase {
+  border-radius: var(--radius-md);
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  width: 100%;
+  animation: rowReveal 0.3s var(--motion) both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
+  transition: background 0.12s ease;
+}
+
+button.rowBase {
+  cursor: pointer;
+}
+
+.rowBase:hover {
+  background: var(--hover-bg);
+}
+
+.rowBase:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── View pill (per-row drill affordance) ─────────────
+ *
+ * The dark-ink pill that anchors the right edge of a clickable row and
+ * inverts to accent on row hover, so the click target is unambiguous
+ * even when the row's own hover background is subtle.
+ *
+ * Used by every category that exposes per-row drill: projects, live
+ * agents/conflicts, codebase tables, outcomes table. Compose this
+ * primitive from your local pill class:
+ *
+ *   .projectsViewButton {
+ *     composes: viewPill from '../widget-shared.module.css';
+ *     // local-only overrides go here (rare).
+ *   }
+ *
+ * The hover-becomes-accent behavior is tied to `.rowBase` below — any
+ * row composing rowBase that contains an element composing viewPill
+ * inherits the hover for free. Don't re-roll the hover at the row's
+ * local class level. */
+.viewPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: end;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  font-family: var(--sans);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: var(--ink);
+  color: var(--page-bg);
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.rowBase:hover .viewPill {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* ── Table header (column-label strip) ────────────────
+ *
+ * Typography for the column-header row that sits above a table primitive.
+ * Mono, 2xs, soft, uppercase, table-tracking — used everywhere a clickable
+ * row table is rendered (codebase tables, live, projects, memory, convo,
+ * outcomes).
+ *
+ * What this class owns:
+ *   - Font family / size / weight (via mono token).
+ *   - Letter spacing for the column-label tracking.
+ *   - Text transform (uppercase) and base color (soft).
+ *
+ * What this class does NOT own (each widget's local class adds these):
+ *   - Padding/margin (pairs with the row's own padding — 10px or 14px
+ *     depending on the table; mixing breaks header/row alignment).
+ *   - Grid layout (display: grid; grid-template-columns: subgrid;
+ *     grid-column: 1 / -1) — coupled to the parent table's track count.
+ *
+ * Adding a new table widget? Compose this; do not re-roll mono-uppercase
+ * column-header typography. */
+.tableHead {
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-table);
+  color: var(--soft);
+}
+
+/* ── Proportional fill bar ────────────────────────────
+ *
+ * Track + fill pair for percent/share visualizations. The track is the
+ * empty "ghost" channel; the fill is sized inline (`width: X%`) and
+ * tinted inline by the widget. Used wherever a row needs a bar:
+ * directory completion, file beam intensity, thermostat staleness,
+ * collision edit shares, outcome share, one-shot rate, work-type
+ * metric bars.
+ *
+ * Defaults: 8px tall track, 3px radius, ghost background. Fill inherits
+ * the track's border-radius. The track's `overflow: hidden` clips the
+ * fill regardless, so the inherited radius mostly matters for non-table
+ * uses or partial-fills.
+ *
+ * What this owns:
+ *   - Track background (ghost), border-radius (3px), overflow:hidden,
+ *     default height (8px).
+ *   - Fill display:block, height:100%, width transition.
+ *
+ * What composing classes typically override:
+ *   - height (4–14px depending on row density)
+ *   - border-radius (often paired with a different height)
+ *   - flex:1, min-width (when the track lives inside a flex row)
+ *   - fill background (inline) and opacity (inline or via
+ *     --opacity-bar-fill token). */
+
+.fillTrack {
+  background: var(--ghost);
+  border-radius: 3px;
+  overflow: hidden;
+  height: 8px;
+}
+
+.fillBar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.4s var(--motion);
+}
+
 /* ── Data rows (generic list rows) ────────────────── */
 
 .dataList {
@@ -131,36 +292,11 @@
 }
 
 .dataRow {
+  composes: rowBase;
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 8px 12px;
-  border-radius: var(--radius-xs);
-  animation: rowReveal 0.3s var(--motion) both;
-  animation-delay: calc(var(--row-index, 0) * 35ms);
-  /* Button reset so `.dataRow` works identically whether rendered as a div
-   * or a button. Keeps the row a full-width flex container and strips the
-   * default button chrome (background, border, font, text-align). */
-  appearance: none;
-  background: transparent;
-  border: none;
-  color: inherit;
-  font: inherit;
-  text-align: inherit;
-  width: 100%;
-}
-
-button.dataRow {
-  cursor: pointer;
-}
-
-.dataRow:hover {
-  background: var(--hover-bg);
-}
-
-.dataRow:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 
 .dataName {
@@ -223,19 +359,15 @@ button.dataRow {
 }
 
 .metricBarTrack {
+  composes: fillTrack;
   flex: 1;
   height: 14px;
-  border-radius: 3px;
-  background: var(--ghost);
-  overflow: hidden;
 }
 
 .metricBarFill {
-  height: 100%;
-  border-radius: 3px;
+  composes: fillBar;
   background: var(--ink);
   opacity: 0.4;
-  transition: width 0.4s var(--motion);
 }
 
 .metricValue {
@@ -299,28 +431,16 @@ button.dataRow {
   font-weight: 500;
 }
 
-/* ── Trend chart (SVG) ────────────────────────────── */
+/* ── Sparkline default sizing ─────────────────────────
+ * Default container styling for the shared `<Sparkline>` SVG and the
+ * `<GhostSparkline>` placeholder. Width fills the parent cell; SVG
+ * preserveAspectRatio="none" stretches paths to that width. Callers
+ * needing different sizing (a flex child with min-width, or a fixed
+ * pixel width) pass their own className. */
 
 .trendSvg {
   width: 100%;
   display: block;
-}
-
-.trendArea {
-  fill: var(--ink);
-  opacity: 0.06;
-}
-
-.trendLine {
-  fill: none;
-  stroke: var(--ink);
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.trendDot {
-  fill: var(--ink);
 }
 
 /* ── Ghost / empty visualization states ─────────────

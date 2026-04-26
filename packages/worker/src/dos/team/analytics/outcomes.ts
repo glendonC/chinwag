@@ -314,33 +314,54 @@ export function queryToolWorkType(
   days: number,
 ): ToolWorkTypeBreakdown[] {
   try {
+    // JOIN sessions to bring outcome into the (host_tool, work_type) cell.
+    // Distinct session count is the cell denominator; SUM of completed sessions
+    // is the numerator. Computing completion_rate at the SQL layer keeps the
+    // serialized payload cheap and the math in one place — the renderer just
+    // colors a cell, never derives it.
+    //
+    // The JOIN is on edits.session_id = sessions.id and constrains by edits'
+    // window so the cell counts the same edits the legacy query did. Sessions
+    // can hit multiple work-types; here a session contributes to every cell
+    // its edits land in (matching pre-change behavior — the "primary work-type
+    // per session" model lives in queryWorkTypeOutcomes for the aggregate
+    // view, not here where the granularity is per-tool, per-type).
     const { sql: q, params } = withScope(
       `SELECT
-           host_tool,
-           ${WORK_TYPE_CASE} AS work_type,
-           COUNT(DISTINCT session_id) AS sessions,
-           COUNT(*) AS edits
-         FROM edits
-         WHERE created_at > datetime('now', '-' || ? || ' days')
-           AND host_tool IS NOT NULL AND host_tool != 'unknown'`,
+           e.host_tool AS host_tool,
+           ${WORK_TYPE_CASE.replace(/\bfile_path\b/g, 'e.file_path')} AS work_type,
+           COUNT(DISTINCT e.session_id) AS sessions,
+           COUNT(*) AS edits,
+           COUNT(DISTINCT CASE WHEN s.outcome = 'completed' THEN e.session_id END) AS completed
+         FROM edits e
+         LEFT JOIN sessions s ON s.id = e.session_id
+         WHERE e.created_at > datetime('now', '-' || ? || ' days')
+           AND e.host_tool IS NOT NULL AND e.host_tool != 'unknown'`,
       [days],
       scope,
+      { handleColumn: 'e.handle' },
     );
     const rawRows = sql
       .exec(
         `${q}
-         GROUP BY host_tool, work_type
-         ORDER BY host_tool, sessions DESC`,
+         GROUP BY e.host_tool, work_type
+         ORDER BY e.host_tool, sessions DESC`,
         ...params,
       )
       .toArray();
 
-    return rows<ToolWorkTypeBreakdown>(rawRows, (r) => ({
-      host_tool: r.string('host_tool'),
-      work_type: r.string('work_type'),
-      sessions: r.number('sessions'),
-      edits: r.number('edits'),
-    }));
+    return rows<ToolWorkTypeBreakdown>(rawRows, (r) => {
+      const sessions = r.number('sessions');
+      const completed = r.number('completed');
+      return {
+        host_tool: r.string('host_tool'),
+        work_type: r.string('work_type'),
+        sessions,
+        edits: r.number('edits'),
+        completed,
+        completion_rate: sessions > 0 ? Math.round((completed / sessions) * 1000) / 10 : 0,
+      };
+    });
   } catch (err) {
     log.warn(`toolWorkType query failed: ${err}`);
     return [];

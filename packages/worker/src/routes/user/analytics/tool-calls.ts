@@ -31,6 +31,11 @@ interface HourlyBucket {
   errors: number;
 }
 
+interface HostOneShotBucket {
+  one_shot_successes: number;
+  sessions: number;
+}
+
 export interface ToolCallsAcc {
   total_calls: number;
   total_errors: number;
@@ -44,6 +49,7 @@ export interface ToolCallsAcc {
   frequency: Map<string, FrequencyBucket>;
   errorPatterns: Map<string, ErrorPatternBucket>;
   hourly: Map<string, HourlyBucket>; // key = `${dow}:${hour}`
+  hostOneShot: Map<string, HostOneShotBucket>;
 }
 
 export function createAcc(): ToolCallsAcc {
@@ -60,6 +66,7 @@ export function createAcc(): ToolCallsAcc {
     frequency: new Map(),
     errorPatterns: new Map(),
     hourly: new Map(),
+    hostOneShot: new Map(),
   };
 }
 
@@ -122,6 +129,17 @@ export function merge(acc: ToolCallsAcc, team: TeamResult): void {
     bucket.errors += h.errors;
     acc.hourly.set(String(h.hour), bucket);
   }
+
+  // Per-host-tool one-shot. Each team's host_one_shot already aggregates its
+  // own sessions; sum sessions and recover the success count from the rate
+  // per team, then reproject the rate against the merged denominator at the
+  // user level. Same recovery pattern as the aggregate one_shot above.
+  for (const h of tc.host_one_shot ?? []) {
+    const bucket = acc.hostOneShot.get(h.host_tool) ?? { one_shot_successes: 0, sessions: 0 };
+    bucket.sessions += h.sessions;
+    bucket.one_shot_successes += Math.round((h.one_shot_rate / 100) * h.sessions);
+    acc.hostOneShot.set(h.host_tool, bucket);
+  }
 }
 
 export function project(acc: ToolCallsAcc): ToolCallStats {
@@ -165,6 +183,14 @@ export function project(acc: ToolCallsAcc): ToolCallStats {
     .map(([key, b]) => ({ hour: Number(key), calls: b.calls, errors: b.errors }))
     .sort((a, b) => a.hour - b.hour);
 
+  const host_one_shot = [...acc.hostOneShot.entries()]
+    .map(([host_tool, b]) => ({
+      host_tool,
+      one_shot_rate: b.sessions > 0 ? Math.round((b.one_shot_successes / b.sessions) * 100) : 0,
+      sessions: b.sessions,
+    }))
+    .sort((a, b) => b.sessions - a.sessions);
+
   return {
     total_calls: acc.total_calls,
     total_errors: acc.total_errors,
@@ -177,5 +203,6 @@ export function project(acc: ToolCallsAcc): ToolCallStats {
     frequency,
     error_patterns,
     hourly_activity,
+    host_one_shot,
   };
 }
