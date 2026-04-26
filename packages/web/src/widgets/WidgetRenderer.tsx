@@ -11,30 +11,15 @@ interface WidgetRendererProps extends WidgetBodyProps {
   widgetId: string;
 }
 
-/**
- * Widgets whose body owns its own click affordance (StatWidget with
- * onOpenDetail) should NOT be wrapped — the inner button captures clicks
- * and double-wrapping creates nested-button accessibility errors. The
- * catalog still declares `drillTarget` on these for documentation +
- * future migration; the renderer skips wrapping them by id. Follow-up:
- * migrate these bodies to drop their inline drill and rely on the
- * wrapper instead, then remove this set.
- */
-const SELF_DRILLING_WIDGETS = new Set([
-  'sessions',
-  'edits',
-  'lines-added',
-  'lines-removed',
-  'files-touched',
-  'cost',
-  'cost-per-edit',
-  'unanswered-questions',
-]);
-
 function WidgetRendererInner({ widgetId, ...bodyProps }: WidgetRendererProps) {
   const def = getWidget(widgetId);
   const drill = def?.drillTarget;
-  const wrapClick = drill && !SELF_DRILLING_WIDGETS.has(widgetId);
+  // Wrap the body in an outer click affordance only when the body doesn't
+  // already own its drill. Tables with per-row View buttons and stats with
+  // inline `onOpenDetail` set `ownsClick: true` in the catalog so the
+  // wrapper's full-container hover and ↗ corner arrow don't stack on top
+  // of an already-clickable interior. See `WidgetDef.ownsClick`.
+  const wrapClick = drill && !def?.ownsClick;
 
   const handleClick = useCallback(() => {
     if (!drill) return;

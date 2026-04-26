@@ -7,6 +7,7 @@ import type {
   ToolCallFrequency,
   ToolCallErrorPattern,
   ToolCallTimeline,
+  HostToolOneShot,
 } from '@chinmeister/shared/contracts/analytics.js';
 import { row, rows } from '../../../lib/row.js';
 import { type AnalyticsScope, withScope } from './scope.js';
@@ -31,6 +32,7 @@ export function queryToolCallStats(
     frequency: [],
     error_patterns: [],
     hourly_activity: [],
+    host_one_shot: [],
   };
 
   try {
@@ -163,11 +165,20 @@ export function queryToolCallStats(
 
     // One-shot success rate: sessions where edits worked without retry cycles.
     // A retry = Edit→Bash→Edit pattern (edit, test, re-edit).
+    //
+    // Computed twice in one pass: aggregate over all sessions (the existing
+    // ToolCallStats.one_shot_rate) AND sliced by host_tool (the new per-tool
+    // one_shot_rate that lands on each ToolCallFrequency row). The slice
+    // attributes each session to its dominant host_tool — sessions are
+    // single-tool by construction in chinmeister's session model, so the
+    // attribution is the host_tool of the tool_calls rows. We pull host_tool
+    // alongside tool and bucket by it.
     let oneShotSessions = 0;
     let sessionsWithEdits = 0;
+    const perToolOneShot = new Map<string, { oneShot: number; withEdits: number }>();
     try {
       const { sql: oneShotQ, params: oneShotP } = withScope(
-        `SELECT session_id, tool FROM tool_calls
+        `SELECT session_id, tool, host_tool FROM tool_calls
            WHERE created_at > datetime('now', '-' || ? || ' days')`,
         [days],
         scope,
@@ -180,15 +191,19 @@ export function queryToolCallStats(
         )
         .toArray();
 
-      const bySession = new Map<string, string[]>();
+      const bySession = new Map<string, { tools: string[]; hostTool: string }>();
       for (const raw of sessionCalls) {
         const r = row(raw);
         const sid = r.string('session_id');
-        if (!bySession.has(sid)) bySession.set(sid, []);
-        bySession.get(sid)!.push(r.string('tool'));
+        const entry = bySession.get(sid) ?? { tools: [], hostTool: r.string('host_tool') };
+        entry.tools.push(r.string('tool'));
+        // Lock the session's host_tool to the first non-unknown row we see —
+        // a session's tool_calls all come from the same host process.
+        if (entry.hostTool === 'unknown') entry.hostTool = r.string('host_tool');
+        bySession.set(sid, entry);
       }
 
-      for (const tools of bySession.values()) {
+      for (const { tools, hostTool } of bySession.values()) {
         const hasEdit = tools.some((t) => EDIT_TOOLS.includes(t));
         if (!hasEdit) continue;
         sessionsWithEdits++;
@@ -205,11 +220,33 @@ export function queryToolCallStats(
             sawBashAfterEdit = true;
           }
         }
-        if (retries === 0) oneShotSessions++;
+        const isOneShot = retries === 0;
+        if (isOneShot) oneShotSessions++;
+
+        // Per-tool slice. Skip 'unknown' — those rows pre-date the host_tool
+        // column being populated and would render as a phantom tool in the UI.
+        if (hostTool && hostTool !== 'unknown') {
+          const bucket = perToolOneShot.get(hostTool) ?? { oneShot: 0, withEdits: 0 };
+          bucket.withEdits++;
+          if (isOneShot) bucket.oneShot++;
+          perToolOneShot.set(hostTool, bucket);
+        }
       }
     } catch {
       // Non-critical: one-shot computation is best-effort
     }
+
+    // Materialize per-host-tool one-shot rows. Different axis from
+    // `frequency` (which keys on tool-call name like Edit/Bash); these key
+    // on host_tool (claude-code/cursor/...). Sort by sessions DESC so the
+    // widget's natural order matches the tool comparison list.
+    const host_one_shot: HostToolOneShot[] = Array.from(perToolOneShot.entries())
+      .map(([host_tool, b]) => ({
+        host_tool,
+        one_shot_rate: b.withEdits > 0 ? Math.round((b.oneShot / b.withEdits) * 100) : 0,
+        sessions: b.withEdits,
+      }))
+      .sort((a, b) => b.sessions - a.sessions);
 
     return {
       total_calls: totalCalls,
@@ -224,6 +261,7 @@ export function queryToolCallStats(
       frequency,
       error_patterns,
       hourly_activity,
+      host_one_shot,
     };
   } catch (err) {
     log.warn(`toolCallStats query failed: ${err}`);

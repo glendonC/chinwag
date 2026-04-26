@@ -81,6 +81,7 @@ import {
 import {
   queryConversationEditCorrelation,
   queryConfusedFiles,
+  queryCrossToolHandoffs,
   queryUnansweredQuestions,
 } from './conversations.js';
 import { queryTokenUsage } from './tokens.js';
@@ -169,6 +170,7 @@ export function getExtendedAnalytics(
     // ── Conversations ──────────────────────────────────────────────────
     conversation_edit_correlation: queryConversationEditCorrelation(sql, scope, days),
     confused_files: queryConfusedFiles(sql, scope, days),
+    cross_tool_handoff_questions: queryCrossToolHandoffs(sql, scope, days),
     unanswered_questions: queryUnansweredQuestions(sql, scope, days),
 
     // ── Tokens, tool calls, commits ────────────────────────────────────

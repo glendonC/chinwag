@@ -19,6 +19,13 @@ import { allocateIntegerShares, buildDaySpine, hash, weekdayWeight, wobble } fro
 export const DEFAULT_PERIOD_DAYS = 30;
 const TOTAL_SESSIONS = 184;
 
+// ISO timestamp `n` days before now, used for last_used_at / last_accessed_at
+// fields where day-grain is enough. Inline arithmetic kept for the minute-grain
+// last_accessed_at values that need finer precision.
+function nowMinusDays(n: number): string {
+  return new Date(Date.now() - n * 86_400_000).toISOString();
+}
+
 // ── Shared fixtures (team members, projects, files, memories) ────────
 
 export const DEMO_MEMBERS = [
@@ -89,6 +96,41 @@ const WORK_TYPE_MIX: Array<{ work_type: string; share: number }> = [
   { work_type: 'styling', share: 0.04 },
   { work_type: 'config', share: 0.02 },
 ];
+
+// Per-tool, per-work-type completion rate profile. Drives the demo heatmap so
+// the redesigned tool-work-type-fit widget shows differentiated reads instead
+// of a uniform-tinted grid. Numbers are illustrative — each tool's strengths
+// match the marketing narrative (Claude Code = backend / refactors,
+// Cursor = styling / quick UI, Aider = backend / scripts).
+const TOOL_WORK_TYPE_FIT: Record<string, Record<string, number>> = {
+  'claude-code': {
+    frontend: 80,
+    backend: 86,
+    test: 74,
+    styling: 60,
+    docs: 90,
+    config: 78,
+    other: 65,
+  },
+  cursor: {
+    frontend: 78,
+    backend: 42,
+    test: 50,
+    styling: 86,
+    docs: 80,
+    config: 50,
+    other: 55,
+  },
+  aider: {
+    frontend: 50,
+    backend: 80,
+    test: 60,
+    styling: 38,
+    docs: 70,
+    config: 75,
+    other: 40,
+  },
+};
 
 // ── Derivation helpers ───────────────────────────────────────────────
 
@@ -455,12 +497,25 @@ export function createBaselineAnalytics(): UserAnalytics {
       l.totalEdits,
       WORK_TYPE_MIX.map((w) => w.share),
     );
-    return WORK_TYPE_MIX.map((w, i) => ({
-      host_tool: l.tool.id,
-      work_type: w.work_type,
-      sessions: ws[i],
-      edits: we[i],
-    })).filter((r) => r.sessions > 0);
+    return WORK_TYPE_MIX.map((w, i) => {
+      const sessions = ws[i];
+      // Tool-fit completion rate: each tool has a per-work-type strength
+      // profile so the heatmap shows differentiated reads (Claude Code wins
+      // backend, Cursor wins styling, Codex wins config). Falls through to
+      // the work-type's base rate for tools without a specific profile.
+      const profile = TOOL_WORK_TYPE_FIT[l.tool.id];
+      const rate = profile?.[w.work_type] ?? w.share * 100 + 60;
+      const completion_rate = Math.min(100, Math.max(0, Math.round(rate * 10) / 10));
+      const completed = Math.round(sessions * (completion_rate / 100));
+      return {
+        host_tool: l.tool.id,
+        work_type: w.work_type,
+        sessions,
+        edits: we[i],
+        completed,
+        completion_rate,
+      };
+    }).filter((r) => r.sessions > 0);
   });
 
   // 14. work_type_outcomes
@@ -561,7 +616,7 @@ export function createBaselineAnalytics(): UserAnalytics {
     touch_count: dirTouches[i],
     file_count: d.files,
     total_lines: Math.round(dirTouches[i] * 8.5),
-    completion_rate: 0.68 + hash(i + 12) * 0.18,
+    completion_rate: Math.round((0.68 + hash(i + 12) * 0.18) * 100),
   }));
 
   // 19. file_churn — highly-edited files with session counts
@@ -602,6 +657,76 @@ export function createBaselineAnalytics(): UserAnalytics {
     },
     { directory: 'packages/worker/migrations', last_edit: '', days_since: 21, prior_edit_count: 8 },
     { directory: 'docs/decisions', last_edit: '', days_since: 15, prior_edit_count: 6 },
+  ];
+
+  // 22.5 conversations — sentiment/topic-driven coordination signals.
+  // confused_files surfaces the file as the headline (sentiment is ranking
+  // input only); cross_tool_handoff_questions models substrate-unique
+  // events where one tool gave up mid-question and another picked up the
+  // same file cold; unanswered_questions counts open user questions
+  // stranded in abandoned sessions. All three feed the conversations
+  // category in the catalog.
+  const confused_files = [
+    { file: FILES[1].path, confused_sessions: 6, retried_sessions: 3 }, // worker/team/context.ts
+    { file: FILES[4].path, confused_sessions: 5, retried_sessions: 2 }, // worker/team/memory.ts
+    { file: FILES[6].path, confused_sessions: 4, retried_sessions: 0 }, // cli/extraction/engine.ts
+    { file: FILES[8].path, confused_sessions: 3, retried_sessions: 1 }, // worker/team/sessions.ts
+    { file: FILES[2].path, confused_sessions: 2, retried_sessions: 0 }, // OverviewView.tsx
+  ];
+
+  const unanswered_questions = { count: 7 };
+
+  // Cross-tool handoff fixtures. Each row is a (S1.host_tool → S2.host_tool)
+  // event keyed by file overlap, with realistic gap times under the 24h
+  // window. Pairs are drawn from DEMO_MEMBERS' primary tools so handles
+  // remain consistent with member_analytics. ISO timestamps are descending
+  // so the rendered list reads newest-first.
+  const cross_tool_handoff_questions = [
+    {
+      file: FILES[1].path, // worker/team/context.ts
+      tool_from: 'claude-code',
+      tool_to: 'cursor',
+      handle_from: 'glendon',
+      handle_to: 'glendon',
+      gap_minutes: 23,
+      handoff_at: '2026-04-25T18:14:00Z',
+    },
+    {
+      file: FILES[6].path, // cli/extraction/engine.ts
+      tool_from: 'cursor',
+      tool_to: 'claude-code',
+      handle_from: 'sora',
+      handle_to: 'glendon',
+      gap_minutes: 74,
+      handoff_at: '2026-04-24T22:09:00Z',
+    },
+    {
+      file: FILES[4].path, // worker/team/memory.ts
+      tool_from: 'aider',
+      tool_to: 'cline',
+      handle_from: 'jae',
+      handle_to: 'pax',
+      gap_minutes: 215,
+      handoff_at: '2026-04-23T13:42:00Z',
+    },
+    {
+      file: FILES[2].path, // OverviewView.tsx
+      tool_from: 'cline',
+      tool_to: 'cursor',
+      handle_from: 'pax',
+      handle_to: 'sora',
+      gap_minutes: 480,
+      handoff_at: '2026-04-22T09:18:00Z',
+    },
+    {
+      file: FILES[0].path, // ToolWidgets.tsx
+      tool_from: 'claude-code',
+      tool_to: 'aider',
+      handle_from: 'glendon',
+      handle_to: 'jae',
+      gap_minutes: 1140,
+      handoff_at: '2026-04-21T16:50:00Z',
+    },
   ];
 
   // 23. member_analytics — per-handle rollups, share of total sessions
@@ -1222,6 +1347,18 @@ export function createBaselineAnalytics(): UserAnalytics {
         h >= 10 && h <= 14 ? 1.0 : h >= 8 && h <= 18 ? 0.55 : h >= 20 && h <= 23 ? 0.22 : 0.08;
       return { hour: h, calls: Math.round(280 * peak), errors: Math.round(8 * peak) };
     }),
+    // Per-host-tool one-shot rate. Uses each tool's narrative oneShotRate
+    // weighted by sessions so the demo reads as differentiated competing
+    // tools (Claude Code wins; Cursor middling; Aider trails). Tools without
+    // tool-call capture are excluded — they would render '—' in the widget.
+    host_one_shot: ledger
+      .filter((l) => l.tool.toolCallLogs && l.sessions > 0)
+      .map((l) => ({
+        host_tool: l.tool.id,
+        one_shot_rate: Math.round(l.tool.oneShotRate * 100),
+        sessions: l.sessions,
+      }))
+      .sort((a, b) => b.sessions - a.sessions),
   };
 
   // 40. commit_stats
@@ -1451,13 +1588,40 @@ export function createBaselineAnalytics(): UserAnalytics {
     memory_usage,
     work_type_outcomes,
     conversation_edit_correlation,
-    confused_files: [],
-    unanswered_questions: { count: 0 },
-    cross_tool_memory_flow: [],
-    memory_aging: { recent_7d: 0, recent_30d: 0, recent_90d: 0, older: 0 },
-    memory_categories: [],
-    memory_single_author_directories: [],
-    memory_supersession: { invalidated_period: 0, merged_period: 0, pending_proposals: 0 },
+    confused_files,
+    unanswered_questions,
+    cross_tool_handoff_questions,
+    // Memory category fixtures sized off memory_usage above (total=28,
+    // stale=3, pending_consolidation_proposals=1). Aging buckets sum to
+    // total; supersession.pending mirrors memory_usage; cross-tool flow
+    // expresses author→consumer pairs across the active tool set.
+    cross_tool_memory_flow: [
+      { author_tool: 'claude-code', consumer_tool: 'cursor', memories: 9, consumer_sessions: 14 },
+      { author_tool: 'claude-code', consumer_tool: 'aider', memories: 6, consumer_sessions: 5 },
+      { author_tool: 'cursor', consumer_tool: 'claude-code', memories: 5, consumer_sessions: 11 },
+      { author_tool: 'cursor', consumer_tool: 'aider', memories: 3, consumer_sessions: 4 },
+      { author_tool: 'aider', consumer_tool: 'claude-code', memories: 2, consumer_sessions: 8 },
+      { author_tool: 'aider', consumer_tool: 'cursor', memories: 1, consumer_sessions: 6 },
+    ],
+    memory_aging: { recent_7d: 7, recent_30d: 11, recent_90d: 7, older: 3 },
+    memory_categories: [
+      { category: 'auth', count: 6, last_used_at: nowMinusDays(2) },
+      { category: 'deploy', count: 5, last_used_at: nowMinusDays(1) },
+      { category: 'testing', count: 4, last_used_at: nowMinusDays(4) },
+      { category: 'api', count: 4, last_used_at: nowMinusDays(0) },
+      { category: 'workflow', count: 3, last_used_at: nowMinusDays(7) },
+      { category: 'config', count: 3, last_used_at: nowMinusDays(11) },
+      { category: 'patterns', count: 2, last_used_at: nowMinusDays(15) },
+      { category: 'infra', count: 1, last_used_at: nowMinusDays(22) },
+    ],
+    memory_single_author_directories: [
+      { directory: 'packages/worker/dos/team', single_author_count: 7, total_count: 8 },
+      { directory: 'packages/web/src/widgets', single_author_count: 4, total_count: 9 },
+      { directory: 'packages/mcp/lib/tools', single_author_count: 3, total_count: 4 },
+      { directory: 'packages/cli/lib/commands', single_author_count: 2, total_count: 5 },
+      { directory: 'packages/shared/contracts', single_author_count: 2, total_count: 3 },
+    ],
+    memory_supersession: { invalidated_period: 2, merged_period: 4, pending_proposals: 1 },
     memory_secrets_shield: { blocked_period: 0, blocked_24h: 0 },
     file_rework,
     directory_heatmap,

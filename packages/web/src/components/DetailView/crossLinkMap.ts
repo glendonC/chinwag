@@ -77,6 +77,13 @@ const MAP: Record<string, CrossLink[]> = {
   'tools:tools:workload': [
     { label: 'Per-tool sessions', view: 'usage', tab: 'sessions', q: 'by-tool' },
   ],
+  'tools:tools:work-type': [
+    { label: 'Completion by work type', view: 'outcomes', tab: 'types', q: 'finish' },
+    { label: 'Work-type mix in Activity', view: 'activity', tab: 'mix', q: 'share' },
+  ],
+  'tools:tools:one-shot': [
+    { label: 'Retry topology', view: 'outcomes', tab: 'retries', q: 'one-shot' },
+  ],
   'tools:flow:pairs': [
     { label: 'File-level collisions', view: 'codebase', tab: 'risk', q: 'collisions' },
   ],

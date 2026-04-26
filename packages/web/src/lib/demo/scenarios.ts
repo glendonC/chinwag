@@ -24,7 +24,9 @@ export type DemoScenarioId =
   | 'first-period'
   | 'team-conflicts'
   | 'negative-delta'
-  | 'no-live-agents';
+  | 'no-live-agents'
+  | 'memory-stale'
+  | 'memory-concentrated';
 
 export interface DemoData {
   analytics: UserAnalytics;
@@ -193,6 +195,7 @@ function empty(): DemoData {
       frequency: [],
       error_patterns: [],
       hourly_activity: [],
+      host_one_shot: [],
     },
     commit_stats: {
       total_commits: 0,
@@ -219,6 +222,7 @@ function empty(): DemoData {
     },
     confused_files: [],
     unanswered_questions: { count: 0 },
+    cross_tool_handoff_questions: [],
     cross_tool_memory_flow: [],
     memory_aging: { recent_7d: 0, recent_30d: 0, recent_90d: 0, older: 0 },
     memory_categories: [],
@@ -639,6 +643,81 @@ function noLiveAgents(): DemoData {
   };
 }
 
+// Memory stale: aging skewed to >90d, stale count high. Exercises the
+// freshness-warn and stale-tinted paths in the memory tile + freshness
+// hero. Other categories unchanged so we can see memory-only severity.
+function memoryStale(): DemoData {
+  const base = createBaselineAnalytics();
+  const totalMemories = 56;
+  return {
+    analytics: {
+      ...base,
+      memory_usage: {
+        ...base.memory_usage,
+        total_memories: totalMemories,
+        stale_memories: 28,
+        avg_memory_age_days: 118,
+        memories_created_period: 2,
+      },
+      memory_aging: { recent_7d: 1, recent_30d: 4, recent_90d: 12, older: 39 },
+      memory_supersession: {
+        invalidated_period: 0,
+        merged_period: 1,
+        pending_proposals: 8,
+      },
+    },
+    conversation: createBaselineConversation(),
+    live: createBaselineLive(),
+  };
+}
+
+// Memory concentrated: single-author directories dominate; severe-warn
+// fills (>=80% single-author share) on every row. Exercises the warn
+// tint on the concentration list and the high-share severity branch in
+// the authorship detail panel.
+function memoryConcentrated(): DemoData {
+  const base = createBaselineAnalytics();
+  return {
+    analytics: {
+      ...base,
+      memory_single_author_directories: [
+        {
+          directory: 'packages/worker/dos/team',
+          single_author_count: 11,
+          total_count: 12,
+        },
+        {
+          directory: 'packages/web/src/widgets/bodies',
+          single_author_count: 9,
+          total_count: 10,
+        },
+        {
+          directory: 'packages/mcp/lib/tools',
+          single_author_count: 7,
+          total_count: 8,
+        },
+        {
+          directory: 'packages/cli/lib/commands',
+          single_author_count: 6,
+          total_count: 7,
+        },
+        {
+          directory: 'packages/shared/contracts',
+          single_author_count: 5,
+          total_count: 6,
+        },
+        {
+          directory: '.internal',
+          single_author_count: 4,
+          total_count: 4,
+        },
+      ],
+    },
+    conversation: createBaselineConversation(),
+    live: createBaselineLive(),
+  };
+}
+
 // ── Registry ────────────────────────────────────────────────────────
 
 export const DEMO_SCENARIOS: Record<DemoScenarioId, DemoScenario> = {
@@ -701,6 +780,18 @@ export const DEMO_SCENARIOS: Record<DemoScenarioId, DemoScenario> = {
     label: 'No live presence',
     description: 'Analytics intact, zero active agents',
     build: noLiveAgents,
+  },
+  'memory-stale': {
+    id: 'memory-stale',
+    label: 'Memory · stale',
+    description: 'Aging skews to >90d, stale count high — freshness warn',
+    build: memoryStale,
+  },
+  'memory-concentrated': {
+    id: 'memory-concentrated',
+    label: 'Memory · concentrated',
+    description: 'Single-author directories with severe shares — concentration warn',
+    build: memoryConcentrated,
   },
 };
 

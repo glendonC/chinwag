@@ -566,7 +566,7 @@ export function queryMemorySecretsShield(sql: SqlStorage, days: number): MemoryS
     const period = row(
       sql
         .exec(
-          `SELECT COALESCE(SUM(value), 0) AS total
+          `SELECT COALESCE(SUM(count), 0) AS total
          FROM daily_metrics
          WHERE metric = 'secrets_blocked'
            AND date > date('now', '-' || ? || ' days')`,
@@ -577,7 +577,7 @@ export function queryMemorySecretsShield(sql: SqlStorage, days: number): MemoryS
     const last24 = row(
       sql
         .exec(
-          `SELECT COALESCE(SUM(value), 0) AS total
+          `SELECT COALESCE(SUM(count), 0) AS total
          FROM daily_metrics
          WHERE metric = 'secrets_blocked'
            AND date > date('now', '-1 day')`,

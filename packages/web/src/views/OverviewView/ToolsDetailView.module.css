@@ -369,10 +369,118 @@
   text-underline-offset: 2px;
 }
 
+/* ── Work-type fit detail ────────────────────────────
+ * Per-work-type group: header line names the work-type and the winning
+ * tool (brand-dotted), followed by a row of all tools' completion rates
+ * for that work-type. Em-dash where sample is below threshold so the
+ * eye doesn't promote noise to signal. */
+
+.workTypeList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.workTypeRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: fadeRowIn 280ms ease-out both;
+  animation-delay: calc(var(--row-index, 0) * 35ms);
+}
+
+.workTypeHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-stat);
+}
+
+.workTypeLabel {
+  color: var(--ink);
+  text-transform: uppercase;
+}
+
+.workTypeMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--soft);
+}
+
+.workTypeDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-circle);
+  flex-shrink: 0;
+}
+
+.workTypeWinner {
+  color: var(--ink);
+}
+
+.workTypeWinnerRate {
+  color: var(--muted);
+}
+
+.workTypeStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-left: 2px;
+}
+
+.workTypeCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  color: var(--soft);
+  letter-spacing: var(--tracking-stat);
+}
+
+.workTypeCellDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-circle);
+  background: var(--tool-brand, var(--soft));
+  flex-shrink: 0;
+}
+
+.workTypeCellLabel {
+  color: var(--ink);
+  opacity: 0.7;
+}
+
+.workTypeCellRate {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.workTypeCellSessions {
+  color: var(--soft);
+}
+
+@keyframes fadeRowIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .modelRow,
   .timelineRow,
-  .tokenRow {
+  .tokenRow,
+  .workTypeRow {
     animation: none !important;
   }
 }

@@ -178,6 +178,16 @@ export const toolWorkTypeBreakdownSchema = z.object({
   work_type: z.string(),
   sessions: z.number(),
   edits: z.number(),
+  /** Sessions touching this work-type that ended outcome='completed'. Used
+   *  alongside `sessions` so the renderer can show absolute completed counts
+   *  next to the rate (preserves the rate-without-volume D3a failure mode
+   *  the rubric flags). Defaults to 0 so older payloads parse cleanly. */
+  completed: z.number().default(0),
+  /** completed / sessions × 100, rounded to 1 decimal. The substrate-unique
+   *  cell: chinmeister is the only system that can fill a tools × work-types
+   *  matrix with completion rates from competing vendor agents on the same
+   *  repo. Defaults to 0 so older payloads parse cleanly. */
+  completion_rate: z.number().default(0),
 });
 export type ToolWorkTypeBreakdown = z.infer<typeof toolWorkTypeBreakdownSchema>;
 
@@ -410,6 +420,36 @@ export const unansweredQuestionStatsSchema = z.object({
 });
 export type UnansweredQuestionStats = z.infer<typeof unansweredQuestionStatsSchema>;
 
+// Cross-tool question handoffs. An event-axis row: a session abandoned with
+// the user's last turn classified as a question, followed within H hours by
+// a session in a *different* tool that edited at least one of the same
+// files AND opened with another question or a confused/frustrated user
+// turn. The substrate-unique question this answers — which no single-tool
+// analytics surface can — is "did my agent's abandoned question survive a
+// tool switch, or did the next tool start cold and re-ask?"
+//
+// Sentiment/topic are inputs to the ranking, not displayed metrics — the
+// row surfaces files, tools, and gap-time, never the message content or
+// the polarity. ANALYTICS_SPEC §10 #1 firewall preserved.
+export const crossToolHandoffEntrySchema = z.object({
+  /** File both sessions edited. */
+  file: z.string(),
+  /** Tool that abandoned the session mid-question. */
+  tool_from: z.string(),
+  /** Tool that picked up the same file with a question or confused turn. */
+  tool_to: z.string(),
+  /** Handle of the abandoning session. */
+  handle_from: z.string(),
+  /** Handle of the picking-up session. Same as handle_from for solo
+   *  multi-tool, different for cross-developer handoffs. */
+  handle_to: z.string(),
+  /** Minutes between S1.ended_at and S2.started_at. */
+  gap_minutes: z.number(),
+  /** ISO timestamp of the picking-up session's start (sort key). */
+  handoff_at: z.string(),
+});
+export type CrossToolHandoffEntry = z.infer<typeof crossToolHandoffEntrySchema>;
+
 // Cross-tool memory flow. For each (author_tool, consumer_tool) pair, count
 // memories authored by author_tool that were available to consumer_tool's
 // sessions in the window. Honest framing: this measures availability +
@@ -637,6 +677,24 @@ export const toolCallFrequencySchema = z.object({
 });
 export type ToolCallFrequency = z.infer<typeof toolCallFrequencySchema>;
 
+/** Per-host-tool one-shot rate. Different axis from ToolCallFrequency, which
+ *  keys on the tool-call name (Edit/Bash). This entry keys on host_tool
+ *  (claude-code/cursor/...) and answers "which tool's sessions land first-try
+ *  most often." Substrate-unique: chinmeister is the only system that can
+ *  compare one-shot rates head-to-head across competing vendor agents on the
+ *  same repo and same work-type mix. Both fields default to 0 so older
+ *  payloads parse cleanly. */
+export const hostToolOneShotSchema = z.object({
+  host_tool: z.string(),
+  /** % of this tool's sessions with edits where edits worked without an
+   *  Edit→Bash→Edit retry cycle (0-100). */
+  one_shot_rate: z.number(),
+  /** Sessions with edits used as the denominator. UI gates the metric on a
+   *  minimum sample size (≥3) to avoid one-of-one displays. */
+  sessions: z.number(),
+});
+export type HostToolOneShot = z.infer<typeof hostToolOneShotSchema>;
+
 export const toolCallErrorPatternSchema = z.object({
   tool: z.string(),
   error_preview: z.string(),
@@ -670,6 +728,9 @@ export const toolCallStatsSchema = z.object({
   frequency: z.array(toolCallFrequencySchema),
   error_patterns: z.array(toolCallErrorPatternSchema),
   hourly_activity: z.array(toolCallTimelineSchema),
+  /** Per-host-tool one-shot breakdown. Empty for older producers. Renderer
+   *  gates per-row on a minimum sample size to avoid one-of-one displays. */
+  host_one_shot: z.array(hostToolOneShotSchema).default([]),
 });
 export type ToolCallStats = z.infer<typeof toolCallStatsSchema>;
 
@@ -872,6 +933,11 @@ export const userAnalyticsSchema = teamAnalyticsSchema.extend({
   // older producers and tools without conversation capture.
   confused_files: z.array(confusedFileEntrySchema).default([]),
   unanswered_questions: unansweredQuestionStatsSchema.default({ count: 0 }),
+  // Cross-tool question handoffs (added 2026-04-26). Substrate-unique to
+  // chinmeister: requires conversation capture across two tools that share
+  // a file. Default empty so older producers and single-tool teams parse
+  // cleanly; the renderer's empty state names the 2+ tool requirement.
+  cross_tool_handoff_questions: z.array(crossToolHandoffEntrySchema).default([]),
   // Memory + team category density additions 2026-04-25 (post-audit). Each
   // anchors a multi-question detail view (see schema doc-comments for the
   // English questions). Defaults so older producers parse cleanly.

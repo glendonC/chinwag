@@ -221,6 +221,78 @@ export function GhostSparkline() {
 }
 
 /**
+ * Canonical inline sparkline. Replaces the three independent SVG sparkline
+ * implementations (charts.tsx Sparkline, OutcomeWidgets.MiniSparkline) that
+ * differed only in opacities and the trailing dot. ReworkSpark stays local
+ * because it renders a single-ratio ramp, not a series.
+ *
+ *   values  — series to plot (>= 2 points; renders null otherwise).
+ *   color   — fill + stroke. Defaults to var(--ink).
+ *   muted   — dim opacities for slices that fall below sample-size threshold.
+ *   endDot  — render the trailing data point as a small filled circle.
+ *   width   — viewBox width (cosmetic only with preserveAspectRatio="none").
+ *   height  — viewBox height; controls intrinsic aspect.
+ *   className — sizing class on the SVG (default: 100% width, block).
+ */
+export function Sparkline({
+  values,
+  color = 'var(--ink)',
+  muted = false,
+  endDot = false,
+  width = 100,
+  height = 22,
+  className,
+}: {
+  values: number[];
+  color?: string;
+  muted?: boolean;
+  endDot?: boolean;
+  width?: number;
+  height?: number;
+  className?: string;
+}) {
+  if (values.length < 2) return null;
+  const max = Math.max(...values, 1);
+  const points = values.map((v, i) => ({
+    x: (i / (values.length - 1)) * width,
+    y: height - (v / max) * (height - 2) - 1,
+  }));
+  const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+  const area = `${line} L${width},${height} L0,${height} Z`;
+  const fillOpacity = muted ? 0.1 : 0.15;
+  const strokeOpacity = muted ? 0.4 : 0.85;
+  return (
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
+      className={className ?? styles.trendSvg}
+      aria-hidden="true"
+    >
+      <path d={area} fill={color} opacity={fillOpacity} />
+      <path
+        d={line}
+        fill="none"
+        stroke={color}
+        strokeWidth={1.25}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity={strokeOpacity}
+        vectorEffect="non-scaling-stroke"
+      />
+      {endDot && points.length > 0 && (
+        <circle
+          cx={points[points.length - 1].x}
+          cy={points[points.length - 1].y}
+          r={2.5}
+          fill={color}
+          opacity={0.9}
+        />
+      )}
+    </svg>
+  );
+}
+
+/**
  * Inline coverage note for deep-capture widgets.
  * Extends the PricingAttribution pattern (muted, one-line).
  * Shown both in empty states (gating disclosure) and in partial-capture

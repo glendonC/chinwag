@@ -86,16 +86,12 @@
 }
 
 .outcomeHeadRow {
+  composes: tableHead from '../widget-shared.module.css';
   display: grid;
   grid-template-columns: subgrid;
   grid-column: 1 / -1;
   padding: 0 10px 10px;
   margin: 0 -10px;
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-table);
-  color: var(--soft);
 }
 
 .outcomeHeadNum {
@@ -103,37 +99,14 @@
 }
 
 .outcomeDataRow {
+  composes: rowBase from '../widget-shared.module.css';
   display: grid;
   grid-template-columns: subgrid;
   grid-column: 1 / -1;
   align-items: center;
   padding: 10px;
   margin: 0 -10px;
-  animation: rowReveal 0.3s var(--motion) both;
   animation-delay: calc(var(--row-index, 0) * 45ms);
-  transition:
-    opacity var(--motion-fast) ease,
-    transform var(--motion-fast) var(--motion);
-  appearance: none;
-  background: transparent;
-  border: none;
-  color: inherit;
-  font: inherit;
-  text-align: inherit;
-  width: 100%;
-}
-
-button.outcomeDataRow {
-  cursor: pointer;
-}
-
-.outcomeDataRow:hover {
-  transform: translateX(2px);
-}
-
-.outcomeDataRow:focus-visible {
-  outline: 1px solid var(--ink);
-  outline-offset: 4px;
 }
 
 .outcomeCellOutcome {
@@ -183,18 +156,14 @@ button.outcomeDataRow {
 }
 
 .outcomeShareTrack {
+  composes: fillTrack from '../widget-shared.module.css';
   flex: 1;
-  height: 8px;
-  background: var(--ghost);
   border-radius: var(--radius-2xs);
-  overflow: hidden;
   min-width: 40px;
 }
 
 .outcomeShareFill {
-  display: block;
-  height: 100%;
-  border-radius: var(--radius-2xs);
+  composes: fillBar from '../widget-shared.module.css';
   transition:
     width 0.4s var(--motion),
     opacity 0.15s ease;
@@ -228,26 +197,7 @@ button.outcomeDataRow {
 }
 
 .outcomeViewButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  justify-self: end;
-  padding: 4px 12px;
-  border-radius: var(--radius-pill);
-  font-family: var(--sans);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  background: var(--ink);
-  color: var(--page-bg);
-  transition:
-    background 0.12s ease,
-    color 0.12s ease;
-}
-
-.outcomeDataRow:hover .outcomeViewButton {
-  background: var(--accent);
-  color: var(--on-accent);
+  composes: viewPill from '../widget-shared.module.css';
 }
 
 @media (max-width: 820px) {
@@ -389,7 +339,6 @@ button.outcomeDataRow {
   }
   .outcomeDot,
   .outcomeViewButton,
-  .scopeViewButton,
   .scopeTerraceStep {
     transition: none !important;
   }

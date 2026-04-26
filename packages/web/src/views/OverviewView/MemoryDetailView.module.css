@@ -23,26 +23,6 @@
   letter-spacing: var(--tracking-stat);
 }
 
-/* ── Scope row ────────────────────────────────────────
- * Pinned above each tab's FocusedDetailView. Memory is the only detail
- * view that mixes time scopes on one surface; the chip + label answer
- * "which clock does this section run on" without requiring prose. */
-
-.scopeRow {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  padding-bottom: var(--space-xs);
-}
-
-.scopeLabel {
-  font-family: var(--mono);
-  font-size: var(--text-2xs);
-  color: var(--soft);
-  letter-spacing: var(--tracking-stat);
-  text-transform: lowercase;
-}
-
 /* ── Coverage caption ─────────────────────────────────
  * Inline alternative to widget-shared `.coverageNote` for cases where
  * the note hangs off a viz inside FocusedDetailView (which already has

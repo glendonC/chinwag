@@ -4,6 +4,7 @@ import { createLogger } from '../../../lib/logger.js';
 import type {
   ConversationEditCorrelation,
   ConfusedFileEntry,
+  CrossToolHandoffEntry,
   UnansweredQuestionStats,
 } from '@chinmeister/shared/contracts/analytics.js';
 import { type AnalyticsScope, buildScopeFilter, withScope } from './scope.js';
@@ -149,6 +150,112 @@ export function queryConfusedFiles(
     });
   } catch (err) {
     log.warn(`confusedFiles query failed: ${err}`);
+    return [];
+  }
+}
+
+// Cross-tool question handoffs. Find pairs (S1 abandoned, last user turn
+// classified as a question) → (S2 in a different host_tool, started after
+// S1.ended_at within HANDOFF_WINDOW_HOURS, edits at least one file S1 also
+// edited, S2's first user turn is itself a question OR shows confused/
+// frustrated sentiment). The pair models "agent gave up mid-question, user
+// switched tools, asked again or hit confusion immediately."
+//
+// Substrate-unique to chinmeister: no single-tool analytics surface sees
+// both sides of the handoff. Sentiment/topic are filter inputs only — the
+// returned row exposes file, tools, handles, gap-time. The classifier's
+// polarity never reaches the UI, preserving the §10 #1 firewall.
+//
+// Scope filter applies to S1.handle: "where MY agent abandoned and someone
+// (or me with another tool) picked up." A future bidirectional variant can
+// either union with S2.handle or be added when team-tier needs it.
+const CROSS_TOOL_HANDOFF_WINDOW_HOURS = 24;
+const CROSS_TOOL_HANDOFF_LIMIT = 20;
+const CROSS_TOOL_HANDOFF_FOLLOWUP_SENTIMENTS = ['confused', 'frustrated'];
+
+export function queryCrossToolHandoffs(
+  sql: SqlStorage,
+  scope: AnalyticsScope,
+  days: number,
+): CrossToolHandoffEntry[] {
+  try {
+    const sentimentPlaceholders = CROSS_TOOL_HANDOFF_FOLLOWUP_SENTIMENTS.map(() => '?').join(', ');
+    const f = buildScopeFilter(scope, { handleColumn: 's1.handle' });
+    // S1: ended abandoned, last user turn was a question.
+    // S2: different host_tool, started after S1.ended_at within the window,
+    //     edits a file S1 edited, first user turn is question or shows
+    //     confused/frustrated sentiment.
+    // DISTINCT on the row tuple deduplicates fan-out from the edits self-join
+    // when S1 and S2 share more than one file.
+    const rows = sql
+      .exec(
+        `WITH abandoned_question_sessions AS (
+           SELECT s1.id AS s1_id,
+                  s1.host_tool AS tool_from,
+                  s1.handle AS handle_from,
+                  s1.ended_at AS ended_at
+           FROM sessions s1
+           WHERE s1.outcome = 'abandoned'
+             AND s1.ended_at IS NOT NULL
+             AND s1.ended_at > datetime('now', '-' || ? || ' days')
+             AND EXISTS (
+               SELECT 1 FROM conversation_events ce
+               WHERE ce.session_id = s1.id
+                 AND ce.role = 'user'
+                 AND ce.topic = 'question'
+             )${f.sql}
+         )
+         SELECT DISTINCT
+                e1.file_path AS file,
+                a.tool_from AS tool_from,
+                s2.host_tool AS tool_to,
+                a.handle_from AS handle_from,
+                s2.handle AS handle_to,
+                CAST(((julianday(s2.started_at) - julianday(a.ended_at)) * 24 * 60) AS INTEGER) AS gap_minutes,
+                s2.started_at AS handoff_at
+           FROM abandoned_question_sessions a
+           JOIN edits e1 ON e1.session_id = a.s1_id
+           JOIN edits e2 ON e2.file_path = e1.file_path
+                        AND e2.session_id != a.s1_id
+           JOIN sessions s2 ON s2.id = e2.session_id
+          WHERE s2.host_tool != a.tool_from
+            AND s2.started_at > a.ended_at
+            AND s2.started_at < datetime(a.ended_at, '+' || ? || ' hours')
+            AND EXISTS (
+              SELECT 1 FROM conversation_events ce2
+               WHERE ce2.session_id = s2.id
+                 AND ce2.role = 'user'
+                 AND ce2.sequence = (
+                   SELECT MIN(sequence) FROM conversation_events
+                    WHERE session_id = s2.id AND role = 'user'
+                 )
+                 AND (ce2.topic = 'question'
+                      OR ce2.sentiment IN (${sentimentPlaceholders}))
+            )
+          ORDER BY handoff_at DESC
+          LIMIT ?`,
+        days,
+        ...f.params,
+        CROSS_TOOL_HANDOFF_WINDOW_HOURS,
+        ...CROSS_TOOL_HANDOFF_FOLLOWUP_SENTIMENTS,
+        CROSS_TOOL_HANDOFF_LIMIT,
+      )
+      .toArray();
+
+    return rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      return {
+        file: row.file as string,
+        tool_from: row.tool_from as string,
+        tool_to: row.tool_to as string,
+        handle_from: row.handle_from as string,
+        handle_to: row.handle_to as string,
+        gap_minutes: (row.gap_minutes as number) || 0,
+        handoff_at: row.handoff_at as string,
+      };
+    });
+  } catch (err) {
+    log.warn(`crossToolHandoffs query failed: ${err}`);
     return [];
   }
 }

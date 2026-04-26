@@ -12,33 +12,55 @@ import type { ToolCallCategory } from '@chinmeister/shared/tool-call-categories.
 import type { ToolDailyTrend, ToolHandoff, ToolWorkTypeBreakdown } from '../../lib/apiSchemas.js';
 import { normalizeToolId } from '../../lib/toolMeta.js';
 
+// Helper so each row reads as a five-tuple (tool, type, sessions, edits, rate)
+// without forcing fixture authors to recompute `completed` by hand. The rate
+// reflects each tool's fit narrative (Claude Code wins frontend, Cursor wins
+// styling, Codex wins backend) so the heatmap viz reads as designed in
+// preview mode.
+function wt(
+  host_tool: string,
+  work_type: string,
+  sessions: number,
+  edits: number,
+  completion_rate: number,
+): ToolWorkTypeBreakdown {
+  return {
+    host_tool,
+    work_type,
+    sessions,
+    edits,
+    completed: Math.round((completion_rate / 100) * sessions),
+    completion_rate,
+  };
+}
+
 export const PREVIEW_TOOL_WORK_TYPE: ToolWorkTypeBreakdown[] = [
   // Claude Code — frontend-heavy, some backend, some styling
-  { host_tool: 'claude-code', work_type: 'frontend', sessions: 58, edits: 412 },
-  { host_tool: 'claude-code', work_type: 'backend', sessions: 26, edits: 198 },
-  { host_tool: 'claude-code', work_type: 'styling', sessions: 19, edits: 141 },
-  { host_tool: 'claude-code', work_type: 'test', sessions: 13, edits: 87 },
-  { host_tool: 'claude-code', work_type: 'docs', sessions: 7, edits: 34 },
-  { host_tool: 'claude-code', work_type: 'config', sessions: 4, edits: 19 },
-  { host_tool: 'claude-code', work_type: 'other', sessions: 2, edits: 8 },
+  wt('claude-code', 'frontend', 58, 412, 82),
+  wt('claude-code', 'backend', 26, 198, 73),
+  wt('claude-code', 'styling', 19, 141, 58),
+  wt('claude-code', 'test', 13, 87, 71),
+  wt('claude-code', 'docs', 7, 34, 88),
+  wt('claude-code', 'config', 4, 19, 75),
+  wt('claude-code', 'other', 2, 8, 50),
 
   // Cursor — styling specialist
-  { host_tool: 'cursor', work_type: 'styling', sessions: 26, edits: 134 },
-  { host_tool: 'cursor', work_type: 'frontend', sessions: 16, edits: 97 },
-  { host_tool: 'cursor', work_type: 'backend', sessions: 13, edits: 64 },
-  { host_tool: 'cursor', work_type: 'docs', sessions: 9, edits: 22 },
-  { host_tool: 'cursor', work_type: 'test', sessions: 6, edits: 28 },
-  { host_tool: 'cursor', work_type: 'config', sessions: 2, edits: 7 },
-  { host_tool: 'cursor', work_type: 'other', sessions: 2, edits: 5 },
+  wt('cursor', 'styling', 26, 134, 84),
+  wt('cursor', 'frontend', 16, 97, 76),
+  wt('cursor', 'backend', 13, 64, 39),
+  wt('cursor', 'docs', 9, 22, 78),
+  wt('cursor', 'test', 6, 28, 50),
+  wt('cursor', 'config', 2, 7, 50),
+  wt('cursor', 'other', 2, 5, 50),
 
   // Codex — backend-dominant, heavy on config
-  { host_tool: 'codex', work_type: 'backend', sessions: 12, edits: 83 },
-  { host_tool: 'codex', work_type: 'config', sessions: 6, edits: 28 },
-  { host_tool: 'codex', work_type: 'frontend', sessions: 5, edits: 31 },
-  { host_tool: 'codex', work_type: 'styling', sessions: 3, edits: 14 },
-  { host_tool: 'codex', work_type: 'test', sessions: 2, edits: 8 },
-  { host_tool: 'codex', work_type: 'docs', sessions: 2, edits: 4 },
-  { host_tool: 'codex', work_type: 'other', sessions: 1, edits: 2 },
+  wt('codex', 'backend', 12, 83, 75),
+  wt('codex', 'config', 6, 28, 67),
+  wt('codex', 'frontend', 5, 31, 40),
+  wt('codex', 'styling', 3, 14, 33),
+  wt('codex', 'test', 2, 8, 50),
+  wt('codex', 'docs', 2, 4, 50),
+  wt('codex', 'other', 1, 2, 0),
 ];
 
 // ── Shared file stream ──

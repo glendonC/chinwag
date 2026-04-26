@@ -3,11 +3,9 @@ import {
   DetailView,
   FocusedDetailView,
   Metric,
-  ScopeChip,
   getCrossLinks,
   type DetailTabDef,
   type FocusedQuestion,
-  type ScopeKind,
 } from '../../components/DetailView/index.js';
 import {
   BreakdownList,
@@ -32,27 +30,16 @@ import styles from './MemoryDetailView.module.css';
 
 /* MemoryDetailView — substrate-axis on living team memory.
  *
- * Densest detail view in the catalog (5 tabs). Memory mixes three time
- * scopes on one surface — health/freshness/authorship are all-time,
- * cross-tool is period-scoped, hygiene is live — so each tab's panel
- * renders an explicit <ScopeChip> beside its summary so readers know
- * which clock the numbers below answer to. Other detail views are
- * period-only and omit the chip.
+ *   health     total live memories, search→completion correlation,
+ *              secrets shield, top-read memories
+ *   freshness  aging composition, accumulating-vs-replacing read
+ *   cross-tool author→consumer tool flow, category mix (catalog-only)
+ *   authorship single-author directory concentration, category mix
+ *   hygiene    supersession counters, category leaderboard
  *
- *   health     — total live memories, search→completion correlation,
- *                secrets shield, top-read memories (absorbed from the
- *                cut top-memories widget seat)
- *   freshness  — aging composition, accumulating-vs-replacing read
- *   cross-tool — author→consumer tool flow, category mix (catalog-only)
- *   authorship — single-author directory concentration (DirectoryColumns
- *                in two-color mode), category mix (gated)
- *   hygiene    — supersession counters, category leaderboard (autopilot-
- *                gated; honest empty until consolidation runs on cadence)
- *
- * Most tab deltas are MISSING_DELTA (em-dash) by design — only `period`
- * scope responds to the picker, and even there the schema lacks a
- * previous-period comparator for cross-tool flow today. Spec calls out
- * the asymmetry explicitly; the chip carries the explanation. */
+ * Most tab deltas are MISSING_DELTA by design. Only `period` scope
+ * responds to the picker, and even there the schema lacks a
+ * previous-period comparator for cross-tool flow today. */
 
 const MEMORY_TABS = ['health', 'freshness', 'cross-tool', 'authorship', 'hygiene'] as const;
 type MemoryTab = (typeof MEMORY_TABS)[number];
@@ -173,37 +160,19 @@ export default function MemoryDetailView({
   );
 }
 
-// ── Scope row ───────────────────────────────────────
-// Small lozenge that pins the active tab's time-scope above its
-// FocusedDetailView. Memory is the only detail view that mixes scopes
-// (live + period + all-time on one picker), so the chip is required
-// reading at the top of every tab. The label carries the tab name so
-// the reader can also confirm the question lens at a glance.
-
-function ScopeRow({ scope, label }: { scope: ScopeKind; label: string }) {
-  return (
-    <div className={styles.scopeRow}>
-      <ScopeChip scope={scope} />
-      <span className={styles.scopeLabel}>{label}</span>
-    </div>
-  );
-}
-
-// ── Health panel (all-time scope) ───────────────────
+// ── Health panel ────────────────────────────────────
 //
 // Three-question cluster. Hero is the live count + age + stale tri-stat;
 // the outcomes question carries the search→completion correlation gated
 // at MEMORY_OUTCOMES_MIN_SESSIONS; the secrets-shield question always
-// renders one number even when zero so the panel never reads as broken.
-// The optional fourth slot ("top-read memories") absorbs the cut
-// top-memories widget seat — rendered only when the field has data.
+// renders one number even when zero. The optional fourth slot
+// ("top-read memories") absorbs the cut top-memories widget seat.
 
 function HealthPanel({ analytics }: { analytics: UserAnalytics }) {
   const activeId = useQueryParam('q');
   // Lazy-init now reference for relative-day formatting on top-read
-  // memories. Capturing once at first render keeps re-renders pure
-  // (react-hooks/purity rule) and the value stays stable across the
-  // panel's lifetime so the same memory doesn't tick second-by-second.
+  // memories. Captured once at first render so the same memory doesn't
+  // tick second-by-second.
   const [nowMs] = useState(() => Date.now());
   const m = analytics.memory_usage;
   const moc = analytics.memory_outcome_correlation;
@@ -217,7 +186,6 @@ function HealthPanel({ analytics }: { analytics: UserAnalytics }) {
   if (m.total_memories === 0) {
     return (
       <div className={styles.panel}>
-        <ScopeRow scope="all-time" label="health · all-time" />
         <span className={styles.empty}>
           No memories saved yet. They appear when agents call `chinmeister_save_memory`.
         </span>
@@ -271,9 +239,8 @@ function HealthPanel({ analytics }: { analytics: UserAnalytics }) {
   );
 
   // ── Q2 outcomes ── per spec, search→completion across three buckets.
-  // Coverage note carries the memory_search_results blocker. Gated under
-  // MEMORY_OUTCOMES_MIN_SESSIONS in aggregate; per-memory attribution is
-  // honestly named as pending.
+  // Gated under MEMORY_OUTCOMES_MIN_SESSIONS in aggregate; per-memory
+  // attribution is honestly named as pending.
   const totalOutcomeSessions = moc.reduce((s, b) => s + b.sessions, 0);
   const outcomesEntries: TrueShareEntry[] = moc.map((b) => ({
     key: b.bucket,
@@ -293,7 +260,7 @@ function HealthPanel({ analytics }: { analytics: UserAnalytics }) {
     ) : null;
 
   // ── Q3 secrets ── always renders one number per spec. Tone neutral
-  // when zero, warning when n>0 (the day it fires, you want it loud).
+  // when zero, warning when n>0.
   const secretsAnswer =
     ss.blocked_period === 0 && ss.blocked_24h === 0 ? (
       <>
@@ -326,13 +293,7 @@ function HealthPanel({ analytics }: { analytics: UserAnalytics }) {
       question: 'Do sessions that read memory finish more often?',
       answer: outcomesAnswer,
       children: (
-        <>
-          <TrueShareBars entries={outcomesEntries} formatValue={(n) => `${fmtCount(n)} sessions`} />
-          <p className={styles.coverageNote}>
-            Available-vs-read attribution. Per-memory drill requires `memory_search_results`
-            (pending).
-          </p>
-        </>
+        <TrueShareBars entries={outcomesEntries} formatValue={(n) => `${fmtCount(n)} sessions`} />
       ),
       relatedLinks: getCrossLinks('memory', 'health', 'outcomes'),
     });
@@ -346,12 +307,9 @@ function HealthPanel({ analytics }: { analytics: UserAnalytics }) {
         </>
       ),
       children: (
-        <>
-          <span className={styles.empty}>
-            Need {MEMORY_OUTCOMES_MIN_SESSIONS}+ sessions for a reliable correlation. Per-memory
-            attribution requires `memory_search_results` (pending).
-          </span>
-        </>
+        <span className={styles.empty}>
+          Need {MEMORY_OUTCOMES_MIN_SESSIONS}+ sessions for a reliable correlation.
+        </span>
       ),
       relatedLinks: getCrossLinks('memory', 'health', 'outcomes'),
     });
@@ -380,9 +338,8 @@ function HealthPanel({ analytics }: { analytics: UserAnalytics }) {
     ),
   });
 
-  // Optional Q4 — top-memories absorbed from the cut widget seat.
-  // Renders only when the field has data; otherwise the slot quietly
-  // disappears so the tab doesn't grow a permanent empty row.
+  // Optional Q4: top-memories absorbed from the cut widget seat.
+  // Renders only when the field has data; the slot disappears otherwise.
   if (tm.length > 0) {
     const topRead = [...tm].sort((a, b) => b.access_count - a.access_count).slice(0, 8);
     const maxAccess = Math.max(...topRead.map((t) => t.access_count), 1);
@@ -424,7 +381,6 @@ function HealthPanel({ analytics }: { analytics: UserAnalytics }) {
 
   return (
     <div className={styles.panel}>
-      <ScopeRow scope="all-time" label="health · all-time" />
       <FocusedDetailView
         questions={questions}
         activeId={activeId}
@@ -434,12 +390,11 @@ function HealthPanel({ analytics }: { analytics: UserAnalytics }) {
   );
 }
 
-// ── Freshness panel (all-time scope) ────────────────
+// ── Freshness panel ─────────────────────────────────
 //
 // Aging composition, presented as a proportional bar with a hero share
-// inline above it (per Phase 3 widget rework spec — readable at 1s),
+// inline above it (per Phase 3 widget rework spec, readable at 1s),
 // followed by an accumulating-vs-replacing read across the four buckets.
-// Both questions live in the all-time scope; the picker doesn't apply.
 
 const AGE_COLORS: Record<string, string> = {
   '0-7d': 'var(--success)',
@@ -456,7 +411,6 @@ function FreshnessPanel({ analytics }: { analytics: UserAnalytics }) {
   if (total === 0) {
     return (
       <div className={styles.panel}>
-        <ScopeRow scope="all-time" label="freshness · all-time" />
         <span className={styles.empty}>Aging curve appears after the team saves memories.</span>
       </div>
     );
@@ -481,9 +435,8 @@ function FreshnessPanel({ analytics }: { analytics: UserAnalytics }) {
   );
 
   // ── Q2 accumulation ── derived sentence comparing 0-7d vs 90d+.
-  // The viz is a 4-segment vertical strip with explicit count labels,
-  // not a bar chart — readers should see "is the front weighted or the
-  // back?" without summing legend rows.
+  // Viz is a 4-segment vertical strip with explicit count labels so the
+  // reader sees front-vs-back weight without summing legend rows.
   const fresh = a.recent_7d;
   const old = a.older;
   let accumSentence: string;
@@ -492,13 +445,13 @@ function FreshnessPanel({ analytics }: { analytics: UserAnalytics }) {
     accumSentence = 'Need at least a few populated buckets to read the trend.';
     accumTone = 'neutral';
   } else if (fresh > old * 1.5) {
-    accumSentence = 'Newer memories are outpacing old ones — replacement working.';
+    accumSentence = 'Newer memories are outpacing old ones, replacement working.';
     accumTone = 'positive';
   } else if (old > fresh * 1.5) {
     accumSentence = 'Old memories dominate; pruning lags.';
     accumTone = 'warning';
   } else {
-    accumSentence = 'New and old roughly balanced — accumulation, not replacement.';
+    accumSentence = 'New and old roughly balanced, accumulation rather than replacement.';
     accumTone = 'neutral';
   }
   const accumAnswer = <Metric tone={accumTone}>{accumSentence}</Metric>;
@@ -587,7 +540,6 @@ function FreshnessPanel({ analytics }: { analytics: UserAnalytics }) {
 
   return (
     <div className={styles.panel}>
-      <ScopeRow scope="all-time" label="freshness · all-time" />
       <FocusedDetailView
         questions={questions}
         activeId={activeId}
@@ -597,15 +549,12 @@ function FreshnessPanel({ analytics }: { analytics: UserAnalytics }) {
   );
 }
 
-// ── Cross-tool panel (period scope) ─────────────────
+// ── Cross-tool panel ────────────────────────────────
 //
 // Author→consumer flow with twin micro-bars (memories written, sessions
 // reachable). Bar 1 max is the max memories across pairs; bar 2 max is
-// the max consumer_sessions — heterogeneous scales let the eye compare
+// the max consumer_sessions, heterogeneous scales let the eye compare
 // strengths within each axis without one number dwarfing the other.
-//
-// Q2 (categories) lives in the panel as catalog copy with an honest
-// empty state — the cross_tool × category cut isn't in the schema today.
 
 function CrossToolPanel({ analytics }: { analytics: UserAnalytics }) {
   const activeId = useQueryParam('q');
@@ -614,7 +563,6 @@ function CrossToolPanel({ analytics }: { analytics: UserAnalytics }) {
   if (flow.length === 0) {
     return (
       <div className={styles.panel}>
-        <ScopeRow scope="period" label="cross-tool · period" />
         <span className={styles.empty}>
           Cross-tool flow appears once two tools have memories AND active sessions in this window.
         </span>
@@ -631,7 +579,7 @@ function CrossToolPanel({ analytics }: { analytics: UserAnalytics }) {
   const flowAnswer = top ? (
     <>
       <Metric>{getToolMeta(top.author_tool).label}</Metric> writes the most memories that{' '}
-      <Metric>{getToolMeta(top.consumer_tool).label}</Metric> sessions can read —{' '}
+      <Metric>{getToolMeta(top.consumer_tool).label}</Metric> sessions can read,{' '}
       <Metric>{fmtCount(top.memories)}</Metric> available across{' '}
       <Metric>{fmtCount(top.consumer_sessions)}</Metric> sessions.
     </>
@@ -643,41 +591,35 @@ function CrossToolPanel({ analytics }: { analytics: UserAnalytics }) {
       question: 'Which tools share knowledge?',
       answer: flowAnswer ?? <>No author→consumer pairs in this window.</>,
       children: (
-        <>
-          <div className={styles.flowList}>
-            {visible.map((f, i) => {
-              const fromMeta = getToolMeta(f.author_tool);
-              const toMeta = getToolMeta(f.consumer_tool);
-              return (
-                <FlowRow
-                  key={`${f.author_tool}|${f.consumer_tool}`}
-                  index={i}
-                  from={{ id: f.author_tool, label: fromMeta.label, color: fromMeta.color }}
-                  to={{ id: f.consumer_tool, label: toMeta.label, color: toMeta.color }}
-                  bars={[
-                    {
-                      label: 'memories',
-                      value: f.memories,
-                      max: maxMemories,
-                      color: fromMeta.color,
-                      display: fmtCount(f.memories),
-                    },
-                    {
-                      label: 'reachable sessions',
-                      value: f.consumer_sessions,
-                      max: maxSessions,
-                      display: fmtCount(f.consumer_sessions),
-                    },
-                  ]}
-                />
-              );
-            })}
-          </div>
-          <p className={styles.coverageNote}>
-            Available-to, not read-by. Exact attribution requires per-memory search-result tracking
-            (pending).
-          </p>
-        </>
+        <div className={styles.flowList}>
+          {visible.map((f, i) => {
+            const fromMeta = getToolMeta(f.author_tool);
+            const toMeta = getToolMeta(f.consumer_tool);
+            return (
+              <FlowRow
+                key={`${f.author_tool}|${f.consumer_tool}`}
+                index={i}
+                from={{ id: f.author_tool, label: fromMeta.label, color: fromMeta.color }}
+                to={{ id: f.consumer_tool, label: toMeta.label, color: toMeta.color }}
+                bars={[
+                  {
+                    label: 'memories',
+                    value: f.memories,
+                    max: maxMemories,
+                    color: fromMeta.color,
+                    display: fmtCount(f.memories),
+                  },
+                  {
+                    label: 'reachable sessions',
+                    value: f.consumer_sessions,
+                    max: maxSessions,
+                    display: fmtCount(f.consumer_sessions),
+                  },
+                ]}
+              />
+            );
+          })}
+        </div>
       ),
       relatedLinks: getCrossLinks('memory', 'cross-tool', 'flow'),
     },
@@ -689,9 +631,8 @@ function CrossToolPanel({ analytics }: { analytics: UserAnalytics }) {
       ),
       children: (
         <span className={styles.empty}>
-          Needs a `cross_tool × category` cut on `cross_tool_memory_flow`. Today the join collapses
-          category to the per-tool axis — see the categories question on the Hygiene tab for the
-          live category mix.
+          Needs a `cross_tool × category` cut on `cross_tool_memory_flow`. See the categories
+          question on the Hygiene tab for the live category mix.
         </span>
       ),
     },
@@ -699,7 +640,6 @@ function CrossToolPanel({ analytics }: { analytics: UserAnalytics }) {
 
   return (
     <div className={styles.panel}>
-      <ScopeRow scope="period" label="cross-tool · period" />
       <FocusedDetailView
         questions={questions}
         activeId={activeId}
@@ -709,14 +649,12 @@ function CrossToolPanel({ analytics }: { analytics: UserAnalytics }) {
   );
 }
 
-// ── Authorship panel (all-time scope) ───────────────
+// ── Authorship panel ────────────────────────────────
 //
-// DirectoryColumns in two-color mode. The primitive expects a per-FILE
-// shape (file path + touch_count + primary_share); Memory's payload is
-// per-DIRECTORY (single_author_count / total_count). The adapter below
-// fabricates one synthetic "file" per directory, weighted by total_count,
-// so the column-height encoding still reads correctly. The directory
-// path lands as both `file` and the primitive's grouping key.
+// DirectoryColumns in two-color mode. The primitive expects per-FILE
+// shape; Memory's payload is per-DIRECTORY. The adapter below fabricates
+// one synthetic "file" per directory so the column-height encoding still
+// reads correctly.
 
 function AuthorshipPanel({ analytics }: { analytics: UserAnalytics }) {
   const activeId = useQueryParam('q');
@@ -725,7 +663,6 @@ function AuthorshipPanel({ analytics }: { analytics: UserAnalytics }) {
   if (dirs.length === 0) {
     return (
       <div className={styles.panel}>
-        <ScopeRow scope="all-time" label="authorship · all-time" />
         <span className={styles.empty}>
           Single-author directories appear when 2+ authors have saved memories and at least one
           directory has only one of them contributing.
@@ -735,11 +672,6 @@ function AuthorshipPanel({ analytics }: { analytics: UserAnalytics }) {
   }
 
   // Adapter: per-directory rows → per-file shape DirectoryColumns expects.
-  // The primitive groups by directory key (depth=2 by default), so we
-  // pass the directory path verbatim as `file` and let the primitive
-  // collapse it to itself. touch_count carries total memories in the
-  // directory; primary_share carries the touch-weighted single-author
-  // fraction.
   const columnFiles: DirectoryColumnsFile[] = dirs
     .filter((d) => d.total_count > 0)
     .map((d) => ({
@@ -760,8 +692,8 @@ function AuthorshipPanel({ analytics }: { analytics: UserAnalytics }) {
   const concentrationAnswer = top ? (
     <>
       <Metric>{top.directory}</Metric> has{' '}
-      <Metric tone={topPct >= 70 ? 'warning' : 'neutral'}>{topPct}%</Metric> single-author memories
-      — <Metric>{fmtCount(top.single_author_count)}</Metric> of{' '}
+      <Metric tone={topPct >= 70 ? 'warning' : 'neutral'}>{topPct}%</Metric> single-author memories,{' '}
+      <Metric>{fmtCount(top.single_author_count)}</Metric> of{' '}
       <Metric>{fmtCount(top.total_count)}</Metric>.
     </>
   ) : null;
@@ -788,8 +720,7 @@ function AuthorshipPanel({ analytics }: { analytics: UserAnalytics }) {
       answer: <>Category breakdown by directory ships when 2+ authors are present per dir.</>,
       children: (
         <span className={styles.empty}>
-          Needs a per-directory category cut. Catalog-only today — surfaces in detail when the
-          backend emits `memory_single_author_directories` with category arrays.
+          Needs a per-directory category cut. Catalog-only today.
         </span>
       ),
     },
@@ -797,7 +728,6 @@ function AuthorshipPanel({ analytics }: { analytics: UserAnalytics }) {
 
   return (
     <div className={styles.panel}>
-      <ScopeRow scope="all-time" label="authorship · all-time" />
       <FocusedDetailView
         questions={questions}
         activeId={activeId}
@@ -807,12 +737,10 @@ function AuthorshipPanel({ analytics }: { analytics: UserAnalytics }) {
   );
 }
 
-// ── Hygiene panel (live scope) ──────────────────────
+// ── Hygiene panel ───────────────────────────────────
 //
-// Quiet today by design — the panel exists as latent infrastructure for
-// Memory Hygiene Autopilot. Empty states explain the cadence honestly
-// rather than hiding the panel; once consolidation runs, the same shape
-// fills in without any ceremony.
+// Quiet today by design. Empty states explain the cadence honestly; once
+// consolidation runs, the same shape fills in.
 
 function HygienePanel({ analytics }: { analytics: UserAnalytics }) {
   const activeId = useQueryParam('q');
@@ -863,8 +791,7 @@ function HygienePanel({ analytics }: { analytics: UserAnalytics }) {
         </div>
       ) : (
         <span className={styles.empty}>
-          Memory Hygiene Autopilot runs consolidation when it ships. Pre-launch teams see manual
-          proposals only.
+          Memory Hygiene Autopilot runs consolidation when it ships.
         </span>
       ),
     },
@@ -880,17 +807,12 @@ function HygienePanel({ analytics }: { analytics: UserAnalytics }) {
         ) : (
           <>Category supersession leaderboard ships with Memory Hygiene Autopilot.</>
         ),
-      children: (
-        <span className={styles.empty}>
-          Counters move when consolidation runs. Catalog-only until autopilot lands.
-        </span>
-      ),
+      children: <span className={styles.empty}>Counters move when consolidation runs.</span>,
     },
   ];
 
   return (
     <div className={styles.panel}>
-      <ScopeRow scope="live" label="hygiene · live" />
       <FocusedDetailView
         questions={questions}
         activeId={activeId}
@@ -902,9 +824,7 @@ function HygienePanel({ analytics }: { analytics: UserAnalytics }) {
 
 // ── Helpers ─────────────────────────────────────────
 
-// Completion-rate color cutoffs match the rest of the detail surface
-// (70 / 40). Local copy because pulling in widgets/utils.ts for one
-// helper would over-couple the detail view to the widget layer.
+// Completion-rate color cutoffs match the rest of the detail surface.
 function completionColorRate(rate: number): string {
   if (rate >= 70) return 'var(--success)';
   if (rate >= 40) return 'var(--warn)';
