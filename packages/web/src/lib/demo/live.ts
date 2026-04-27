@@ -4,14 +4,14 @@
 // via an explicit createEmptyLive() export so scenarios can opt out of
 // presence rather than duplicating the fixture.
 
-import type { Lock } from '../schemas/common.js';
+import type { Lock, TeamSummaryLive } from '../schemas/common.js';
 import type { LiveAgent } from '../../widgets/types.js';
 import { DEMO_TEAMS } from './baseline.js';
 
 export interface LiveDemoData {
   liveAgents: LiveAgent[];
   locks: Lock[];
-  summaries: Array<Record<string, unknown>>;
+  summaries: TeamSummaryLive[];
 }
 
 export function createBaselineLive(): LiveDemoData {
@@ -140,7 +140,7 @@ export function createBaselineLive(): LiveDemoData {
   // consumed by live widgets. Populating both parallel shapes keeps demo
   // mode compatible with each consumer without routing through the
   // polling store.
-  const summaries: Array<Record<string, unknown>> = DEMO_TEAMS.map((t, i) => {
+  const summaries: TeamSummaryLive[] = DEMO_TEAMS.map((t, i) => {
     const teamAgents = liveAgents.filter((a) => a.teamId === t.team_id);
     return {
       team_id: t.team_id,
@@ -149,21 +149,24 @@ export function createBaselineLive(): LiveDemoData {
       memory_count: [18, 9, 4][i] ?? 0,
       recent_sessions_24h: [24, 17, 8][i] ?? 0,
       conflict_count: [2, 1, 0][i] ?? 0,
-      active_members: teamAgents.map((a) => ({
-        agent_id: a.agent_id,
-        handle: a.handle,
-        host_tool: a.host_tool,
-        agent_surface: a.agent_surface,
-        files: a.files,
-        summary: a.summary,
-        session_minutes: a.session_minutes,
-        seconds_since_update: a.seconds_since_update,
-      })),
       hosts_configured: [
         { host_tool: 'claude-code', joins: 5 },
         { host_tool: 'cursor', joins: 3 },
         { host_tool: 'codex', joins: 2 },
       ],
+      surfaces_seen: [],
+      models_seen: [],
+      usage: {},
+      active_members: teamAgents.map((a) => ({
+        agent_id: a.agent_id,
+        handle: a.handle,
+        host_tool: a.host_tool,
+        agent_surface: a.agent_surface ?? null,
+        files: a.files,
+        summary: a.summary ?? null,
+        session_minutes: a.session_minutes ?? null,
+        seconds_since_update: a.seconds_since_update ?? null,
+      })),
     };
   });
 

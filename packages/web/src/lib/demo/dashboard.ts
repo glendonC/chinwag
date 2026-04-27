@@ -3,22 +3,16 @@
 // team. We derive both from the existing live.ts payload so live presence,
 // projects widget, and project view stay in sync without restating fixtures.
 
-import type { DashboardSummary, TeamContext, TeamSummary, Member, Lock } from '../apiSchemas.js';
+import type { DashboardSummary, TeamContext, Member, Lock } from '../apiSchemas.js';
 import { DEMO_TEAMS } from './baseline.js';
-import { createBaselineLive, type LiveDemoData } from './live.js';
-
-function summariesFromLive(live: LiveDemoData): TeamSummary[] {
-  // live.summaries is typed Array<Record<string, unknown>> for cross-shape
-  // compatibility with the projects widget; cast through unknown into the
-  // canonical TeamSummary shape — the keys are correct, the type is just
-  // wider than necessary at the source.
-  return live.summaries as unknown as TeamSummary[];
-}
+import { createBaselineLive } from './live.js';
 
 export function createBaselineDashboard(): DashboardSummary {
+  // TeamSummaryLive structurally satisfies TeamSummary plus an optional
+  // active_members extension, so DashboardSummary.teams accepts it directly.
   const live = createBaselineLive();
   return {
-    teams: summariesFromLive(live),
+    teams: live.summaries,
     degraded: false,
     failed_teams: [],
     truncated: false,
