@@ -331,6 +331,8 @@ describe('Memory — model inheritance from session', () => {
       ownerId,
     );
     expect(search.memories.length).toBe(1);
-    expect(search.memories[0].agent_model).toBe('claude-3-opus');
+    // normalizeModelName canonicalizes "claude-3-opus" → "claude-opus-3" to
+    // match the family-then-version order used for sonnet/haiku.
+    expect(search.memories[0].agent_model).toBe('claude-opus-3');
   });
 });

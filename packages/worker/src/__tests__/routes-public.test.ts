@@ -127,15 +127,14 @@ describe('GET /stats', () => {
 
   it('rate limits by IP', async () => {
     const ip = `stats-rl2-${Date.now()}-${Math.random()}`;
-    // Pre-fill rate limit via DO RPC to avoid 200 actual requests
+    // Pre-fill RATE_LIMIT_STATS_PER_IP (2000/day) via DO RPC to avoid 2000
+    // SELF.fetch round-trips.
     const db = env.DATABASE.get(env.DATABASE.idFromName('main'));
     const data = new TextEncoder().encode(ip);
     const hash = await crypto.subtle.digest('SHA-256', data);
     const hex = [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');
     const hashedIp = hex.slice(0, 16);
-    for (let i = 0; i < 200; i++) {
-      await db.consumeRateLimit(`pub:stats:${hashedIp}`);
-    }
+    await db.consumeRateLimit(`pub:stats:${hashedIp}`, 2000);
 
     const res = await SELF.fetch('http://localhost/stats', {
       headers: { 'CF-Connecting-IP': ip },

@@ -242,9 +242,9 @@ export class DatabaseDO extends DurableObject<Env> {
     return checkRateLimitFn(this.sql, key, maxPerWindow);
   }
 
-  async consumeRateLimit(key: string): Promise<{ ok: true }> {
+  async consumeRateLimit(key: string, by = 1): Promise<{ ok: true }> {
     this.#ensureSchema();
-    return consumeRateLimitFn(this.sql, key);
+    return consumeRateLimitFn(this.sql, key, by);
   }
 
   /**

@@ -33,14 +33,20 @@ export function checkRateLimit(
   return { ok: true, allowed: count < maxPerWindow, count };
 }
 
-export function consumeRateLimit(sql: SqlStorage, key: string): { ok: true } {
+export function consumeRateLimit(sql: SqlStorage, key: string, by = 1): { ok: true } {
   const bucket = hourBucket(Date.now());
+  // `by` lets callers credit multiple consumes in a single SQL round-trip.
+  // Production callers pass the default of 1; tests pre-seeding a bucket
+  // up to a large limit pass the full count to avoid N RPCs.
+  const inc = Math.max(1, Math.trunc(by));
 
   sql.exec(
-    `INSERT INTO account_limits (ip, date, count) VALUES (?, ?, 1)
-     ON CONFLICT(ip, date) DO UPDATE SET count = count + 1`,
+    `INSERT INTO account_limits (ip, date, count) VALUES (?, ?, ?)
+     ON CONFLICT(ip, date) DO UPDATE SET count = count + ?`,
     key,
     bucket,
+    inc,
+    inc,
   );
   return { ok: true };
 }

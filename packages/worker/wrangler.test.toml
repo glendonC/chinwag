@@ -1,13 +1,16 @@
-# Test-only wrangler config — local KV, mock AI binding.
-# The AI binding provides a local mock so moderation's fail-safe
-# doesn't block all content in tests.
+# Test-only wrangler config — local KV, AI binding without a remote proxy.
+# The pool runs with `remoteBindings: false`, so the AI binding is a stub
+# that throws "needs to be run remotely". MODERATION_MODE=local_safe lets
+# moderation fall back to the blocklist when AI is unreachable, which is
+# what we want during route tests; the strict-mode 503 path is covered by
+# the dedicated unit tests in moderation.test.ts.
 name = "chinmeister-api-test"
 main = "src/index.js"
 compatibility_date = "2024-12-01"
 
 [vars]
 ENVIRONMENT = "test"
-MODERATION_MODE = "strict"
+MODERATION_MODE = "local_safe"
 
 [[kv_namespaces]]
 binding = "AUTH_KV"

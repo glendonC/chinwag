@@ -5,8 +5,15 @@ export default defineConfig({
   plugins: [
     cloudflareTest({
       main: './src/index.js',
-      // Use test-specific config: no AI binding, local KV — runs in CI without CF auth.
+      // Use test-specific config: local KV, mock AI binding.
       wrangler: { configPath: './wrangler.test.toml' },
+      // Force fully-local execution. The pool defaults remoteBindings to
+      // true in 0.13.x, which spins up a wrangler remote proxy session
+      // for any binding that has a remote counterpart (AI, R2, etc.).
+      // That session requires Cloudflare login and breaks CI without CF
+      // credentials. Workers AI is mocked locally in tests anyway, so we
+      // never want the remote path.
+      remoteBindings: false,
     }),
   ],
   test: {

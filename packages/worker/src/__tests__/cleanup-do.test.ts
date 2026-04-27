@@ -333,7 +333,8 @@ describe('Cleanup — enrichModel and session model tracking', () => {
     const ctx = await team().getContext(agentId, ownerId);
     const session = ctx.recentSessions.find((s) => !s.ended_at);
     expect(session).toBeDefined();
-    expect(session.agent_model).toBe('claude-3-5-sonnet');
+    // normalizeModelName canonicalizes "claude-3-5-sonnet" → "claude-sonnet-3-5".
+    expect(session.agent_model).toBe('claude-sonnet-3-5');
   });
 
   it('enrichModel does not overwrite existing model', async () => {
@@ -344,6 +345,7 @@ describe('Cleanup — enrichModel and session model tracking', () => {
     // Model should still be the first one (WHERE agent_model IS NULL prevents overwrite)
     const ctx = await team().getContext(agentId, ownerId);
     const session = ctx.recentSessions.find((s) => !s.ended_at);
-    expect(session.agent_model).toBe('claude-3-5-sonnet');
+    // normalizeModelName canonicalizes "claude-3-5-sonnet" → "claude-sonnet-3-5".
+    expect(session.agent_model).toBe('claude-sonnet-3-5');
   });
 });
