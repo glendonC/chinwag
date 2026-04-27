@@ -1,26 +1,6 @@
 import { useMemo } from 'react';
 import type { LiveAgent } from '../../widgets/types.js';
-
-interface TeamSummary {
-  team_id?: string;
-  team_name?: string;
-  active_agents?: number;
-  memory_count?: number;
-  recent_sessions_24h?: number;
-  conflict_count?: number;
-  active_members?: Array<{
-    agent_id: string;
-    handle: string;
-    host_tool: string;
-    agent_surface: string | null;
-    files: string[];
-    summary: string | null;
-    session_minutes: number | null;
-    seconds_since_update: number | null;
-  }>;
-  hosts_configured?: Array<{ host_tool?: string; joins: number }>;
-  [key: string]: unknown;
-}
+import type { TeamSummaryLive } from '../../lib/schemas/common.js';
 
 interface UseOverviewDataReturn {
   totalActive: number;
@@ -28,10 +8,10 @@ interface UseOverviewDataReturn {
   totalMemories: number;
   totalConflicts: number;
   liveAgents: LiveAgent[];
-  sortedSummaries: TeamSummary[];
+  sortedSummaries: TeamSummaryLive[];
 }
 
-export function useOverviewData(summaries: TeamSummary[]): UseOverviewDataReturn {
+export function useOverviewData(summaries: TeamSummaryLive[]): UseOverviewDataReturn {
   const totalActive = useMemo(
     () => summaries.reduce((s, t) => s + (t.active_agents || 0), 0),
     [summaries],
@@ -61,7 +41,7 @@ export function useOverviewData(summaries: TeamSummary[]): UseOverviewDataReturn
     return agents;
   }, [summaries]);
 
-  const sortedSummaries = useMemo((): TeamSummary[] => {
+  const sortedSummaries = useMemo((): TeamSummaryLive[] => {
     return [...summaries].sort((a, b) => {
       const aAgents = a.active_agents || 0;
       const bAgents = b.active_agents || 0;

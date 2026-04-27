@@ -217,10 +217,6 @@ export type TeamContext = z.infer<typeof teamContextSchema>;
 
 // Mirrors @chinmeister/shared/contracts/dashboard.ts optional fields so server
 // omission stays observable (undefined) instead of silently coerced to 0.
-// Passthrough preserves `active_members` — a web-only presentation payload
-// (heartbeat presence with phantom filtering + LIMIT 20) that doesn't belong
-// in the shared MCP/CLI contract. Consumers type access via their own
-// local interface (see useOverviewData.ts).
 const teamSummarySchema = z
   .object({
     team_id: z.string(),
@@ -251,6 +247,33 @@ const teamSummarySchema = z
   .passthrough();
 
 export type TeamSummary = z.infer<typeof teamSummarySchema>;
+
+// Web-only presentation extension: the dashboard endpoint inlines a clipped
+// list of currently-active members into each team summary so the live-agents
+// widget can render without a separate /presence fetch. The field is filtered
+// for phantoms and capped at 20 server-side. It does not belong in the shared
+// MCP/CLI contract, so it lives here as a typed extension instead of polluting
+// `TeamSummary` itself.
+const activeMemberSchema = z.object({
+  agent_id: z.string(),
+  handle: z.string(),
+  host_tool: z.string(),
+  // Nullable but always present so consumers (LiveAgent in widgets/types.ts)
+  // can iterate without optional-chaining the whole shape.
+  agent_surface: z.string().nullable(),
+  files: z.array(z.string()).default([]),
+  summary: z.string().nullable(),
+  session_minutes: z.number().nullable(),
+  seconds_since_update: z.number().nullable(),
+});
+
+export type ActiveMember = z.infer<typeof activeMemberSchema>;
+
+export const teamSummaryLiveSchema = teamSummarySchema.extend({
+  active_members: z.array(activeMemberSchema).optional(),
+});
+
+export type TeamSummaryLive = z.infer<typeof teamSummaryLiveSchema>;
 
 export const dashboardSummarySchema = z.object({
   teams: z.array(teamSummarySchema).default([]),

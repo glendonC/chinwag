@@ -501,7 +501,7 @@ export default function OverviewView() {
         widgetId={id}
         analytics={analytics}
         conversationData={conversationData}
-        summaries={sortedSummaries as Array<Record<string, unknown>>}
+        summaries={sortedSummaries}
         liveAgents={liveAgents}
         locks={demoLocks}
         truncated={truncated}

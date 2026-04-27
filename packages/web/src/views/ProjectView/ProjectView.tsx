@@ -19,6 +19,7 @@ import {
 import { forceRefresh } from '../../lib/stores/polling.js';
 import { teamActions } from '../../lib/stores/teams.js';
 import { navigate } from '../../lib/router.js';
+import type { TeamSummaryLive } from '../../lib/apiSchemas.js';
 import StatusState from '../../components/StatusState/StatusState.jsx';
 import ViewHeader from '../../components/ViewHeader/ViewHeader.jsx';
 import StatTabs from '../../components/StatTabs/StatTabs.js';
@@ -236,7 +237,7 @@ export default function ProjectView(_props: Props) {
     }));
   }, [activeAgents, activeTeamId, projectLabel]);
 
-  const summaries: Array<Record<string, unknown>> = useMemo(() => [], []);
+  const summaries = useMemo<TeamSummaryLive[]>(() => [], []);
 
   const selectTeam = useCallback((id: string) => {
     teamActions.selectTeam(id);
