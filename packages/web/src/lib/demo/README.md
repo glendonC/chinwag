@@ -20,19 +20,19 @@ state, widget data, and Reports content all flow from here.
 
 ## Files
 
-| File              | Role                                                                                                                       |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `scenarios.ts`    | Registry. `DemoData` shape, scenario builders, `getDemoData(id)`. The only file that needs editing to add a scenario.      |
-| `baseline.ts`     | The "Healthy" payload for `UserAnalytics`. Build other scenarios by spreading + overriding from this.                      |
-| `conversation.ts` | Healthy `ConversationAnalytics`.                                                                                           |
-| `live.ts`         | Healthy live presence + `createEmptyLive()` for the no-presence case.                                                      |
-| `reports.ts`      | Healthy Reports payload + `createEmptyReports()`. Runs and completed report content.                                       |
-| `me.ts`           | User profile (`UserProfile`) and team list (`UserTeams`). Drives the auth store and the sidebar.                           |
-| `dashboard.ts`    | Cross-team `DashboardSummary` + per-team `TeamContext` map. Drives the polling store (Overview + ProjectView + ToolsView). |
-| `global.ts`       | Global rank, global stats, session timeline. Drives the global views and session-detail drill.                             |
-| `profiles.ts`     | Demo project/team identities used across files.                                                                            |
-| `rng.ts`          | Deterministic helpers (day spines, seeded random). Keep scenarios stable across refreshes.                                 |
-| `index.ts`        | Public surface. Components import from here, not from internal files.                                                      |
+| File              | Role                                                                                                                                                       |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scenarios.ts`    | Registry. `DemoData` shape, scenario builders, `getDemoData(id)`. The only file that needs editing to add a scenario that reuses existing fixture domains. |
+| `baseline.ts`     | The "Healthy" payload for `UserAnalytics`. Build other scenarios by spreading + overriding from this.                                                      |
+| `conversation.ts` | Healthy `ConversationAnalytics`.                                                                                                                           |
+| `live.ts`         | Healthy live presence + `createEmptyLive()` for the no-presence case.                                                                                      |
+| `reports.ts`      | Healthy Reports payload + `createEmptyReports()`. Runs and completed report content.                                                                       |
+| `me.ts`           | User profile (`UserProfile`) and team list (`UserTeams`). Drives the auth store and the sidebar.                                                           |
+| `dashboard.ts`    | Cross-team `DashboardSummary` + per-team `TeamContext` map. Drives the polling store (Overview + ProjectView + ToolsView).                                 |
+| `global.ts`       | Global rank, global stats, session timeline. Drives the global views and session-detail drill.                                                             |
+| `profiles.ts`     | Demo project/team identities used across files.                                                                                                            |
+| `rng.ts`          | Deterministic helpers (day spines, seeded random). Keep scenarios stable across refreshes.                                                                 |
+| `index.ts`        | Public surface. Components import from here, not from internal files.                                                                                      |
 
 ## What the toggle covers (centralization map)
 
@@ -56,6 +56,19 @@ poll/refresh reasserts the baseline.
 | Global stats             | `hooks/useGlobalStats`                     | `globalStats`             |
 | Session timeline         | `hooks/useSessionTimeline`                 | `sessions`                |
 | Live presence (Overview) | `views/OverviewView` direct read           | `live`                    |
+
+Two surfaces are intentionally **not** gated. They are listed here so
+the carve-out is explicit, not buried in a pull request.
+
+| Surface           | Where                    | Why it stays live                                                                                                                                         |
+| ----------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tool catalog      | `lib/stores/toolCatalog` | Static metadata about supported tools, not user activity. Showing the real catalog in demo keeps tool detection and category copy honest.                 |
+| GitHub OAuth link | `views/SettingsView`     | The link flow has external side effects. Demo mode surfaces an explicit error rather than silently no-opping, so the user is not confused by a fake link. |
+
+ProjectView caveat: per-team `messages` and `memory_categories` are left
+empty in the demo `teamContexts` because ProjectView does not consume
+them. If a future widget reads either, populate them in `dashboard.ts`
+alongside the other per-team fixtures.
 
 Two events keep this in sync without a page reload:
 
@@ -91,7 +104,7 @@ the minimum override that exercises it. Don't clone the baseline.
 | `memory-stale`           | Aging skewed >90d, stale count high. Freshness warn.                                                                                                                       |
 | `memory-concentrated`    | Single-author directories dominate. Concentration warn.                                                                                                                    |
 
-## Adding a scenario
+## Adding a scenario (reusing existing fixture domains)
 
 1. Pick the question. "What does X look like when Y?" Don't add a scenario
    without a specific widget or coverage state it lights up.
@@ -104,6 +117,10 @@ the minimum override that exercises it. Don't clone the baseline.
    capture data the scenario claims doesn't exist).
 5. Register the scenario in `DEMO_SCENARIOS`. The switcher picks it up
    automatically.
+
+If the scenario needs a fixture domain that does not exist yet (e.g. a
+brand-new product surface), follow the next section first, then come
+back here.
 
 ## Adding a fixture domain (e.g. async management notifications)
 
@@ -119,6 +136,8 @@ When a new product surface needs demo data:
    scenario via `useDemoScenario()` and returns the field. When the real
    backend lands, that hook adds the conditional fetch.
 5. Replace any direct fixture imports in the views with the hook.
+6. Add a row to the centralization map above so future readers can see
+   the new wiring without reading every consumer.
 
 The rule: nothing in the dashboard should ever read mock data from a path
 that isn't `lib/demo/`. If you find scattered fixtures, fold them in.
