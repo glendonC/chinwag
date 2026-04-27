@@ -401,7 +401,9 @@ export function mmrDiversify(
 
 export function searchMemories(sql: SqlStorage, filters: SearchFilters): SearchMemoriesResult {
   const { query, tags, categories, sessionId, agentId, handle, after, before } = filters;
-  const cappedLimit = Math.min(Math.max(1, filters.limit || 20), 50);
+  // `||` would coerce explicit `0` to the default of 20; use `??` so 0 (and
+  // negatives) flow into the Math.max clamp and land at the floor of 1.
+  const cappedLimit = Math.min(Math.max(1, filters.limit ?? 20), 50);
   const conditions: string[] = [];
   const params: unknown[] = [];
 

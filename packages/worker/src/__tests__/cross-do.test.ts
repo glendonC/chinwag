@@ -37,23 +37,33 @@ describe('withDORetry', () => {
   });
 
   it('rethrows after exhausting maxAttempts', async () => {
-    const op = vi.fn().mockRejectedValue(new Error('persistent'));
-    const promise = withDORetry(op, {
-      label: 'test',
-      maxAttempts: 3,
-      initialDelayMs: 1,
-    });
-    await vi.runAllTimersAsync();
-    await expect(promise).rejects.toThrow('persistent');
-    expect(op).toHaveBeenCalledTimes(3);
+    // Real timers for the always-rejecting case: with fake timers, the
+    // workerd-pool boundary reports the intermediate rejected promises as
+    // unhandled even though withDORetry awaits and catches them, because
+    // the boundary tracks promise state across the IPC bridge differently
+    // than Node's V8 promise hooks. Using real 1 ms backoff is fast enough
+    // here (3 attempts ≈ 3 ms) and bypasses the bridge mismatch.
+    vi.useRealTimers();
+    let calls = 0;
+    const op = () => {
+      calls += 1;
+      return Promise.reject(new Error('persistent'));
+    };
+    await expect(
+      withDORetry(op, { label: 'test', maxAttempts: 3, initialDelayMs: 1 }),
+    ).rejects.toThrow('persistent');
+    expect(calls).toBe(3);
   });
 
   it('uses the configured maxAttempts (default is 4)', async () => {
-    const op = vi.fn().mockRejectedValue(new Error('boom'));
-    const promise = withDORetry(op, { label: 'test', initialDelayMs: 1 });
-    await vi.runAllTimersAsync();
-    await expect(promise).rejects.toThrow();
-    expect(op).toHaveBeenCalledTimes(4);
+    vi.useRealTimers();
+    let calls = 0;
+    const op = () => {
+      calls += 1;
+      return Promise.reject(new Error('boom'));
+    };
+    await expect(withDORetry(op, { label: 'test', initialDelayMs: 1 })).rejects.toThrow();
+    expect(calls).toBe(4);
   });
 
   it('caps backoff at maxDelayMs', async () => {
