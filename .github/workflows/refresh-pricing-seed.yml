@@ -78,8 +78,8 @@ jobs:
           branch: chore/pricing-seed-refresh
           delete-branch: true
           add-paths: packages/worker/src/lib/pricing-seed.json
-          commit-message: "chore(worker): refresh pricing seed (${{ steps.changed.outputs.new_count }} models)"
-          title: "chore(worker): refresh pricing seed (${{ steps.changed.outputs.new_count }} models)"
+          commit-message: 'chore(worker): refresh pricing seed (${{ steps.changed.outputs.new_count }} models)'
+          title: 'chore(worker): refresh pricing seed (${{ steps.changed.outputs.new_count }} models)'
           body: |
             Weekly auto-refresh of `packages/worker/src/lib/pricing-seed.json` from LiteLLM.
 

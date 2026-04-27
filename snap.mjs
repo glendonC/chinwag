@@ -1,3 +1,4 @@
+/* global localStorage */
 import { chromium } from 'playwright';
 import { writeFileSync } from 'fs';
 
@@ -33,7 +34,9 @@ await ctx.addInitScript(() => {
         ],
       }),
     );
-  } catch {}
+  } catch {
+    /* seed is best-effort; tests still run if storage is unavailable */
+  }
 });
 
 // Routes in Playwright run last-registered-first. Register the catch-all
@@ -72,8 +75,7 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
 page.on('console', (msg) => {
   const t = msg.type();
-  if (t === 'error' || t === 'warning')
-    errors.push(`console.${t}: ${msg.text()}`);
+  if (t === 'error' || t === 'warning') errors.push(`console.${t}: ${msg.text()}`);
 });
 page.on('request', (req) => {
   const u = req.url();
@@ -89,7 +91,14 @@ await page.screenshot({ path: OUT, fullPage: true });
 
 // Also produce focused crops of the codebase widgets so the reviewer
 // can see them at full resolution.
-const widgets = ['commit-stats', 'directories', 'files', 'file-rework', 'audit-staleness', 'concurrent-edits'];
+const widgets = [
+  'commit-stats',
+  'directories',
+  'files',
+  'file-rework',
+  'audit-staleness',
+  'concurrent-edits',
+];
 for (const id of widgets) {
   const sel = `[data-widget-id="${id}"]`;
   const handle = await page.$(sel);
