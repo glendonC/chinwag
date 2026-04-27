@@ -86,4 +86,110 @@ describe('MCP API client', () => {
     await expect(request).resolves.toEqual({ ok: true });
     expect(fetch).toHaveBeenCalledTimes(2);
   });
+
+  it('issues PUT and DELETE through the same refresh wrapper', async () => {
+    vi.stubEnv('CHINMEISTER_API_URL', 'http://localhost:8787');
+    fetch.mockResolvedValue(mockJsonResponse({ ok: true }));
+
+    const client = api({ token: 'mcp-token' }, { agentId: 'cursor:abc' });
+    await client.put('/teams/t/handle', { handle: 'newone' });
+    await client.del('/teams/t/memory', { id: 'mem_1' });
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8787/teams/t/handle',
+      expect.objectContaining({ method: 'PUT' }),
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8787/teams/t/memory',
+      expect.objectContaining({ method: 'DELETE' }),
+    );
+  });
+
+  it('updateIdentity rebuilds the inner client so subsequent requests carry new headers', async () => {
+    vi.stubEnv('CHINMEISTER_API_URL', 'http://localhost:8787');
+    fetch.mockResolvedValue(mockJsonResponse({ ok: true }));
+
+    const client = api(
+      { token: 'mcp-token' },
+      {
+        agentId: 'cursor:old',
+        runtimeIdentity: {
+          hostTool: 'cursor',
+          agentSurface: null,
+          transport: 'mcp',
+          tier: 'connected',
+        },
+      },
+    );
+
+    await client.get('/me');
+    expect(fetch.mock.calls[0][1].headers['X-Agent-Id']).toBe('cursor:old');
+
+    client.updateIdentity('cursor:new', {
+      hostTool: 'cursor',
+      agentSurface: 'inline',
+      transport: 'mcp',
+      tier: 'connected',
+    });
+
+    await client.get('/me');
+    expect(fetch.mock.calls[1][1].headers['X-Agent-Id']).toBe('cursor:new');
+    expect(fetch.mock.calls[1][1].headers['X-Agent-Surface']).toBe('inline');
+  });
+
+  it('refreshes the token on 401 and retries the original request', async () => {
+    vi.stubEnv('CHINMEISTER_API_URL', 'http://localhost:8787');
+
+    // Seed config with a refresh_token so tryRefreshToken can find one.
+    const { saveConfig } = await import('@chinmeister/shared/config.js');
+    saveConfig({ token: 'old-token', refresh_token: 'rt_abc' });
+
+    let call = 0;
+    fetch.mockImplementation((url) => {
+      call += 1;
+      // Refresh endpoint
+      if (typeof url === 'string' && url.endsWith('/auth/refresh')) {
+        return Promise.resolve(
+          mockJsonResponse({ ok: true, token: 'new-token', refresh_token: 'rt_new' }),
+        );
+      }
+      if (call === 1) {
+        return Promise.resolve(mockJsonResponse({ error: 'expired' }, 401));
+      }
+      return Promise.resolve(mockJsonResponse({ ok: true, retried: true }));
+    });
+
+    const client = api(
+      { token: 'old-token' },
+      {
+        agentId: 'cursor:abc',
+        runtimeIdentity: {
+          hostTool: 'cursor',
+          agentSurface: null,
+          transport: 'mcp',
+          tier: 'connected',
+        },
+      },
+    );
+
+    const result = await client.get('/me');
+    expect(result).toEqual({ ok: true, retried: true });
+
+    // Three calls: original (401), refresh, retry
+    expect(fetch).toHaveBeenCalledTimes(3);
+
+    const retryCall = fetch.mock.calls[2];
+    expect(retryCall[1].headers.Authorization).toBe('Bearer new-token');
+  });
+
+  it('propagates the 401 when no refresh_token is available', async () => {
+    vi.stubEnv('CHINMEISTER_API_URL', 'http://localhost:8787');
+    const { saveConfig } = await import('@chinmeister/shared/config.js');
+    saveConfig({ token: 'old-token' }); // no refresh_token
+
+    fetch.mockResolvedValue(mockJsonResponse({ error: 'expired' }, 401));
+
+    const client = api({ token: 'old-token' }, { agentId: 'cursor:abc' });
+    await expect(client.get('/me')).rejects.toMatchObject({ status: 401 });
+  });
 });
