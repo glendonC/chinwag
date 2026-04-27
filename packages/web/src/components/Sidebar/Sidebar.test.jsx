@@ -196,10 +196,10 @@ describe('Sidebar', () => {
 
   it('calls the desktop rail toggle callback', async () => {
     const Sidebar = await loadSidebar();
-    const onToggleCollapse = vi.fn();
+    const onToggle = vi.fn();
     const { container, unmount } = renderComponent(Sidebar, {
       activeView: 'overview',
-      onToggleCollapse,
+      onToggle,
     });
 
     const toggleBtn = container.querySelector('[aria-label="Collapse sidebar"]');
@@ -207,7 +207,7 @@ describe('Sidebar', () => {
       toggleBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(onToggleCollapse).toHaveBeenCalledTimes(1);
+    expect(onToggle).toHaveBeenCalledTimes(1);
 
     unmount();
   });

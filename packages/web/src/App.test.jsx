@@ -176,7 +176,7 @@ async function loadAppModule(options = {}) {
   }));
 
   vi.doMock('./components/Sidebar/Sidebar.js', () => ({
-    default: function MockSidebar({ activeView, collapsed }) {
+    default: function MockSidebar({ activeView, collapsed, onToggle }) {
       return (
         <div data-testid="sidebar">
           <button data-testid="show-settings" onClick={() => navigateFn('settings')}>
@@ -188,6 +188,13 @@ async function loadAppModule(options = {}) {
           <button data-testid="show-tools" onClick={() => navigateFn('tools')}>
             show tools
           </button>
+          {onToggle && (
+            <button
+              type="button"
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              onClick={onToggle}
+            />
+          )}
           <span data-testid="sidebar-state">{String(activeView)}</span>
           <span data-testid="sidebar-collapsed">{String(collapsed)}</span>
         </div>
@@ -507,6 +514,10 @@ describe('App boot and view switching', () => {
       storedToken: 'tok_sidebar',
       teams: [{ team_id: 't_one' }, { team_id: 't_two' }],
     });
+    // App defaults to collapsed when the storage key is absent. Seed the
+    // explicit "expanded" value ('0') after loadAppModule's localStorage.clear()
+    // so this test starts uncollapsed and exercises the collapse direction.
+    localStorage.setItem('chinmeister:sidebar-collapsed-v1', '0');
     const { container, unmount } = renderApp(App, react, createRoot);
 
     await flushEffects();
@@ -522,7 +533,9 @@ describe('App boot and view switching', () => {
 
     expect(container.querySelector('[aria-label="Expand sidebar"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="sidebar-collapsed"]')?.textContent).toBe('true');
-    expect(localStorage.getItem('chinmeister:sidebar-collapsed-v1')).toBe('1');
+    // Collapsed is the default, so the explicit '0' expanded marker is
+    // removed rather than rewritten to '1'.
+    expect(localStorage.getItem('chinmeister:sidebar-collapsed-v1')).toBeNull();
 
     unmount();
     stopPolling();

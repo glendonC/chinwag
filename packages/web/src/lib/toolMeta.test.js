@@ -132,8 +132,17 @@ describe('getToolMeta — fallback', () => {
       id: 'totallyunknowntool',
       label: 'Totally Unknown Tool',
       icon: null,
-      color: '#6366f1',
     });
+    // Fallback derives a deterministic HSL hue per tool id; assert the
+    // shape, not a specific hue, so the test does not break when the
+    // hash function or saturation/lightness defaults shift.
+    expect(meta.color).toMatch(/^hsl\(\d+,\s*\d+%,\s*\d+%\)$/);
+  });
+
+  it('derives a stable color for the same unknown tool', () => {
+    const a = getToolMeta('totally-unknown-tool');
+    const b = getToolMeta('totally-unknown-tool');
+    expect(a.color).toBe(b.color);
   });
 
   it('returns default for null/undefined/empty', () => {

@@ -96,7 +96,11 @@ const authStore = createStore<AuthState>((set) => ({
 //   - no real token, demo just turned on → authenticate with the synthetic
 //   - no real token, demo just turned off → drop to unauthenticated so the
 //     boot screen state is honest about there being no real session.
-if (typeof window !== 'undefined') {
+//
+// The function-shape check matters: jsdom-style test stubs sometimes provide
+// a partial `window` object without addEventListener, and we don't want
+// module evaluation to crash in that case.
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
   window.addEventListener('chinmeister:demo-scenario-changed', () => {
     const stored = localStorage.getItem(TOKEN_KEY);
     if (stored) {

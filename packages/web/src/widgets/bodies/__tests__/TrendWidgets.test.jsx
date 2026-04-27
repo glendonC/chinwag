@@ -79,13 +79,16 @@ describe('OutcomeTrendWidget resilience', () => {
   });
 
   it('renders per-day completion-rate cells when outcomes are recorded', async () => {
+    // Sessions are heavily-completed on both active days so the widget's
+    // verdict reaches "healthy" (a 56% mixed sample, the prior fixture,
+    // would now read as "slipping" once thresholds tightened).
     const { OutcomeTrendWidget, createEmptyUserAnalytics } = await loadModule();
     const analytics = createEmptyUserAnalytics();
     analytics.daily_trends = [
       zeroTrendRow('2026-04-14'),
-      { ...zeroTrendRow('2026-04-15'), sessions: 4, completed: 3, abandoned: 1 },
+      { ...zeroTrendRow('2026-04-15'), sessions: 6, completed: 6 },
       zeroTrendRow('2026-04-16'),
-      { ...zeroTrendRow('2026-04-17'), sessions: 5, completed: 2, failed: 1 },
+      { ...zeroTrendRow('2026-04-17'), sessions: 5, completed: 5 },
     ];
     const r = render(OutcomeTrendWidget, makeProps(analytics));
     const cells = r.container.querySelectorAll('[title]');

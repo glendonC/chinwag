@@ -406,9 +406,11 @@ describe('SettingsView', () => {
     });
     const { container, unmount } = renderComponent(SettingsView, {});
 
-    expect(container.textContent).toContain('alice-gh');
-    expect(container.textContent).toContain('Connected');
+    // Connected state is signaled by the @login + Disconnect button pair,
+    // not a literal "Connected" word; the latter was removed as redundant.
+    expect(container.textContent).toContain('@alice-gh');
     expect(container.textContent).toContain('Disconnect');
+    expect(container.textContent).not.toContain('Connect GitHub');
 
     unmount();
   });

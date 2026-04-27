@@ -10,10 +10,17 @@ interface UseThemeReturn {
 }
 
 const STORAGE_KEY = 'chinmeister-theme';
-const darkMQ = window.matchMedia('(prefers-color-scheme: dark)');
+
+// Lazy access so module evaluation does not crash in test environments
+// (jsdom omits matchMedia by default) or in any future SSR context. The
+// hook itself only ever runs in the browser, where matchMedia exists.
+function getDarkMediaQuery(): MediaQueryList | null {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return null;
+  return window.matchMedia('(prefers-color-scheme: dark)');
+}
 
 function getSystemTheme(): ResolvedTheme {
-  return darkMQ.matches ? 'dark' : 'light';
+  return getDarkMediaQuery()?.matches ? 'dark' : 'light';
 }
 
 function apply(resolved: ResolvedTheme): void {
@@ -40,9 +47,11 @@ export function useTheme(): UseThemeReturn {
   }, [resolved]);
 
   useEffect(() => {
+    const mq = getDarkMediaQuery();
+    if (!mq) return;
     const handler = (e: MediaQueryListEvent) => setSystemTheme(e.matches ? 'dark' : 'light');
-    darkMQ.addEventListener('change', handler);
-    return () => darkMQ.removeEventListener('change', handler);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
   }, []);
 
   return { theme: preference, resolved, setTheme };
