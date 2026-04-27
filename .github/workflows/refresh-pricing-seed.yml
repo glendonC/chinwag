@@ -73,7 +73,7 @@ jobs:
 
       - name: Open refresh PR
         if: steps.changed.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: chore/pricing-seed-refresh
           delete-branch: true
