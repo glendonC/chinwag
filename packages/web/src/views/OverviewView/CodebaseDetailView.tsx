@@ -562,6 +562,7 @@ function RiskPanel({ analytics }: { analytics: UserAnalytics }) {
   const activeId = useQueryParam('q');
   const fr = analytics.file_rework;
   const ce = analytics.concurrent_edits;
+  const fh = analytics.file_heatmap;
   const tools = analytics.data_coverage?.tools_reporting ?? [];
   const hooksNote = capabilityCoverageNote(tools, 'hooks');
 
@@ -576,6 +577,31 @@ function RiskPanel({ analytics }: { analytics: UserAnalytics }) {
       </div>
     );
   }
+
+  // High-churn × failing intersection. The Q1 question above ranks files
+  // by failure rate alone, which surfaces files that fail often regardless
+  // of how heavily they're worked. Q3 narrows to files that are both hot
+  // and unstable — a file failing 60% of the time across 30 edits is a
+  // different risk than the same rate across 4 edits. Joins on file path;
+  // gracefully drops file_rework entries with no matching heatmap row
+  // since the spec doesn't guarantee both lists carry every file.
+  const heatmapByFile = new Map(fh.map((f) => [f.file, f.touch_count]));
+  const churnFloor = (() => {
+    if (fh.length === 0) return 0;
+    const sorted = [...fh.map((f) => f.touch_count)].sort((a, b) => a - b);
+    return sorted[Math.floor(sorted.length / 2)] ?? 0;
+  })();
+  const intersection = fr
+    .map((f) => ({
+      file: f.file,
+      rework_ratio: f.rework_ratio,
+      total_edits: f.total_edits,
+      failed_edits: f.failed_edits,
+      touch_count: heatmapByFile.get(f.file) ?? 0,
+    }))
+    .filter((f) => f.touch_count >= churnFloor && f.touch_count > 0)
+    .sort((a, b) => b.touch_count * b.rework_ratio - a.touch_count * a.rework_ratio)
+    .slice(0, 5);
 
   // ── Q1 failing-files ── FileFrictionRow per spec; the FileConstellation
   // join described in the spec collapses to messy data when file_rework
@@ -636,6 +662,45 @@ function RiskPanel({ analytics }: { analytics: UserAnalytics }) {
       question: 'Which files keep showing up in failing sessions?',
       answer: <>No failing-session files in this window.</>,
       children: <span className={styles.empty}>No failing-session files in this window.</span>,
+    });
+  }
+
+  // ── Q2 hot-and-failing ──
+  // Read this *with* the failing-files list above, not in place of it: this
+  // narrows to files that carry both kinds of risk so a brief review window
+  // can prioritize the ones with the highest payoff.
+  if (intersection.length > 0) {
+    const topIntersection = intersection[0];
+    const topName = fileBasename(topIntersection.file);
+    questions.push({
+      id: 'hot-and-failing',
+      question: 'Which heavily worked files are also unstable?',
+      answer: (
+        <>
+          <Metric>{topName}</Metric> sees{' '}
+          <Metric>{fmtCount(topIntersection.touch_count)} touches</Metric> and fails{' '}
+          <Metric tone="negative">{topIntersection.rework_ratio}%</Metric> of the time.
+        </>
+      ),
+      children: (
+        <div className={styles.frictionList}>
+          {intersection.map((f, i) => (
+            <FileFrictionRow
+              key={f.file}
+              index={i}
+              label={fileBasename(f.file)}
+              title={f.file}
+              barFill={f.rework_ratio / 100}
+              barColor={reworkSeverityColor(f.rework_ratio)}
+              meta={
+                <>
+                  {fmtCount(f.touch_count)} touches · {f.rework_ratio}% in failing sessions
+                </>
+              }
+            />
+          ))}
+        </div>
+      ),
     });
   }
 
