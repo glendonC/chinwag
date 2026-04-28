@@ -315,6 +315,62 @@ function HealthPanel({ analytics }: { analytics: UserAnalytics }) {
     });
   }
 
+  // Q-per-memory: outcome correlation at the per-memory grain. Built on the
+  // memory_search_results join (migration 028 / ANALYTICS_SPEC §11). Only
+  // populated when the team has memories that crossed the min-sample floor
+  // in the period; the slot disappears otherwise. ANALYTICS_SPEC §10 #7
+  // explicitly forbids "search hit rate as quality"; this question stays
+  // strictly inside the correlation framing — we render completion rate
+  // per memory, not popularity-as-quality.
+  const perMemory = analytics.memory_per_entry_outcomes;
+  if (perMemory.length > 0) {
+    const periodCompleted = moc.reduce((s, b) => s + b.completed, 0);
+    const periodSessions = moc.reduce((s, b) => s + b.sessions, 0);
+    const baselineRate =
+      periodSessions > 0 ? Math.round((periodCompleted / periodSessions) * 1000) / 10 : null;
+    const sortedByRate = [...perMemory].sort((a, b) => b.completion_rate - a.completion_rate);
+    const topMem = sortedByRate[0];
+    const topAnswer =
+      baselineRate != null ? (
+        <>
+          Sessions that read the top-correlated memory completed{' '}
+          <Metric tone={topMem.completion_rate >= baselineRate ? 'positive' : 'warning'}>
+            {topMem.completion_rate}%
+          </Metric>{' '}
+          of the time, against a <Metric>{baselineRate}%</Metric> period baseline.
+        </>
+      ) : (
+        <>
+          Sessions that read the top-correlated memory completed{' '}
+          <Metric>{topMem.completion_rate}%</Metric> of the time.
+        </>
+      );
+    questions.push({
+      id: 'per-memory',
+      question: 'Which memories correlate with completed sessions?',
+      answer: topAnswer,
+      children: (
+        <BreakdownList
+          items={sortedByRate.slice(0, 10).map((entry) => ({
+            key: entry.id,
+            label: <span className={styles.memoryPreview}>{entry.text_preview}</span>,
+            fillPct: entry.completion_rate,
+            fillColor: completionColorRate(entry.completion_rate),
+            value: (
+              <>
+                {entry.completion_rate}%
+                <BreakdownMeta>
+                  {' · '}
+                  {fmtCount(entry.completed)}/{fmtCount(entry.sessions)} sessions
+                </BreakdownMeta>
+              </>
+            ),
+          }))}
+        />
+      ),
+    });
+  }
+
   questions.push({
     id: 'secrets',
     question: 'Has the shield blocked anything?',
