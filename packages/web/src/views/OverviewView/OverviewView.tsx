@@ -261,7 +261,7 @@ export default function OverviewView() {
 
   // Live Now full-page view. Query-param driven so the URL deep-links and
   // the back/forward buttons work. The value, when present, doubles as a
-  // focus hint — clicking a specific agent row in the widget passes that
+  // focus hint - clicking a specific agent row in the widget passes that
   // agent_id so LiveNowView can auto-scroll to their row inside the full
   // picture. An empty string opens the view without focus. The auxiliary
   // `live-tab` param carries the initial tab when a row deep-links to a
@@ -275,24 +275,24 @@ export default function OverviewView() {
     live.close();
   }, [live]);
 
-  // Usage Detail — same query-param pattern as Live Now, scoped to the
+  // Usage Detail - same query-param pattern as Live Now, scoped to the
   // usage category. The value is the initial tab (sessions/edits/cost/etc).
   const usage = useDetailDrill('usage');
   const usageShifted = usage.shifted;
 
-  // Outcomes Detail — same pattern. Tabs: sessions / retries / types.
+  // Outcomes Detail - same pattern. Tabs: sessions / retries / types.
   const outcomes = useDetailDrill('outcomes');
   const outcomesShifted = outcomes.shifted;
 
-  // Activity Detail — same pattern. Tabs: rhythm / mix / effective-hours.
+  // Activity Detail - same pattern. Tabs: rhythm / mix / effective-hours.
   const activity = useDetailDrill('activity');
   const activityShifted = activity.shifted;
 
-  // Codebase Detail — same pattern. Tabs: landscape / directories / risk / commits.
+  // Codebase Detail - same pattern. Tabs: landscape / directories / risk / commits.
   const codebase = useDetailDrill('codebase');
   const codebaseShifted = codebase.shifted;
 
-  // Tools Detail — same pattern. Tabs: tools / flow / errors.
+  // Tools Detail - same pattern. Tabs: tools / flow / errors.
   const tools = useDetailDrill('tools');
   const toolsShifted = tools.shifted;
 
@@ -405,7 +405,7 @@ export default function OverviewView() {
     useSensor(KeyboardSensor),
   );
   const [catalogDragging, setCatalogDragging] = useState<CatalogDragPayload | null>(null);
-  // Sortable reorder state — captured at drag start so the DragOverlay
+  // Sortable reorder state - captured at drag start so the DragOverlay
   // can render the dragged widget at its real cell dimensions. Without
   // the overlay, sortable items move via inline transform on the
   // original element, which on CSS Grid + transform combos visibly
@@ -476,14 +476,14 @@ export default function OverviewView() {
   // is a new reference on every render, which busts WidgetGrid's outer
   // memo and re-creates every WidgetRenderer JSX wrapper inside.
   // WidgetRenderer itself is memo'd, so what actually matters is whether
-  // its props change reference — which they don't, as long as the data
+  // its props change reference - which they don't, as long as the data
   // hooks (analytics, conversationData, liveAgents, sortedSummaries)
   // memoize their outputs. OVERVIEW_LOCKS is shared at module scope for
-  // the same reason — `[]` literal would re-bust memo every render.
+  // the same reason - `[]` literal would re-bust memo every render.
   const truncated = dashboardData?.truncated ?? false;
   // Widgets receive `selectTeam` as the "open this project" callback. The
   // raw team-store action only flips activeTeamId; without the navigate
-  // call the URL stays at /overview and the project view never mounts —
+  // call the URL stays at /overview and the project view never mounts -
   // visible bug on the projects widget's View pill before this wrap. Mirror
   // the existing onOpenProject pattern from the live drill-in (~line 626):
   // store action first for snappy state, navigate second so App's URL→store

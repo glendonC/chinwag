@@ -1,5 +1,5 @@
 // Shared constants for the chinmeister MCP server.
-// All magic numbers live here — import by name, never hardcode.
+// All magic numbers live here - import by name, never hardcode.
 //
 // Mirrors the worker's constants.js pattern: grouped by domain,
 // every value named and documented.

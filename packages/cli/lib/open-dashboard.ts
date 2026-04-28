@@ -17,7 +17,7 @@ export async function openDashboard(): Promise<void> {
 
   const config = loadConfig();
   if (!config?.token) {
-    console.log('  Invalid config — missing token. Run `npx chinmeister init` to re-initialize.');
+    console.log('  Invalid config - missing token. Run `npx chinmeister init` to re-initialize.');
     return;
   }
 

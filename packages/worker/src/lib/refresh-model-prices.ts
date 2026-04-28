@@ -1,4 +1,4 @@
-// Runtime pricing refresh — sibling of pulse.ts, called from the scheduled
+// Runtime pricing refresh - sibling of pulse.ts, called from the scheduled
 // handler every 6 hours.
 //
 // Defensive patterns applied (each is a specific failure mode from the
@@ -32,7 +32,7 @@
 //  6. IN-ISOLATE DEBOUNCE. `refreshInFlight` dedupes concurrent calls within
 //     the same worker isolate (e.g. cron retry + cold start on the same
 //     machine). Cross-isolate coordination is handled by the DO's single-writer
-//     semantics — two concurrent refreshes from different isolates will
+//     semantics - two concurrent refreshes from different isolates will
 //     serialize and the second is a harmless re-apply.
 
 import type { Env } from '../types.js';
@@ -68,7 +68,7 @@ const MAX_VOLUME_DROP_RATIO = 0.9; // new count must be >= 90% of old count
 // from BOOTSTRAP_CANARY below.
 const MIN_KEY_OVERLAP_RATIO = 0.95;
 
-// Bootstrap-only canary — used ONLY on the first refresh ever, when no
+// Bootstrap-only canary - used ONLY on the first refresh ever, when no
 // previous snapshot exists to diff against. This happens only in a
 // catastrophic cold state (fresh DO with no rows AND the bundled seed
 // failed to load). Every subsequent refresh validates via derived overlap,
@@ -76,7 +76,7 @@ const MIN_KEY_OVERLAP_RATIO = 0.95;
 // Kept tiny (3 models across Anthropic / OpenAI / Google) to minimize the
 // maintenance surface. If a bootstrap canary is ever retired, a fresh
 // deploy in this failure mode would reject all refreshes until the list
-// is updated — but by design the bundled seed should prevent that state.
+// is updated - but by design the bundled seed should prevent that state.
 const BOOTSTRAP_CANARY = ['claude-sonnet-4-5-20250929', 'gpt-5', 'gemini-2.5-pro'] as const;
 
 interface Commit {
@@ -170,7 +170,7 @@ interface ValidationResult {
  *   - Bootstrap fallback: if there's no previous snapshot (first refresh
  *     ever into a totally empty table), fall back to a tiny hardcoded
  *     BOOTSTRAP_CANARY. This path is only hit when the bundled seed failed
- *     to load AND the cron has never succeeded — a catastrophic cold state.
+ *     to load AND the cron has never succeeded - a catastrophic cold state.
  */
 function validateAndTransform(
   data: Record<string, LiteLLMEntry>,
@@ -214,7 +214,7 @@ function validateAndTransform(
     }
   } else {
     // Derived path: require high overlap with previous snapshot. No list
-    // of "important models" to maintain — whatever was priced yesterday
+    // of "important models" to maintain - whatever was priced yesterday
     // must still be priced today, minus an acceptable churn margin.
     const newKeys = new Set(rows.map((r) => r.canonical_name));
     let intersection = 0;
@@ -235,10 +235,10 @@ function validateAndTransform(
 async function performRefresh(env: Env): Promise<void> {
   const token = env.GITHUB_TOKEN;
   if (!token) {
-    // Hard fail — never silently fall back to unauthenticated. This shows up
+    // Hard fail - never silently fall back to unauthenticated. This shows up
     // in observability as a scheduled-handler error, which is the whole point.
     throw new Error(
-      'GITHUB_TOKEN is required for pricing refresh — cannot fall back to unauthenticated',
+      'GITHUB_TOKEN is required for pricing refresh - cannot fall back to unauthenticated',
     );
   }
 
@@ -251,7 +251,7 @@ async function performRefresh(env: Env): Promise<void> {
   // 1. Pin to a commit >= 1h old so we don't ingest a corruption window.
   const pinned = await pickPinnedCommit(token);
   if (!pinned) {
-    log.info('no commits older than 1h yet — skipping refresh this tick');
+    log.info('no commits older than 1h yet - skipping refresh this tick');
     return;
   }
 
@@ -261,7 +261,7 @@ async function performRefresh(env: Env): Promise<void> {
   const fetched = await fetchAtSha(pinned.sha, token, previousEtag);
 
   if (fetched.notModified) {
-    log.info(`304 Not Modified — snapshot unchanged, skipping upsert`);
+    log.info(`304 Not Modified - snapshot unchanged, skipping upsert`);
     return;
   }
 

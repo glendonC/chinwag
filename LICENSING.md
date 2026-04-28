@@ -13,9 +13,9 @@ Apache 2.0 (open source) on 2030-04-10.
 
 The following packages are licensed under the [MIT License](https://opensource.org/licenses/MIT):
 
-- **`packages/mcp/`** — MCP server that runs alongside your AI agents
-- **`packages/cli/`** — CLI tool for setup and management
-- **`packages/shared/`** — Shared primitives, contracts, tool registry, integration helpers
+- **`packages/mcp/`:** MCP server that runs alongside your AI agents
+- **`packages/cli/`:** CLI tool for setup and management
+- **`packages/shared/`:** Shared primitives, contracts, tool registry, integration helpers
 
 You can use, modify, and distribute these freely with no restrictions.
 
@@ -23,23 +23,23 @@ You can use, modify, and distribute these freely with no restrictions.
 
 The following packages are licensed under the [BSL 1.1](https://mariadb.com/bsl11/):
 
-- **`packages/worker/`** — Backend API, analytics, and coordination engine
-- **`packages/web/`** — Web dashboard
+- **`packages/worker/`:** Backend API, analytics, and coordination engine
+- **`packages/web/`:** Web dashboard
 
 You can read, modify, and self-host these for internal use. The one
 restriction is the Additional Use Grant: you cannot use this code to
 offer a competing hosted Agent Coordination Service to third parties.
 
 On **2030-04-10**, these packages automatically convert to the
-**Apache License 2.0** — at that point they become OSI-approved open
-source with no restrictions.
+**Apache License 2.0**. At that point they become OSI-approved open
+source with no additional restrictions.
 
 ## Why this split
 
 Client-side packages (`mcp`, `cli`, `shared`) run in your environment,
 alongside your agents, and write configuration into your shell. That
-code has to be maximally auditable and frictionless — anything less
-than a permissive open-source license would be a trust and adoption
+code has to be auditable and easy to adopt. Anything less than a
+permissive open-source license would be a trust and adoption
 barrier. MIT is the right fit.
 
 Backend packages (`worker`, `web`) contain the analytics engine,
@@ -54,13 +54,13 @@ in 2030 the backend becomes open source too.
 `packages/shared` contains the wire contracts between the MCP server,
 CLI, web dashboard, and the worker, along with the tool registry and
 integration config writers. A reasonable person could argue this is
-strategic surface — shouldn't the wire protocol be protected?
+strategic surface. Shouldn't the wire protocol be protected?
 
 We chose MIT deliberately:
 
-- chinmeister's moat is the **coordination network**, not the protocol.
-  A protocol-compatible alternative backend is a separate island
-  with zero users, not a substitute for chinmeister.
+- The primary commercial value is the **coordination network**, not the
+  protocol. A protocol-compatible alternative backend would not include
+  chinmeister's hosted network, users, or shared operational context.
 - The contracts are trivially reverse-engineerable from the MCP
   server's stdio and the public API surface. A more restrictive
   license doesn't prevent clean-room implementation; it just adds

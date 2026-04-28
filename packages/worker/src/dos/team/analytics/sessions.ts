@@ -24,7 +24,7 @@ export function queryRetryPatterns(
     // Audit 2026-04-21: Regrouped from (handle, file) to file only so the
     // top-N cannot be swallowed by a single noisy agent. Adds cross-agent
     // (COUNT DISTINCT handle) and cross-tool (GROUP_CONCAT DISTINCT host_tool)
-    // aggregates — the cross-tool column is the substrate-unique angle that
+    // aggregates - the cross-tool column is the substrate-unique angle that
     // elevates D1: only chinmeister sees the same file retried across Claude Code
     // + Cursor + Windsurf. `latest_outcome` still picks the most recent
     // session's outcome across all agents so "resolved" means the file's
@@ -130,7 +130,7 @@ export function queryConflictStats(
   _scope: AnalyticsScope,
   days: number,
 ): ConflictStats {
-  // Scope: not applicable — daily_metrics has no per-user dimension
+  // Scope: not applicable - daily_metrics has no per-user dimension
   try {
     const rows = sql
       .exec(
@@ -292,7 +292,7 @@ export function queryFirstEditStats(
     );
     const overall = sql.exec(overallQ, ...overallParams).toArray();
 
-    // Median via LIMIT/OFFSET — O(n log n) in SQLite, O(1) memory in JS
+    // Median via LIMIT/OFFSET - O(n log n) in SQLite, O(1) memory in JS
     const medianRow = sql
       .exec(
         `SELECT ROUND(mins, 1) AS mins FROM (

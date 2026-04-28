@@ -102,9 +102,9 @@ describe('installChinmeisterHooks', () => {
 
   it('re-running reports upgraded and does NOT create a second .orig', () => {
     initGitRepo(dir);
-    // First install — clean
+    // First install - clean
     installChinmeisterHooks(dir);
-    // Second install — should upgrade in place
+    // Second install - should upgrade in place
     const res = installChinmeisterHooks(dir);
     expect(res.status).toBe('upgraded');
     expect(existsSync(join(dir, '.git', 'hooks', 'pre-commit.orig'))).toBe(false);

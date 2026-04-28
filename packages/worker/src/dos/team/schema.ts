@@ -309,7 +309,7 @@ const migrations: Migration[] = [
   {
     name: '006_memory_categories',
     up(sql) {
-      // Per-project memory categories — admin-defined, agent-assigned on save.
+      // Per-project memory categories - admin-defined, agent-assigned on save.
       // Each category has a precomputed embedding (bge-small-en-v1.5, 384 dims)
       // for future semantic matching and dedup validation.
       sql.exec(`
@@ -381,11 +381,11 @@ const migrations: Migration[] = [
       // Embedding for near-dedup and future semantic search (bge-small-en-v1.5, 384 dims)
       addColumnIfMissing(sql, 'memories', 'embedding BLOB DEFAULT NULL');
 
-      // Unique index on text_hash — fast exact dedup lookup
+      // Unique index on text_hash - fast exact dedup lookup
       sql.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_text_hash ON memories(text_hash)');
 
       // FTS5 virtual table for full-text search with BM25 ranking.
-      // External content table pointing at memories — FTS5 doesn't store data,
+      // External content table pointing at memories - FTS5 doesn't store data,
       // it indexes the memories table and uses triggers to stay in sync.
       // tokenize: unicode61 with underscores and dots as token characters
       // so snake_case and dotted.paths are indexed as single tokens.
@@ -399,7 +399,7 @@ const migrations: Migration[] = [
         )
       `);
 
-      // Sync triggers — keep FTS5 index in sync with memories table
+      // Sync triggers - keep FTS5 index in sync with memories table
       sql.exec(`
         CREATE TRIGGER IF NOT EXISTS memories_fts_ai AFTER INSERT ON memories BEGIN
           INSERT INTO memories_fts(rowid, text, tags) VALUES (new.rowid, new.text, new.tags);
@@ -426,7 +426,7 @@ const migrations: Migration[] = [
   {
     name: '010_conversation_events',
     up(sql) {
-      // Conversation events — parsed messages from managed agent sessions.
+      // Conversation events - parsed messages from managed agent sessions.
       // Captures user and assistant messages for interaction analytics:
       // sentiment tracking, message length trends, topic classification,
       // and correlation with session outcomes.
@@ -479,7 +479,7 @@ const migrations: Migration[] = [
   {
     name: '012_token_tracking',
     up(sql) {
-      // Per-session token usage — nullable means "data not available for this tool"
+      // Per-session token usage - nullable means "data not available for this tool"
       // (distinct from 0 which means "measured zero tokens")
       addColumnIfMissing(sql, 'sessions', 'input_tokens INTEGER DEFAULT NULL');
       addColumnIfMissing(sql, 'sessions', 'output_tokens INTEGER DEFAULT NULL');
@@ -700,7 +700,7 @@ const migrations: Migration[] = [
       // Per-session hit counter. Companion to memories_searched (count of
       // search calls); this counts calls that returned at least one result.
       // Needed so memory_outcome_correlation can distinguish "searched and
-      // got something useful" from "searched and got nothing" — the latter
+      // got something useful" from "searched and got nothing" - the latter
       // is a retrieval-quality signal, not a memory-usage signal.
       addColumnIfMissing(sql, 'sessions', 'memories_search_hits INTEGER DEFAULT 0');
     },
@@ -711,11 +711,11 @@ const migrations: Migration[] = [
       // Bi-temporal supersession, adapted from Graphiti
       // (edge_operations.py:537-572, MIT-licensed, Apache-2.0 core).
       //
-      // `valid_at`   — when the real-world fact became true. Set at save
+      // `valid_at`   - when the real-world fact became true. Set at save
       //                time; backfilled to `created_at` for existing rows so
       //                every row has a non-null value and contradiction
       //                detection can rely on a full temporal interval.
-      // `invalid_at` — when the fact stopped being true. Null means still
+      // `invalid_at` - when the fact stopped being true. Null means still
       //                valid. Set by `applyConsolidationProposal` when a
       //                newer superseding memory is applied with
       //                `kind='invalidate'` (see migration note on the
@@ -723,7 +723,7 @@ const migrations: Migration[] = [
       //
       // Dual-mode rollout: this ships ALONGSIDE the existing `merged_into`
       // soft-delete mechanism (migration 020). Nothing auto-migrates
-      // `merged_into` rows to `invalid_at` — merge still absorbs content,
+      // `merged_into` rows to `invalid_at` - merge still absorbs content,
       // invalidate preserves both rows with the older one hidden from
       // default search. Different semantics, kept separate.
       //
@@ -745,7 +745,7 @@ const migrations: Migration[] = [
 
       // Proposal kind. `'merge'` (existing behaviour) absorbs source into
       // target via `merged_into`. `'invalidate'` sets
-      // target.invalid_at = source.valid_at without touching merged_into —
+      // target.invalid_at = source.valid_at without touching merged_into -
       // the older fact stays queryable as history but falls out of default
       // search. Existing rows default to `'merge'` so legacy proposals
       // apply unchanged.
@@ -763,7 +763,7 @@ const migrations: Migration[] = [
       // exact-path claims and glob claims before allowing an edit.
       //
       // `path_glob` is non-null when `file_path` is itself a glob pattern
-      // (e.g. "src/auth/**") — the column exists so the conflict-check
+      // (e.g. "src/auth/**") - the column exists so the conflict-check
       // fast path can filter `WHERE path_glob IS NOT NULL` and only run
       // the pattern matcher against genuine globs. Keeping `file_path`
       // as the primary key means concurrent identical glob claims still
@@ -814,7 +814,7 @@ const migrations: Migration[] = [
       // "MCP process stayed alive." Every activity path (recordEdit,
       // recordToolCalls, memory ops) bumps `active_min` by the elapsed
       // gap since `last_active_at`, capped at ACTIVE_GAP_THRESHOLD_S.
-      // Gaps larger than the threshold don't roll in — those are idle
+      // Gaps larger than the threshold don't roll in - those are idle
       // minutes where the agent was open but no work happened. The
       // resulting `active_min` is what feeds Focus in rank.ts.
       addColumnIfMissing(sql, 'sessions', 'active_min REAL DEFAULT 0');
@@ -847,7 +847,7 @@ const migrations: Migration[] = [
 
       // Backfill from existing members. Any owner with a current members row
       // is by definition a roster member. Owners whose members rows already
-      // aged out before this migration runs cannot be recovered here —
+      // aged out before this migration runs cannot be recovered here -
       // re-running `chinmeister init` re-adds them via join().
       sql.exec(`
         INSERT OR IGNORE INTO team_owners (owner_id, handle, joined_at)

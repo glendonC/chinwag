@@ -41,7 +41,7 @@ export const GRID_DROPPABLE_ID = 'widget-grid-append';
  * No-shift sorting strategy: items stay in their declared positions while
  * a drag is in flight; only the dragged item moves (in the parent view's
  * DragOverlay). The default `rectSortingStrategy` tries to live-preview
- * the swap by transforming sibling items toward where they'd land — but
+ * the swap by transforming sibling items toward where they'd land - but
  * with mixed-size items in a CSS Grid using `grid-auto-flow: row dense`,
  * the predicted positions don't match what the grid actually computes,
  * so hovered widgets visibly distort/scale during the preview. Returning
@@ -65,13 +65,13 @@ export interface CatalogDragPayload {
  *
  * Default dnd-kit DragOverlay positioning uses the original draggable's
  * top-left as the anchor, so grabbing a ~460px-wide catalog row anywhere
- * other than its left edge leaves the chip offset far left of the cursor —
+ * other than its left edge leaves the chip offset far left of the cursor -
  * it reads as detached and floaty. Centering on the cursor makes the chip
  * feel attached to the pointer.
  *
  * Canonical `snapCenterToCursor` implementation from @dnd-kit/modifiers
  * (package not installed; inlined here to avoid adding a dependency for a
- * single helper). Safe to apply only on DragOverlay — sortable widget
+ * single helper). Safe to apply only on DragOverlay - sortable widget
  * reorders don't render through the overlay so they're unaffected.
  */
 export const snapChipToCursor: Modifier = ({ activatorEvent, draggingNodeRect, transform }) => {
@@ -102,7 +102,7 @@ interface SortableWidgetProps {
  * then this hook measures its natural scrollHeight, computes the minimum
  * number of 80px grid tracks needed to contain it, and reports that back.
  * The caller applies it as the cell's `grid-row: span N`, which shrinks the
- * reserved grid area — neighbors in later rows flow up via `grid-auto-flow:
+ * reserved grid area - neighbors in later rows flow up via `grid-auto-flow:
  * row dense`.
  *
  * Clamped to [1, declared]. Content above the declared cap scrolls inside
@@ -118,7 +118,7 @@ function useFitRowSpan(
   const [rows, setRows] = useState<WidgetRowSpan | null>(null);
   useLayoutEffect(() => {
     // Skip the effect entirely when disabled. We deliberately do NOT
-    // reset `rows` here — when the caller pauses fit measurements (e.g.,
+    // reset `rows` here - when the caller pauses fit measurements (e.g.,
     // a drag is in flight), the last measured value should persist so
     // the cell holds its visible height instead of snapping back to the
     // declared cap mid-drag, which would itself be jank. After the drag
@@ -165,14 +165,14 @@ function SortableWidget({ slot, highlighted, isOver, children, onRemove }: Sorta
   // Pause fitContent measurements whenever any drag is in flight in the
   // ancestor DndContext. Even though transforms shouldn't change
   // scrollHeight, a sibling reorder can reflow the dragged widget's
-  // surroundings and re-measure it mid-drag — that re-measurement updates
+  // surroundings and re-measure it mid-drag - that re-measurement updates
   // grid-row span on a moving target, shifting the cursor anchor and
   // making the drag feel laggy. Re-enabled the moment the drag ends.
   const { active: anyDragActive } = useDndContext();
   const fitRows = useFitRowSpan(fit && !anyDragActive, slot.rowSpan, widgetRef);
   const effectiveRowSpan: WidgetRowSpan = fitRows ?? slot.rowSpan;
 
-  // No `transition` from useSortable — we don't want the sibling
+  // No `transition` from useSortable - we don't want the sibling
   // shift-preview animation. With the no-shift strategy, transform stays
   // identity for non-dragged items so this is mostly belt-and-suspenders;
   // explicitly omitting the transition makes the intent obvious.
@@ -236,11 +236,11 @@ interface WidgetControlsProps {
 /**
  * Hover-revealed control cluster in a widget's top-right corner.
  *
- *   • Grip (left)  — drag to reorder. Sortable's activator node is the grip
+ *   • Grip (left)  - drag to reorder. Sortable's activator node is the grip
  *     button itself, so drag can only start from this element. The widget
  *     body stays fully interactive (charts, drill-ins, text selection)
  *     without competing for pointer events.
- *   • Trash (right) — click to remove. Undoable via Cmd/Ctrl-Z (layout undo
+ *   • Trash (right) - click to remove. Undoable via Cmd/Ctrl-Z (layout undo
  *     is wired globally in the host view), so one-click delete is safe.
  *
  * The cluster is invisible by default and fades in on cell hover or
@@ -369,7 +369,7 @@ function WidgetGridInner({ slots, renderWidget, onRemove, recentlyAddedId }: Wid
       const overId = event.over ? String(event.over.id) : null;
       if (catalogDrag) {
         if (overId && overId !== GRID_DROPPABLE_ID) {
-          // Cursor is hovering a specific widget — that widget is the insertion
+          // Cursor is hovering a specific widget - that widget is the insertion
           // anchor (we'll insert BEFORE it on drop).
           setCatalogOverId(overId);
         } else {
@@ -377,7 +377,7 @@ function WidgetGridInner({ slots, renderWidget, onRemove, recentlyAddedId }: Wid
         }
         return;
       }
-      // Sortable drag — light up the hovered cell as drop target. Skip
+      // Sortable drag - light up the hovered cell as drop target. Skip
       // when the cursor is over the dragged widget's own slot (no-op
       // drop) or over the empty-grid sentinel.
       if (overId && overId !== GRID_DROPPABLE_ID && overId !== sortableActiveId) {
@@ -402,7 +402,7 @@ function WidgetGridInner({ slots, renderWidget, onRemove, recentlyAddedId }: Wid
 
   // Border-sweep highlight when a widget is newly added. Both paths defer
   // setHighlightedId through a timer so the effect doesn't update state
-  // synchronously in its body — otherwise react-hooks/set-state-in-effect
+  // synchronously in its body - otherwise react-hooks/set-state-in-effect
   // flags the cascading render.
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   useEffect(() => {

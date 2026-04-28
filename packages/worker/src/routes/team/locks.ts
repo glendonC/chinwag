@@ -1,4 +1,4 @@
-// Team lock routes — claim, release, get locks.
+// Team lock routes - claim, release, get locks.
 
 import type { RouteDefinition } from '../../lib/router.js';
 import { json } from '../../lib/http.js';
@@ -59,7 +59,7 @@ export const handleTeamGetLocks = teamRoute(async ({ agentId, team, user }) => {
  * Read-only conflict probe. Takes a list of concrete file paths and returns
  * the subset that would be blocked by someone else's active lock (exact
  * path or glob umbrella). Used by the pre-commit hook so staged files are
- * checked before the commit goes through — and by any other "would I
+ * checked before the commit goes through - and by any other "would I
  * conflict if I edited these?" call site.
  */
 export const handleTeamCheckLocks = teamJsonRoute(async ({ body, agentId, team, user }) => {

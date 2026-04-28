@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════
-   GlobalView — QOVES-inspired analytics
+   GlobalView: QOVES-inspired analytics
    Clinical precision, generous space, card surfaces
 
    Sections (search for "── NAME ──" to jump):
@@ -53,7 +53,7 @@
   font-weight: 300;
   line-height: 1;
   letter-spacing: -0.04em;
-  /* Live data — per the design brief, accent is reserved for real-time
+  /* Live data, per the design brief, accent is reserved for real-time
      counts. This number updates on every heartbeat cycle (60s poll) while
      the user is on the page, so it earns the color. Everything else on
      this view is historical and stays in ink. */
@@ -584,7 +584,7 @@
 }
 
 /* ═══════════════════════════════════════════
-   Percentile cards — 8 unique viz types
+   Percentile cards: 8 unique viz types
    ═══════════════════════════════════════════ */
 
 .percentileGrid {
@@ -974,7 +974,7 @@
 }
 
 .matrixCell {
-  /* Cell background is set inline — color is the blend of the two tools'
+  /* Cell background is set inline, color is the blend of the two tools'
      brand colors and alpha encodes pair density. Default to a faint ink so
      React renders a shape even before the hook populates data. */
   background: rgba(18, 19, 23, 0.05);

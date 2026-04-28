@@ -56,7 +56,7 @@ export function queryToolCallStats(
     const distinctSessions = totalsRow.number('distinct_sessions') || 1;
 
     // Research-to-edit ratio. Tool lists come from the shared classifier
-    // in packages/shared/tool-call-categories.ts — do not hardcode here.
+    // in packages/shared/tool-call-categories.ts - do not hardcode here.
     const researchList = sqlInList(RESEARCH_TOOLS);
     const editList = sqlInList(EDIT_TOOLS);
     const { sql: ratioQ, params: ratioP } = withScope(
@@ -108,7 +108,7 @@ export function queryToolCallStats(
       };
     });
 
-    // Error patterns — most common tool+error_preview combos, with the
+    // Error patterns - most common tool+error_preview combos, with the
     // MAX(called_at) so the frontend can render a two-pane view: "most
     // frequent" and "most recent." A top-N-by-count ordering alone buries
     // rare-but-recent errors under high-count historical ones.
@@ -169,7 +169,7 @@ export function queryToolCallStats(
     // Computed twice in one pass: aggregate over all sessions (the existing
     // ToolCallStats.one_shot_rate) AND sliced by host_tool (the new per-tool
     // one_shot_rate that lands on each ToolCallFrequency row). The slice
-    // attributes each session to its dominant host_tool — sessions are
+    // attributes each session to its dominant host_tool - sessions are
     // single-tool by construction in chinmeister's session model, so the
     // attribution is the host_tool of the tool_calls rows. We pull host_tool
     // alongside tool and bucket by it.
@@ -197,7 +197,7 @@ export function queryToolCallStats(
         const sid = r.string('session_id');
         const entry = bySession.get(sid) ?? { tools: [], hostTool: r.string('host_tool') };
         entry.tools.push(r.string('tool'));
-        // Lock the session's host_tool to the first non-unknown row we see —
+        // Lock the session's host_tool to the first non-unknown row we see -
         // a session's tool_calls all come from the same host process.
         if (entry.hostTool === 'unknown') entry.hostTool = r.string('host_tool');
         bySession.set(sid, entry);
@@ -223,7 +223,7 @@ export function queryToolCallStats(
         const isOneShot = retries === 0;
         if (isOneShot) oneShotSessions++;
 
-        // Per-tool slice. Skip 'unknown' — those rows pre-date the host_tool
+        // Per-tool slice. Skip 'unknown' - those rows pre-date the host_tool
         // column being populated and would render as a phantom tool in the UI.
         if (hostTool && hostTool !== 'unknown') {
           const bucket = perToolOneShot.get(hostTool) ?? { oneShot: 0, withEdits: 0 };

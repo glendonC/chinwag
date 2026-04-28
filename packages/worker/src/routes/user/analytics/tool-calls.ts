@@ -20,7 +20,7 @@ interface ErrorPatternBucket {
   // Keyed by `${tool}:${error_preview}`; store the tool name alongside.
   tool: string;
   count: number;
-  // Max(called_at) across teams — latest occurrence wins. null only when
+  // Max(called_at) across teams - latest occurrence wins. null only when
   // every contributing team's row predates the schema-nullable-default,
   // which is a deployment-phase transient condition.
   last_at: string | null;

@@ -1,6 +1,6 @@
 // WebSocket connection management for the MCP server.
 // Handles connect, reconnect with exponential backoff, heartbeat pings.
-// CRITICAL: Never console.log — stdio transport. Use console.error.
+// CRITICAL: Never console.log - stdio transport. Use console.error.
 
 import { createLogger } from './utils/logger.js';
 import { getErrorMessage } from './utils/responses.js';
@@ -31,7 +31,7 @@ interface WsManagerOptions {
   agentId: string;
   /** Shared mutable state (reads/writes .ws, .lastActivity, .shuttingDown) */
   state: WsManagerState;
-  /** Tool IDs this MCP server can spawn — advertised via WebSocket tags. */
+  /** Tool IDs this MCP server can spawn - advertised via WebSocket tags. */
   spawnTools?: string[];
   /** Called for every incoming WebSocket message (command dispatch, claim results). */
   onMessage?: (data: Record<string, unknown>, ws: WebSocket) => void;
@@ -48,7 +48,7 @@ export interface WsManager {
 /**
  * Creates a WebSocket manager for team presence.
  *
- * The connection IS the heartbeat — pings every 60s keep the DB timestamp
+ * The connection IS the heartbeat - pings every 60s keep the DB timestamp
  * fresh for SQL queries. Reconnects with exponential backoff on disconnect.
  */
 export function createWebSocketManager({
@@ -131,7 +131,7 @@ export function createWebSocketManager({
             ) as Record<string, unknown>;
             onMessage(data, ws);
           } catch {
-            // malformed message — ignore
+            // malformed message - ignore
           }
         };
 

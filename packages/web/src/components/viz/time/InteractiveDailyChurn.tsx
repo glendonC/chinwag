@@ -29,7 +29,7 @@ export interface InteractiveDailyChurnEntry {
 
 interface Props {
   entries: ReadonlyArray<InteractiveDailyChurnEntry>;
-  /** Copy fragment inserted into the axis title — e.g. 'lines' renders
+  /** Copy fragment inserted into the axis title - e.g. 'lines' renders
    *  "DAILY LINES" above the Y axis. Defaults to 'lines'. */
   unitLabel?: string;
   ariaLabel?: string;
@@ -41,7 +41,7 @@ const PAD_R = 28;
 const PAD_T = 28;
 const PAD_B = 46;
 
-// djb2 hash — stable across sessions so a given handle keeps the same
+// djb2 hash - stable across sessions so a given handle keeps the same
 // color without needing per-user color storage on the contract side.
 function hashKey(s: string): number {
   let h = 5381;
@@ -83,7 +83,7 @@ function formatTooltipDate(iso: string): string {
 }
 
 // Round a max-Y value up to a "nice" step so the grid doesn't terminate
-// at 457 or 1,283 — human-readable milestones instead.
+// at 457 or 1,283 - human-readable milestones instead.
 function niceMax(raw: number): number {
   if (raw <= 0) return 1;
   const order = Math.pow(10, Math.floor(Math.log10(raw)));
@@ -104,7 +104,7 @@ function niceMax(raw: number): number {
  * churn for that day.
  *
  * Uses a ResizeObserver so the SVG viewBox matches the container's native
- * pixels — no aspect-ratio fight, crisp text, crisp strokes.
+ * pixels - no aspect-ratio fight, crisp text, crisp strokes.
  *
  * Interactions:
  *   hover chart plot         → scanner line + ring dots on each stack top +
@@ -161,7 +161,7 @@ export default function InteractiveDailyChurn({ entries, unitLabel = 'lines', ar
   const dayCount = days.length;
 
   // Stack order: heaviest contributor at the bottom, smaller bands on top.
-  // Matches the reference's reading — the base carries the bulk, strips on
+  // Matches the reference's reading - the base carries the bulk, strips on
   // top show auxiliary contributions.
   const stackOrder = useMemo(
     () => [...prepared].sort((a, b) => b.total - a.total).map((e) => e.key),
@@ -306,7 +306,7 @@ export default function InteractiveDailyChurn({ entries, unitLabel = 'lines', ar
   const handlePointerLeave = useCallback(() => setHoverIdx(null), []);
 
   // Hover-day tooltip data. Rows sorted by churn desc so the dominant
-  // contributor reads first — matches the reference's breakdown order.
+  // contributor reads first - matches the reference's breakdown order.
   const tooltip = useMemo(() => {
     if (hoverIdx == null) return null;
     const rows = stackBands
@@ -406,7 +406,7 @@ export default function InteractiveDailyChurn({ entries, unitLabel = 'lines', ar
             daily {unitLabel}
           </text>
 
-          {/* Stacked fill areas — semi-transparent, rendered in stack order
+          {/* Stacked fill areas - semi-transparent, rendered in stack order
               (heaviest at the bottom). Emphasized band bumps opacity so it
               reads even behind the strokes. */}
           {stackBands.map((b, i) => {
@@ -425,7 +425,7 @@ export default function InteractiveDailyChurn({ entries, unitLabel = 'lines', ar
             );
           })}
 
-          {/* Top-edge strokes — layered above the fills so band identity is
+          {/* Top-edge strokes - layered above the fills so band identity is
               crisp at each cumulative boundary. */}
           {stackBands.map((b, i) => {
             const emphasised = hoverKey === b.key;
@@ -449,7 +449,7 @@ export default function InteractiveDailyChurn({ entries, unitLabel = 'lines', ar
             );
           })}
 
-          {/* Scanner — vertical guide + ring dots at each active stack top */}
+          {/* Scanner - vertical guide + ring dots at each active stack top */}
           {tooltip && (
             <g className={styles.scanner}>
               <line
@@ -485,7 +485,7 @@ export default function InteractiveDailyChurn({ entries, unitLabel = 'lines', ar
           )}
         </svg>
 
-        {/* Floating tooltip card — HTML overlay for crisp text + easy
+        {/* Floating tooltip card - HTML overlay for crisp text + easy
             formatting. Flips to the left of the cursor past the midline
             of the plot so it never clips at the edge. */}
         {tooltip && tooltipCardStyle && tooltip.rows.length > 0 && (
@@ -540,7 +540,7 @@ export default function InteractiveDailyChurn({ entries, unitLabel = 'lines', ar
                 aria-label={`${isActive ? 'Hide' : 'Show'} ${e.label}. Shift-click to isolate.`}
                 style={{ '--entity-color': e.color } as CSSProperties}
               >
-                {/* Rectangle swatch — reads as a legend bar tied to its
+                {/* Rectangle swatch - reads as a legend bar tied to its
                  *  filled band, not a dot tied to a plotted point. */}
                 <span
                   className={styles.legendSwatch}

@@ -3,7 +3,7 @@
 // broadcastToWatchers fans out to every connected socket (agents and
 // watchers). broadcastToExecutors targets daemon sockets with spawn
 // capability. Callers that own a context cache pass invalidateCache to
-// invalidate it before the fan-out — kept as an injected callback so the
+// invalidate it before the fan-out - kept as an injected callback so the
 // helpers have no coupling to any particular cache implementation.
 
 import { createLogger } from '../../lib/logger.js';

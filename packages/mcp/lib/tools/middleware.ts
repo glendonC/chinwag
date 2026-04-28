@@ -1,4 +1,4 @@
-// Tool handler middleware — guards, preamble injection, error handling.
+// Tool handler middleware - guards, preamble injection, error handling.
 // Extracted from index.ts to avoid circular imports when tool files import withTeam.
 
 import { teamPreamble } from '../context.js';
@@ -25,7 +25,7 @@ export function withTeam(
 ): (args: Record<string, unknown>) => Promise<McpToolResult> {
   return async (args: Record<string, unknown>) => {
     // Wait for the initial team join to settle. This closes the race between
-    // MCP clientInfo handshake + joinTeamOnce and the first tool call — without
+    // MCP clientInfo handshake + joinTeamOnce and the first tool call - without
     // this await, a tool can reach the backend before the DO has registered
     // membership and get a 403 for an agent that's about to be a valid member.
     if (state.teamJoinComplete) {

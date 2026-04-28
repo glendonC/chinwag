@@ -47,7 +47,7 @@ export function computeFreshness(
 
 // Ages are rendered with an "ago" suffix except when it would read wrong
 // ("today ago"). Durations (e.g. how long a report has been overdue) drop
-// the suffix entirely — "Overdue · 9d" not "Overdue · 9d ago".
+// the suffix entirely - "Overdue · 9d" not "Overdue · 9d ago".
 
 function formatAge(days: number): string {
   if (days <= 0) return 'today';

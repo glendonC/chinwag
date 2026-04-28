@@ -6,10 +6,10 @@
  * agent process owns the sessionId; when it exits it writes a completion
  * record (packages/shared/session-registry.ts) that this hook reads by
  * agentId. Without the handoff, sessionId is lost and collectors silently
- * skip — which is the state the analytics pipeline was stuck in before.
+ * skip - which is the state the analytics pipeline was stuck in before.
  *
  * Collection runs asynchronously. It must never block the registry's exit
- * callbacks, and any failure is swallowed — logs and tokens are nice-to-have,
+ * callbacks, and any failure is swallowed - logs and tokens are nice-to-have,
  * not load-bearing for the agent lifecycle.
  */
 import { useEffect } from 'react';
@@ -79,7 +79,7 @@ export async function runCollectorsForProcess(
     if (completed) break;
   }
   if (!completed) {
-    // No sessionId available — the MCP either didn't get one or hasn't flushed
+    // No sessionId available - the MCP either didn't get one or hasn't flushed
     // yet. Skip collection silently; the dashboard's other signals (edits,
     // outcomes, heatmap) still land via the MCP heartbeat path.
     return;
@@ -138,7 +138,7 @@ function synthesizeProcessFromRecord(record: CompletedSession): ManagedProcess {
     toolId: record.toolId,
     // Collectors resolve log paths off cwd (Claude Code's project-hash, etc.),
     // so this is load-bearing. It's the one piece of state the sweep truly
-    // depends on — without it the spec engine can't find the right JSONL.
+    // depends on - without it the spec engine can't find the right JSONL.
     cwd: record.cwd,
     startedAt: record.startedAt,
     // Display-only below; collectors don't touch these.
@@ -153,8 +153,8 @@ function synthesizeProcessFromRecord(record: CompletedSession): ManagedProcess {
  * the external-agent cost-coverage gap: a user running `claude-code` outside
  * chinmeister's managed flow still produces `<agentId>.completed.json` via MCP
  * cleanup, but the dashboard never observes the exit and the collectors
- * never run. Sweeping on mount means any later dashboard session — even
- * days after the external run — picks up the stranded record and uploads.
+ * never run. Sweeping on mount means any later dashboard session - even
+ * days after the external run - picks up the stranded record and uploads.
  *
  * Scope guard: only records whose teamId matches the currently-authenticated
  * team are processed. Records from other teams stay on disk so a future

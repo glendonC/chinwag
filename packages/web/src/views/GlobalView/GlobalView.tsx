@@ -19,7 +19,7 @@ function formatNum(n: number): string {
 
 // Pre-computed accent-blue shades at three intensities. dotted-map's color
 // arg goes directly into an SVG `fill` attribute, and the library rejects
-// `rgba()` strings silently — the earlier attempt to vary alpha dropped pins
+// `rgba()` strings silently - the earlier attempt to vary alpha dropped pins
 // entirely. Hex works, so density is encoded via (a) a discrete 3-step
 // palette that darkens with count share, and (b) a continuous radius ramp.
 // The darkest step is the token accent; the lighter steps blend toward the
@@ -34,7 +34,7 @@ function WorldMap({ countries }: { countries: Record<string, number> }): ReactNo
     for (const [cc, count] of Object.entries(countries)) {
       if (!(cc in COUNTRY_COORDS)) continue;
       const [lat, lng] = COUNTRY_COORDS[cc];
-      // `^0.6` pulls tiny-count countries above the perceptual floor —
+      // `^0.6` pulls tiny-count countries above the perceptual floor -
       // pure linear scaling would leave single-dev countries visibly
       // indistinguishable from the gray base map.
       const intensity = Math.pow(count / maxCount, 0.6);
@@ -68,7 +68,7 @@ function PersonalStat({
   communityValue: number;
 }): ReactNode {
   // Always render the spark so every card in the strip shares the same
-  // visual structure — a zero-data card should read as "waiting for data,"
+  // visual structure - a zero-data card should read as "waiting for data,"
   // not "broken or missing." When both values are zero, the track renders
   // empty with a muted caption; this is honest about the absence without
   // breaking the rhythm of the row.
@@ -128,7 +128,7 @@ function SectionHead({ label }: { label: string }): ReactNode {
 // Two narrow composites instead of one wide one. Each aggregates three
 // already-commensurable percentile axes (all are percentile ranks, all are
 // "higher = better" post-normalization in rank.ts). Weights are opinionated
-// — Effectiveness tilts to completion+reliability because coordination is
+// - Effectiveness tilts to completion+reliability because coordination is
 // chinmeister's product stance; Productivity tilts to output because volume is
 // what shows up in a dev's day-to-day. Weights render on the page so the
 // rubric isn't hidden.
@@ -191,7 +191,7 @@ function CompositeBlock({
       <span className={styles.compositeLabel}>{label}</span>
       <div className={styles.compositeScoreRow}>
         <span className={styles.compositeScore} style={{ '--score': score } as React.CSSProperties}>
-          {enabled ? score : '—'}
+          {enabled ? score : '-'}
         </span>
         <span className={styles.compositeSuffix}>{enabled ? 'th' : ''}</span>
         <span className={styles.compositeDenom} aria-hidden="true">
@@ -226,7 +226,7 @@ function CompositeBlock({
 }
 
 // 6 axes. Dropped `tool_diversity` (more tools ≠ better) and swapped
-// `total_lines` for `lines_per_session` — lifetime totals were heavily
+// `total_lines` for `lines_per_session` - lifetime totals were heavily
 // tenure-biased (a dev starting today had no path to catch up). Per-session
 // is tenure-neutral and measures the same underlying signal: how much moves
 // through each session.
@@ -254,7 +254,7 @@ const RADAR_AXES = [
   {
     key: 'focus_hours',
     label: 'Focus',
-    desc: 'Hours of active work — idle time with the agent open does not count.',
+    desc: 'Hours of active work - idle time with the agent open does not count.',
   },
   {
     key: 'lines_per_session',
@@ -279,7 +279,7 @@ function RadarChart({ metrics }: { metrics: Record<string, { percentile: number 
   const rings = [0.25, 0.5, 0.75, 1.0];
   // Axis labels now carry two text nodes: the name on top (var(--soft))
   // and the live percentile value below (var(--ink), larger). Gives the
-  // radar information density — users see their rank per-axis without
+  // radar information density - users see their rank per-axis without
   // having to map polygon position to a number. Labels push slightly
   // further out to make room for the two-line format.
   const axes = RADAR_AXES.map((axis, i) => {
@@ -454,7 +454,7 @@ function OutcomeBreakdown({
 }
 
 // ═══════════════════════════════════════════════
-//  Percentile cards — 2 reusable viz idioms
+//  Percentile cards - 2 reusable viz idioms
 //    · BarCard:  1-D position, user marker on track. For metrics with no
 //                community distribution available (velocity, stuck, focus, …).
 //    · DistCard: bracket histogram with user's bracket lit. For metrics where
@@ -569,7 +569,7 @@ function DistCard({
 
 /**
  * Parse a CSS color string (hex or hsl()) into an [r, g, b] tuple, 0-255.
- * Needed because getToolMeta returns either — known tools use hex brand
+ * Needed because getToolMeta returns either - known tools use hex brand
  * colors, unknown tools get an HSL-derived fallback.
  * Returns null if the input is unrecognized so the caller can fall back to
  * a neutral ink rendering rather than throwing.
@@ -635,7 +635,7 @@ function ToolComboMatrix({
 }): ReactNode {
   // Derive the distinct tool axis from the pair data itself. Sort by a tool's
   // total pair-volume so the densest cells cluster top-left. Clamp to 12 so
-  // label density stays legible — if the community ever cracks 12 tools with
+  // label density stays legible - if the community ever cracks 12 tools with
   // co-usage, the tail gets grouped under "…".
   const { tools, pairMap, maxUsers } = useMemo(() => {
     const volume = new Map<string, number>();
@@ -666,7 +666,7 @@ function ToolComboMatrix({
   return (
     <div className={styles.matrix} style={{ gridTemplateColumns: gridCols }}>
       {/* Column-header row: blank corner + tool labels. Label color pulls
-          the tool's brand color so the matrix reads as a product map — the
+          the tool's brand color so the matrix reads as a product map - the
           category IS the color. Per design brief: categorical data is a
           legitimate place for color on an otherwise-monochrome surface. */}
       <span className={styles.matrixCorner} />
@@ -736,7 +736,7 @@ interface LeaderboardItem {
   value: string;
   bar: number;
   sub?: string;
-  /** Tool id — when present, renders the tool's icon + brand-colored bar fill. */
+  /** Tool id - when present, renders the tool's icon + brand-colored bar fill. */
   toolId?: string;
 }
 
@@ -820,13 +820,13 @@ export default function GlobalView(): ReactNode {
   const m = gr.metrics;
   const t = gr.totals;
   const avg = gs.globalAverages;
-  // Threshold for surfacing percentile ranks. Not a statistical boundary — just
+  // Threshold for surfacing percentile ranks. Not a statistical boundary - just
   // a "wait until your metrics stabilize a bit" floor. Below 5, completion rate
   // lives in 6 coarse buckets (0/20/40/60/80/100%) and flips violently session-
   // to-session. 5 is a compromise between early visibility and stable ranks.
   const hasEnoughSessions = t.totalSessions >= 5;
 
-  // Community completion-rate bracket histogram — used by the "Sessions
+  // Community completion-rate bracket histogram - used by the "Sessions
   // completed" DistCard. Percentages are share of developers per bracket.
   const completionHisto = useMemo(() => {
     if (gs.completionDistribution.length === 0) return [];
@@ -847,7 +847,7 @@ export default function GlobalView(): ReactNode {
     return '0-49';
   }, [userCompletionRate]);
 
-  // Community tool-count histogram — how many distinct tools each developer
+  // Community tool-count histogram - how many distinct tools each developer
   // uses. Computed at /stats, previously unrendered. Surfaces the user's own
   // tool count against the community distribution.
   const toolCountHisto = useMemo(() => {

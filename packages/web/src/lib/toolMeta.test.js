@@ -42,7 +42,7 @@ describe('normalizeToolId', () => {
 
 // ---- getToolMeta: direct match ----
 
-describe('getToolMeta — direct match', () => {
+describe('getToolMeta - direct match', () => {
   it('returns exact match for known tool', () => {
     const meta = getToolMeta('cursor');
     expect(meta).toMatchObject({ id: 'cursor', label: 'Cursor' });
@@ -56,7 +56,7 @@ describe('getToolMeta — direct match', () => {
 
 // ---- getToolMeta: alias match ----
 
-describe('getToolMeta — alias match', () => {
+describe('getToolMeta - alias match', () => {
   it('resolves known alias', () => {
     const meta = getToolMeta('Claude Code');
     expect(meta).toMatchObject({ id: 'claude', label: 'Claude Code' });
@@ -75,7 +75,7 @@ describe('getToolMeta — alias match', () => {
 
 // ---- getToolMeta: partial match ----
 
-describe('getToolMeta — partial match', () => {
+describe('getToolMeta - partial match', () => {
   it('matches JetBrains AI Assistant via partial', () => {
     const meta = getToolMeta('jetbrains-ai-assistant');
     expect(meta).toMatchObject({ id: 'jetbrains', label: 'JetBrains' });
@@ -94,12 +94,12 @@ describe('getToolMeta — partial match', () => {
 
 // ---- substring collision safety ----
 
-describe('getToolMeta — substring collision safety', () => {
+describe('getToolMeta - substring collision safety', () => {
   it('does NOT match short TOOL_META keys as false positives', () => {
     // "v0" is in TOOL_META but NOT in PARTIAL_MATCHES,
     // so "v0developer" should fall through to fallback, not match "v0"
     const meta = getToolMeta('v0developer');
-    // v0 is a direct match only — "v0developer" normalized is "v0developer", no direct/alias match
+    // v0 is a direct match only - "v0developer" normalized is "v0developer", no direct/alias match
     // and "v0" is not in PARTIAL_MATCHES, so this should be a fallback
     expect(meta.id).not.toBe('v0');
   });
@@ -125,7 +125,7 @@ describe('getToolMeta — substring collision safety', () => {
 
 // ---- getToolMeta: fallback ----
 
-describe('getToolMeta — fallback', () => {
+describe('getToolMeta - fallback', () => {
   it('returns formatted fallback for unknown tools', () => {
     const meta = getToolMeta('totally-unknown-tool');
     expect(meta).toMatchObject({
@@ -161,7 +161,7 @@ describe('getToolMeta — fallback', () => {
 
 // ---- getToolMeta: return shape ----
 
-describe('getToolMeta — return shape', () => {
+describe('getToolMeta - return shape', () => {
   it('always returns id, label, icon, color for known tools', () => {
     for (const key of Object.keys(TOOL_META)) {
       const meta = getToolMeta(key);

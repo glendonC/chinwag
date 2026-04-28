@@ -3,14 +3,14 @@
 // Why these exist. Two obligations any "privacy-respecting" product owes
 // its users, regardless of which compliance regime applies:
 //
-//   - Right of access (GDPR Art. 15) — "show me everything you have on me."
-//   - Right to erasure (GDPR Art. 17) — "delete everything you have on me."
+//   - Right of access (GDPR Art. 15) - "show me everything you have on me."
+//   - Right to erasure (GDPR Art. 17) - "delete everything you have on me."
 //
 // chinmeister fans user data across N TeamDOs and one DatabaseDO. Without
 // these endpoints, honoring either request would be a manual ad-hoc job.
 // With them, the user calls one HTTP method and we fan out under the hood.
 //
-// Both endpoints are gated by the caller's bearer token — only the user
+// Both endpoints are gated by the caller's bearer token - only the user
 // can request their own data or its deletion. Admin-initiated deletion
 // (subject access requests submitted via support) goes through a separate
 // future tool, not this surface.
@@ -34,7 +34,7 @@ import { DO_CALL_TIMEOUT_MS, withTimeout } from './helpers.js';
 const log = createLogger('routes.user.data');
 
 /**
- * GET /me/data/export — bundle and return every per-user record across
+ * GET /me/data/export - bundle and return every per-user record across
  * every team the caller belongs to. JSON payload; the user is expected to
  * save it.
  *
@@ -132,14 +132,14 @@ export const handleExportUserData = authedRoute(async ({ user, env }) => {
 });
 
 /**
- * POST /me/data/delete — erase every per-user record across every team
+ * POST /me/data/delete - erase every per-user record across every team
  * the caller belongs to. Returns a deletion receipt with row counts so the
  * user has proof of what was removed.
  *
  * Per-team failures: each team is deleted independently with retry. If a
  * team's deletion fails terminally after retries, it goes into
  * `failed_teams`; the user can call again to retry that team. This is
- * deliberate — partial deletion is better than no deletion.
+ * deliberate - partial deletion is better than no deletion.
  */
 export const handleDeleteUserData = authedRoute(async ({ user, env }) => {
   const db = getDB(env);
@@ -212,7 +212,7 @@ export const handleDeleteUserData = authedRoute(async ({ user, env }) => {
   }
 
   // Best-effort cleanup of cross-team account-level data. Token revocation
-  // is the only path that needs to be loud — if it fails, the user's old
+  // is the only path that needs to be loud - if it fails, the user's old
   // tokens stay valid until manually revoked. Use tryDORetry so a transient
   // DB blip doesn't 500 the whole request. Wrap in an async closure so TS
   // doesn't try to unify the DOResult discriminated union with tryDORetry's

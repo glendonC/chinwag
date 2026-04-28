@@ -1,4 +1,4 @@
-/* Rate strip — label | shared 0→max track | value. Dot position encodes
+/* Rate strip: label | shared 0→max track | value. Dot position encodes
  * rate; dot size encodes weight (e.g. hours logged). Relies on the
  * global `rowReveal` keyframe (app.css). */
 

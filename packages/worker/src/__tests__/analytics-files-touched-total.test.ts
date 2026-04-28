@@ -43,13 +43,13 @@ describe('files_touched_total', () => {
     const analytics = await team.getAnalytics(agentId, 7, ownerId);
     expect(analytics.ok).toBe(true);
     expect(analytics.files_touched_total).toBe(60);
-    // The ranked list is still capped at HEATMAP_LIMIT=50 — that widget's
+    // The ranked list is still capped at HEATMAP_LIMIT=50 - that widget's
     // framing matches its capped source. The scalar uses the edits table.
     expect(analytics.file_heatmap.length).toBeLessThanOrEqual(50);
   });
 
   it('dedupes distinct files across multiple sessions', async () => {
-    // Two sessions share 3 files and have 2 unique files each — total
+    // Two sessions share 3 files and have 2 unique files each - total
     // distinct files = 3 + 2 + 2 = 7. Proves the DISTINCT is cross-session.
     const team = getTeam('ftt-cross-session');
     const agentId = 'claude-code:ftt-cross';
@@ -116,7 +116,7 @@ describe('files_touched_total', () => {
   });
 });
 
-// The half-split query powers the overview FilesTouched delta — the scalar
+// The half-split query powers the overview FilesTouched delta - the scalar
 // alone can't derive it because distinct-file counts aren't additive across
 // days. These tests pin the contract shape and the "too short to split"
 // fallback. Time-travel tests (files in previous half) aren't exercised

@@ -126,7 +126,7 @@ const FRONTEND_FIXTURE: TeamFixture = {
       duration_minutes: null,
       memories_saved: 1,
       outcome: 'in_progress',
-      outcome_summary: 'Redesigning edits widget — tab-selector pattern',
+      outcome_summary: 'Redesigning edits widget - tab-selector pattern',
       input_tokens: 84_000,
       output_tokens: 11_200,
     }),
@@ -188,7 +188,7 @@ const FRONTEND_FIXTURE: TeamFixture = {
     },
     {
       id: 'mem-fe-2',
-      text: 'StatWidget tab variant: keep underline indicator, drop the chip background — it competed with the active state.',
+      text: 'StatWidget tab variant: keep underline indicator, drop the chip background - it competed with the active state.',
       tags: ['ui', 'design'],
       categories: ['design-decisions'],
       handle: 'sora',

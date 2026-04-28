@@ -15,7 +15,7 @@ export interface FocusedQuestion {
   question: ReactNode;
   /** One-line plain-prose answer leading with the concrete finding.
    *  Rendered in the main area as the lead (24px). Not duplicated in
-   *  the sidebar — the sidebar is a pure nav, the main area carries
+   *  the sidebar - the sidebar is a pure nav, the main area carries
    *  the finding. */
   answer: ReactNode;
   /** The viz that provides depth/support for the question. Gets the
@@ -25,7 +25,7 @@ export interface FocusedQuestion {
    *  this when the question's data has a different lens in another
    *  detail view (e.g., per-tool sessions live in Tools, not Usage).
    *  Source from `getCrossLinks()` in `crossLinkMap.ts` so destinations
-   *  stay consistent across views — never hand-roll the chip array
+   *  stay consistent across views - never hand-roll the chip array
    *  inside a panel function. */
   relatedLinks?: CrossLink[];
 }
@@ -51,7 +51,7 @@ interface Props {
  *   without clicking anything.
  * - Experienced users land directly on the question they're asking
  *   via deep link or keyboard nav.
- * - Vizzes get room to breathe — they own the full main column.
+ * - Vizzes get room to breathe - they own the full main column.
  *
  * Why the answer renders in BOTH sidebar and main area:
  * - Sidebar A is for scanning across questions.
@@ -79,7 +79,7 @@ export default function FocusedDetailView({ activeId, onSelect, questions }: Pro
       <FocusedSidebar questions={questions} activeId={active.id} onSelect={onSelect} />
 
       <section className={styles.main} aria-live="polite">
-        {/* Lead with the answer — the question is already highlighted in
+        {/* Lead with the answer - the question is already highlighted in
          *  the sidebar, so repeating it here as a 24px h3 just steals
          *  attention from the finding. The answer IS the result. */}
         <p className={styles.mainAnswer}>{active.answer}</p>
@@ -104,8 +104,8 @@ export default function FocusedDetailView({ activeId, onSelect, questions }: Pro
 
 /**
  * Sidebar extracted so the arrow-key hook can own its own element ref.
- * Keeping keyboard handling scoped to the nav — rather than the whole
- * FocusedDetailView root — prevents arrow keys from firing while the
+ * Keeping keyboard handling scoped to the nav - rather than the whole
+ * FocusedDetailView root - prevents arrow keys from firing while the
  * user's focus is inside the viz (e.g., on a scatter dot or a table
  * cell).
  */

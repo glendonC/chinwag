@@ -47,7 +47,7 @@ export function createBaselineConversation(): ConversationAnalytics {
     .filter((s) => s.count > 0);
 
   // Topic distribution on captured conversations. Labels cover the typical
-  // spread in a codebase of this size — implementation, debugging, review,
+  // spread in a codebase of this size - implementation, debugging, review,
   // planning, and meta-coordination prompts.
   const topic_distribution = [
     { topic: 'implementation', count: Math.round(sessions_with_conversations * 0.42) },
@@ -60,7 +60,7 @@ export function createBaselineConversation(): ConversationAnalytics {
   ].filter((t) => t.count > 0);
 
   // Dominant-sentiment × outcome correlation. Completion rates taper as the
-  // session drifts from clear-positive through confused to pushback — this
+  // session drifts from clear-positive through confused to pushback - this
   // is the "prompt clarity" story the widget reframes from sentiment data.
   const sentiment_outcome_correlation = [
     {

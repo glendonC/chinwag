@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════
-   Design tokens — shared values used across
+   Design tokens: shared values used across
    3+ CSS module files. Supplements app.css.
    ═══════════════════════════════════════════ */
 
@@ -35,7 +35,7 @@
 
        --bp-mobile:  480px   (narrow phone)
        --bp-small:   640px   (large phone / small tablet)
-       --bp-medium:  768px   (tablet — sidebar collapse threshold)
+       --bp-medium:  768px   (tablet, sidebar collapse threshold)
        --bp-large:   900px   (small laptop)
        --bp-wide:    980px   (standard desktop grid)
 

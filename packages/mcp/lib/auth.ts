@@ -1,5 +1,5 @@
 // Token validation, refresh, and profile registration for the MCP server.
-// CRITICAL: Never console.log — stdio transport. Use console.error.
+// CRITICAL: Never console.log - stdio transport. Use console.error.
 
 import { createLogger } from './utils/logger.js';
 import { getErrorMessage } from './utils/responses.js';
@@ -15,7 +15,7 @@ const log = createLogger('auth');
 // Same pattern as api.ts inflightRefresh.
 let inflightRefresh: Promise<RefreshResult | null> | null = null;
 
-/** @internal Exported only for testing — resets the inflight deduplication state. */
+/** @internal Exported only for testing - resets the inflight deduplication state. */
 export function _resetInflightRefresh(): void {
   inflightRefresh = null;
 }
@@ -67,7 +67,7 @@ export async function validateConfig({
 
   let config = loadConfig() as AuthConfig;
   if (!config?.token) {
-    log.error('Invalid config — missing token. Run `npx chinmeister` to re-initialize.');
+    log.error('Invalid config - missing token. Run `npx chinmeister` to re-initialize.');
     process.exit(1);
   }
 
@@ -101,7 +101,7 @@ export async function validateConfig({
       log.error('Run `npx chinmeister init` to re-authenticate.');
       process.exit(1);
     }
-    // Non-401 errors: proceed anyway — might be temporary network issue
+    // Non-401 errors: proceed anyway - might be temporary network issue
   }
 
   return { config };

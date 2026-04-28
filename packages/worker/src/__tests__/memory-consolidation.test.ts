@@ -1,4 +1,4 @@
-// Memory consolidation — verifies the Graphiti funnel (cosine recall →
+// Memory consolidation - verifies the Graphiti funnel (cosine recall →
 // Jaccard structural → tag agreement) writes propose-only candidates,
 // the apply path soft-merges with audit trail, and unmerge restores.
 
@@ -93,7 +93,7 @@ describe('resolveSupersession (bi-temporal interval algebra, Graphiti port)', ()
       incoming('2026-01-01T00:00:00Z', '2026-02-01T00:00:00Z'),
       candidate('2026-01-01T00:00:00Z', '2026-02-01T00:00:00Z'),
     );
-    // Same start time — not strictly older, so no supersession.
+    // Same start time - not strictly older, so no supersession.
     expect(result.shouldInvalidate).toBe(false);
   });
 
@@ -116,7 +116,7 @@ describe('resolveSupersession (bi-temporal interval algebra, Graphiti port)', ()
     expect(result.newInvalidAt).toBe('2026-02-01T00:00:00Z');
   });
 
-  it('does not invalidate when timestamps are malformed — refuses to guess', () => {
+  it('does not invalidate when timestamps are malformed - refuses to guess', () => {
     const result = resolveSupersession(incoming('not-a-date'), candidate('2026-01-01T00:00:00Z'));
     expect(result.shouldInvalidate).toBe(false);
     expect(result.newInvalidAt).toBe(null);
@@ -140,7 +140,7 @@ describe('TeamDO consolidation lifecycle', () => {
     );
     await team().saveMemory(
       agentId,
-      'second memory about completely different topic — auth flow',
+      'second memory about completely different topic - auth flow',
       ['auth', 'cons-test'],
       null,
       'alice',
@@ -185,7 +185,7 @@ describe('TeamDO consolidation lifecycle', () => {
 
     // We can't merge directly in tests without proposal IDs; verify the
     // search clause by simulating: if a row has merged_into set, it should
-    // be excluded. The DO contract is enforced in SQL — this test is a
+    // be excluded. The DO contract is enforced in SQL - this test is a
     // smoke check that the column exists and is queryable.
     const all = await team().searchMemories(agentId, null, ['cons-test'], null, 10, ownerId, {
       decay: 'off',

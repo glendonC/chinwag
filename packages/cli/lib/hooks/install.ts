@@ -43,7 +43,7 @@ export function installChinmeisterHooks(cwd: string): HookInstallResult {
   if (isRegularFile(preCommit)) {
     const existing = safeReadHead(preCommit);
     if (existing.includes(CHINMEISTER_HOOK_MARKER)) {
-      // Re-running `chinmeister init`. Overwrite without touching .orig — the
+      // Re-running `chinmeister init`. Overwrite without touching .orig - the
       // original was already moved aside on the first install.
       upgradingOurs = true;
     } else {

@@ -25,7 +25,7 @@ interface Props {
 
 /**
  * Horizontal rate comparison. Each entity has a dot on a shared 0→max
- * axis — position is the rate, dot size encodes the weight (e.g. hours
+ * axis - position is the rate, dot size encodes the weight (e.g. hours
  * logged). Different viz vocabulary from a BreakdownList, so stacking
  * two RateStrip sections (teammates + projects) reads as two variants
  * rather than two duplicates.

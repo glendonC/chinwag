@@ -62,7 +62,7 @@ export function useSessionTimeline(from: string, to: string): UseSessionTimeline
 
   useEffect(() => {
     // Demo: read from the scenario, skip the API. The from/to range is
-    // ignored for demo because the fixture is a fixed slice — fine for
+    // ignored for demo because the fixture is a fixed slice - fine for
     // exercising the timeline view, doesn't pretend to be filterable.
     if (demo.active) {
       const scenarioSessions = getDemoData(demo.scenarioId).sessions;

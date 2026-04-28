@@ -38,7 +38,7 @@ describe('buildRoutes', () => {
   });
 });
 
-describe('matchRoute — static routes', () => {
+describe('matchRoute - static routes', () => {
   const routes = makeRoutes([
     ['GET', '/stats', false],
     ['POST', '/auth/init', false],
@@ -80,7 +80,7 @@ describe('matchRoute — static routes', () => {
   });
 });
 
-describe('matchRoute — parametric routes', () => {
+describe('matchRoute - parametric routes', () => {
   const routes = makeRoutes([
     ['GET', '/teams/:id/context'],
     ['POST', '/teams/:id/join'],
@@ -123,7 +123,7 @@ describe('matchRoute — parametric routes', () => {
   });
 });
 
-describe('matchRoute — static routes take priority over parametric', () => {
+describe('matchRoute - static routes take priority over parametric', () => {
   // Edge case: a static path that could also match a parametric pattern.
   // Static should win because it's checked first.
   const handler1 = (() => 'static') as unknown as RouteHandler;
@@ -145,8 +145,8 @@ describe('matchRoute — static routes take priority over parametric', () => {
   });
 });
 
-describe('matchRoute — constrained params', () => {
-  // Team ID must match t_[a-f0-9]{16} — rejects invalid IDs at the routing layer
+describe('matchRoute - constrained params', () => {
+  // Team ID must match t_[a-f0-9]{16} - rejects invalid IDs at the routing layer
   const routes = makeRoutes([
     ['GET', '/teams/:tid(t_[a-f0-9]{16})/context'],
     ['POST', '/teams/:tid(t_[a-f0-9]{16})/join'],
@@ -183,7 +183,7 @@ describe('matchRoute — constrained params', () => {
   });
 });
 
-describe('matchRoute — 404 coverage', () => {
+describe('matchRoute - 404 coverage', () => {
   const routes = makeRoutes([
     ['GET', '/me'],
     ['GET', '/teams/:id/ws'],

@@ -8,7 +8,7 @@
 // row logs structured context instead of throwing.
 //
 // Why hand-rolled, not zod. Durable Object SQLite is trusted internal
-// storage — every value lands there through a column-typed INSERT we
+// storage - every value lands there through a column-typed INSERT we
 // own. Runtime validation here would pay zod's cost (constructor
 // overhead, parser allocation per row) for zero security gain. The risk
 // the helper guards against is shape drift between SQL and TS, not
@@ -65,7 +65,7 @@ export interface RowReader {
   nullableNumber(col: string): number | null;
 
   /**
-   * Read a string column that holds JSON. Parses through `safeParse` —
+   * Read a string column that holds JSON. Parses through `safeParse` -
    * a bad row logs context (column name + row id when supplied) and
    * returns the supplied default. Pass `context` to attach extra info
    * to the warning message; useful when the same parse failure could

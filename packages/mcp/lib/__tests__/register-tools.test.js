@@ -121,7 +121,7 @@ describe('registerTools', () => {
     // When the tool surface grows, add the new name to `expected` below so
     // this test keeps acting as a canary against accidental deregistration.
     // The count is derived so we fail loudly when someone adds a tool without
-    // updating the expectation — don't hard-code the number.
+    // updating the expectation - don't hard-code the number.
     const expected = [
       'chinmeister_scan_integrations',
       'chinmeister_configure_integration',
@@ -161,7 +161,7 @@ describe('registerTools', () => {
       const result = await server.callTool('chinmeister_scan_integrations', {});
       expect(integrationDoctor.scanHostIntegrations).toHaveBeenCalledWith(process.cwd());
       expect(result.isError).not.toBe(true);
-      expect(result.content[0].text).toMatch(/Cursor \[connected\] — needs_setup/);
+      expect(result.content[0].text).toMatch(/Cursor \[connected\] - needs_setup/);
     });
 
     it('configures a local integration and reports refreshed status', async () => {

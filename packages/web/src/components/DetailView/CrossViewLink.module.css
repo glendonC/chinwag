@@ -1,6 +1,6 @@
 /* Inline cross-view navigation chip. Lives inside FocusedDetailView's
  * relatedLinks strip beneath each question's viz. Visual weight is
- * deliberately quiet — the chip is a "you might also want" cue, not a
+ * deliberately quiet, the chip is a "you might also want" cue, not a
  * primary CTA. The viz remains the answer; the chip is the next step. */
 
 .chip {
@@ -20,7 +20,7 @@
     color var(--motion-fast) ease,
     background var(--motion-fast) ease;
   /* Negative left margin so the first chip's text aligns with the viz
-   * column edge despite the chip's own padding — same alignment trick
+   * column edge despite the chip's own padding, same alignment trick
    * the FocusedDetailView itemQuestion uses. */
   margin-left: -10px;
 }

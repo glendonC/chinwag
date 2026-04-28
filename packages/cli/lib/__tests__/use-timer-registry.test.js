@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 /**
- * Tests for packages/cli/lib/dashboard/use-timer-registry.ts — useTimerRegistry hook.
+ * Tests for packages/cli/lib/dashboard/use-timer-registry.ts - useTimerRegistry hook.
  *
  * Since we cannot render React hooks in a node environment without a test renderer,
  * we test the logic by importing the module with mocked dependencies and exercising

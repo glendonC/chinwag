@@ -1,4 +1,4 @@
-// Billing block contract — response shape for the 5-hour Anthropic
+// Billing block contract - response shape for the 5-hour Anthropic
 // rate-limit window endpoints. Ported from ccusage (_session-blocks.ts)
 // into chinmeister's snake_case schema convention so it matches every other
 // analytics payload.
@@ -16,7 +16,7 @@ export interface TokenCounts {
 /**
  * One billing block. For normal blocks, `end_time = start_time + 5h`.
  * For gap blocks (`is_gap: true`), `end_time` is the next activity's
- * timestamp — the UI should render these as "idle period, no tokens"
+ * timestamp - the UI should render these as "idle period, no tokens"
  * rather than as a regular usage window.
  */
 export interface SessionBlock {
@@ -44,7 +44,7 @@ export interface BurnRate {
   tokens_per_minute: number;
   /**
    * Input + output only. Narrower figure for the HIGH/MODERATE/NORMAL
-   * indicator — this is the number that reflects "real" work vs cache
+   * indicator - this is the number that reflects "real" work vs cache
    * replay.
    */
   tokens_per_minute_non_cache: number;

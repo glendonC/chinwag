@@ -312,7 +312,7 @@ export function queryTeamSummary(sql: SqlStorage): TeamSummary & TelemetryBreakd
   const conflictCount = [...fileCounts.values()].filter((c) => c > 1).length;
 
   const memoriesCount = sql.exec('SELECT COUNT(*) as c FROM memories').toArray();
-  // Memory count as of 7 days ago — pairs with current count for the projects
+  // Memory count as of 7 days ago - pairs with current count for the projects
   // widget growth delta (current − previous). created_at default is UTC.
   const memoryCountPrev = sql
     .exec("SELECT COUNT(*) as c FROM memories WHERE created_at <= datetime('now', '-7 days')")
@@ -347,7 +347,7 @@ export function queryTeamSummary(sql: SqlStorage): TeamSummary & TelemetryBreakd
 
   // Conflicts hit over the last 7 days, plus the immediately-prior 7-day
   // window. Sourced from sessions.conflicts_hit (per-session counter), not
-  // the live activity-overlap snapshot in `conflictCount` above — those are
+  // the live activity-overlap snapshot in `conflictCount` above - those are
   // different concepts (live contention vs. cumulative friction).
   const conflicts7d = sql
     .exec(

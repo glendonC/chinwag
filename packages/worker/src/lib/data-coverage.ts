@@ -1,6 +1,6 @@
 // Data coverage: which tools in the active window support which analytics
 // capabilities. Consumed by both the cross-team user route and the team DO's
-// extended analytics — living as a shared lib keeps one source of truth for
+// extended analytics - living as a shared lib keeps one source of truth for
 // the shape the client expects under `UserAnalytics.data_coverage`.
 
 import { getToolsWithCapability } from '@chinmeister/shared/tool-registry.js';
@@ -21,7 +21,7 @@ export interface DataCoverage {
  *
  * `tools_reporting` is the subset of active tools that can contribute
  * deep-capture data (token usage or conversation logs). The inverse,
- * `tools_without_data`, is everyone else — used by coverage notes so the UI
+ * `tools_without_data`, is everyone else - used by coverage notes so the UI
  * can attribute partial totals to the reporting subset.
  */
 export function buildDataCoverage(activeToolsSet: Set<string>): DataCoverage {
@@ -50,7 +50,7 @@ export function buildDataCoverage(activeToolsSet: Set<string>): DataCoverage {
  * Standard active-tools query for a DO's session table over a day window.
  * Separated so both team DOs and any future scope can reuse the exact same
  * "what host_tools ran a session here" definition. Empty and 'unknown' are
- * filtered — those are sentinel values for sessions we couldn't attribute.
+ * filtered - those are sentinel values for sessions we couldn't attribute.
  *
  * Scope: when set, returns only the tools the caller has run sessions with
  * (matches the personal-scope contract used everywhere else in analytics).

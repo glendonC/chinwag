@@ -27,12 +27,12 @@ const PAD_T = 18;
 const PAD_B = 40;
 
 // Fixed dot radius matches VelocityScatter's convention and keeps the viz on
-// the right side of the "no bubble charts / no filled circle orbs" rule — a
+// the right side of the "no bubble charts / no filled circle orbs" rule - a
 // scatter is a scatter only when dots are positional marks, not size-encoded
 // orbs. Lines-churned sits in the tooltip rather than in dot area.
 const DOT_RADIUS = 5;
 
-// Top-N inline labels. More than 3–4 labels starts to overlap — for the rest
+// Top-N inline labels. More than 3–4 labels starts to overlap - for the rest
 // the native <title> tooltip covers hover disclosure. Chosen to keep the plot
 // chromeless at Swiss-density; power users drill by hovering.
 const INLINE_LABEL_COUNT = 3;
@@ -44,7 +44,7 @@ function fileBasename(path: string): string {
 
 /**
  * File constellation: each file is a dot at (touches, completion%). Replaces
- * the old "Most-touched files" + "Highest rework ratio" list pair — one 2D
+ * the old "Most-touched files" + "Highest rework ratio" list pair - one 2D
  * viz fuses the two questions (activity × effectiveness) that previously
  * required two ranked lists to read.
  *
@@ -78,7 +78,7 @@ export default function FileConstellation({ entries, activeWorkType, ariaLabel }
       };
     });
 
-    // Rank for inline labels — highest touch_count gets the label since
+    // Rank for inline labels - highest touch_count gets the label since
     // that's the primary axis readers scan.
     const ranked = [...points]
       .sort((a, b) => b.touch_count - a.touch_count)
@@ -92,7 +92,7 @@ export default function FileConstellation({ entries, activeWorkType, ariaLabel }
 
   const { points, labelSet, maxTouches, plotW, plotH } = dataset;
 
-  // Y ticks at 0/25/50/75/100 % completion — standard grid every quartile.
+  // Y ticks at 0/25/50/75/100 % completion - standard grid every quartile.
   // X ticks at 4 equal fractions of maxTouches with integer labels so the
   // scale is readable without interpolation.
   const yTicks = [0, 25, 50, 75, 100].map((pct) => ({
@@ -115,7 +115,7 @@ export default function FileConstellation({ entries, activeWorkType, ariaLabel }
       role="img"
       aria-label={fallbackAria}
     >
-      {/* Grid — faint horizontal guides at each quartile. No vertical grid:
+      {/* Grid - faint horizontal guides at each quartile. No vertical grid:
           the X axis is activity count (long-tail), not percentages, so
           gridding every quartile would be arbitrary noise. */}
       {yTicks.map((t) => (

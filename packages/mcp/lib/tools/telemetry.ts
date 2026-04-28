@@ -1,6 +1,6 @@
 // Optional MCP telemetry tools: chinmeister_record_tokens and chinmeister_record_tool_call.
 //
-// These are "bonus capture" tools — some cooperative agents will call them
+// These are "bonus capture" tools - some cooperative agents will call them
 // voluntarily. For tools without hooks or logs, this captures 10-30% of
 // sessions. Zero downside: if the agent doesn't call them, nothing breaks.
 //
@@ -99,7 +99,7 @@ export function registerTelemetryTools(
     'chinmeister_record_edit',
     {
       description:
-        "Record that you edited a file. Call this each time you modify a source file so chinmeister's edit count and per-file churn metrics stay accurate for tools without hook capture (Aider, Codex, Cline, Continue, JetBrains, Amazon Q). Claude Code, Cursor, and Windsurf already capture edits via hooks — don't double-report from those. Optional but closes the silent-zero gap; calling on every edit is correct.",
+        "Record that you edited a file. Call this each time you modify a source file so chinmeister's edit count and per-file churn metrics stay accurate for tools without hook capture (Aider, Codex, Cline, Continue, JetBrains, Amazon Q). Claude Code, Cursor, and Windsurf already capture edits via hooks - don't double-report from those. Optional but closes the silent-zero gap; calling on every edit is correct.",
       inputSchema: recordEditSchema,
     },
     withTeam(deps, async (args, { preamble }) => {

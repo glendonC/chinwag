@@ -21,7 +21,7 @@ import { getDemoData } from '../demo/index.js';
 /**
  * Internal mutable state for the polling subsystem.
  * Encapsulated in a single object so it's easy to reset and test.
- * `pollingBridge` is intentionally kept separate — it's a cross-module
+ * `pollingBridge` is intentionally kept separate - it's a cross-module
  * callback interface, not internal polling state.
  *
  * Note: `consecutiveFailures` lives in the Zustand store (not here) so
@@ -32,7 +32,7 @@ interface InternalPollingState {
   /** setInterval ID for the poll timer. */
   pollTimer: ReturnType<typeof setInterval> | null;
   /** Incremented on every WebSocket state update. If a poll started before
-   *  a WS update and finishes after, the poll result is stale — skip it. */
+   *  a WS update and finishes after, the poll result is stale - skip it. */
   dataVersion: number;
   /** AbortController for the current poll cycle. Aborted on new polls,
    *  team switches, stop, and logout so stale fetches never land. */
@@ -117,7 +117,7 @@ async function poll(): Promise<void> {
   if (!token) return;
 
   // Demo path: write the scenario's payload straight into the store and
-  // skip the network entirely. Mirrors the live/dashboard split — overview
+  // skip the network entirely. Mirrors the live/dashboard split - overview
   // gets `dashboard`, project view gets the relevant teamContext.
   if (isDemoActive()) {
     const data = getDemoData(getActiveScenarioId());
@@ -225,7 +225,7 @@ async function poll(): Promise<void> {
       restartPolling();
     }
   } catch (err) {
-    // Aborted requests are not failures — silently discard them.
+    // Aborted requests are not failures - silently discard them.
     if (isAbortError(err)) return;
 
     const apiErr = toApiError(err);
@@ -237,7 +237,7 @@ async function poll(): Promise<void> {
     }
     // Member was evicted server-side (stale heartbeat). Clear the join
     // cache so the next poll cycle re-joins before fetching context.
-    // After repeated 403s, stop polling entirely — the user sees the
+    // After repeated 403s, stop polling entirely - the user sees the
     // ProjectView error state ("Project unavailable") with a Retry button.
     if (apiErr.status === 403 && snapshotTeamId) {
       clearJoinedCache(snapshotTeamId);
@@ -336,10 +336,10 @@ export function startPolling(): void {
   const delay = pollingStore.getState().consecutiveFailures >= 3 ? SLOW_POLL_MS : POLL_MS;
   pollState.pollTimer = setInterval(poll, delay);
   if (activeTeamId) {
-    // Project view — try WebSocket, polling runs as fallback until WS connects
+    // Project view - try WebSocket, polling runs as fallback until WS connects
     connectTeamWebSocket(activeTeamId);
   }
-  // Overview — polling only (aggregates across all teams, no single-team WS)
+  // Overview - polling only (aggregates across all teams, no single-team WS)
 }
 
 /** Stop polling and close WebSocket. */
@@ -368,7 +368,7 @@ export function resetPollingState(): void {
   });
 }
 
-// Module-level listener — intentionally never removed. This store is a singleton
+// Module-level listener - intentionally never removed. This store is a singleton
 // that lives for the entire app lifetime. Attaching once is correct.
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
@@ -382,8 +382,8 @@ if (typeof document !== 'undefined') {
 
 // Re-poll when the demo toggle flips. Force an immediate cycle so the new
 // scenario's dashboard/context lands without waiting for the next interval.
-// Real-network polling is harmless when demo is on — poll() short-circuits
-// before any fetch — so we don't need to stop the timer.
+// Real-network polling is harmless when demo is on - poll() short-circuits
+// before any fetch - so we don't need to stop the timer.
 if (typeof window !== 'undefined') {
   window.addEventListener('chinmeister:demo-scenario-changed', () => {
     if (authActions.getState().token) poll();
@@ -395,12 +395,12 @@ export function forceRefresh(): void {
   requestRefresh();
 }
 
-/** React hook — use inside components */
+/** React hook - use inside components */
 export function usePollingStore<T>(selector: (state: PollingState) => T): T {
   return useStore(pollingStore, selector);
 }
 
-/** Direct access — use outside components and in tests */
+/** Direct access - use outside components and in tests */
 export const pollingActions = {
   getState: (): PollingState => pollingStore.getState(),
   subscribe: pollingStore.subscribe,

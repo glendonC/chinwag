@@ -70,7 +70,7 @@ describe('tool-call-categories', () => {
     });
 
     it('is case-sensitive (matches how agents actually emit names)', () => {
-      // Claude Code emits 'Read' not 'read' — this is the canonical spelling.
+      // Claude Code emits 'Read' not 'read' - this is the canonical spelling.
       expect(classifyToolCall('read')).toBe('other');
       expect(classifyToolCall('Read')).toBe('research');
     });

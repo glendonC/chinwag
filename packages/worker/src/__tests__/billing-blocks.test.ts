@@ -68,7 +68,7 @@ describe('identifyBillingBlocks', () => {
   it('opens a new block when the gap since last event exceeds 5h, with a gap block between', () => {
     const events = [
       ev('2026-04-19T08:00:00Z', { input: 100 }),
-      // 6h gap — should emit real block + gap block + new real block
+      // 6h gap - should emit real block + gap block + new real block
       ev('2026-04-19T14:15:00Z', { input: 50 }),
     ];
     const blocks = identifyBillingBlocks(events, {
@@ -83,7 +83,7 @@ describe('identifyBillingBlocks', () => {
   });
 
   it('does not emit a gap block for gaps smaller than the session duration', () => {
-    // Gap of 4.5h — under 5h threshold — should NOT trigger a gap block
+    // Gap of 4.5h - under 5h threshold - should NOT trigger a gap block
     // but SHOULD split the window if the block has been open > 5h.
     const events = [
       ev('2026-04-19T08:00:00Z', { input: 100 }),
@@ -245,7 +245,7 @@ describe('summarizeBillingBlocks', () => {
   });
 
   it('returns null projection for inactive-only histories', () => {
-    // All events in the distant past — no active block
+    // All events in the distant past - no active block
     const now = new Date('2026-04-19T20:00:00Z').getTime();
     const events = [ev('2026-04-18T08:00:00Z', { input: 10 })];
     const summary = summarizeBillingBlocks(events, { nowMs: now });

@@ -41,7 +41,7 @@ export default function ProjectMemoryTab({
   return (
     <div>
       <div className={styles.memoryControls}>
-        {/* Search — matches text and tags */}
+        {/* Search - matches text and tags */}
         {memories.length > 3 && (
           <input
             type="text"
@@ -52,7 +52,7 @@ export default function ProjectMemoryTab({
           />
         )}
 
-        {/* Tag-frequency pills — primary navigation */}
+        {/* Tag-frequency pills - primary navigation */}
         {allTags.length > 0 && (
           <div className={styles.tagFilters}>
             {activeTag && (

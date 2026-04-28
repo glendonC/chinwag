@@ -13,7 +13,7 @@
  * system is meant to catch. Extraction is now spec-only; adding support for a
  * new tool is a JSON spec, not TypeScript parser code.
  *
- * Runs asynchronously after session end — never blocks process cleanup.
+ * Runs asynchronously after session end - never blocks process cleanup.
  */
 import { createLogger } from '@chinmeister/shared';
 import { getDataCapabilities } from '@chinmeister/shared/tool-registry.js';

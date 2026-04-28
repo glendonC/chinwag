@@ -49,7 +49,7 @@ const TOOL_META: Record<string, ToolMetaEntry> = {
   zed: { label: 'Zed', icon: '/assets/zed.svg', color: '#09090b' },
   copilot: { label: 'GitHub Copilot', icon: '/assets/github-copilot.svg', color: '#6e40c9' },
 
-  // Tools without SVGs — get colored letter fallback
+  // Tools without SVGs - get colored letter fallback
   devin: { label: 'Devin', icon: null, color: '#4f46e5' },
   superset: { label: 'Superset', icon: null, color: '#0ea5e9' },
   replit: { label: 'Replit', icon: null, color: '#f26207' },
@@ -138,7 +138,7 @@ const ALIASES: Record<string, string> = {
 
 // Explicit ordered partial matches for tools whose real-world IDs include
 // the canonical key with extra suffixes (e.g. "jetbrainsaiassistant" -> "jetbrains").
-// Checked in order — put longer substrings first to avoid ambiguous matches.
+// Checked in order - put longer substrings first to avoid ambiguous matches.
 // Only add entries here when an alias can't cover the variant.
 const PARTIAL_MATCHES: PartialMatch[] = [
   { substring: 'jetbrains', key: 'jetbrains' },
@@ -185,7 +185,7 @@ export function getToolMeta(toolId: string | null | undefined): ResolvedToolMeta
     return { id: normalized, ...TOOL_META[normalized] };
   }
 
-  // Explicit partial matches — deterministic order, no iteration-order surprises
+  // Explicit partial matches - deterministic order, no iteration-order surprises
   for (const { substring, key } of PARTIAL_MATCHES) {
     if (normalized.includes(substring)) {
       if (import.meta.env?.DEV) {

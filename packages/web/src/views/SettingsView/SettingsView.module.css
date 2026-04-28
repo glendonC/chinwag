@@ -208,10 +208,10 @@
   align-items: baseline;
 }
 
-/* Agent defaults — vertical option lists with inline descriptions.
+/* Agent defaults: vertical option lists with inline descriptions.
    Each option is its own row: large Manrope name + muted sans-serif
    explainer of what picking that option means. Active = full ink,
-   inactive = --soft, hover = --muted. No cards, no borders, no chrome —
+   inactive = --soft, hover = --muted. No cards, no borders, no chrome,
    hierarchy is purely type weight + opacity. */
 .budgetGroup {
   display: flex;

@@ -51,7 +51,7 @@ interface ToolCatalogState {
   total: number;
   loading: boolean;
   error: Error | null;
-  /** Token that produced the current cache — invalidates on auth change */
+  /** Token that produced the current cache - invalidates on auth change */
   _cachedForToken: string | null;
   /** In-flight promise deduplication */
   _inflight: Promise<void> | null;
@@ -64,7 +64,7 @@ const toolCatalogStore = createStore<ToolCatalogState>(() => ({
   total: 0,
   loading: true,
   error: null,
-  /** Token that produced the current cache — invalidates on auth change */
+  /** Token that produced the current cache - invalidates on auth change */
   _cachedForToken: null,
   /** In-flight promise deduplication */
   _inflight: null,
@@ -77,10 +77,10 @@ const toolCatalogStore = createStore<ToolCatalogState>(() => ({
 async function fetchCatalog(token: string): Promise<void> {
   const state = toolCatalogStore.getState();
 
-  // Cache is valid for this token — nothing to do
+  // Cache is valid for this token - nothing to do
   if (state._cachedForToken === token && state.catalog.length > 0) return;
 
-  // Token changed — invalidate stale cache immediately
+  // Token changed - invalidate stale cache immediately
   if (state._cachedForToken !== null && state._cachedForToken !== token) {
     toolCatalogStore.setState({
       catalog: [],
@@ -106,7 +106,7 @@ async function fetchCatalog(token: string): Promise<void> {
 
   const cacheBust = `_t=${Math.floor(Date.now() / 60000)}`; // refreshes every minute
   const request = (async () => {
-    // Paginate — API caps at 200 per page
+    // Paginate - API caps at 200 per page
     const PAGE = 200;
     let allEvaluations: ToolDirectoryEvaluation[] = [];
     let categories: Record<string, string> = {};
@@ -175,12 +175,12 @@ authActions.subscribe((state, prev) => {
   }
 });
 
-/** React hook — use inside components */
+/** React hook - use inside components */
 export function useToolCatalogStore<T>(selector: (state: ToolCatalogState) => T): T {
   return useStore(toolCatalogStore, selector);
 }
 
-/** Direct access — use outside components and in tests */
+/** Direct access - use outside components and in tests */
 export const toolCatalogActions = {
   getState: (): ToolCatalogState => toolCatalogStore.getState(),
   fetchCatalog,

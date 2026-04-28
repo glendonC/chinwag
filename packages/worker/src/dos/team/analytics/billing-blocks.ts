@@ -4,7 +4,7 @@
 //
 // Motivation: Anthropic Pro's rate-limit window is 5 hours from the
 // first prompt. Chinmeister's daily token aggregates can't answer "how much
-// of my current window have I burned, and when does it reset?" — the
+// of my current window have I burned, and when does it reset?" - the
 // question a Pro user hits two hours into a heavy refactor. This module
 // groups token-bearing conversation events into 5-hour blocks, flags
 // the active one, and projects where the burn rate is heading.
@@ -223,7 +223,7 @@ function buildGapBlock(
  *
  * `tokens_per_minute_non_cache` is a separate figure because the
  * cached-read token count can dominate total tokens on a warmed cache
- * and hide real throughput — the UI uses this narrower figure for
+ * and hide real throughput - the UI uses this narrower figure for
  * "HIGH/MODERATE/NORMAL" indicators while `tokens_per_minute` is the
  * honest gross rate.
  */
@@ -281,7 +281,7 @@ export function projectActiveBlock(
  * about wall-clock proximity to `now`, so an older horizon would just
  * add dead history without changing the live answer.
  *
- * Only assistant messages with token data participate — user messages
+ * Only assistant messages with token data participate - user messages
  * don't carry token usage, and assistant messages without tokens (e.g.
  * an early-exit stop_reason) don't move the billing window.
  */
@@ -318,7 +318,7 @@ export function getBillingBlocksForOwner(
   for (const r of rows) {
     // SQLite's `datetime('now')` string is "YYYY-MM-DD HH:MM:SS" (UTC,
     // no offset). `new Date(...)` parses that as local time on some
-    // runtimes — the Workers runtime happens to be UTC so this is OK,
+    // runtimes - the Workers runtime happens to be UTC so this is OK,
     // but keep the explicit Z-append in mind if we ever move to a
     // non-UTC runtime.
     const ts = parseTimestamp(
@@ -350,7 +350,7 @@ export function getBillingBlocksForOwner(
  * `activeEvents` is the subset of `events` that fell into the active
  * block; we re-pass it to the burn/project helpers so they don't have
  * to re-partition. The grouper exposes enough state for that to be
- * trivial — see the DO call-site.
+ * trivial - see the DO call-site.
  */
 export function summarizeBillingBlocks(
   events: BillingEvent[],

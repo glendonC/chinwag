@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Readable } from 'stream';
 
-// Mock MCP SDK — must use class syntax for `new Server()`
+// Mock MCP SDK - must use class syntax for `new Server()`
 vi.mock('@modelcontextprotocol/sdk/server/index.js', () => {
   class MockServer {
     constructor() {
@@ -107,7 +107,7 @@ describe('channel.js entry point coverage', () => {
     // can set up its listeners
     fakeStdin = new Readable({
       read() {
-        // Don't push anything — keep the stream open
+        // Don't push anything - keep the stream open
       },
     });
     // Preserve real stdin reference

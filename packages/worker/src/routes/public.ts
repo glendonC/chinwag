@@ -92,7 +92,7 @@ export const handleInit = publicRoute(async ({ request, env }) => {
     return json({ error: result.error }, 400);
   }
 
-  // Store auth and refresh tokens in KV — if this fails the user would
+  // Store auth and refresh tokens in KV - if this fails the user would
   // receive tokens that cannot authenticate, so we treat it as fatal.
   // Every token entry carries `issued_at` metadata so a future
   // revokeTokens stamp can invalidate it without a per-key index.
@@ -147,7 +147,7 @@ export const handleStats = publicRoute(async ({ request, env }) => {
  * Public pricing-health endpoint. Returns the freshness of the LiteLLM
  * snapshot chinmeister uses to compute costs, plus any recent failure reason.
  * Operators curl this to see if the 6h refresh cron is alive without
- * SSHing into DatabaseDO. Data is not sensitive — it's all about
+ * SSHing into DatabaseDO. Data is not sensitive - it's all about
  * publicly-sourced LiteLLM pricing, not user data.
  */
 export const handlePricingHealth = publicRoute(async ({ request, env }) => {
@@ -360,7 +360,7 @@ export const handleGithubCallback = publicRoute(async ({ request, env }) => {
 });
 
 export const handleGithubLink = authedRoute(async ({ request, user, env }) => {
-  // This initiates the link flow — redirects to GitHub with user ID in state
+  // This initiates the link flow - redirects to GitHub with user ID in state
   const clientId = env.GITHUB_CLIENT_ID;
   if (!clientId) return json({ error: 'GitHub OAuth not configured' }, 500);
 

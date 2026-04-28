@@ -1,7 +1,7 @@
 {
   "name": "chinmeister",
   "version": "0.1.0",
-  "description": "Vendor-neutral control layer for agentic development — shared memory, coordination, MCP-first",
+  "description": "Vendor-neutral control layer for agentic development: shared memory, coordination, MCP-first",
   "type": "module",
   "bin": {
     "chinmeister": "./dist/cli.js"

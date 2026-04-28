@@ -1,5 +1,5 @@
 // Internal ranking function for "Recommended" sort in the integrations page.
-// Not surfaced as a visible score — users see concrete facts, not a number.
+// Not surfaced as a visible score - users see concrete facts, not a number.
 //
 // Weighs things any builder controls (docs, maintenance, MCP support)
 // heavily, so a well-maintained solo project scores well without
@@ -11,7 +11,7 @@ interface SignalBreakdown {
   activity: number;
   ecosystem: number;
   reach: number;
-  /** True when enrichment data exists — used as sort tiebreaker so unenriched tools aren't unfairly penalized. */
+  /** True when enrichment data exists - used as sort tiebreaker so unenriched tools aren't unfairly penalized. */
   dataComplete: boolean;
 }
 
@@ -73,8 +73,8 @@ function isTruthy(val: unknown): boolean {
 /**
  * Compute the signal score from available data.
  *
- * Craft + Activity + Ecosystem = up to 75 — fully in the builder's control.
- * Reach = up to 25 — audience/adoption, clearly labeled, never a penalty.
+ * Craft + Activity + Ecosystem = up to 75 - fully in the builder's control.
+ * Reach = up to 25 - audience/adoption, clearly labeled, never a penalty.
  *
  * A bootstrapped solo dev with good docs, active maintenance, and MCP
  * support can realistically hit 60-75. A VC-backed tool with stale docs
@@ -88,12 +88,12 @@ export function computeSignalScore(input: ScoringInput): SignalBreakdown {
   if (docs === 'comprehensive') craft += 8;
   else if (docs === 'good') craft += 6;
   else if (docs === 'minimal') craft += 2;
-  // Has a demo video — shows you care about showing the product
+  // Has a demo video - shows you care about showing the product
   if (input.demo_url) craft += 5;
-  // Pricing clarity — transparent about what it costs
+  // Pricing clarity - transparent about what it costs
   if (input.pricing_detail) craft += 4;
   else if (input.pricing_tier) craft += 2;
-  // Rich evaluation data — strengths articulated, summary written
+  // Rich evaluation data - strengths articulated, summary written
   if (input.ai_summary) craft += 3;
   if (input.strengths && input.strengths.length >= 2) craft += 3;
   else if (input.strengths && input.strengths.length >= 1) craft += 1;
@@ -103,34 +103,34 @@ export function computeSignalScore(input: ScoringInput): SignalBreakdown {
 
   // ── Activity (0–25): maintenance signals ──
   let activity = 0;
-  // Update frequency — the single strongest maintenance signal
+  // Update frequency - the single strongest maintenance signal
   const freq = input.update_frequency;
   if (freq === 'daily') activity += 12;
   else if (freq === 'weekly') activity += 10;
   else if (freq === 'monthly') activity += 6;
   else if (freq === 'stale') activity += 1;
   else if (input.last_updated) activity += 4; // have date but no frequency tag
-  // Open source — transparent, community can contribute and verify
+  // Open source - transparent, community can contribute and verify
   if (isTruthy(input.open_source)) activity += 7;
-  // Data confidence — indicates eval found solid info
+  // Data confidence - indicates eval found solid info
   if (input.confidence === 'high') activity += 4;
   else if (input.confidence === 'medium') activity += 2;
   activity = Math.min(Math.round(activity), 25);
 
   // ── Ecosystem (0–25): integration depth ──
   let ecosystem = 0;
-  // MCP support — the biggest differentiator for integrations
+  // MCP support - the biggest differentiator for integrations
   if (isTruthy(input.mcp_support)) ecosystem += 10;
-  // CLI availability — composable, automatable
+  // CLI availability - composable, automatable
   if (isTruthy(input.has_cli)) ecosystem += 5;
-  // Platform breadth — accessible to more developers
+  // Platform breadth - accessible to more developers
   const platforms = input.platform?.length ?? 0;
   ecosystem += Math.min(platforms * 2, 8);
   // Evaluation confidence boost
   if (input.confidence === 'high') ecosystem += 2;
   ecosystem = Math.min(Math.round(ecosystem), 25);
 
-  // ── Reach (0–25): adoption signals — bonus, never a penalty ──
+  // ── Reach (0–25): adoption signals - bonus, never a penalty ──
   let reach = 0;
   const stars = input.github_stars ?? 0;
   if (stars > 0) {
@@ -142,7 +142,7 @@ export function computeSignalScore(input: ScoringInput): SignalBreakdown {
   if (input.notable_users) reach += 2;
   reach = Math.min(Math.round(reach), 25);
 
-  // Flag whether enrichment data exists — tools without it shouldn't be buried below
+  // Flag whether enrichment data exists - tools without it shouldn't be buried below
   // genuinely low-scoring tools just because enrichment fields are null.
   const dataComplete = !!(
     input.ai_summary ||

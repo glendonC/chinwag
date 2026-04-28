@@ -148,7 +148,7 @@ describe('GET /stats', () => {
 describe('Routing edge cases', () => {
   it('returns 404 for unknown path (unauthenticated)', async () => {
     const res = await SELF.fetch('http://localhost/does-not-exist');
-    // Either 401 (needs auth first) or 404 — depends on whether route requires auth
+    // Either 401 (needs auth first) or 404 - depends on whether route requires auth
     expect([401, 404]).toContain(res.status);
   });
 
@@ -197,14 +197,14 @@ describe('Full account lifecycle', () => {
       'Content-Type': 'application/json',
     };
 
-    // 2. Set handle (may fail if AI moderation mock is flaky — skip rest if so)
+    // 2. Set handle (may fail if AI moderation mock is flaky - skip rest if so)
     const newHandle = `lc_${Date.now().toString(36)}`.slice(0, 20);
     const handleRes = await SELF.fetch('http://localhost/me/handle', {
       method: 'PUT',
       headers,
       body: JSON.stringify({ handle: newHandle }),
     });
-    if (handleRes.status !== 200) return; // AI moderation mock flake — skip
+    if (handleRes.status !== 200) return; // AI moderation mock flake - skip
     expect(handleRes.status).toBe(200);
 
     // 3. Set color

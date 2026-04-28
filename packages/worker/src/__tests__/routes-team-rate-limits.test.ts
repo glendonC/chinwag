@@ -1,8 +1,8 @@
 // Rate-limit overflow coverage for the team-scoped creation routes.
 //
 // The atomic check-and-consume path has unit coverage at the middleware level
-// (routes that share the same helper), but the end-to-end story — "20 saves
-// then the 21st refuses" — was never exercised. This file walks a small
+// (routes that share the same helper), but the end-to-end story - "20 saves
+// then the 21st refuses" - was never exercised. This file walks a small
 // handful of limits end-to-end through the real DO call path so that future
 // changes to rate-limit plumbing cannot silently regress the refusal.
 //
@@ -56,7 +56,7 @@ describe('memory save rate limit', () => {
         body: JSON.stringify({ text: `ratelimit-probe-${i}`, tags: ['probe', `n${i}`] }),
       });
       // 200/201 on happy save, 503 if moderation is unavailable in the test
-      // env — all three are non-refusals as far as the rate limiter is
+      // env - all three are non-refusals as far as the rate limiter is
       // concerned.
       expect([200, 201, 503], `save ${i} unexpectedly got ${res.status}`).toContain(res.status);
     }

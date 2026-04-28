@@ -25,7 +25,7 @@ export const handleCreateTeam = authedRoute(async ({ request, user, env }) => {
     name =
       typeof body.name === 'string' ? body.name.slice(0, MAX_NAME_LENGTH).trim() || null : null;
   } catch {
-    /* body may be empty or non-JSON — name stays null */
+    /* body may be empty or non-JSON - name stays null */
   }
 
   if (name) {

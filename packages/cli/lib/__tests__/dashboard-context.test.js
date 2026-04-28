@@ -247,7 +247,7 @@ afterEach(() => {
 
 // ── useView throws outside ViewProvider ────────────────
 // Connection/Agent/Composer/Memory/Integration/Data contexts were collapsed
-// into plain hook returns passed as props — they no longer exist to throw.
+// into plain hook returns passed as props - they no longer exist to throw.
 
 describe('context hooks outside providers', () => {
   it('useView throws when used outside ViewProvider', async () => {

@@ -1,5 +1,5 @@
 // Structured logging for Node.js packages (MCP, CLI, shared).
-// All output goes through console.error — never console.log.
+// All output goes through console.error - never console.log.
 // This is critical for MCP (stdout is JSON-RPC) and safe for CLI (Ink owns stdout).
 //
 // Normal mode: plain human-readable lines with [chinmeister] prefix.

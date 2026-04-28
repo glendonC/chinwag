@@ -1,5 +1,5 @@
 /**
- * Tool-call category classifier — the single source of truth.
+ * Tool-call category classifier - the single source of truth.
  *
  * Classifies an internal tool (e.g. Claude Code's Read/Edit/Bash) into
  * one of five behavior categories. Used by both the worker (to compute
@@ -86,7 +86,7 @@ export function classifyToolCall(toolName: string | null | undefined): ToolCallC
 /**
  * SQL IN-list helper for the worker. Produces a quoted, comma-joined
  * literal list usable inside a `WHERE tool IN (...)` clause. The list
- * is deterministic and safe to interpolate directly — tool names in
+ * is deterministic and safe to interpolate directly - tool names in
  * RESEARCH_TOOLS/EDIT_TOOLS are static constants, not user input.
  *
  * Example: sqlInList(RESEARCH_TOOLS) → "'Agent', 'Glob', 'Grep', ..."

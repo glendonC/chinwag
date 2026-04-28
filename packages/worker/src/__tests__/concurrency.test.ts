@@ -19,7 +19,7 @@ describe('Concurrent file claims', () => {
     await team().join(agent2, owner2, 'bob', 'claude');
   });
 
-  it('two agents claim the same file simultaneously — one gets the lock', async () => {
+  it('two agents claim the same file simultaneously - one gets the lock', async () => {
     const [claim1, claim2] = await Promise.all([
       team().claimFiles(agent1, ['src/contested.js'], 'alice', 'cursor', owner1),
       team().claimFiles(agent2, ['src/contested.js'], 'bob', 'claude', owner2),
@@ -56,7 +56,7 @@ describe('Conflict detection after activity', () => {
     await team().join(agent2, owner2, 'bob', 'claude');
   });
 
-  it('agent A claims file, agent B checks conflicts — B sees the conflict', async () => {
+  it('agent A claims file, agent B checks conflicts - B sees the conflict', async () => {
     await team().claimFiles(agent1, ['src/locked-file.js'], 'alice', 'cursor', owner1);
     await team().updateActivity(agent1, ['src/locked-file.js'], 'Editing locked file', owner1);
 
@@ -88,7 +88,7 @@ describe('Concurrent joins', () => {
   const owner1 = 'user-cj1';
   const owner2 = 'user-cj2';
 
-  it('two agents join simultaneously — both succeed', async () => {
+  it('two agents join simultaneously - both succeed', async () => {
     const [join1, join2] = await Promise.all([
       team().join(agent1, owner1, 'alice', 'cursor'),
       team().join(agent2, owner2, 'bob', 'claude'),
@@ -155,7 +155,7 @@ describe('Concurrent activity updates', () => {
     await team().join(agent2, owner2, 'bob', 'claude');
   });
 
-  it('two agents update activity simultaneously — both succeed', async () => {
+  it('two agents update activity simultaneously - both succeed', async () => {
     const [res1, res2] = await Promise.all([
       team().updateActivity(agent1, ['src/file-a.js'], 'Agent 1 working', owner1),
       team().updateActivity(agent2, ['src/file-b.js'], 'Agent 2 working', owner2),
@@ -187,7 +187,7 @@ describe('Concurrent claims on different files', () => {
     await team().join(agent2, owner2, 'bob', 'claude');
   });
 
-  it('two agents claim different files simultaneously — both succeed', async () => {
+  it('two agents claim different files simultaneously - both succeed', async () => {
     const [claim1, claim2] = await Promise.all([
       team().claimFiles(agent1, ['src/alice-only.js'], 'alice', 'cursor', owner1),
       team().claimFiles(agent2, ['src/bob-only.js'], 'bob', 'claude', owner2),

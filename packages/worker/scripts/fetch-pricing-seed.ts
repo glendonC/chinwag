@@ -174,7 +174,7 @@ async function main(): Promise<void> {
   );
 }
 
-// Only run when invoked directly — allows importing the transforms in tests.
+// Only run when invoked directly - allows importing the transforms in tests.
 const invokedDirectly =
   process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
 if (invokedDirectly) {

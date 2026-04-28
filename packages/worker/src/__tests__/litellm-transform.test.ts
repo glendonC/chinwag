@@ -59,7 +59,7 @@ describe('perMillion', () => {
   });
 
   it('returns null for non-number input', () => {
-    // Forced cast — simulates malformed LiteLLM response
+    // Forced cast - simulates malformed LiteLLM response
     expect(perMillion('3e-6' as unknown as number)).toBeNull();
   });
 
@@ -158,7 +158,7 @@ describe('isTextTokenModel', () => {
   });
 
   it('KEEPS a free-tier model with input_cost_per_token: 0 (nullish, not falsy)', () => {
-    // This was the CodeBurn bug — using `!entry.input_cost_per_token` drops
+    // This was the CodeBurn bug - using `!entry.input_cost_per_token` drops
     // legitimate free-tier models. Our check uses nullish comparison.
     expect(
       isTextTokenModel('free-model', {

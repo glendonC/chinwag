@@ -1,4 +1,4 @@
-// Worker entry point — HTTP routing, auth, and request handling.
+// Worker entry point - HTTP routing, auth, and request handling.
 // Uses DO RPC for all Durable Object communication.
 // Auth flow: Bearer token → KV lookup → user_id → DO.getUser(id)
 
@@ -59,28 +59,28 @@ function getAllowedOrigin(origin: string, environment: string): string {
 /**
  * Validate Origin header for WebSocket upgrades.
  * Browsers always send Origin on WS handshakes. Non-browser clients
- * (MCP servers, CLI) may omit it — that's fine, they're not subject
+ * (MCP servers, CLI) may omit it - that's fine, they're not subject
  * to same-origin policy. We reject only when Origin IS present but
  * does not match our allowlist, which blocks cross-site WS hijacking.
  */
 function isWebSocketOriginAllowed(origin: string, environment: string): boolean {
-  if (!origin) return true; // non-browser client — no Origin header
+  if (!origin) return true; // non-browser client - no Origin header
   return getAllowedOrigin(origin, environment) !== '';
 }
 
 // --- Route table ---
 // auth: false → public, auth: true (default) → requires authenticated user.
-// Handlers receive (request, env, user?, ...params) — user is null for public routes.
+// Handlers receive (request, env, user?, ...params) - user is null for public routes.
 // Parametric :params are captured and appended as trailing handler arguments.
 // Constrained params use :name(regex) syntax, e.g. :tid(t_[a-f0-9]{16}).
 //
 // To add a new endpoint, append it to the relevant register*Routes() factory
-// in routes/* — never grow this composition list. The order below mirrors the
+// in routes/* - never grow this composition list. The order below mirrors the
 // legacy flat table: public → user → team. Each register function preserves
 // its own internal registration order; cross-group reordering is safe only
 // because no two team paths share a parametric regex that could collide.
 
-// Team ID format used in parseTeamPath — constrained to prevent invalid IDs
+// Team ID format used in parseTeamPath - constrained to prevent invalid IDs
 // from reaching handlers (they get a 404 instead).
 const TID = ':tid(t_[a-f0-9]{16})';
 
@@ -159,7 +159,7 @@ export default {
         }
       }
 
-      // Validate Origin for WebSocket upgrades — reject cross-site hijacking
+      // Validate Origin for WebSocket upgrades - reject cross-site hijacking
       if (isWebSocketRoute(path)) {
         if (!isWebSocketOriginAllowed(origin, env.ENVIRONMENT)) {
           return json({ error: 'Origin not allowed' }, 403, corsHeaders);

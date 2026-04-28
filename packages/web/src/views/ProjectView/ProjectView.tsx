@@ -129,7 +129,7 @@ export default function ProjectView(_props: Props) {
     useSensor(KeyboardSensor),
   );
   const [catalogDragging, setCatalogDragging] = useState<CatalogDragPayload | null>(null);
-  // Sortable reorder state — captured at drag start so the DragOverlay
+  // Sortable reorder state - captured at drag start so the DragOverlay
   // can render the dragged widget at its real cell dimensions. Same
   // rationale as in OverviewView: keeps the moving widget sized exactly
   // to what the user grabbed instead of inflating past its grid track.
@@ -354,7 +354,7 @@ export default function ProjectView(_props: Props) {
       <div className={styles.page}>
         <ViewHeader eyebrow="Project" title={activeTeam?.team_name || 'Project'} />
 
-        {/* Global alert chrome — visible across tabs */}
+        {/* Global alert chrome - visible across tabs */}
         {conflicts.length > 0 && (
           <button
             type="button"
@@ -368,7 +368,7 @@ export default function ProjectView(_props: Props) {
           </button>
         )}
 
-        {/* Tab nav — same StatTabs primitive used by detail-view stat strips */}
+        {/* Tab nav - same StatTabs primitive used by detail-view stat strips */}
         <section className={styles.header}>
           <StatTabs
             tabs={stats}

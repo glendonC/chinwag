@@ -28,7 +28,7 @@ interface TokenKvMeta {
  * Format note: `tokens_revoked_at` is stored via SQLite's `datetime('now')`
  * (`"YYYY-MM-DD HH:MM:SS"`, UTC, no zone marker). KV `issued_at` metadata
  * is stored via `new Date().toISOString()` (`"YYYY-MM-DDTHH:MM:SSZ"`). Both
- * formats need to compare against the same wall-clock domain — `Date.parse`
+ * formats need to compare against the same wall-clock domain - `Date.parse`
  * applied directly to the SQLite format treats it as local time on some
  * engines, which produces a several-hour skew. Normalise the SQLite format
  * to ISO before parsing.

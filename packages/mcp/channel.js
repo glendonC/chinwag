@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// chinmeister channel — pushes real-time team state changes into Claude Code sessions.
+// chinmeister channel - pushes real-time team state changes into Claude Code sessions.
 // This is a separate MCP server process that declares the claude/channel capability.
 //
 // Architecture: WebSocket-first with HTTP reconciliation fallback.
@@ -10,8 +10,8 @@
 // - Falls back to 10s HTTP polling when WebSocket is disconnected
 // - Reconciles via full HTTP fetch every 60s to catch any drift
 //
-// Unlike the main MCP server, the channel server has no tools — it only pushes.
-// CRITICAL: Never console.log — stdio transport. Use console.error for logging.
+// Unlike the main MCP server, the channel server has no tools - it only pushes.
+// CRITICAL: Never console.log - stdio transport. Use console.error for logging.
 
 import { readFileSync } from 'fs';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -45,7 +45,7 @@ async function main() {
   const { runtime, agentId, client, team, teamId } = ctx;
   const toolName = runtime.hostTool;
 
-  // Channel capability check (not part of bootstrap — channel-specific logic)
+  // Channel capability check (not part of bootstrap - channel-specific logic)
   if (!runtime.capabilities.includes('channel')) {
     console.error(`[chinmeister-channel] Parent host is ${toolName}; channel disabled.`);
     process.exit(0);
@@ -88,7 +88,7 @@ async function main() {
     agentId,
     onContextUpdate: (prev, curr) => {
       if (prev === null) {
-        // Initial context on connect — no diff needed
+        // Initial context on connect - no diff needed
         return;
       }
       const events = diffState(prev, curr, stucknessAlerted);
@@ -120,7 +120,7 @@ async function main() {
   channelWs.connect();
   reconciler.start();
 
-  // Watch parent process — exit if parent dies
+  // Watch parent process - exit if parent dies
   const parentPid = process.ppid;
   const parentWatch = setInterval(() => {
     if (parentPid > 1 && !isProcessAlive(parentPid)) {

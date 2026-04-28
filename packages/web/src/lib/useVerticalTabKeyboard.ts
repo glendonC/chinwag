@@ -9,7 +9,7 @@ import { useEffect, useRef, type RefObject } from 'react';
  * horizontal sibling lives on document too. A user on the detail page
  * expects arrow keys to nav without having to click into the sidebar
  * first. The trade-off is that ↑/↓ no longer scrolls the page via
- * keyboard while the hook is mounted — acceptable here because the
+ * keyboard while the hook is mounted - acceptable here because the
  * detail panel rarely exceeds the viewport and scroll via trackpad/
  * mouse wheel still works. Skip when focus is inside an editable
  * element so typing isn't hijacked.

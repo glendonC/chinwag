@@ -14,11 +14,11 @@ This detects your AI tools (Claude Code, Cursor, Windsurf, VS Code, Codex, Aider
 
 ## What it does
 
-- **Connect** — `npx chinmeister init` detects tools and writes configs. `npx chinmeister add <tool>` expands.
-- **Remember** — Agents share a brain. What one agent learns, every agent knows next session.
-- **Coordinate** — Live awareness of every agent. Conflict prevention enforced on Claude Code, advisory on others.
-- **Discover** — Browse AI dev tools from one catalog. See what fits your stack. Add with one action.
-- **Observe** — See what agents are doing across all tools and projects.
+- **Connect:** `npx chinmeister init` detects tools and writes configs. `npx chinmeister add <tool>` expands coverage.
+- **Remember:** Agents share project context across sessions.
+- **Coordinate:** Agents see current activity. Conflict prevention is enforced on Claude Code and advisory on other tools.
+- **Discover:** Browse AI development tools from one catalog and add them with one action.
+- **Observe:** See what agents are doing across tools and projects.
 
 ## Teams
 

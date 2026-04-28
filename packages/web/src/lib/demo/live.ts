@@ -25,7 +25,7 @@ export function createBaselineLive(): LiveDemoData {
         'packages/web/src/widgets/bodies/UsageWidgets.tsx',
         'packages/web/src/widgets/bodies/shared.tsx',
       ],
-      summary: 'Redesigning edits widget — tab-selector pattern',
+      summary: 'Redesigning edits widget - tab-selector pattern',
       session_minutes: 42,
       seconds_since_update: 8,
       teamName: 'frontend',
@@ -115,7 +115,7 @@ export function createBaselineLive(): LiveDemoData {
       minutes_held: 12,
     },
     {
-      // Stale claim — held by a handle that isn't in the current Editors
+      // Stale claim - held by a handle that isn't in the current Editors
       // cell. Exercises the 'mismatch' status branch in FileRow.
       file_path: 'packages/worker/src/dos/team/context.ts',
       agent_id: 'agent-cc-ghost',
@@ -134,7 +134,7 @@ export function createBaselineLive(): LiveDemoData {
     },
   ];
 
-  // Project summaries — three active teams with believable counts. The
+  // Project summaries - three active teams with believable counts. The
   // ProjectsWidget reads these via WidgetBodyProps.summaries, and
   // useOverviewData flattens active_members into the top-level LiveAgent[]
   // consumed by live widgets. Populating both parallel shapes keeps demo

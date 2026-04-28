@@ -3,9 +3,9 @@
 // These cover the right-of-access (Art. 15) and right-to-erasure (Art. 17)
 // flows added in routes/user/data.ts:
 //
-//   GET  /me/data/export — fan-out across all the user's TeamDOs, bundle
+//   GET  /me/data/export - fan-out across all the user's TeamDOs, bundle
 //                          their per-user records into a single JSON.
-//   POST /me/data/delete — same fan-out, transactional cascade delete.
+//   POST /me/data/delete - same fan-out, transactional cascade delete.
 //                          Auto-revokes the user's bearer tokens.
 //
 // Chaos coverage is intentional: we fan out to a "broken team" (a row in
@@ -183,7 +183,7 @@ describe('POST /me/data/delete', () => {
     });
     const { team_id: realTeamId } = await createRes.json();
 
-    // Broken team — same trick as the export test
+    // Broken team - same trick as the export test
     await db.addUserTeam(user.id, makeTeamId(), 'Broken');
 
     const res = await SELF.fetch('http://localhost/me/data/delete', {

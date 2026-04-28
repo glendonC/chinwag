@@ -89,7 +89,7 @@ describe('diffState null guard for malformed activity data', () => {
         { handle: 'bob', agent_id: 'b1', status: 'active', activity: { files: ['shared.js'] } },
       ],
     };
-    // Should not crash — alice has no files, so no conflict
+    // Should not crash - alice has no files, so no conflict
     const events = diffState(prev, curr, new Map());
     expect(events.filter((e) => e.startsWith('CONFLICT:'))).toEqual([]);
   });

@@ -172,7 +172,7 @@ describe('executeStopCommand', () => {
     const killSpy = vi.spyOn(process, 'kill').mockImplementation((_pid, sig) => {
       if (sig === 0) {
         probeCount += 1;
-        // Probe succeeds — process still alive
+        // Probe succeeds - process still alive
         return true;
       }
       return true;

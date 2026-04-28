@@ -22,7 +22,7 @@ let inflightRefresh: Promise<RefreshResult | null> | null = null;
 /**
  * Attempt to refresh tokens via POST /auth/refresh and persist to disk.
  *
- * Uses a bare (unauthenticated) client — the refresh endpoint accepts the
+ * Uses a bare (unauthenticated) client - the refresh endpoint accepts the
  * refresh_token in the body, not via Authorization header.
  *
  * Safe to call concurrently: uses inflight deduplication so only one
@@ -46,7 +46,7 @@ export async function refreshAndPersistToken(
   return inflightRefresh;
 }
 
-/** @internal Exported only for testing — resets the inflight deduplication state. */
+/** @internal Exported only for testing - resets the inflight deduplication state. */
 export function _resetInflightRefresh(): void {
   inflightRefresh = null;
 }
@@ -75,7 +75,7 @@ async function doRefreshAndPersist(
     } catch (writeErr: unknown) {
       const { configFile } = getConfigPaths();
       log.warn(
-        'Token refresh succeeded but disk persist failed — ' +
+        'Token refresh succeeded but disk persist failed - ' +
           'in-memory token is valid but will not survive restart. ' +
           `Config path: ${configFile}. Error: ` +
           getErrorMessage(writeErr),

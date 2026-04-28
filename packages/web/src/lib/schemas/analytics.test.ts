@@ -13,7 +13,7 @@
  * wrap the new schema, or add it to the allowlist with a reason.
  *
  * The allowlist is deliberately small. Adding to it should be rare and well-
- * justified — each entry represents a deliberate decision not to surface a
+ * justified - each entry represents a deliberate decision not to surface a
  * shared analytics primitive in the UI.
  */
 import { describe, it, expect } from 'vitest';
@@ -28,7 +28,7 @@ const SHARED_SCHEMA_FILE = resolve(__dirname, '../../../../shared/contracts/anal
 
 /**
  * Shared analytics primitives that web intentionally does not wrap as a
- * baseXSchema. Each must have a reason — typically because it's a rollup
+ * baseXSchema. Each must have a reason - typically because it's a rollup
  * whose sub-schemas are already wrapped individually, or because it's a
  * top-level response envelope that web re-composes from wrapped pieces.
  *
@@ -36,7 +36,7 @@ const SHARED_SCHEMA_FILE = resolve(__dirname, '../../../../shared/contracts/anal
  * wrapping it in web/src/lib/schemas/analytics.ts over adding it here.
  */
 const INTENTIONALLY_UNWRAPPED: Record<string, string> = {
-  // Top-level response envelopes — web rebuilds its own versions using
+  // Top-level response envelopes - web rebuilds its own versions using
   // wrapped sub-schemas.
   teamAnalyticsSchema: 'web composes its own teamAnalyticsSchema',
   userAnalyticsSchema: 'web composes its own userAnalyticsSchema',
@@ -48,7 +48,7 @@ const INTENTIONALLY_UNWRAPPED: Record<string, string> = {
     'rollup of tokenModelBreakdown/tokenToolBreakdown which web imports separately',
 
   // Sub-schemas of commitStats that web consumes transitively via
-  // commitStatsSchema.extend() — do not need independent wrappers.
+  // commitStatsSchema.extend() - do not need independent wrappers.
   commitToolBreakdownSchema: 'composed into commitStatsSchema',
   dailyCommitSchema: 'composed into commitStatsSchema',
   commitOutcomeCorrelationSchema: 'composed into commitStatsSchema',
@@ -103,7 +103,7 @@ describe('analytics contract-sync: web wraps every shared schema', () => {
     ).toEqual([]);
   });
 
-  it('no stale allowlist entries — every entry still exists in shared', () => {
+  it('no stale allowlist entries - every entry still exists in shared', () => {
     const shared = new Set(listSharedZodSchemas());
     const stale = Object.keys(INTENTIONALLY_UNWRAPPED).filter((name) => !shared.has(name));
 
@@ -162,7 +162,7 @@ describe('analytics contract-sync: shape coverage', () => {
       // Web doesn't re-export the extended schemas under the same name, so we
       // can't easily compare pairs. Instead, check that each rolled-up schema
       // in web (teamAnalyticsSchema, userAnalyticsSchema, etc.) resolves when
-      // validated against fixtures — that's covered by other tests.
+      // validated against fixtures - that's covered by other tests.
       // Here we just confirm shared's shape exists and is non-empty.
       if (Object.keys(sharedShape).length === 0) {
         mismatches.push(`${name} has no shape keys in shared`);

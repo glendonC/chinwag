@@ -199,9 +199,9 @@ export function projectConflictStats(acc: ConflictStatsAcc): ConflictStats {
 
 // ── retry_patterns ───────────────────────────────
 
-// Audit 2026-04-21: Post-regroup shape — key is file (not handle:file). Attempts
+// Audit 2026-04-21: Post-regroup shape - key is file (not handle:file). Attempts
 // sum across teams because the same path appearing in team-A and team-B
-// genuinely means more pain for this user. Agents is max-across-teams — the
+// genuinely means more pain for this user. Agents is max-across-teams - the
 // union of distinct counts is not itself a distinct count, and max is a
 // truthful lower bound when the same person may appear in multiple teams.
 // Tools union normally because set semantics hold across teams.

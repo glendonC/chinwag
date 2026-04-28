@@ -1,4 +1,4 @@
-// Team command routes — submit and list commands for daemon relay.
+// Team command routes - submit and list commands for daemon relay.
 
 import type { RouteDefinition } from '../../lib/router.js';
 import { rpc } from '../../lib/env.js';

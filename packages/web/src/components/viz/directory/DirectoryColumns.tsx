@@ -32,7 +32,7 @@ interface Props {
    * Stack semantics:
    *   - 'work-type' (default): N-color stack, one segment per work_type
    *     touched in the directory. Legend lists every work-type present.
-   *   - 'two-color': two-segment stack — single-author share on top
+   *   - 'two-color': two-segment stack - single-author share on top
    *     (`var(--warn)`) and the remaining share below (`var(--soft)`).
    *     Legend collapses to the two semantic labels. Used by Memory's
    *     authorship tab to read concentration without the work-type axis.
@@ -42,7 +42,7 @@ interface Props {
    */
   mode?: 'work-type' | 'two-color';
   /** Override labels for the two-color legend. Defaults to "Single author"
-   *  and "Other authors" — Memory uses this; other callers can rename. */
+   *  and "Other authors" - Memory uses this; other callers can rename. */
   twoColorLabels?: { primary: string; other: string };
 }
 
@@ -61,8 +61,8 @@ function dirKey(path: string, depth: number): string {
   return parts.slice(0, Math.max(1, depth)).join('/');
 }
 
-// Label the column with the distinguishing last segment — e.g. "web"
-// instead of "packages/web" — so neighboring columns don't all read as
+// Label the column with the distinguishing last segment - e.g. "web"
+// instead of "packages/web" - so neighboring columns don't all read as
 // truncated "PACKAGES/…". Full path stays on the hover title.
 function dirLabel(key: string): string {
   const parts = key.split('/').filter(Boolean);
@@ -83,7 +83,7 @@ function dirLabel(key: string): string {
  *     lens. Driven by `file.primary_share` (touch-weighted aggregate per
  *     directory).
  *
- * Horizontal layout reads as a bar chart, not a list — a clean pair to the
+ * Horizontal layout reads as a bar chart, not a list - a clean pair to the
  * treemap on the left half.
  */
 export default function DirectoryColumns({
@@ -115,7 +115,7 @@ export default function DirectoryColumns({
       bucket.byWorkType.set(wt, (bucket.byWorkType.get(wt) ?? 0) + f.touch_count);
       // Touch-weighted aggregate of primary_share. Stored as a numerator
       // (sum of share × touches) and finalized to a 0-1 ratio after the
-      // pass — same idea as a weighted mean.
+      // pass - same idea as a weighted mean.
       const share = f.primary_share ?? 0;
       const clamped = Math.max(0, Math.min(1, share));
       bucket.primaryShare += clamped * f.touch_count;
@@ -152,7 +152,7 @@ export default function DirectoryColumns({
           // touched, colored by `workTypeColor`. Two-color mode: exactly
           // two segments (primary share + remainder), colored from tokens.
           // Both shapes feed the same `<div className={styles.stack}>`
-          // flex container — only the segments differ.
+          // flex container - only the segments differ.
           const segs =
             mode === 'two-color'
               ? [

@@ -1,6 +1,6 @@
 // Shared types for the Reports skeleton.
 //
-// Findings are the unit of value — each finding is a claim with citations
+// Findings are the unit of value - each finding is a claim with citations
 // and actions. Actions are split into three categories so the UI can
 // visually distinguish "this changes chinmeister state" from "this hands you
 // an artifact" from "this launches your own managed agent with context".

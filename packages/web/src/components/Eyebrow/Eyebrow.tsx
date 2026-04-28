@@ -8,7 +8,7 @@ import styles from './Eyebrow.module.css';
  * the single source of truth.
  *
  * When you need just the eyebrow string without a preview badge, pass
- * `showPreview={false}` (the default) — the wrapper row still renders so
+ * `showPreview={false}` (the default) - the wrapper row still renders so
  * spacing stays identical whether the badge is present or not.
  */
 interface Props {

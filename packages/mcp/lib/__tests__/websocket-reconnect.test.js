@@ -122,7 +122,7 @@ describe('WebSocket reconnect with exponential backoff', () => {
     // Pin Math.random to 0.5 for deterministic jitter
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5);
 
-    // Ticket fetch fails — triggers scheduleReconnect without successful onopen
+    // Ticket fetch fails - triggers scheduleReconnect without successful onopen
     // (so delay is NOT reset between attempts)
     client.post.mockRejectedValue(new Error('offline'));
 
@@ -274,13 +274,13 @@ describe('WebSocket reconnect with exponential backoff', () => {
     expect(firstDelay).toBeGreaterThanOrEqual(0.5);
     expect(firstDelay).toBeLessThanOrEqual(1.0);
 
-    // Advance past reconnect timer — connection re-established
+    // Advance past reconnect timer - connection re-established
     await vi.advanceTimersByTimeAsync(INITIAL_RECONNECT_DELAY_MS * 2);
     await vi.advanceTimersByTimeAsync(0); // ticket resolve
     await vi.advanceTimersByTimeAsync(0); // ws open
 
     // Successful onopen resets delay to INITIAL_RECONNECT_DELAY_MS
-    // Close again — delay should be back to initial range
+    // Close again - delay should be back to initial range
     consoleSpy.mockClear();
     state.ws.onclose();
     const resetDelay = extractDelaySeconds(consoleSpy);

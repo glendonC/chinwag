@@ -1,11 +1,11 @@
-// Reports demo data. Mirrors the live.ts pattern: a baseline payload that
-// matches "Healthy", an empty variant for scenarios with no Reports state,
-// and pure helpers that take a payload as input so the same fixtures work
-// across scenarios without globals.
+// Reports demo data. Mirrors the live.ts pattern: a baseline payload for
+// the "Healthy" scenario, an empty variant, and pure helpers that take a
+// payload as input so the same fixtures work across scenarios without
+// globals.
 //
-// The Reports backend doesn't exist yet (see .internal/REPORTS.md). When it
-// lands, callers swap useDemoReports() for a real fetch hook and these
-// helpers stay — the shape is what a future API will return.
+// The Reports backend is not yet wired up. When it lands, callers swap
+// useDemoReports() for a real fetch hook and these helpers stay; the
+// payload shape matches what the API will return.
 
 import type { CompletedReport, MockRun } from '../../views/ReportsView/types.js';
 
@@ -27,15 +27,9 @@ function minutesAgo(mins: number): string {
   return d.toISOString();
 }
 
-function hoursAgo(hours: number): string {
-  const d = new Date();
-  d.setHours(d.getHours() - hours);
-  return d.toISOString();
-}
-
 export function createBaselineReports(): ReportsDemoData {
   const runs: MockRun[] = [
-    // Failure Analysis — two past runs
+    // Failures - two past runs
     {
       id: 'run-fa-003',
       reportId: 'failure-analysis',
@@ -61,7 +55,7 @@ export function createBaselineReports(): ReportsDemoData {
       criticalCount: 3,
     },
 
-    // Coordination Audit — one complete, one queued
+    // Collisions - one complete, one queued
     {
       id: 'run-ca-002',
       reportId: 'coordination-audit',
@@ -83,97 +77,21 @@ export function createBaselineReports(): ReportsDemoData {
       startedAt: minutesAgo(8),
     },
 
-    // Cost Leak — two past runs
+    // Project Primer - one past run (on teammate join)
     {
-      id: 'run-cl-002',
-      reportId: 'cost-leak',
+      id: 'run-op-001',
+      reportId: 'onboarding-brief',
       project: 'chinmeister',
       status: 'complete',
       path: 'primary',
-      startedAt: daysAgo(1, 16),
-      completedAt: daysAgo(1, 16),
-      durationMs: 3 * 60 * 1000 + 18 * 1000,
-      findingsCount: 4,
-      criticalCount: 1,
-    },
-    {
-      id: 'run-cl-001',
-      reportId: 'cost-leak',
-      project: 'chinmeister',
-      status: 'complete',
-      path: 'primary',
-      startedAt: daysAgo(8, 12),
-      completedAt: daysAgo(8, 12),
-      durationMs: 2 * 60 * 1000 + 47 * 1000,
+      startedAt: daysAgo(2, 10),
+      completedAt: daysAgo(2, 10),
+      durationMs: 4 * 60 * 1000 + 18 * 1000,
       findingsCount: 3,
       criticalCount: 0,
     },
 
-    // Cross-Tool Effectiveness — one past run
-    {
-      id: 'run-ct-001',
-      reportId: 'cross-tool-effectiveness',
-      project: 'chinmeister',
-      status: 'complete',
-      path: 'primary',
-      startedAt: daysAgo(6, 13),
-      completedAt: daysAgo(6, 13),
-      durationMs: 5 * 60 * 1000 + 22 * 1000,
-      findingsCount: 3,
-      criticalCount: 0,
-    },
-
-    // Test-Edit Gap — one running now, one past
-    {
-      id: 'run-te-002',
-      reportId: 'test-edit-gap',
-      project: 'chinmeister',
-      status: 'running',
-      path: 'primary',
-      startedAt: minutesAgo(3),
-    },
-    {
-      id: 'run-te-001',
-      reportId: 'test-edit-gap',
-      project: 'chinmeister',
-      status: 'complete',
-      path: 'primary',
-      startedAt: daysAgo(16, 10),
-      completedAt: daysAgo(16, 10),
-      durationMs: 6 * 60 * 1000 + 9 * 1000,
-      findingsCount: 5,
-      criticalCount: 1,
-    },
-
-    // Architecture Drift — one past run
-    {
-      id: 'run-ad-001',
-      reportId: 'architecture-drift',
-      project: 'chinmeister',
-      status: 'complete',
-      path: 'primary',
-      startedAt: daysAgo(11, 15),
-      completedAt: daysAgo(11, 15),
-      durationMs: 9 * 60 * 1000 + 34 * 1000,
-      findingsCount: 4,
-      criticalCount: 1,
-    },
-
-    // Failure Forensics — one past run (on-demand, so a single recent run)
-    {
-      id: 'run-ff-001',
-      reportId: 'failure-forensics',
-      project: 'chinmeister',
-      status: 'complete',
-      path: 'primary',
-      startedAt: hoursAgo(1),
-      completedAt: hoursAgo(1),
-      durationMs: 3 * 60 * 1000 + 41 * 1000,
-      findingsCount: 3,
-      criticalCount: 1,
-    },
-
-    // Memory Hygiene — one past run, one older failed
+    // Memory Cleanup - one past run, one older failed
     {
       id: 'run-mh-001',
       reportId: 'memory-hygiene',
@@ -365,343 +283,64 @@ export function createBaselineReports(): ReportsDemoData {
       },
     },
 
-    'cost-leak': {
-      runId: 'run-cl-002',
-      reportId: 'cost-leak',
+    'onboarding-brief': {
+      runId: 'run-op-001',
+      reportId: 'onboarding-brief',
       summary:
-        "$89 of this fortnight's $234 in agent spend produced abandoned sessions. Two patterns account for 70% of the waste: Opus on small refactors, and Sonnet on multi-file debugging.",
+        'Backend (packages/worker/) completes 82% on Claude Code + Opus. Frontend (packages/web/) works well on Cursor + Sonnet at half the cost. Tests under packages/worker/tests/integration/ retry 5x more without claim coverage.',
       findings: [
         {
-          id: 'f-cl-1',
-          severity: 'critical',
-          title: '$47 wasted on abandoned Opus refactor sessions',
-          body: '8 Opus refactor sessions abandoned under 5 edits, averaging $5.90 each. Sonnet completed the same work type at 82% at roughly $0.18 per session. Routing small refactors to Sonnet would recover ~$38 per fortnight at this cadence.',
+          id: 'f-op-1',
+          severity: 'info',
+          title: 'Where to run what',
+          body: 'Backend completes 82% on Claude Code + Opus across 38 sessions in packages/worker/. Frontend (packages/web/) is most reliable on Cursor + Sonnet at roughly half the cost per session. Cross-package work drops 20 points regardless of tool, so split tasks at the package boundary when possible.',
           citations: [
-            { type: 'session', label: '8 abandoned sessions', detail: 'all Opus, all refactor' },
-            { type: 'metric', label: '$47 abandoned / $5.90 avg', detail: 'waste on this cohort' },
-            { type: 'metric', label: '82% / $0.18', detail: 'Sonnet comparison baseline' },
-          ],
-          actions: [
-            { id: 'a-cl-1-state', category: 'state', label: 'Route refactors to Sonnet' },
-            { id: 'a-cl-1-state-2', category: 'state', label: 'Save routing memory' },
-            { id: 'a-cl-1-spawn', category: 'spawn', label: 'Test Sonnet on next refactor' },
-          ],
-        },
-        {
-          id: 'f-cl-2',
-          severity: 'warning',
-          title: 'Multi-file debugging on Sonnet costs 3x more than Opus to complete',
-          body: 'Sonnet sessions touching 5+ files in debug work cost $2.40 on average and completed 58%. Opus on the same cohort cost $0.80 and completed 91%. Sonnet debugging appears to cascade context retries.',
-          citations: [
+            {
+              type: 'metric',
+              label: '82% / Claude Code + Opus',
+              detail: 'packages/worker/, 38 sessions',
+            },
+            { type: 'metric', label: 'Cursor + Sonnet', detail: 'packages/web/, half the cost' },
             {
               type: 'session',
-              label: '17 debug sessions',
-              detail: '5+ files touched, mixed tools',
+              label: '16 cross-package sessions',
+              detail: '-20 pts vs single-package',
             },
-            { type: 'metric', label: '$2.40 vs $0.80', detail: 'Sonnet vs Opus avg cost' },
-            { type: 'metric', label: '58% / 91%', detail: 'completion rate' },
           ],
-          actions: [
-            { id: 'a-cl-2-state', category: 'state', label: 'Add multi-file debug routing rule' },
-            { id: 'a-cl-2-export', category: 'export', label: 'Copy finding' },
-          ],
+          actions: [],
         },
         {
-          id: 'f-cl-3',
+          id: 'f-op-2',
           severity: 'info',
-          title: 'Cache hit rate dropped 18 points this fortnight',
-          body: 'Cache reads are 38% of input tokens, down from 56% two weeks ago. The drop tracks with a new session-start pattern: CLAUDE.md is being re-read without reuse. Recovering the prior hit rate would save ~$14 per fortnight.',
+          title: 'Memories to read first',
+          body: 'Two memories are touched by most sessions in this repo. The do-rpc memory describes the native RPC pattern (not fetch). The auth-pattern memory documents JWT validation via checkAuth(). Read both before editing middleware or any DO method.',
           citations: [
-            { type: 'metric', label: '56% -> 38%', detail: 'cache read / total input' },
-            { type: 'session', label: '42 sessions', detail: 'with token data' },
-          ],
-          actions: [
-            { id: 'a-cl-3-state', category: 'state', label: 'Save as memory' },
-            { id: 'a-cl-3-spawn', category: 'spawn', label: 'Investigate with Claude Code' },
-          ],
-        },
-        {
-          id: 'f-cl-4',
-          severity: 'info',
-          title: 'Haiku handled 4 one-shot edits at $0.02 total',
-          body: 'Small single-file edits routed to Haiku completed at 100% at an order of magnitude lower cost. Currently an accidental pattern — not covered by any routing rule.',
-          citations: [
-            {
-              type: 'session',
-              label: '4 Haiku sessions',
-              detail: 'all completed, all single-file',
-            },
-            { type: 'metric', label: '$0.02 total', detail: '~$0.005 per session' },
-          ],
-          actions: [
-            { id: 'a-cl-4-state', category: 'state', label: 'Formalize one-shot routing to Haiku' },
-          ],
-        },
-      ],
-      stats: {
-        sessionsRead: 94,
-        filesRead: 0,
-        tokensUsed: 52_000,
-        estimatedCost: 0.19,
-        path: 'primary',
-      },
-    },
-
-    'cross-tool-effectiveness': {
-      runId: 'run-ct-001',
-      reportId: 'cross-tool-effectiveness',
-      summary:
-        'Cursor leads on packages/web/ at 81% completion. Claude Code leads on packages/worker/ at 74%. Sessions that cross that boundary drop 20 points on average regardless of tool.',
-      findings: [
-        {
-          id: 'f-ct-1',
-          severity: 'info',
-          title: 'Cursor completes packages/web/ at 81%; Claude Code at 63% on the same surface',
-          body: 'Sampled across 42 sessions in the period. The gap is largest on CSS and component work; it shrinks on data-fetch layers. Model effect is smaller than tool effect in this zone.',
-          citations: [
-            { type: 'session', label: '42 sessions', detail: 'packages/web/ scope' },
-            { type: 'file', label: 'packages/web/src/components/' },
-            { type: 'metric', label: '81% / 63%', detail: 'Cursor vs Claude Code completion' },
-          ],
-          actions: [
-            { id: 'a-ct-1-state', category: 'state', label: 'Save routing rule for web/' },
-            { id: 'a-ct-1-export', category: 'export', label: 'Draft CLAUDE.md note' },
-          ],
-        },
-        {
-          id: 'f-ct-2',
-          severity: 'info',
-          title: 'Claude Code owns packages/worker/ at 74%; Cursor completes the same files at 48%',
-          body: 'Concentrated on Durable Object code. Cursor sessions more often abandon when the agent needs to reason about RPC ownership semantics. Opus + Claude Code is the highest-completion combination on this surface.',
-          citations: [
-            { type: 'session', label: '38 sessions', detail: 'packages/worker/ scope' },
-            { type: 'file', label: 'packages/worker/src/dos/' },
-            { type: 'metric', label: '74% / 48%', detail: 'Claude Code vs Cursor completion' },
-          ],
-          actions: [
-            { id: 'a-ct-2-state', category: 'state', label: 'Save routing rule for worker/' },
-          ],
-        },
-        {
-          id: 'f-ct-3',
-          severity: 'warning',
-          title: 'Cross-package work drops 20 points regardless of tool',
-          body: 'Any session touching both packages/web/ and packages/worker/ in one go completes 20 points below the single-package baseline. The effect is tool-independent; splitting such tasks would recover most of the gap.',
-          citations: [
-            { type: 'session', label: '16 cross-package sessions' },
-            { type: 'metric', label: '-20 pts', detail: 'vs single-package baseline' },
-          ],
-          actions: [
-            { id: 'a-ct-3-state', category: 'state', label: 'Flag cross-package pattern' },
-            { id: 'a-ct-3-spawn', category: 'spawn', label: 'Plan split with Claude Code' },
-          ],
-        },
-      ],
-      stats: {
-        sessionsRead: 96,
-        filesRead: 0,
-        tokensUsed: 58_000,
-        estimatedCost: 0.22,
-        path: 'primary',
-      },
-    },
-
-    'test-edit-gap': {
-      runId: 'run-te-001',
-      reportId: 'test-edit-gap',
-      summary:
-        'Three source files were edited heavily this fortnight with no corresponding test changes. Sessions touching them abandon 2.2x more often than the repo average.',
-      findings: [
-        {
-          id: 'f-te-1',
-          severity: 'critical',
-          title: 'router.ts: 9 edits, no test changes in 4 months',
-          body: 'routerTest.ts was last modified 2025-12-14. Sessions touching router.ts abandon at 38% versus a 17% repo average. The test file still covers the pre-migration surface.',
-          citations: [
-            {
-              type: 'file',
-              label: 'packages/worker/src/router.ts',
-              detail: '9 edits this fortnight',
-            },
-            {
-              type: 'file',
-              label: 'packages/worker/src/routerTest.ts',
-              detail: 'last touched 2025-12-14',
-            },
-            { type: 'metric', label: '38% / 17%', detail: 'abandonment vs repo average' },
-          ],
-          actions: [
-            { id: 'a-te-1-state', category: 'state', label: 'Flag router.ts for test update' },
-            { id: 'a-te-1-spawn', category: 'spawn', label: 'Add tests with Claude Code' },
-            { id: 'a-te-1-export', category: 'export', label: 'Download gap report' },
-          ],
-        },
-        {
-          id: 'f-te-2',
-          severity: 'warning',
-          title: 'ConflictBanner.tsx: 6 edits, no test file exists',
-          body: 'No test file was located for this component. The first edit of the period (2026-03-11) was a logic change to conflict-detection thresholds — exactly the kind of change a test would catch.',
-          citations: [
-            {
-              type: 'file',
-              label: 'packages/web/src/components/ConflictBanner/ConflictBanner.tsx',
-            },
-            { type: 'metric', label: '6 edits, 0 tests', detail: 'test file missing' },
-          ],
-          actions: [
-            { id: 'a-te-2-state', category: 'state', label: 'Save test-scaffold memory' },
-            { id: 'a-te-2-spawn', category: 'spawn', label: 'Scaffold tests with Claude Code' },
-          ],
-        },
-        {
-          id: 'f-te-3',
-          severity: 'info',
-          title: 'sessions.ts: 11 edits, 1 test change',
-          body: 'Test coverage is present but the ratio of edits to test changes (11:1) is 4x the repo median of 2.7:1. Gap accumulating but not yet critical.',
-          citations: [
-            { type: 'file', label: 'packages/worker/src/dos/team/sessions.ts' },
-            { type: 'metric', label: '11:1 ratio', detail: 'edits-to-test-changes' },
-          ],
-          actions: [{ id: 'a-te-3-state', category: 'state', label: 'Save note' }],
-        },
-      ],
-      stats: {
-        sessionsRead: 64,
-        filesRead: 138,
-        tokensUsed: 89_000,
-        estimatedCost: 0.31,
-        path: 'primary',
-      },
-    },
-
-    'architecture-drift': {
-      runId: 'run-ad-001',
-      reportId: 'architecture-drift',
-      summary:
-        'Four memories describe patterns the code has moved past. Two were referenced in recent sessions before agents made now-incorrect edits.',
-      findings: [
-        {
-          id: 'f-ad-1',
-          severity: 'critical',
-          title: 'do-rpc memory describes fetch-based calls; code migrated to native RPC',
-          body: 'Memory mem-a7b2 claims DO communication uses fetch. The migration completed on 2026-02-04. Four sessions searched this memory this month; two made fetch-based edits before correcting.',
-          citations: [
+            { type: 'memory', label: 'do-rpc', detail: 'touched by 14 sessions' },
             {
               type: 'memory',
-              label: 'mem-a7b2 "do-rpc-pattern"',
-              detail: 'accessed 4 times this month',
+              label: 'auth-pattern',
+              detail: 'referenced in every middleware session',
             },
-            { type: 'file', label: 'packages/worker/src/dos/team/', detail: 'migration site' },
-            { type: 'session', label: '2 sessions', detail: 'made fetch-based edits' },
           ],
-          actions: [
-            { id: 'a-ad-1-state', category: 'state', label: 'Update memory to native RPC' },
-            { id: 'a-ad-1-state-2', category: 'state', label: 'Supersede with current pattern' },
-            { id: 'a-ad-1-spawn', category: 'spawn', label: 'Rewrite with Claude Code' },
-          ],
+          actions: [],
         },
         {
-          id: 'f-ad-2',
+          id: 'f-op-3',
           severity: 'warning',
-          title: 'auth-middleware memory references deleted file',
-          body: 'Memory mem-k9x2 describes packages/worker/src/middleware/auth.ts. The file was removed in commit 0f06ff2. Memory still describes the pattern as current and was returned in 2 searches last week.',
+          title: 'Hard zones',
+          body: 'packages/worker/dos/team/ completes at 35%. Approach with context, prefer Opus, and read the memory bank first. packages/worker/src/router.ts has been reworked 9 times this month - consult the Failures report before editing.',
           citations: [
-            { type: 'memory', label: 'mem-k9x2 "auth-middleware"' },
-            {
-              type: 'file',
-              label: 'packages/worker/src/middleware/auth.ts',
-              detail: 'deleted 0f06ff2',
-            },
+            { type: 'file', label: 'packages/worker/dos/team/', detail: '35% completion' },
+            { type: 'file', label: 'packages/worker/src/router.ts', detail: 'reworked 9 times' },
           ],
-          actions: [
-            { id: 'a-ad-2-state', category: 'state', label: 'Mark memory invalid' },
-            { id: 'a-ad-2-export', category: 'export', label: 'Copy finding' },
-          ],
-        },
-        {
-          id: 'f-ad-3',
-          severity: 'info',
-          title: 'work-type memory references old taxonomy (pre-migration 018)',
-          body: 'Memory mem-p3a8 mentions a "planning" work-type category that was replaced by the 7-domain taxonomy in migration 018. Content still useful; category name is outdated.',
-          citations: [
-            { type: 'memory', label: 'mem-p3a8 "work-types"' },
-            { type: 'metric', label: 'migration 018', detail: 'normalized at write time' },
-          ],
-          actions: [{ id: 'a-ad-3-state', category: 'state', label: 'Update memory' }],
-        },
-        {
-          id: 'f-ad-4',
-          severity: 'info',
-          title: 'cli-init memory names old entry path',
-          body: 'Memory mem-r7c1 names cli/init.old.js as the init entry; current entry is cli.jsx compiled to dist/cli.js. Low access count; low-risk correction.',
-          citations: [
-            { type: 'memory', label: 'mem-r7c1 "cli-init"' },
-            { type: 'file', label: 'packages/cli/cli.jsx' },
-          ],
-          actions: [{ id: 'a-ad-4-state', category: 'state', label: 'Update memory path' }],
+          actions: [],
         },
       ],
       stats: {
-        sessionsRead: 0,
-        filesRead: 412,
-        tokensUsed: 156_000,
-        estimatedCost: 0.58,
-        path: 'primary',
-      },
-    },
-
-    'failure-forensics': {
-      runId: 'run-ff-001',
-      reportId: 'failure-forensics',
-      summary:
-        'Session a3f7b2 abandoned after 23 minutes and 11 tool calls. The inflection point was a Bash error at 8:42 UTC that the agent never verified before continuing to edit router.ts.',
-      findings: [
-        {
-          id: 'f-ff-1',
-          severity: 'critical',
-          title: 'Inflection point at 8:42 UTC: Bash error on npm install never re-checked',
-          body: 'The npm install failed with a peer-dependency conflict. The agent acknowledged the error in the next turn but made four subsequent Edit calls to router.ts assuming the install had succeeded. router.ts ended the session in a broken state the agent never verified.',
-          citations: [
-            { type: 'tool_call', label: 'Bash (npm install)', detail: '8:42 UTC — exit 1' },
-            { type: 'tool_call', label: 'Edit x4', detail: 'router.ts, post-error' },
-            { type: 'session', label: 'a3f7b2' },
-          ],
-          actions: [
-            { id: 'a-ff-1-state', category: 'state', label: 'Save as anti-pattern memory' },
-            { id: 'a-ff-1-spawn', category: 'spawn', label: 'Retry with pre-check context' },
-          ],
-        },
-        {
-          id: 'f-ff-2',
-          severity: 'warning',
-          title: 'Agent re-read router.ts only twice in 11 tool calls',
-          body: 'The research-to-edit ratio on this session was 0.3 against a 2.5 session baseline for work of this type. Low file awareness compounded the Bash-error drift.',
-          citations: [
-            { type: 'session', label: 'a3f7b2', detail: 'research-to-edit ratio 0.3' },
-            { type: 'metric', label: '0.3 / 2.5', detail: 'session vs baseline' },
-          ],
-          actions: [{ id: 'a-ff-2-state', category: 'state', label: 'Save as anti-pattern' }],
-        },
-        {
-          id: 'f-ff-3',
-          severity: 'info',
-          title: 'Recommended next-session context',
-          body: 'Start the retry with: (1) npm install + verify exit status, (2) run npm test to establish clean baseline, (3) re-read router.ts in full before the first edit. The original goal and the three prior edits are summarized below.',
-          citations: [
-            { type: 'session', label: 'a3f7b2 goal summary' },
-            { type: 'file', label: 'packages/worker/src/router.ts', detail: 'end-state diff' },
-          ],
-          actions: [
-            { id: 'a-ff-3-spawn', category: 'spawn', label: 'Launch retry with this context' },
-            { id: 'a-ff-3-export', category: 'export', label: 'Copy context block' },
-          ],
-        },
-      ],
-      stats: {
-        sessionsRead: 1,
-        filesRead: 7,
-        tokensUsed: 41_000,
-        estimatedCost: 0.15,
+        sessionsRead: 92,
+        filesRead: 0,
+        tokensUsed: 38_000,
+        estimatedCost: 0.14,
         path: 'primary',
       },
     },

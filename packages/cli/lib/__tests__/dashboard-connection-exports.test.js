@@ -10,8 +10,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
  *
  * Strategy:
  *   - contextFingerprint and getPollInterval are pure, exported functions
- *     — tested directly.
- *   - useDashboardConnection is a React hook — tested via vi.doMock of
+ *     - tested directly.
+ *   - useDashboardConnection is a React hook - tested via vi.doMock of
  *     React, @chinmeister/shared, and other deps so we can drive hook logic
  *     through a minimal state simulation.
  */

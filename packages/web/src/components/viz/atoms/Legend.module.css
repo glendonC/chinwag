@@ -1,4 +1,4 @@
-/* Legend items — dot (or hatched swatch) + mono label. Placed beneath
+/* Legend items: dot (or hatched swatch) + mono label. Placed beneath
  * strips and diverging timelines to name each color band. */
 
 .item {
@@ -17,7 +17,7 @@
   align-self: center;
 }
 
-/* Diagonal hatch swatch — matches the "no outcome" strip segment so the
+/* Diagonal hatch swatch: matches the "no outcome" strip segment so the
  * legend reads as the same vocabulary as the chart. */
 .hatch {
   background: repeating-linear-gradient(

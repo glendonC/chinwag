@@ -2,7 +2,7 @@
 //
 // Window alignment: `current` spans the last `days` days, `previous` spans the
 // same length immediately before that. We deliberately do NOT clamp to
-// SESSION_RETENTION_DAYS here — the retention cutoff is handled by the data
+// SESSION_RETENTION_DAYS here - the retention cutoff is handled by the data
 // itself (sessions older than 30d are pruned). At `days > 30` the previous
 // window reaches into pruned data, queryPeriodMetrics returns null, and the
 // client hides the delta. That matches the widget's value (sum of
@@ -58,7 +58,7 @@ export function queryPeriodComparison(
       const stuck = (r.stuck_sessions as number) || 0;
 
       // Memory hit rate from daily_metrics (period-scoped)
-      // Scope: not applicable — daily_metrics has no per-user dimension
+      // Scope: not applicable - daily_metrics has no per-user dimension
       let memoryHitRate = 0;
       try {
         const telRows = sql
@@ -92,7 +92,7 @@ export function queryPeriodComparison(
         // Cost fields are populated downstream by enrichPeriodComparisonCost
         // in dos/team/index.ts (getAnalytics + getAnalyticsForOwner), which
         // prices the current + previous window aggregates against today's
-        // pricing snapshot. Null here is the pre-enrichment placeholder —
+        // pricing snapshot. Null here is the pre-enrichment placeholder -
         // any code path that skips enrichment will see em-dashes in the UI.
         total_estimated_cost_usd: null,
         total_edits_in_token_sessions: 0,
@@ -115,7 +115,7 @@ export function queryPeriodComparison(
       memory_hit_rate: 0,
       edit_velocity: 0,
       total_sessions: 0,
-      // Structural placeholders — see note on queryPeriodMetrics return.
+      // Structural placeholders - see note on queryPeriodMetrics return.
       total_estimated_cost_usd: null,
       total_edits_in_token_sessions: 0,
       cost_per_edit: null,

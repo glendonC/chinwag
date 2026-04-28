@@ -1,4 +1,4 @@
-# Test-only wrangler config — local KV, AI binding without a remote proxy.
+# Test-only wrangler config: local KV, AI binding without a remote proxy.
 # The pool runs with `remoteBindings: false`, so the AI binding is a stub
 # that throws "needs to be run remotely". MODERATION_MODE=local_safe lets
 # moderation fall back to the blocklist when AI is unreachable, which is

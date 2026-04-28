@@ -13,7 +13,7 @@ const log = createLogger('open-command');
 export function openCommandInTerminal(command: string, cwd: string = process.cwd()): SpawnResult {
   const env = detectTerminalEnvironment();
 
-  // IDE terminal — write to launch queue so the command runs in-IDE
+  // IDE terminal - write to launch queue so the command runs in-IDE
   if (env.type === 'ide-terminal') {
     try {
       const queuePath = join(homedir(), '.chinmeister', 'launch-queue.json');

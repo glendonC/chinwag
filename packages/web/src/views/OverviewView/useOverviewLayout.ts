@@ -11,7 +11,7 @@ import {
 
 // ── Unified layout store ─────────────────────────
 // v3 shape: ordered list of WidgetSlots. Each slot carries only the
-// grid-axis sizes (colSpan, rowSpan) — no x/y. Rendering is CSS Grid with
+// grid-axis sizes (colSpan, rowSpan) - no x/y. Rendering is CSS Grid with
 // grid-auto-flow:row, so ordering is the only placement signal.
 
 const STORAGE_KEY = 'chinmeister:overview-dashboard';
@@ -95,7 +95,7 @@ function resolveAliases(slots: WidgetSlot[]): WidgetSlot[] {
 // 2026-04: catalog `w` for live-agents was 12 until we narrowed it to 6 to
 // match DEFAULT_LAYOUT. Users who toggled live-agents off/on (or who
 // drag-added it from the catalog) before the fix have it persisted at
-// colSpan: 12 — full width — even though the curated default has always
+// colSpan: 12 - full width - even though the curated default has always
 // placed it at half-width next to live-conflicts. Snap that one slot back.
 // Removable once enough time has passed that stale storage has cycled out.
 function healLiveAgentsWidth(slots: WidgetSlot[]): WidgetSlot[] {
@@ -103,7 +103,7 @@ function healLiveAgentsWidth(slots: WidgetSlot[]): WidgetSlot[] {
 }
 
 // 2026-04-22: catalog `w` for projects was 12 until the comparator-table
-// redesign narrowed it to 8. Same situation as live-agents above — users
+// redesign narrowed it to 8. Same situation as live-agents above - users
 // with persisted colSpan: 12 see the new table sprawl across the full row
 // because the grid has way more leftover space than the cells need. Heal
 // back to the new default so the redesign actually lands. Power users who
@@ -115,10 +115,10 @@ function healProjectsWidth(slots: WidgetSlot[]): WidgetSlot[] {
 
 // 2026-04-24: outcomes widget went from ring-only at 4×3 to ring + 4-column
 // table at 8×3. The table (OUTCOME | COUNT | SHARE | TREND) can't render
-// in the old 4-col slot — labels clip, headers collide. Snap any saved
+// in the old 4-col slot - labels clip, headers collide. Snap any saved
 // outcomes slot that's narrower than its new minimum (6 cols) up to the
 // new default (8). session-trend was cut the same day so its paired
-// healer is gone — saved layouts drop the slot via WIDGET_ALIASES.
+// healer is gone - saved layouts drop the slot via WIDGET_ALIASES.
 function healOutcomesWidth(slots: WidgetSlot[]): WidgetSlot[] {
   return slots.map((s) => (s.id === 'outcomes' && s.colSpan < 6 ? { ...s, colSpan: 8 } : s));
 }
@@ -135,7 +135,7 @@ function healScopeComplexityWidth(slots: WidgetSlot[]): WidgetSlot[] {
 
 // 2026-04-27: tool-call-errors collapsed from a 6×3 hero+top-3 panel into a
 // canonical stat card. Saved layouts at the old size leave the widget body
-// 3 rows tall with a single hero stat floating in dead space — same class
+// 3 rows tall with a single hero stat floating in dead space - same class
 // of bug the heatmap healer above solves. Snap any saved size > 3×2 down to
 // the new catalog default (matches every other KPI stat in the cockpit:
 // sessions, edits, cost, one-shot-rate). The widget went through a brief

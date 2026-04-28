@@ -2,8 +2,8 @@
 //
 // Memory consolidation is propose-only and reversible: a sweep generates
 // proposals, reviewers apply or reject, and individual merges can be
-// unmerged. runConsolidation is unguarded by intent — it's invoked by the
-// platform, not the agent — so it bypasses #withMember.
+// unmerged. runConsolidation is unguarded by intent - it's invoked by the
+// platform, not the agent - so it bypasses #withMember.
 
 import type { DOError } from '../../types.js';
 import {

@@ -1,6 +1,6 @@
 // Context RPC bodies extracted from TeamDO.
 //
-// getContext is the highest-traffic RPC — it pulls the team-wide composite
+// getContext is the highest-traffic RPC - it pulls the team-wide composite
 // payload, layers per-agent messages and live daemon status on top, and
 // caches the team-wide chunk via ContextCache. getSummary is a lighter
 // owner-scoped variant for cross-project dashboards.
@@ -33,7 +33,7 @@ export async function rpcGetContext(
       )
       .toArray();
 
-    // Daemon status — always fresh (computed from live WebSocket connections)
+    // Daemon status - always fresh (computed from live WebSocket connections)
     const daemon = {
       connected: ctx.hasExecutorConnected(),
       available_tools: ctx.getAvailableSpawnTools(),

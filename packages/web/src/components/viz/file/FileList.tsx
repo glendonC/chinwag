@@ -9,7 +9,7 @@ export interface FileListItem {
   name: ReactNode;
   /** Full path or description shown as native tooltip on hover. */
   title?: string;
-  /** Right-aligned metadata — "12 touches", "34% rework · 8 edits". */
+  /** Right-aligned metadata - "12 touches", "34% rework · 8 edits". */
   meta: ReactNode;
 }
 

@@ -1,4 +1,4 @@
-// Channel WebSocket manager — connects as a watcher to TeamDO.
+// Channel WebSocket manager - connects as a watcher to TeamDO.
 // Receives delta events, maintains a local TeamContext via applyDelta,
 // and notifies the channel server of state changes for diffing.
 //
@@ -6,7 +6,7 @@
 // The channel needs watcher role, processes every incoming message,
 // and maintains materialized state for conflict/stuckness detection.
 //
-// CRITICAL: Never console.log — stdio transport.
+// CRITICAL: Never console.log - stdio transport.
 
 import { applyDelta, normalizeDashboardDeltaEvent } from '@chinmeister/shared/dashboard-ws.js';
 import type { TeamContext } from '@chinmeister/shared/contracts/dashboard.js';
@@ -91,7 +91,7 @@ export function createChannelWebSocket({
               return;
             }
 
-            // Delta events — apply to local state and notify
+            // Delta events - apply to local state and notify
             const normalized = normalizeDashboardDeltaEvent(data);
             if (!normalized || !localContext) return;
 
@@ -143,7 +143,7 @@ export function createChannelWebSocket({
       try {
         ws.close();
       } catch {
-        // closing during shutdown — safe to ignore
+        // closing during shutdown - safe to ignore
       }
       ws = null;
     }

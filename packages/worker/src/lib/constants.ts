@@ -1,5 +1,5 @@
 // Shared constants for the chinmeister worker.
-// All magic numbers live here — import by name, never hardcode.
+// All magic numbers live here - import by name, never hardcode.
 //
 // DO return pattern:
 //   Success: { ok: true, ...data }
@@ -14,7 +14,7 @@
 //   (unknown)                        -> 400
 //
 // Route handlers check `.error` and call `teamErrorStatus(result)` to map.
-// DOs never throw for expected failures — throws are for bugs only.
+// DOs never throw for expected failures - throws are for bugs only.
 
 // --- Heartbeat windows ---
 // "Active" = recent heartbeat or live WebSocket. Used for conflict detection,
@@ -56,7 +56,7 @@ export const MEMORY_CATEGORY_MAX_COUNT = 20;
 export const MAX_CATEGORY_NAME_LENGTH = 50;
 export const MAX_CATEGORY_DESCRIPTION_LENGTH = 500;
 export const TAG_PROMOTION_THRESHOLD = 10;
-export const LAST_ACCESSED_THROTTLE_MS = 3600_000; // 1 hour — writes cost 20x reads
+export const LAST_ACCESSED_THROTTLE_MS = 3600_000; // 1 hour - writes cost 20x reads
 
 // Memory decay halflife (days). Tag-aware: long for project-defining knowledge,
 // short for ephemeral notes, medium for everything else. Tunable via tag
@@ -123,7 +123,7 @@ export const PRESENCE_TTL_MS = 60_000;
 // Access tokens (CLI/MCP) expire after 90 days of inactivity. Every successful
 // authentication re-PUTs the KV entry with a fresh TTL (sliding window), so
 // active users never hit expiration. 90 days matches Vercel's token lifetime
-// and suits a dev tool where MCP servers reconnect daily — re-auth ~4x/year
+// and suits a dev tool where MCP servers reconnect daily - re-auth ~4x/year
 // for completely inactive tokens.
 export const ACCESS_TOKEN_TTL_S = 90 * 24 * 60 * 60; // 90 days in seconds
 
@@ -141,7 +141,7 @@ export const REFRESH_TOKEN_TTL_S = 180 * 24 * 60 * 60; // 180 days in seconds
 export const RATE_LIMIT_TOKEN_REFRESH = 50;
 
 // --- Color palette ---
-// 12-color palette for user identity. Single source of truth — import these
+// 12-color palette for user identity. Single source of truth - import these
 // instead of defining local copies.
 export const VALID_COLORS = [
   'red',
@@ -174,7 +174,7 @@ export const METRIC_KEYS = {
   MEMORIES_SEARCHED: 'memories_searched',
   MEMORIES_SEARCH_HITS: 'memories_search_hits',
   // Increments whenever the secret detector refuses a memory write
-  // (force: true bypass not counted — those reach the store as documented
+  // (force: true bypass not counted - those reach the store as documented
   // patterns, not blocked credentials).
   SECRETS_BLOCKED: 'secrets_blocked',
   CONFLICT_CHECKS: 'conflict_checks',

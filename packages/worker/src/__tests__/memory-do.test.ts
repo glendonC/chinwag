@@ -8,7 +8,7 @@ function getTeam(id = 'test-team') {
 // --- Memory search: LIKE wildcard escape ---
 // The searchMemories function escapes % and _ so user input is matched literally.
 
-describe('Memory search — LIKE wildcard escape', () => {
+describe('Memory search - LIKE wildcard escape', () => {
   const team = () => getTeam('memory-like-escape');
   const agentId = 'cursor:mle1';
   const ownerId = 'user-mle1';
@@ -62,7 +62,7 @@ describe('Memory search — LIKE wildcard escape', () => {
 
 // --- Memory search: limit capping ---
 
-describe('Memory search — limit capping', () => {
+describe('Memory search - limit capping', () => {
   const team = () => getTeam('memory-limit-cap');
   const agentId = 'cursor:mlc1';
   const ownerId = 'user-mlc1';
@@ -104,7 +104,7 @@ describe('Memory search — limit capping', () => {
 
 // --- Memory search: combined query + tags ---
 
-describe('Memory search — combined query and tag filtering', () => {
+describe('Memory search - combined query and tag filtering', () => {
   const team = () => getTeam('memory-combined-search');
   const agentId = 'cursor:mcs1';
   const ownerId = 'user-mcs1';
@@ -141,7 +141,7 @@ describe('Memory search — combined query and tag filtering', () => {
   });
 
   it('search with both query and tags returns intersection', async () => {
-    // Search for "API" text with "security" tag — should find only the HTTPS one
+    // Search for "API" text with "security" tag - should find only the HTTPS one
     const res = await team().searchMemories(agentId, 'API', ['security'], null, 10, ownerId);
     expect(res.memories.length).toBe(1);
     expect(res.memories[0].text).toContain('HTTPS');
@@ -175,7 +175,7 @@ describe('Memory search — combined query and tag filtering', () => {
 
 // --- Memory: empty tags array ---
 
-describe('Memory — empty and null tags', () => {
+describe('Memory - empty and null tags', () => {
   const team = () => getTeam('memory-empty-tags');
   const agentId = 'cursor:met1';
   const ownerId = 'user-met1';
@@ -213,7 +213,7 @@ describe('Memory — empty and null tags', () => {
 
 // --- Memory: non-member rejection ---
 
-describe('Memory — access control', () => {
+describe('Memory - access control', () => {
   const team = () => getTeam('memory-access-ctrl');
 
   it('saveMemory rejects non-member', async () => {
@@ -248,7 +248,7 @@ describe('Memory — access control', () => {
 
 // --- Memory: ordering ---
 
-describe('Memory — ordering by updated_at', () => {
+describe('Memory - ordering by updated_at', () => {
   const team = () => getTeam('memory-ordering');
   const agentId = 'cursor:mo1';
   const ownerId = 'user-mo1';
@@ -299,7 +299,7 @@ describe('Memory — ordering by updated_at', () => {
 
 // --- Memory: model inheritance from active session ---
 
-describe('Memory — model inheritance from session', () => {
+describe('Memory - model inheritance from session', () => {
   const team = () => getTeam('memory-model-inherit');
   const agentId = 'cursor:mmi1';
   const ownerId = 'user-mmi1';

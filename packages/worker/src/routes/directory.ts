@@ -116,7 +116,7 @@ export const handleGetDirectoryEntry = publicRoute(async ({ env, params }) => {
   return json({ evaluation: result.evaluation }, 200, CACHE_HEADERS);
 });
 
-// Admin-only import/delete — manage tool evaluations directly.
+// Admin-only import/delete - manage tool evaluations directly.
 // Secured by ADMIN_KEY, rate-limited per IP.
 export const handleAdminImport = publicRoute(async ({ request, env }) => {
   return withIpRateLimit(request, env, 'admin-import', RATE_LIMIT_ADMIN_BATCH_PER_IP, async () => {
@@ -282,8 +282,8 @@ export const handleBatchResolveIcons = publicRoute(async ({ request, env }) => {
   });
 });
 
-// Admin-only batch color extraction — extract brand colors from already-cached icons.
-// No external fetches needed — reads PNG data from KV and analyzes pixels.
+// Admin-only batch color extraction - extract brand colors from already-cached icons.
+// No external fetches needed - reads PNG data from KV and analyzes pixels.
 export const handleBatchExtractColors = publicRoute(async ({ request, env }) => {
   return withIpRateLimit(request, env, 'batch-colors', RATE_LIMIT_ADMIN_BATCH_PER_IP, async () => {
     const body = await parseBody(request);

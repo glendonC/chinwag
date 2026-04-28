@@ -1,4 +1,4 @@
-/* Small multiples — responsive grid of compact chart cells. Used for
+/* Small multiples: responsive grid of compact chart cells. Used for
  * per-member / per-project timelines. Relies on the global `rowReveal`
  * keyframe (app.css). */
 

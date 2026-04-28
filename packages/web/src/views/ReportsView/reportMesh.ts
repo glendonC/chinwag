@@ -4,7 +4,7 @@
 // linear base wash), but seeds the primary hue from the report's palette
 // color and the blob positions from a hash of the report id. Result: every
 // report gets a unique arrangement while staying tonally close to its
-// assigned color — same "family" as the project squircle in the sidebar.
+// assigned color - same "family" as the project squircle in the sidebar.
 
 export function hexToHue(hex: string): number {
   const clean = hex.replace('#', '');

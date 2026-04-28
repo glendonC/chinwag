@@ -1,4 +1,4 @@
-/* Dot matrix — fixed 10×10 percentage grid, 9px dots with 5px gutter.
+/* Dot matrix: fixed 10×10 percentage grid, 9px dots with 5px gutter.
  * Each dot = 1%; filled dots hit the condition, hollow rings (1px soft
  * border) do not. Matrix weight sits next to a display-sized number so
  * the proportion reads at a glance. */

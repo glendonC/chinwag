@@ -91,7 +91,7 @@ export function validateTagsArray(
  * Wrap a handler with an atomic check-and-consume rate limit.
  *
  * The token is consumed at check time, so a request that passes the limit is
- * counted even if the handler later errors out — same fail-safe semantics as
+ * counted even if the handler later errors out - same fail-safe semantics as
  * before, preventing attackers from flooding with invalid requests for free.
  * Unlike a separate check+consume, this closes the TOCTOU race where
  * concurrent requests could both read an under-limit count and each slip
@@ -160,7 +160,7 @@ export function sqlChanges(sql: SqlStorage): number {
 
 /**
  * Run a function inside a Durable Object storage transaction.
- * Uses `ctx.storage.transactionSync()` for atomicity — if `fn` throws,
+ * Uses `ctx.storage.transactionSync()` for atomicity - if `fn` throws,
  * all SQL operations inside are rolled back automatically.
  *
  * Callers pass the DO's `transact` function (bound to ctx.storage.transactionSync)
@@ -262,7 +262,7 @@ export async function withTeamRateLimit({
 
 /**
  * Hash an IP address using SHA-256 so raw IPs are not stored in the database.
- * Returns a hex-encoded hash truncated to 16 characters (64 bits — sufficient
+ * Returns a hex-encoded hash truncated to 16 characters (64 bits - sufficient
  * for rate-limit bucketing, not a security hash).
  */
 export async function hashIp(ip: string): Promise<string> {

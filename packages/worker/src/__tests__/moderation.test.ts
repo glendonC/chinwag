@@ -27,7 +27,7 @@ describe('isBlocked', () => {
   it('uses word boundary matching (does not block substrings)', () => {
     // "spic" should not match inside "despicable"
     expect(isBlocked('despicable')).toBe(false);
-    // "fag" should not match inside "fagging" — actually "fag" has \b so "fagging" would not match
+    // "fag" should not match inside "fagging" - actually "fag" has \b so "fagging" would not match
     // because \bfag\b requires word boundary after "g", and "fagging" has "g" followed by more chars
     expect(isBlocked('fagging')).toBe(false);
   });
@@ -78,9 +78,9 @@ describe('isBlocked', () => {
 
 // --- isBlocked: Unicode & evasion edge cases ---
 
-describe('isBlocked — Unicode evasion', () => {
+describe('isBlocked - Unicode evasion', () => {
   it('does not catch zero-width joiner inserted into slurs (known limitation)', () => {
-    // Zero-width joiners break word boundaries — this is a known gap
+    // Zero-width joiners break word boundaries - this is a known gap
     // that the AI layer (Layer 2) is supposed to catch.
     const zwj = '\u200D'; // zero-width joiner
     expect(isBlocked(`n${zwj}igger`)).toBe(false);
@@ -126,7 +126,7 @@ describe('isBlocked — Unicode evasion', () => {
     expect(isBlocked('...nigger...')).toBe(true);
     expect(isBlocked('(faggot)')).toBe(true);
     expect(isBlocked('"retard"')).toBe(true);
-    expect(isBlocked('—kys—')).toBe(true);
+    expect(isBlocked('-kys-')).toBe(true);
   });
 
   it('blocks slurs at start and end of input', () => {
@@ -250,7 +250,7 @@ describe('checkContent', () => {
     const result = await checkContent('nigger', mockEnv);
     expect(result.blocked).toBe(true);
     expect(result.reason).toBe('blocked_term');
-    // AI should NOT have been called — blocklist short-circuits
+    // AI should NOT have been called - blocklist short-circuits
     expect(aiCalled).toBe(false);
   });
 

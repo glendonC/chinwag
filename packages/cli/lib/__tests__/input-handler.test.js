@@ -493,7 +493,7 @@ describe('createCommandHandler', () => {
     expect(ctx.agents.handleFixLauncher).toHaveBeenCalled();
   });
 
-  it('handles /fix command without launcher fix — falls back to repair', () => {
+  it('handles /fix command without launcher fix - falls back to repair', () => {
     const ctx = makeCommandCtx({
       agents: {
         ...makeCommandCtx().agents,

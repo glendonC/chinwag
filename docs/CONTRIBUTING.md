@@ -81,7 +81,7 @@ chinmeister is a monorepo with five packages:
 
 ```
 packages/
-  mcp/          MCP server (the product: shared brain for agents)
+  mcp/          MCP server (the product: shared state for agents)
     index.js      Server entry: stdio transport, config/profile bootstrap
     hook.js       Claude Code hook handler (check-conflict, report-edit, session-start)
     channel.js    Claude Code channel server (WebSocket push with HTTP fallback)
@@ -173,6 +173,22 @@ Good first contributions also include:
   - `const` by default, `let` when reassignment is needed
   - Descriptive variable names, no abbreviations beyond common ones (`req`, `res`, `ctx`, `env`)
 - Keep files focused. One Durable Object per file, one screen component per file.
+
+### Comments and documentation
+
+Most code does not need comments. The function name and the surrounding structure usually carry the meaning, and a comment that restates the next line becomes inaccurate as the code changes. When you do write a comment, write it for the next person who has to read the code, not for an audience.
+
+A few specific rules apply across source comments, JSDoc, README files, and any string a user might see.
+
+Keep comments self-contained. The repo is public, so do not reference private planning files, private threads, or undocumented decisions. Anyone reading those references in isolation has no way to follow them. If the rationale lives outside public docs or source, restate it in one or two lines and stop.
+
+Avoid dated verdicts. A note that says "decided 2026-04-27" confuses anyone reading it later, because the date drifts further from the current state with every commit. Describe the current behavior in present tense. Date references are fine when the date itself is load-bearing, for example a license conversion date or a hard deadline.
+
+Skip clever metaphors and sales language. The comment is part of the code, not a launch post. Plain technical prose holds up better and is easier to keep accurate.
+
+Use commas, periods, colons, hyphens, or parentheses instead of em-dashes. This is a project voice convention and applies in code, in docs, and in user-visible strings.
+
+When code and a comment disagree, fix one or the other in the same change. If a comment is hard to keep accurate as the code evolves, delete it.
 
 ### Testing
 
@@ -267,17 +283,17 @@ Keep the subject line under 72 characters. Use the body for context on _why_, no
 
 ## Pull request process
 
-1. **Branch from `main`.** Use a descriptive branch name: `fix/lobby-null-room`, `feat/cli-color-picker`, `docs/security-policy`.
+1. Branch from `main` with a descriptive branch name: `fix/lobby-null-room`, `feat/cli-color-picker`, `docs/security-policy`.
 
-2. **One concern per PR.** A bug fix is one PR. A feature is one PR. Do not bundle unrelated changes.
+2. Keep one concern per PR. A bug fix is one PR. A feature is one PR. Do not bundle unrelated changes.
 
-3. **Write a clear description.** What does this change? Why? How can a reviewer test it? Link to the issue if there is one.
+3. Write a clear description. What does this change? Why? How can a reviewer test it? Link to the issue if there is one.
 
-4. **Keep PRs small when possible.** Smaller PRs get reviewed faster and are less likely to introduce regressions.
+4. Keep PRs small when possible. Smaller PRs get reviewed faster and are less likely to introduce regressions.
 
-5. **All CI checks must pass** before merge.
+5. Make sure all CI checks pass before merge.
 
-6. **Maintainers may request changes.** That is normal and collaborative. It is about making the code better together.
+6. Maintainers may request changes. That is normal and collaborative. It is about making the code better together.
 
 ### Draft PRs
 
@@ -287,10 +303,10 @@ Open a draft PR if you want early feedback on an approach before it is complete.
 
 ### What reviewers look for
 
-1. **Correctness:** Does the code do what it claims? Are edge cases handled?
-2. **Architecture:** Does this change belong in this package or file? Does it follow existing patterns?
-3. **Security:** Does this introduce untrusted input paths? Are inputs validated?
-4. **Simplicity:** Is there a simpler way to achieve the same result?
+- Correctness: does the code do what it claims, and are edge cases handled?
+- Architecture: does this change belong in this package or file, and does it follow existing patterns?
+- Security: does this introduce untrusted input paths, and are inputs validated?
+- Simplicity: is there a simpler way to achieve the same result?
 
 ### Response times
 

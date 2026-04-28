@@ -1,4 +1,4 @@
-/* Shared "split pill" button primitive — see SplitPillLink.tsx for intent.
+/* Shared "split pill" button primitive (see SplitPillLink.tsx) for intent.
  * Two segments (icon + label) side by side, each a 32px-tall rounded rect.
  * Tones: `muted` (ghost/faint background, used by BackLink)
  *        `accent` (saturated fill via --split-pill-accent, used by LaunchLink). */

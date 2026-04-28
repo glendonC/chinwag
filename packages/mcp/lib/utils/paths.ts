@@ -1,5 +1,5 @@
 // Shared file-path normalization for MCP tool handlers.
-// Ensures consistent comparison across tools — activity, conflicts, and locks
+// Ensures consistent comparison across tools - activity, conflicts, and locks
 // all see the same canonical form of a file path.
 
 import path from 'path';

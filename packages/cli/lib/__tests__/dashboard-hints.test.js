@@ -12,12 +12,12 @@ let mockIsAgentAddressable;
 async function loadModule() {
   vi.resetModules();
 
-  // Mock React — useMemo just invokes the factory
+  // Mock React - useMemo just invokes the factory
   vi.doMock('react', () => ({
     useMemo: (fn) => fn(),
   }));
 
-  // Mock isAgentAddressable — we control its return value per test
+  // Mock isAgentAddressable - we control its return value per test
   mockIsAgentAddressable = vi.fn(() => false);
   vi.doMock('../dashboard/agent-display.js', () => ({
     isAgentAddressable: mockIsAgentAddressable,

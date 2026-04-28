@@ -1,4 +1,4 @@
-// Hybrid retrieval — verifies isLiteralQuery routing, RRF rank fusion,
+// Hybrid retrieval - verifies isLiteralQuery routing, RRF rank fusion,
 // MMR diversification, and integration with searchMemories using a
 // synthetic query embedding (bypasses Workers AI test flakiness).
 
@@ -10,7 +10,7 @@ function getTeam(id) {
   return env.TEAM.get(env.TEAM.idFromName(id));
 }
 
-describe('isLiteralQuery — query-shape router', () => {
+describe('isLiteralQuery - query-shape router', () => {
   it('treats file paths as literal', () => {
     expect(isLiteralQuery('packages/worker/src/index.ts')).toBe(true);
     expect(isLiteralQuery('./relative/path.js')).toBe(true);
@@ -56,7 +56,7 @@ describe('isLiteralQuery — query-shape router', () => {
   });
 });
 
-describe('rrfMerge — reciprocal rank fusion', () => {
+describe('rrfMerge - reciprocal rank fusion', () => {
   it('returns higher score for items appearing in both rankings', () => {
     const fts = ['a', 'b', 'c'];
     const vec = ['c', 'a', 'd'];
@@ -147,7 +147,7 @@ describe('mmrDiversify', () => {
   });
 });
 
-describe('Hybrid retrieval — integration with synthetic embedding', () => {
+describe('Hybrid retrieval - integration with synthetic embedding', () => {
   const team = () => getTeam('memory-hybrid-int');
   const agentId = 'cursor:hyb1';
   const ownerId = 'user-hyb1';
@@ -188,7 +188,7 @@ describe('Hybrid retrieval — integration with synthetic embedding', () => {
       ownerId,
     );
     // Even with a synthetic embedding, isLiteralQuery should kick in for
-    // the path query and skip vector — test path is via the DO public API
+    // the path query and skip vector - test path is via the DO public API
     // which may not expose the literal flag, so we just verify the search
     // still returns results.
     const res = await team().searchMemories(

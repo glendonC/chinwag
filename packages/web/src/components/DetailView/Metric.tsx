@@ -5,7 +5,7 @@ import styles from './Metric.module.css';
 export type MetricTone = 'neutral' | 'positive' | 'warning' | 'negative';
 
 interface Props {
-  /** Semantic tone. Tones are not decoration — they tie a number in the
+  /** Semantic tone. Tones are not decoration - they tie a number in the
    *  prose to the same-colored feature in the viz below. A green "73%"
    *  in the sentence connects visually to the green dots in a
    *  completion matrix, so the reader's eye links prose to chart.

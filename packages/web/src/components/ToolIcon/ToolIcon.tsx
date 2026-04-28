@@ -41,7 +41,7 @@ export default function ToolIcon({
   const meta = getToolMeta(tool);
   const classes = clsx(styles.icon, monochrome && styles.monochrome, className);
 
-  // 1. Local SVG (highest quality — hand-curated, 13 tools)
+  // 1. Local SVG (highest quality - hand-curated, 13 tools)
   if (meta.icon) {
     if (monochrome) {
       return (
@@ -90,7 +90,7 @@ export default function ToolIcon({
     );
   }
 
-  // 4. Google favicon service — fallback for tools with a website but no cached icon
+  // 4. Google favicon service - fallback for tools with a website but no cached icon
   const gFavicon = faviconUrl(website);
   if (gFavicon) {
     return (
@@ -100,7 +100,7 @@ export default function ToolIcon({
     );
   }
 
-  // 5. Letter fallback — use brand color from metadata if available, else toolMeta color
+  // 5. Letter fallback - use brand color from metadata if available, else toolMeta color
   const fallbackColor = brandColor || meta.color;
   return (
     <span

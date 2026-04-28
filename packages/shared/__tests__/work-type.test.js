@@ -3,7 +3,7 @@ import { classifyWorkType, isWorkType, WORK_TYPES } from '../analytics/work-type
 
 describe('classifyWorkType', () => {
   const cases = [
-    // test — most specific first
+    // test - most specific first
     ['packages/web/src/__tests__/foo.test.ts', 'test'],
     ['packages/web/src/lib/toolMeta.test.js', 'test'],
     ['packages/worker/src/__tests__/moderation.spec.ts', 'test'],
@@ -19,14 +19,14 @@ describe('classifyWorkType', () => {
     ['packages/web/src/components/Button.module.css', 'styling'],
     ['packages/web/src/theme.scss', 'styling'],
 
-    // frontend — tsx/jsx, or in a frontend path
+    // frontend - tsx/jsx, or in a frontend path
     ['packages/web/src/widgets/ToolWidgets.tsx', 'frontend'],
     ['packages/web/src/views/OverviewView/OverviewView.tsx', 'frontend'],
     ['packages/web/src/components/Header.jsx', 'frontend'],
     ['packages/cli/lib/dashboard/hooks/useCollectorSubscription.ts', 'frontend'],
     ['packages/web/src/pages/Settings.ts', 'frontend'],
 
-    // backend — routes/dos/api/server/workers
+    // backend - routes/dos/api/server/workers
     ['packages/worker/src/dos/team/context.ts', 'backend'],
     ['packages/worker/src/routes/team/membership.ts', 'backend'],
     ['packages/worker/src/api/analytics.ts', 'backend'],
@@ -38,7 +38,7 @@ describe('classifyWorkType', () => {
     ['packages/web/vite.config.ts', 'config'],
     ['.eslintrc.cjs', 'config'],
 
-    // other — fall-through
+    // other - fall-through
     ['packages/shared/tool-registry.ts', 'other'],
     ['packages/worker/src/moderation.ts', 'other'],
     ['packages/cli/lib/extraction/engine.ts', 'other'],

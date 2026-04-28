@@ -11,7 +11,7 @@ export function LegendDot({ color, label }: { color: string; label: string }) {
   );
 }
 
-/** Hatched swatch + label — matches the diagonal-hatch "no signal"
+/** Hatched swatch + label - matches the diagonal-hatch "no signal"
  *  segment in stacked columns so the legend entry reads as the same
  *  vocabulary. */
 export function LegendHatch({ label }: { label: string }) {

@@ -17,17 +17,17 @@ interface Props {
 }
 
 function defaultAdded(n: number): string {
-  return n > 0 ? `+${n.toLocaleString()}` : '—';
+  return n > 0 ? `+${n.toLocaleString()}` : '-';
 }
 
 function defaultRemoved(n: number): string {
-  return n > 0 ? `−${n.toLocaleString()}` : '—';
+  return n > 0 ? `−${n.toLocaleString()}` : '-';
 }
 
 /**
  * Horizontal diverging bars. Removed bar extends left of a center axis,
  * added bar extends right. Shared max across all rows so magnitudes
- * compare. The center axis is load-bearing — it tells the story.
+ * compare. The center axis is load-bearing - it tells the story.
  */
 export default function DivergingRows({
   entries,

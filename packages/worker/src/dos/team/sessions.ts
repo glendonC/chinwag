@@ -15,7 +15,7 @@ import { sqlChanges, withTransaction } from '../../lib/validation.js';
  * active_min. Anything larger is treated as idle and discarded. 60 seconds
  * is a compromise: thoughtful pauses between edits (reading, thinking,
  * reviewing agent output) count, but walking away from the keyboard does
- * not. Feed for the Focus axis in rank.ts — the whole point is to stop
+ * not. Feed for the Focus axis in rank.ts - the whole point is to stop
  * session-open time from inflating Focus.
  */
 const ACTIVE_GAP_CAP_MINUTES = 1.0;
@@ -23,7 +23,7 @@ const ACTIVE_GAP_CAP_MINUTES = 1.0;
 /**
  * Bump the active session's active_min + last_active_at on every real
  * activity path (edits, tool calls, memory ops). First activity in a session
- * sets last_active_at without accruing — the pre-first-activity interval is
+ * sets last_active_at without accruing - the pre-first-activity interval is
  * startup/planning time, not active work. Subsequent activities accrue the
  * time elapsed since the previous activity, capped at ACTIVE_GAP_CAP_MINUTES.
  */
@@ -144,7 +144,7 @@ export function endSession(
     const conflictsHit = session.number('conflicts_hit');
     const memoriesSearched = session.number('memories_searched');
     // Duration computed server-side via julianday() so all time logic stays in
-    // SQLite's domain — mixing JS Date parsing with SQLite's "YYYY-MM-DD HH:MM:SS"
+    // SQLite's domain - mixing JS Date parsing with SQLite's "YYYY-MM-DD HH:MM:SS"
     // format was brittle across timezones.
     const durationMin = session.number('duration_min');
 

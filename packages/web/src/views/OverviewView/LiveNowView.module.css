@@ -1,7 +1,7 @@
 /*
  * LiveNowView-specific styles. Shell (detail wrapper, tab bar, panel,
  * empty text) moved to components/DetailView/DetailView.module.css.
- * What lives here is the agents-tab grid table — the part that is
+ * What lives here is the agents-tab grid table, the part that is
  * unique to Live's drill-in. Conflicts and Files tabs render through
  * the shared FileRow + conflictTable classes from LiveWidgets.
  */
@@ -118,7 +118,7 @@
   color: var(--soft);
 }
 
-/* View pill — affordance signalling the agent row is a link into the
+/* View pill: affordance signalling the agent row is a link into the
  * project dashboard. Matches LiveWidgets.liveViewButton and
  * ToolsView.viewButton exactly so the three rows read as one pattern. */
 .agentViewButton {

@@ -272,11 +272,11 @@ describe('heartbeat recovery', () => {
     }
     expect(state.heartbeatDead).toBe(true);
 
-    // Advance just under 5 min — no recovery fires yet.
+    // Advance just under 5 min - no recovery fires yet.
     await vi.advanceTimersByTimeAsync(299_000);
     expect(state.heartbeatRecoveryTimeout).not.toBeNull();
 
-    // Advance to 5 min — first recovery fires (and fails, rescheduling at 10 min).
+    // Advance to 5 min - first recovery fires (and fails, rescheduling at 10 min).
     await vi.advanceTimersByTimeAsync(1_000);
     expect(state.heartbeatRecoveryTimeout).not.toBeNull();
 

@@ -63,7 +63,7 @@ export const CASES: TestCase[] = [
   {
     category: 'claude-jsonl',
     raw: 'claude-3-5-sonnet-20241022',
-    // No bare LiteLLM key exists — only bedrock/vertex forms. Resolver must
+    // No bare LiteLLM key exists - only bedrock/vertex forms. Resolver must
     // fall through via prefix-add. openrouter/anthropic/... doesn't exist as
     // a bare candidate either, so we expect null and propose a targeted fix.
     expected: null,
@@ -78,10 +78,10 @@ export const CASES: TestCase[] = [
   {
     category: 'claude-jsonl',
     raw: 'claude-sonnet-4-6-20260205',
-    // Sonnet 4.6 has bare form only — NOT the dated one. Opus 4.6 has dated.
+    // Sonnet 4.6 has bare form only - NOT the dated one. Opus 4.6 has dated.
     // So dated Sonnet 4.6 must strip-to-base and find `claude-sonnet-4-6`.
     expected: 'claude-sonnet-4-6',
-    notes: 'Date unknown for Sonnet 4.6 — only bare key exists',
+    notes: 'Date unknown for Sonnet 4.6 - only bare key exists',
   },
   {
     category: 'claude-jsonl',
@@ -130,7 +130,7 @@ export const CASES: TestCase[] = [
   {
     category: 'vertex',
     raw: 'vertex_ai/gemini-2.5-pro',
-    // No `vertex_ai/gemini-2.5-pro` key exists — Vertex Gemini pricing lives
+    // No `vertex_ai/gemini-2.5-pro` key exists - Vertex Gemini pricing lives
     // at other keys. Resolver strips prefix and falls to bare `gemini-2.5-pro`.
     expected: 'gemini-2.5-pro',
     notes: 'Vertex Gemini bare-prefixed key does not exist; fall through to bare',
@@ -198,7 +198,7 @@ export const CASES: TestCase[] = [
     category: 'edge',
     raw: 'claude-3-5-sonnet',
     expected: null,
-    notes: 'no dated form, no bare LiteLLM key — genuine miss',
+    notes: 'no dated form, no bare LiteLLM key - genuine miss',
   },
 ];
 

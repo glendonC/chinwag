@@ -37,7 +37,7 @@ export default function StackToolDetail({ drill, rangeDays, onBack }: Props) {
   // Internal tool usage, session shape, and model pairings all depend on
   // the JSONL post-session parser, which currently only covers Claude Code.
   // For any other tool we hide these sections entirely rather than show an
-  // empty shell — better to say nothing than to imply coverage we don't have.
+  // empty shell - better to say nothing than to imply coverage we don't have.
   const hasDeepIntegration = meta.id === 'claude';
 
   const sparkData = useMemo(() => {
@@ -93,7 +93,7 @@ export default function StackToolDetail({ drill, rangeDays, onBack }: Props) {
         <div className={styles.stat}>
           <span className={styles.statLabel}>First edit</span>
           <span className={styles.statValue}>
-            {drill.avgFirstEditMin != null ? formatDuration(drill.avgFirstEditMin) : '—'}
+            {drill.avgFirstEditMin != null ? formatDuration(drill.avgFirstEditMin) : '-'}
           </span>
           <span className={styles.statHint}>warm-up time</span>
         </div>

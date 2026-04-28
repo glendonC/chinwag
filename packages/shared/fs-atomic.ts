@@ -17,8 +17,8 @@ export interface AtomicWriteOptions {
  *
  * POSIX rename(2) is atomic within a filesystem, so readers see either the
  * previous content or the new content, never a half-written file. This is the
- * minimum discipline for any persisted state that survives restarts — spec
- * health, healed specs, team file, config, session handoff records — where a
+ * minimum discipline for any persisted state that survives restarts - spec
+ * health, healed specs, team file, config, session handoff records - where a
  * torn write corrupts JSON and silently resets the caller's state on the next
  * read.
  *

@@ -80,7 +80,7 @@ afterEach(() => {
 
 // ---------------------------------------------------------------------------
 
-describe('MemoryRow — collapsed state', () => {
+describe('MemoryRow - collapsed state', () => {
   it('renders memory text', () => {
     const { container, unmount } = renderRow({ memory: makeMemory() });
     expect(container.textContent).toContain('Use Redis for caching');
@@ -109,7 +109,7 @@ describe('MemoryRow — collapsed state', () => {
   });
 });
 
-describe('MemoryRow — expanded state', () => {
+describe('MemoryRow - expanded state', () => {
   it('shows tags on expand', () => {
     const r = renderRow({ memory: makeMemory() });
     r.click('Use Redis for caching');
@@ -135,7 +135,7 @@ describe('MemoryRow — expanded state', () => {
   });
 });
 
-describe('MemoryRow — delete', () => {
+describe('MemoryRow - delete', () => {
   it('shows delete when expanded and onDelete provided', () => {
     const r = renderRow({ memory: makeMemory(), onDelete: vi.fn() });
     r.click('Use Redis for caching');
@@ -161,7 +161,7 @@ describe('MemoryRow — delete', () => {
   });
 });
 
-describe('MemoryRow — no text editing', () => {
+describe('MemoryRow - no text editing', () => {
   it('has no textarea or edit button', () => {
     const r = renderRow({
       memory: makeMemory(),

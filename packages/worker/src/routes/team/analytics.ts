@@ -1,4 +1,4 @@
-// Team analytics route — aggregated workflow intelligence data.
+// Team analytics route - aggregated workflow intelligence data.
 
 import type { RouteDefinition } from '../../lib/router.js';
 import { teamRoute, doResult } from '../../lib/middleware.js';
@@ -33,7 +33,7 @@ export const handleTeamAnalytics = teamRoute(async ({ request, agentId, team, us
   // (member_analytics, member_count, member_daily_lines in team.ts)
   // intentionally ignore scope so each user still sees the team breakdown.
   // Net effect: project view shows "my numbers in this project" + "team
-  // cohort overview" — neither leaks individual teammates' details.
+  // cohort overview" - neither leaks individual teammates' details.
   return doResult(
     team.getAnalytics(agentId, days, user.id, extended, tzOffsetMinutes, {
       handle: user.handle,

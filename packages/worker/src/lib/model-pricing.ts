@@ -37,7 +37,7 @@ const LONG_CONTEXT_THRESHOLD = 200_000;
 
 /**
  * Estimate the USD cost of a session given resolved pricing and four token
- * counts. Returns null when pricing is unavailable; callers render "—" and
+ * counts. Returns null when pricing is unavailable; callers render "-" and
  * increment an unknown-model counter rather than treating null as zero.
  */
 export function estimateSessionCost(

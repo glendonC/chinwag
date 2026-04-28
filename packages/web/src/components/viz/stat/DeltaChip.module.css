@@ -1,5 +1,5 @@
 /* Inline delta pill. Green/red colorway follows semantic good/bad, not
- * raw sign — a 12% drop in warmup time reads green. */
+ * raw sign, a 12% drop in warmup time reads green. */
 
 .chip {
   display: inline-flex;

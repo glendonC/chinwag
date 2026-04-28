@@ -191,7 +191,7 @@ function CatalogView(): ReactNode {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   // Content state is separate from visibility so the tooltip stays mounted
   // across mouse-leave. Only changes on mouse-enter. Pre-seeded with the
-  // first report so the tooltip DOM is laid out on initial paint — first
+  // first report so the tooltip DOM is laid out on initial paint - first
   // hover pays no mount cost, only an opacity transition.
   const [displayReportId, setDisplayReportId] = useState<string | null>(
     REPORT_CATALOG[0]?.id ?? null,
@@ -220,7 +220,7 @@ function CatalogView(): ReactNode {
     [displayReportId],
   );
 
-  // mouseLeave on the catalog (not individual rows) — so cursor crossing
+  // mouseLeave on the catalog (not individual rows) - so cursor crossing
   // between rows keeps the tooltip visible instead of flickering it out
   // and back in.
   const handleCatalogLeave = useCallback(() => {
@@ -258,10 +258,10 @@ function CatalogView(): ReactNode {
   }, [hoveredId]);
 
   // Cursor-relative tooltip position. Captured once on mouseEnter so it
-  // stays stable while the user reads — no move-tracking jitter. Flips
+  // stays stable while the user reads - no move-tracking jitter. Flips
   // horizontally off the right edge, and flips its vertical anchor
   // (top-at-cursor vs bottom-at-cursor) based on which half of the
-  // viewport the cursor is in — so the tooltip edge is always at the
+  // viewport the cursor is in - so the tooltip edge is always at the
   // cursor, never clamped to the viewport and never visually adrift.
   // Mirrors the DirectoryView pattern.
   const tooltipStyle: CSSProperties | undefined = useMemo(() => {
@@ -322,7 +322,7 @@ function CatalogView(): ReactNode {
         })}
       </div>
 
-      {/* Portal to document.body — escapes any ancestor containing block.
+      {/* Portal to document.body - escapes any ancestor containing block.
           .reports has `animation: ... both` with translateY(0) in the
           end keyframe, which per spec establishes a containing block for
           fixed descendants and offsets the tooltip by the .reports

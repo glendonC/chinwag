@@ -1,4 +1,4 @@
-// Memory categories — per-project classification for memories.
+// Memory categories - per-project classification for memories.
 // Categories are admin-defined; agents assign them on save via MCP enum.
 // Each category stores a precomputed embedding for future semantic validation.
 
@@ -69,7 +69,7 @@ export function listCategories(sql: SqlStorage): { ok: true; categories: MemoryC
   };
 }
 
-/** List categories with embeddings (for internal use — semantic matching). */
+/** List categories with embeddings (for internal use - semantic matching). */
 export function listCategoriesWithEmbeddings(sql: SqlStorage): {
   ok: true;
   categories: CategoryWithEmbedding[];

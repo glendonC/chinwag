@@ -69,7 +69,7 @@ export function publicRoute(
 
 /**
  * Wrap a handler for authenticated routes (no body parsing).
- * The user is guaranteed to be non-null — the router rejects unauthenticated
+ * The user is guaranteed to be non-null - the router rejects unauthenticated
  * requests before this handler runs.
  */
 export function authedRoute(

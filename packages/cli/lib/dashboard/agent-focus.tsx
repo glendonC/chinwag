@@ -43,7 +43,7 @@ function isMedia(name: string): boolean {
   return dot !== -1 && MEDIA_EXTS.has(name.slice(dot).toLowerCase());
 }
 
-// OSC 8 terminal hyperlink — clickable in iTerm2, VS Code/Cursor terminal
+// OSC 8 terminal hyperlink - clickable in iTerm2, VS Code/Cursor terminal
 function linked(label: string, filePath: string): string {
   const abs = resolve(filePath);
   return `\x1b]8;;file://${abs}\x07${label}\x1b]8;;\x07`;
@@ -116,8 +116,8 @@ export function AgentFocusView({
         <Text>
           {' '}
           {freshAgent._managed
-            ? 'Spawned by chinmeister — full control (stop, restart, diagnostics)'
-            : 'Connected externally — observe and message only'}
+            ? 'Spawned by chinmeister - full control (stop, restart, diagnostics)'
+            : 'Connected externally - observe and message only'}
         </Text>
       </Box>
 
@@ -152,7 +152,7 @@ export function AgentFocusView({
         </Box>
       )}
 
-      {/* Conflicts — only if present */}
+      {/* Conflicts - only if present */}
       {agentConflicts.length > 0 && (
         <Box flexDirection="column" marginTop={1}>
           <Text color="red">conflicts</Text>
@@ -166,7 +166,7 @@ export function AgentFocusView({
         </Box>
       )}
 
-      {/* Quiet warning — only if actually quiet */}
+      {/* Quiet warning - only if actually quiet */}
       {quietMinutes != null && quietMinutes >= 15 && (
         <Box marginTop={1}>
           <Text color="yellow">quiet for {Math.round(quietMinutes)}m</Text>

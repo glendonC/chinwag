@@ -28,7 +28,7 @@ export function parseLocation(): Route {
     .replace(/\/+$/, '');
   const segments = path.split('/').filter(Boolean);
 
-  // Strip the /dashboard prefix — all dashboard routes live under it
+  // Strip the /dashboard prefix - all dashboard routes live under it
   if (segments[0] === 'dashboard') segments.shift();
 
   if (segments[0] === 'project' && segments[1]) {
@@ -37,7 +37,7 @@ export function parseLocation(): Route {
     if (teamId.length > 0 && /^[\w-]+$/.test(teamId)) {
       return { view: 'project', teamId };
     }
-    // Invalid teamId — fall through to overview
+    // Invalid teamId - fall through to overview
     return { view: 'overview', teamId: null };
   }
   if (segments[0] === 'tools') return { view: 'tools', teamId: null };
@@ -149,7 +149,7 @@ const DETAIL_AUX_KEYS = ['live-tab', 'q'] as const;
  * Navigate atomically from any current detail view to a target detail view,
  * tab, and optional question. Clears every other detail drill param + the
  * shared `?q=` so the URL ends up with exactly one drill open. One history
- * entry — back arrow returns to whichever surface the user was on before.
+ * entry - back arrow returns to whichever surface the user was on before.
  *
  * Used by CrossViewLink to jump between detail views without flickering
  * through Overview, and by widget click handlers to open a specific

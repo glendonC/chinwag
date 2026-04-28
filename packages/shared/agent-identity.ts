@@ -153,7 +153,7 @@ export function detectRuntimeIdentity(
   let hostTool = explicitTool;
   let detectionSource: RuntimeIdentity['detectionSource'] = explicitTool ? 'explicit' : 'fallback';
 
-  // MCP clientInfo.name — the host tool declares itself during the MCP handshake.
+  // MCP clientInfo.name - the host tool declares itself during the MCP handshake.
   if (!hostTool && options.clientInfoName) {
     const fromClient = inferToolFromClientInfo(options.clientInfoName);
     if (fromClient) {

@@ -40,7 +40,7 @@ export function queryTokenUsage(
   };
 
   try {
-    // Totals — only count sessions that have token data (non-NULL input_tokens
+    // Totals - only count sessions that have token data (non-NULL input_tokens
     // is the presence signal; cache fields may still be NULL on sessions
     // uploaded before phase 2 even if input/output were captured).
     const { sql: totalsQ, params: totalsP } = withScope(
@@ -72,7 +72,7 @@ export function queryTokenUsage(
       return { ...empty, sessions_without_token_data: withoutData };
     }
 
-    // By model — hybrid rollup with per-message preference.
+    // By model - hybrid rollup with per-message preference.
     //
     // Migration 019 captures per-assistant-message `model` + tokens in the
     // conversation_events table. Summing there gives an accurate multi-model
@@ -82,7 +82,7 @@ export function queryTokenUsage(
     //
     // Sessions without per-message data (pre-019 rows, or tools whose spec
     // doesn't populate tokenPaths) fall back to the session-level rollup.
-    // The NOT EXISTS guard prevents double-counting — any session with ANY
+    // The NOT EXISTS guard prevents double-counting - any session with ANY
     // per-message token row is excluded from the fallback CTE.
     //
     // Per-message rows land normalized via the extraction engine's
@@ -216,7 +216,7 @@ export function queryTokenUsage(
 /** Per-day per-model token sum, the minimum shape needed to price daily cost.
  * Feeds `enrichDailyTrendsWithPricing` which resolves each model via the
  * LiteLLM pricing cache and sums cost per day. Days with no token-bearing
- * sessions simply don't appear — the enrichment layer leaves those days'
+ * sessions simply don't appear - the enrichment layer leaves those days'
  * cost fields null, matching the period-total "no token data → --" rule. */
 export interface DailyTokenUsageRow {
   day: string;
@@ -231,7 +231,7 @@ export interface DailyTokenUsageRow {
  * Minimal by_model + total_edits aggregate for a specific period offset
  * range, e.g. current = [days, 0], previous = [days*2, days]. Feeds
  * `enrichPeriodComparisonCost` so the delta on `cost-per-edit` prices both
- * windows against today's pricing snapshot — the delta reflects behavior
+ * windows against today's pricing snapshot - the delta reflects behavior
  * change, not price drift.
  *
  * Mirrors `queryTokenUsage`'s hybrid rollup (per-message from

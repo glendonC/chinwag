@@ -140,7 +140,7 @@ export function diffState(
     }
   }
 
-  // New messages — dedup by id when available, otherwise by a defensive composite
+  // New messages - dedup by id when available, otherwise by a defensive composite
   // key that coerces null/undefined fields to empty strings to avoid inconsistent keys.
   const prevMsgIds = new Set(
     (prev.messages || []).map(

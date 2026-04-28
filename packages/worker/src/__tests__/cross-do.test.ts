@@ -1,6 +1,6 @@
 // Unit tests for the cross-DO retry helpers in lib/cross-do.ts.
 //
-// These tests don't need Durable Objects — they exercise the retry
+// These tests don't need Durable Objects - they exercise the retry
 // behavior against in-memory promises that resolve, reject, or alternate.
 // Pure unit coverage of the contract every cross-DO route handler now
 // depends on.

@@ -39,11 +39,11 @@ describe('context cache', () => {
       const ctx = { members: [{ handle: 'alice' }] };
       const team = { getTeamContext: vi.fn().mockResolvedValue(ctx) };
 
-      // First call — fetches from API
+      // First call - fetches from API
       await refreshContext(team, 't_abc');
       expect(team.getTeamContext).toHaveBeenCalledTimes(1);
 
-      // Second call — should use cache (within 30s TTL)
+      // Second call - should use cache (within 30s TTL)
       const cached = await refreshContext(team, 't_abc');
       expect(cached).toEqual(ctx);
       expect(team.getTeamContext).toHaveBeenCalledTimes(1);
@@ -96,13 +96,13 @@ describe('context cache', () => {
       // First call succeeds
       await refreshContext(team, 't_abc');
 
-      // Bust the TTL by re-importing with fresh state — but actually we need
+      // Bust the TTL by re-importing with fresh state - but actually we need
       // to work with the same module instance.
       // Force TTL expiry by using fake timers
       vi.useFakeTimers();
       vi.advanceTimersByTime(31_000);
 
-      // Second call fails — should return cached context
+      // Second call fails - should return cached context
       const result = await refreshContext(team, 't_abc');
       expect(result).toEqual(ctx);
       consoleSpy.mockRestore();
@@ -134,7 +134,7 @@ describe('context cache', () => {
       await refreshContext(team, 't_abc');
       expect(offlinePrefix()).toBe('[offline -- using cached data] ');
 
-      // Come back online (need to bust TTL since we failed — the cachedContextAt
+      // Come back online (need to bust TTL since we failed - the cachedContextAt
       // is not set on failure, so next call will try again)
       const result = await refreshContext(team, 't_abc');
       expect(result).toEqual({ members: [] });
@@ -175,14 +175,14 @@ describe('context cache', () => {
       };
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      // First call succeeds — caches context
+      // First call succeeds - caches context
       await refreshContext(team, 't_abc');
       expect(getCachedContext()).toEqual(ctx);
 
       // Advance past TTL + max stale (300s + some margin)
       vi.advanceTimersByTime(301_000);
 
-      // Second call fails — context is too stale, should be discarded
+      // Second call fails - context is too stale, should be discarded
       const result = await refreshContext(team, 't_abc');
       expect(result).toBeNull();
       expect(getCachedContext()).toBeNull();
@@ -220,7 +220,7 @@ describe('context cache', () => {
       };
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      // First call fails — starts retry timer
+      // First call fails - starts retry timer
       await refreshContext(team, 't_abc');
       expect(offlinePrefix()).toMatch(/\[offline/);
 
@@ -252,7 +252,7 @@ describe('context cache', () => {
       await refreshContext(team, 't_abc');
       expect(offlinePrefix()).toBe('');
 
-      // Advance time — retry timer should not fire additional calls
+      // Advance time - retry timer should not fire additional calls
       await vi.advanceTimersByTimeAsync(120_000);
       expect(team.getTeamContext).toHaveBeenCalledTimes(2);
 
@@ -289,7 +289,7 @@ describe('context cache', () => {
       // Advance past TTL + 2 minutes
       vi.advanceTimersByTime(150_000); // 2.5 minutes
 
-      // Fail — go offline
+      // Fail - go offline
       await refreshContext(team, 't_abc');
       expect(offlinePrefix()).toBe('[offline 2m -- using cached data] ');
       consoleSpy.mockRestore();
@@ -308,7 +308,7 @@ describe('context cache', () => {
       // Advance 5 minutes + some margin (but still within max stale of 300s)
       // Actually, 300s = 5min exactly. We need to stay under to keep cache alive.
       // Advance 4.5 minutes to keep cache, then check what offlinePrefix shows at 5min+
-      vi.advanceTimersByTime(299_000); // 4m59s — just under max stale
+      vi.advanceTimersByTime(299_000); // 4m59s - just under max stale
 
       await refreshContext(team, 't_abc');
       // Cache is ~299s old = 4 minutes (floor), not 5m+ yet

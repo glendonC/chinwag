@@ -107,7 +107,7 @@ export interface McpTool {
   tier?: 'managed' | 'connected';
   /**
    * What data this tool can provide beyond basic session/edit tracking.
-   * Drives parser selection and coverage reporting — never branch on tool ID,
+   * Drives parser selection and coverage reporting - never branch on tool ID,
    * branch on capabilities instead.
    */
   dataCapabilities?: DataCapabilities;
@@ -137,7 +137,7 @@ function parseClaudeCodeAvailability(output: string): AvailabilityCheckResult {
 }
 
 function parseCodexAvailability(output: string): AvailabilityCheckResult {
-  // Check negative cases first — "Not logged in" contains "logged in"
+  // Check negative cases first - "Not logged in" contains "logged in"
   if (/not logged in|login required|sign in/i.test(output)) {
     return { state: 'needs_auth', detail: 'Sign in to Codex', recoveryCommand: CODEX_LOGIN };
   }
@@ -262,7 +262,7 @@ export const MCP_TOOLS: McpTool[] = [
   {
     // GitHub Copilot is registered before `vscode` so `inferToolFromClientInfo`
     // matches "github copilot" to this entry first. Copilot is a distinct
-    // product, not "just VS Code" — keeping them separate lets analytics
+    // product, not "just VS Code" - keeping them separate lets analytics
     // attribute cost, tokens, and conversation signals to the right tool.
     id: 'copilot',
     name: 'GitHub Copilot',
@@ -278,7 +278,7 @@ export const MCP_TOOLS: McpTool[] = [
       commandPatterns: ['copilot'],
     },
     clientInfoNames: ['github copilot', 'copilot'],
-    // Copilot itself doesn't host MCP servers — it runs inside VS Code. When a
+    // Copilot itself doesn't host MCP servers - it runs inside VS Code. When a
     // user wants MCP, they configure it at the VS Code level (.vscode/mcp.json).
     // Keeping mcpConfig empty signals to the init writer "don't try to scaffold
     // a Copilot-specific MCP config."
@@ -495,7 +495,7 @@ export function getDataCapabilities(toolId: string): DataCapabilities {
 
 /**
  * Get all tool IDs that have a specific data capability.
- * Used for coverage computation — never hardcode tool IDs, query capabilities instead.
+ * Used for coverage computation - never hardcode tool IDs, query capabilities instead.
  */
 export function getToolsWithCapability(capability: keyof DataCapabilities): string[] {
   return MCP_TOOLS.filter((t) => t.dataCapabilities?.[capability]).map((t) => t.id);

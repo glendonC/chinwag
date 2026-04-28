@@ -1,4 +1,4 @@
-/* Canonical row for the file-friction widget family — confused-files,
+/* Canonical row for the file-friction widget family: confused-files,
  * file-rework, concurrent-edits, audit-staleness, memory-bus-factor.
  * Five widgets, one shape: filename + severity-tinted bar + dimmed meta
  * + optional drill arrow. Phase 1 lands the primitive; Phase 3 migrates

@@ -1,7 +1,7 @@
 // Command executor for the MCP server.
 // Spawns/stops agents via child_process (built-in Node.js, no native deps).
 // The spawned tool starts its own MCP server and joins the team automatically.
-// CRITICAL: Never console.log — stdio transport.
+// CRITICAL: Never console.log - stdio transport.
 
 import { spawn, execFileSync, type ChildProcess } from 'node:child_process';
 import { MCP_TOOLS } from '@chinmeister/shared/tool-registry.js';
@@ -89,7 +89,7 @@ export function executeSpawnCommand(
       return { ok: true, pid: child.pid, tool_id: toolId };
     }
 
-    return { error: 'Failed to spawn — no PID returned' };
+    return { error: 'Failed to spawn - no PID returned' };
   } catch (err) {
     return { error: String((err as Error).message || err) };
   }
@@ -113,7 +113,7 @@ export function executeStopCommand(payload: Record<string, unknown>): Record<str
           process.kill(pid, 'SIGKILL');
           log.info(`Force-killed PID ${pid} after grace period`);
         } catch {
-          // Already dead — expected
+          // Already dead - expected
         }
       }, KILL_GRACE_MS);
       if (entry) {

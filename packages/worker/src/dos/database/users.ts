@@ -287,7 +287,7 @@ export function updateColor(
 /**
  * Stamp `tokens_revoked_at = now`. The auth path treats every KV token whose
  * metadata `issued_at` is older than this stamp as expired. This is the
- * blunt-force "log me out everywhere" primitive — used for credential
+ * blunt-force "log me out everywhere" primitive - used for credential
  * rotation, suspected compromise, and account-level security incidents.
  *
  * Stored in ISO millisecond resolution to match `issued_at` metadata. SQLite's

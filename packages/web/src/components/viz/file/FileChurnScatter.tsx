@@ -40,7 +40,7 @@ function fileBasename(path: string): string {
  *   Far from origin                       → high-volume files worth noting.
  *
  * Dots colored by work-type (same palette as the Files tab's constellation
- * so cross-tab reading is consistent). Fixed radius — the axes are the
+ * so cross-tab reading is consistent). Fixed radius - the axes are the
  * information; size encoding would be bubble-chart drift.
  */
 export default function FileChurnScatter({ entries, ariaLabel }: Props) {
@@ -90,7 +90,7 @@ export default function FileChurnScatter({ entries, ariaLabel }: Props) {
     label: String(Math.round(f * maxRemoved)),
   }));
 
-  // Diagonal reference — from (0, 0) at bottom-left to the corner that
+  // Diagonal reference - from (0, 0) at bottom-left to the corner that
   // represents equal magnitudes on both axes. Using min(maxAdded, maxRemoved)
   // so the line doesn't overshoot the plot on a lopsided window.
   const diagMagnitude = Math.min(maxAdded, maxRemoved);
@@ -119,7 +119,7 @@ export default function FileChurnScatter({ entries, ariaLabel }: Props) {
         />
       ))}
 
-      {/* Diagonal reference — dashed, faint. Files sitting on this line had
+      {/* Diagonal reference - dashed, faint. Files sitting on this line had
           equal additions and removals for the period. */}
       <line
         x1={PAD_L}

@@ -2,7 +2,7 @@
  * (when expanded) sits ABOVE the pill with explicit bottom-anchor so
  * it doesn't flow inline with the pill text on either axis. Right-
  * aligned so the popover's content extends leftward from the pill's
- * right edge — same shape on horizontal and vertical.
+ * right edge, same shape on horizontal and vertical.
  *
  * Local --hint-accent drives the dismiss button color so each axis
  * picks up its own accent (lavender vs pink) without KeyboardHint

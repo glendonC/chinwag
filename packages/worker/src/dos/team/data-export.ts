@@ -15,13 +15,13 @@
 //
 // Deletion semantics:
 //   - Sessions, edits, tool_calls, commits, conversation_events, locks,
-//     messages, activities — deleted in full where handle matches.
-//   - Memories — deleted where the user is the author. Memories the user
+//     messages, activities - deleted in full where handle matches.
+//   - Memories - deleted where the user is the author. Memories the user
 //     read but didn't write stay (they're team knowledge).
-//   - Members / team_owners rows — kept. Membership is governed by the
+//   - Members / team_owners rows - kept. Membership is governed by the
 //     /teams/:tid/leave route; data export is not a roster operation.
-//   - daily_metrics — no per-user dimension, untouched.
-//   - telemetry — global counters, untouched.
+//   - daily_metrics - no per-user dimension, untouched.
+//   - telemetry - global counters, untouched.
 //
 // Export is a single read pass; deletion is a single transactional pass so
 // partial failures don't strand orphaned rows referencing deleted sessions.
@@ -151,7 +151,7 @@ export function deleteForHandle(
     counts.memories = exec('DELETE FROM memories WHERE handle = ?', handle);
     counts.sessions = exec('DELETE FROM sessions WHERE handle = ?', handle);
     counts.members = exec('DELETE FROM members WHERE handle = ?', handle);
-    // team_owners is intentionally NOT deleted here — that's a roster
+    // team_owners is intentionally NOT deleted here - that's a roster
     // operation and goes through /teams/:tid/leave. Data erasure is
     // about content, not membership.
   });

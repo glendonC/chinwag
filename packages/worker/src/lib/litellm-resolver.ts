@@ -31,7 +31,7 @@
  *    (`claude-opus-4-20250514`, `claude-sonnet-4-20250514`) and for 3.7-sonnet
  *    (`claude-3-7-sonnet-20250219`). Bare 3.5/3-opus/3-haiku do NOT.
  *  - Claude 4.5 and 4.6 DO have bare forms (`claude-sonnet-4-5`,
- *    `claude-sonnet-4-6`, `claude-opus-4-6`) AND dated forms — we prefer dated
+ *    `claude-sonnet-4-6`, `claude-opus-4-6`) AND dated forms - we prefer dated
  *    when available.
  *  - `grok-*` and `deepseek-v3`/`deepseek-r1` only exist with provider prefix.
  *  - Gemini exists bare (`gemini-2.5-pro`) AND prefixed (`gemini/gemini-2.5-pro`).
@@ -126,7 +126,7 @@ export function generateCandidates(rawInput: string): string[] {
   const raw = rawInput.trim().toLowerCase();
   if (!raw) return out;
 
-  // 1. Original (before any transforms) — catches things that are already
+  // 1. Original (before any transforms) - catches things that are already
   //    valid LiteLLM keys like `xai/grok-4` or `gemini/gemini-2.5-pro`.
   push(raw);
 

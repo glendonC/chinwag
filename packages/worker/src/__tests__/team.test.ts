@@ -293,7 +293,7 @@ describe('Memory', () => {
     expect(first.ok).toBe(true);
     expect(first.id).toBeDefined();
 
-    // Save very similar text — both should succeed as separate entries
+    // Save very similar text - both should succeed as separate entries
     const second = await team().saveMemory(
       agentId,
       'The database connection pool should be sized at 10 connections',
@@ -383,7 +383,7 @@ describe('Sessions', () => {
 
 // --- Session lifecycle edge cases ---
 
-describe('Session lifecycle — edge cases', () => {
+describe('Session lifecycle - edge cases', () => {
   const team = () => getTeam('session-edge-cases');
   const agentId = 'cursor:se1';
   const ownerId = 'user-se1';
@@ -541,7 +541,7 @@ describe('Lock path normalization consistency', () => {
 
 // --- Conflict detection edge cases ---
 
-describe('Conflict detection — edge cases', () => {
+describe('Conflict detection - edge cases', () => {
   const team = () => getTeam('conflict-edge');
   const agent1 = 'cursor:ce1';
   const agent2 = 'claude:ce2';
@@ -598,7 +598,7 @@ describe('Conflict detection — edge cases', () => {
 
 // --- Lock release edge cases ---
 
-describe('Lock release — edge cases', () => {
+describe('Lock release - edge cases', () => {
   const team = () => getTeam('lock-release-edge');
   const agent1 = 'cursor:lre1';
   const agent2 = 'claude:lre2';
@@ -614,7 +614,7 @@ describe('Lock release — edge cases', () => {
     // Claim with agent1
     await team().claimFiles(agent1, ['src/owned.js'], 'alice', 'cursor', owner1);
 
-    // agent2 tries to release agent1's file — should succeed (no-op, not error)
+    // agent2 tries to release agent1's file - should succeed (no-op, not error)
     const res = await team().releaseFiles(agent2, ['src/owned.js'], owner2);
     expect(res.ok).toBe(true);
 

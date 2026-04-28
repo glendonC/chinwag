@@ -8,7 +8,7 @@ import { getDemoData } from '../demo/index.js';
 const TOKEN_KEY = 'chinmeister_token';
 // Synthetic token used when demo is active and no real token is in storage.
 // The api() call is bypassed entirely on the demo path, so the value never
-// reaches the wire — it's just a non-null marker so the App boot flow
+// reaches the wire - it's just a non-null marker so the App boot flow
 // proceeds past its `if (!t)` guard into authenticate().
 const DEMO_TOKEN = '__demo__';
 

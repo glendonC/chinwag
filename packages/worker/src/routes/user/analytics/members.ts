@@ -11,7 +11,7 @@ const rate = (num: number, denom: number) =>
 
 // Audit 2026-04-21: Bucket trimmed to match the pruned MemberAnalytics shape.
 // abandoned/failed/avg_duration_min/total_lines_added/removed/total_commits
-// all dropped — see memberAnalyticsSchema comment for rationale. `completed`
+// all dropped - see memberAnalyticsSchema comment for rationale. `completed`
 // stays because cross-team completion_rate = sum(completed) / sum(sessions);
 // averaging per-team rates would be wrong.
 interface MemberBucket {

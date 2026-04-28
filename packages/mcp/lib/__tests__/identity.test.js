@@ -8,7 +8,7 @@ import {
 } from '../identity.js';
 
 describe('generateAgentId', () => {
-  it('is deterministic — same input produces same output', () => {
+  it('is deterministic - same input produces same output', () => {
     const a = generateAgentId('tok_abc123', 'cursor');
     const b = generateAgentId('tok_abc123', 'cursor');
     expect(a).toBe(b);

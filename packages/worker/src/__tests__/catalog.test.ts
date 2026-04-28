@@ -23,7 +23,7 @@ describe('tool catalog', () => {
       expect(tool).toHaveProperty('id');
       expect(tool).toHaveProperty('name');
       // Every entry that flags `mcpConfigurable` must also flag
-      // `mcpCompatible` — can't be configurable for MCP without being
+      // `mcpCompatible` - can't be configurable for MCP without being
       // compatible with it.
       if (tool.mcpConfigurable) {
         expect(tool.mcpCompatible, `${tool.id}`).toBe(true);

@@ -1,4 +1,4 @@
-// Team message routes — send and get messages.
+// Team message routes - send and get messages.
 
 import type { RouteDefinition } from '../../lib/router.js';
 import { checkContent } from '../../moderation.js';

@@ -1,4 +1,4 @@
-// Icon resolution pipeline — resolves tool icons at evaluation time
+// Icon resolution pipeline - resolves tool icons at evaluation time
 // and caches them in KV so the frontend never hits external services at render time.
 // Also extracts the dominant brand color from the icon for UI theming.
 
@@ -71,7 +71,7 @@ export async function resolveIconUrl(
 
 /**
  * Fetch an icon, cache in KV, and extract its dominant color.
- * Returns { cached, brandColor } — both optional.
+ * Returns { cached, brandColor } - both optional.
  */
 export async function cacheIconAndExtractColor(
   toolId: string,
@@ -159,7 +159,7 @@ export async function extractBrandColorFromCache(toolId: string, env: Env): Prom
 
 // ── Workers AI Color Extraction ──
 // Uses Cloudflare Workers AI vision model to identify brand color from any image format.
-// This is the primary color extraction method — handles PNG, JPEG, ICO, SVG, anything.
+// This is the primary color extraction method - handles PNG, JPEG, ICO, SVG, anything.
 
 export async function extractColorWithAI(dataUri: string, env: Env): Promise<string | null> {
   const text = await chatCompletion(env.AI, {
@@ -182,7 +182,7 @@ export async function extractColorWithAI(dataUri: string, env: Env): Promise<str
   });
 
   if (!text) return null;
-  // Extract hex color from response — model might add extra text
+  // Extract hex color from response - model might add extra text
   const match = text.match(/#[0-9a-fA-F]{6}/);
   return match ? match[0].toLowerCase() : null;
 }

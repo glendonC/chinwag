@@ -1,4 +1,4 @@
-// Tool and model profiles — the single source of truth every aggregate in
+// Tool and model profiles - the single source of truth every aggregate in
 // the demo derives from. Adding a new tool or retuning a completion rate
 // ripples through tool_distribution, tool_comparison, model_outcomes,
 // token_usage.by_tool, completion_summary, etc. automatically. Do not
@@ -20,7 +20,7 @@ export interface ToolProfile {
   researchToEditRatio: number;
   avgFirstEditMin: number;
   stucknessRate: number;
-  // Capabilities — drive data_coverage and coverage notes.
+  // Capabilities - drive data_coverage and coverage notes.
   hooks: boolean;
   tokenUsage: boolean;
   conversationLogs: boolean;
@@ -42,13 +42,13 @@ export interface ModelProfile {
   cacheReadCostPer1M: number | null;
   cacheCreationCostPer1M: number | null;
   // Additive completion bonus/malus on top of the tool's base rate. Small
-  // — the dominant signal is still the tool.
+  // - the dominant signal is still the tool.
   completionDelta: number;
 }
 
 // Ordered so higher-share tools come first; derivations iterate in this
 // order, which keeps widget render order intuitive (Claude Code first).
-// Session shares intentionally do not sum to 1.0 — they're normalized in
+// Session shares intentionally do not sum to 1.0 - they're normalized in
 // allocateIntegerShares so rounding lands deterministically.
 export const TOOL_PROFILES: ToolProfile[] = [
   {
@@ -261,7 +261,7 @@ export function getModelProfile(id: string): ModelProfile | undefined {
 }
 
 // USD cost for one session's token usage under a specific model. Returns
-// null when pricing is missing for any component — the demo never fabricates
+// null when pricing is missing for any component - the demo never fabricates
 // partial costs for partially-priced models. Denominator is 1e6 because
 // cost fields are per 1M tokens.
 export function sessionCost(tool: ToolProfile, model: ModelProfile): number | null {

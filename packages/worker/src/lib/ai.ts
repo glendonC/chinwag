@@ -20,7 +20,7 @@ const CHAT_MODEL: AiModel = '@cf/meta/llama-4-scout-17b-16e-instruct';
 
 /**
  * Generate a 384-dim embedding vector for semantic similarity.
- * Returns null on failure — embedding is non-critical for all callers.
+ * Returns null on failure - embedding is non-critical for all callers.
  *
  * Logs at warn so recurring AI outages are visible in production logs:
  * silent null returns degrade memory dedup quality without any signal.

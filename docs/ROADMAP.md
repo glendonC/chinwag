@@ -49,7 +49,7 @@ Managed CLI agents with full lifecycle control, connected IDE agents with coordi
 The analytics backbone is shipped and wired into the web dashboard.
 
 - **Per-session tracking:** duration, edit count, files touched, conflicts hit, model used, host tool, token consumption, outcome (completed/abandoned/failed), conversation events with sentiment and topic classification
-- **Computed analytics:** 36+ metrics across sessions, conversations, memory, coordination, and cost — completion rates, edit velocity, work type distribution, tool comparison, model performance, stuckness detection, retry patterns, file churn, directory heatmaps, scope complexity, hourly effectiveness, prompt efficiency, period-over-period comparison
+- **Computed analytics:** 36+ metrics across sessions, conversations, memory, coordination, and cost, including completion rates, edit velocity, work type distribution, tool comparison, model performance, stuckness detection, retry patterns, file churn, directory heatmaps, scope complexity, hourly effectiveness, prompt efficiency, and period-over-period comparison
 - **Cost estimation:** Approximate session cost from token usage and model pricing
 - **Claude Code hooks:** automatic edit capture (PostToolUse), enforced conflict checks (PreToolUse), context injection (SessionStart)
 - **Web dashboard:** Cross-project analytics view, per-project analytics tab, per-member breakdowns
@@ -63,9 +63,9 @@ The analytics backbone is shipped and wired into the web dashboard.
 
 ## What is next
 
-### Phase 1 — Polish: harden what we shipped
+### Phase 1: Polish shipped behavior
 
-The core works. Before adding surface area, make it bulletproof.
+The core workflow is in place. Before adding surface area, harden the shipped behavior.
 
 - [ ] Test MCP integration with Cursor, Windsurf, VS Code Copilot, Codex CLI, Aider, JetBrains (verify behavior, document quirks)
 - [x] Replace polling with WebSocket push (channel and dashboard receive real-time delta events from TeamDO; HTTP polling retained as fallback and reconciliation safety net)
@@ -74,9 +74,9 @@ The core works. Before adding surface area, make it bulletproof.
 - [ ] Publish `chinmeister` CLI and `chinmeister-mcp` packages to npm
 - [ ] End-to-end test: `npm install -g chinmeister` → `npx chinmeister init` → agent connection
 
-### Phase 2 — Workflow Intelligence: from data to action
+### Phase 2: Workflow Intelligence
 
-The analytics backbone is shipped. Now close the loop — insights should drive actions, not just display numbers.
+The analytics backbone is shipped. Next, connect insights to actions instead of only displaying numbers.
 
 **Agent-level:**
 
@@ -97,11 +97,11 @@ The analytics backbone is shipped. Now close the loop — insights should drive 
 
 **Cross-cutting:**
 
-- [ ] Actionable insights: every analytics section connects to something you can do — spawn an agent, switch a model, prune stale memories
+- [ ] Actionable insights: every analytics section connects to an action, such as spawning an agent, switching a model, or pruning stale memories
 - [ ] Project lenses: security, test, architecture, documentation views with action buttons
 - [ ] Proactive alerts: threshold-based notifications for metric changes
 
-### Phase 3 — Advanced control
+### Phase 3: Advanced control
 
 - [ ] Hook-based pause/resume for Claude Code agents (PreToolUse hook returns pause signal)
 - [ ] Advisory stop signals for connected IDE agents (message via MCP context that agents read and follow)
@@ -117,7 +117,7 @@ Revisit once intelligence foundation is solid and adoption signals are clear.
 
 - **Multi-project memory:** User-level preferences and patterns that span projects
 - **Deeper tool hooks:** As tools beyond Claude Code add hook-like capabilities, deepen integration and analytics coverage
-- **Weekly digest:** Auto-generated summary of key metrics, changes, and recommendations — delivered as an MCP tool response or notification
+- **Weekly digest:** Auto-generated summary of key metrics, changes, and recommendations, delivered as an MCP tool response or notification
 
 ## Non-goals
 

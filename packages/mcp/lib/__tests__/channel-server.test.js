@@ -59,7 +59,7 @@ describe('shouldRequestAttention', () => {
 
   it('returns true for stuckness alerts', () => {
     expect(
-      shouldRequestAttention('Agent alice has been on the same task for 20 min — may be stuck'),
+      shouldRequestAttention('Agent alice has been on the same task for 20 min - may be stuck'),
     ).toBe(true);
   });
 
@@ -179,7 +179,7 @@ describe('polling logic', () => {
     prevState = ctx;
     // No diffing happens here
 
-    // Second poll with same state — diffState should return no events
+    // Second poll with same state - diffState should return no events
     const newEvents = diffState(prevState, ctx, new Map());
     events.push(...newEvents);
 
@@ -209,7 +209,7 @@ describe('polling logic', () => {
     try {
       await team.getTeamContext('t_abc');
     } catch (err) {
-      // Poll failed — prevState should not change
+      // Poll failed - prevState should not change
       consoleSpy(`[chinmeister-channel] Poll failed: ${err.message}`);
     }
 
@@ -219,7 +219,7 @@ describe('polling logic', () => {
   });
 });
 
-// Heartbeat logic removed — index.js (MCP server) owns agent presence.
+// Heartbeat logic removed - index.js (MCP server) owns agent presence.
 // Channel connects as role:watcher and does not send heartbeats.
 
 // --- Stuckness tracking integration ---
@@ -240,12 +240,12 @@ describe('stuckness tracking with channel', () => {
     const prevState = { members: [] };
     const currState = { members: [stuckMember] };
 
-    // First poll — should emit stuckness alert
+    // First poll - should emit stuckness alert
     const events1 = diffState(prevState, currState, stucknessAlerted);
     expect(events1.some((e) => e.includes('may be stuck'))).toBe(true);
     expect(stucknessAlerted.has('a1')).toBe(true);
 
-    // Second poll — should NOT re-emit
+    // Second poll - should NOT re-emit
     const events2 = diffState(currState, currState, stucknessAlerted);
     expect(events2.some((e) => e.includes('may be stuck'))).toBe(false);
   });

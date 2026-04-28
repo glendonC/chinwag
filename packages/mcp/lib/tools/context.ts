@@ -66,7 +66,7 @@ export function registerContextTool(
                 if (attempt === 0) await new Promise((r) => setTimeout(r, 1000));
               }
             }
-            // All retries exhausted — clear so next tool call retries
+            // All retries exhausted - clear so next tool call retries
             state.modelReported = null;
             state.modelReportInflight = null;
           }

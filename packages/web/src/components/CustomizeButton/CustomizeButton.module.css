@@ -30,7 +30,7 @@
 
 /* Persistent shortcut hint. Same visual weight as the kbd badges in the
  * customize strip so the two read as one keyboard vocabulary. Hidden when
- * active (pressed) — the button is already the visible affordance, and
+ * active (pressed), the button is already the visible affordance, and
  * showing the open-shortcut while the menu is open suggests the wrong
  * action. */
 .kbd {

@@ -31,7 +31,7 @@ import type {
 const log = createLogger('extraction-engine');
 
 // Warn threshold for JSONL parse rot: if a tool ships a format change that
-// corrupts most lines, we want an operator-visible signal immediately — not a
+// corrupts most lines, we want an operator-visible signal immediately - not a
 // slow bleed visible only in the rolling health window. Small files (< 10
 // lines) are skipped to avoid noise on thin sessions.
 const MALFORMED_WARN_RATIO = 0.2;
@@ -237,7 +237,7 @@ function isSafeReadOnlyQuery(query: string): boolean {
 
 /**
  * Open the SQLite DB at `file`, run `source.query`, and return each row as a
- * plain object. Column names become entry keys — downstream extraction uses
+ * plain object. Column names become entry keys - downstream extraction uses
  * the same dot-notation path resolver as JSONL, so `json_extract()` in the
  * query is the right place to flatten nested fields before they hit the
  * extraction specs.
@@ -274,7 +274,7 @@ async function runSqliteQuery(file: string, source: SqliteSource): Promise<unkno
   try {
     // Dynamic import so builds/tests without the native module still work.
     // When we move to Node 24's stable `node:sqlite` as minimum runtime, swap
-    // the specifier here — no other call sites.
+    // the specifier here - no other call sites.
     const mod = (await import('better-sqlite3' as string)) as { default: SqliteCtor };
     Database = mod.default;
   } catch (err) {
@@ -310,7 +310,7 @@ async function runSqliteQuery(file: string, source: SqliteSource): Promise<unkno
 // ── Pre-pass: carried state across entries ────────
 
 /**
- * Some tools (Copilot today) emit stateful context on their own line — e.g. a
+ * Some tools (Copilot today) emit stateful context on their own line - e.g. a
  * `session.model_change` event sets the model for every subsequent message
  * until the next change. The extraction engine is otherwise stateless per
  * entry, so the pre-pass walks entries in order, tracks the carry value, and
@@ -322,7 +322,7 @@ async function runSqliteQuery(file: string, source: SqliteSource): Promise<unkno
  * carry-event field from the role field, add a dedicated `carryFromField` to
  * `ModelStateCarry` rather than repurposing this helper.
  *
- * Entries whose carry target is already populated are left untouched — a
+ * Entries whose carry target is already populated are left untouched - a
  * tool-emitted value always wins over an inferred carry.
  */
 function applyModelStateCarry(
@@ -456,7 +456,7 @@ function extractConversationFromEntry(
    * Normalization applied to per-message token fields before they land on
    * the ExtractedConversation. Without this, OpenAI-shaped specs (Codex,
    * Aider) would store raw per-message tokens with cached still nested in
-   * input — a different quantity than the session-level aggregate, which
+   * input - a different quantity than the session-level aggregate, which
    * is already normalized by the tokens-extraction path. Keeping them in
    * the same domain is what lets downstream per-message aggregation SQL
    * sum values across the conversation_events table without rewriting
@@ -512,7 +512,7 @@ function extractConversationFromEntry(
 
   // Per-message token/model/stop_reason (assistant entries only in practice).
   // Values flow through normalizeTokens so the conversation_events table
-  // stays in the same domain as sessions.*_tokens — OpenAI rows subtract
+  // stays in the same domain as sessions.*_tokens - OpenAI rows subtract
   // cached from input, Anthropic rows pass through additive.
   if (spec.tokenPaths) {
     const rawInput = (resolvePath(entry, spec.tokenPaths.input_tokens) as number | undefined) ?? 0;
@@ -524,7 +524,7 @@ function extractConversationFromEntry(
     const rawCacheCreation = spec.tokenPaths.cache_creation_tokens
       ? ((resolvePath(entry, spec.tokenPaths.cache_creation_tokens) as number | undefined) ?? 0)
       : 0;
-    // Only attach when the source provided at least one token signal — a
+    // Only attach when the source provided at least one token signal - a
     // bare assistant turn with no usage shouldn't pollute the record with
     // zeroes that look like a measured zero.
     const anyToken =
@@ -711,7 +711,7 @@ export async function extract(
   }
 
   // Collect entries from whichever source the spec declares. Downstream
-  // extraction is source-agnostic — each entry is just a plain object.
+  // extraction is source-agnostic - each entry is just a plain object.
   let entries: unknown[];
   let parseHealth: ExtractionResult['parseHealth'];
   if (spec.format === 'sqlite') {

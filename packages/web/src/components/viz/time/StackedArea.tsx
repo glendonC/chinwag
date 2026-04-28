@@ -17,13 +17,13 @@ export interface StackedAreaEntry {
   key: string;
   label: string;
   series: ReadonlyArray<StackedAreaPoint>;
-  /** Required brand color — consumer resolves from tool/work-type palette. */
+  /** Required brand color - consumer resolves from tool/work-type palette. */
   color: string;
 }
 
 interface Props {
   entries: ReadonlyArray<StackedAreaEntry>;
-  /** Axis caption — e.g. "edits per day". Uppercased, mono. */
+  /** Axis caption - e.g. "edits per day". Uppercased, mono. */
   unitLabel?: string;
   ariaLabel?: string;
   /** Optional value formatter for the tooltip. Default: toLocaleString. */
@@ -79,7 +79,7 @@ function niceMax(raw: number): number {
  * Stacked-area chart for positive single-value-per-day series. Heaviest
  * series goes on the bottom; lighter bands stack on top. Hover shows a
  * vertical scanner with a floating tooltip card (per-series breakdown +
- * daily total). No legend — caller is expected to carry one nearby.
+ * daily total). No legend - caller is expected to carry one nearby.
  */
 export default function StackedArea({
   entries,
@@ -144,7 +144,7 @@ export default function StackedArea({
 
   // Build cumulative stacks so each series renders from its base. Scale
   // helpers are redefined inside so React's exhaustive-deps can see
-  // them — the outer `yScale`/`xAt` are only used for render-time SVG.
+  // them - the outer `yScale`/`xAt` are only used for render-time SVG.
   const layers = useMemo(() => {
     const memoYScale = (v: number) => PAD_T + plotH - (v / maxY) * plotH;
     const memoXAt = (i: number) => PAD_L + i * step;
@@ -183,7 +183,7 @@ export default function StackedArea({
 
   if (dayCount === 0 || entries.length === 0) return null;
 
-  // X-axis label cadence — aim for ~6 labels regardless of range length.
+  // X-axis label cadence - aim for ~6 labels regardless of range length.
   const labelStep = Math.max(1, Math.floor(dayCount / 6));
 
   // Y axis ticks at 0, 50%, 100% of maxY.

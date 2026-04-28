@@ -16,7 +16,7 @@ export interface HourCell {
 interface Props {
   /** Sparse cell list. Missing cells render as the empty floor. */
   data: ReadonlyArray<HourCell>;
-  /** Optional row filter — render only these day-of-week indices. Pass
+  /** Optional row filter - render only these day-of-week indices. Pass
    *  `[1,2,3,4,5]` for a weekday-only mini-grid; defaults to all 7 rows. */
   compactRows?: ReadonlyArray<number>;
   /** Cell height (and y-label row height) in px. Default 14. */
@@ -66,7 +66,7 @@ function hourGlyph(h: number): string {
  *   - ActivityDetailView's peak-hour question
  *   - any future weekday/weekend mini-grid (via `compactRows`)
  *
- * The opacity scale is the only nuanced bit — see `scale` prop. Color is
+ * The opacity scale is the only nuanced bit - see `scale` prop. Color is
  * always `var(--ink)`; the cell modulates opacity, so dark mode flows
  * through the token without per-cell color logic.
  */
@@ -105,7 +105,7 @@ export default function HourHeatmap({
                     key={dow}
                     className={styles.cell}
                     style={{ background: 'var(--ink)', opacity }}
-                    title={`${DAY_LABELS[dow] ?? ''} ${hour}:00 — ${val} sessions`}
+                    title={`${DAY_LABELS[dow] ?? ''} ${hour}:00 - ${val} sessions`}
                   />
                 );
               })}

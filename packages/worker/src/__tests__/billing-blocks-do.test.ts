@@ -10,7 +10,7 @@ function getTeam(id) {
   return env.TEAM.get(env.TEAM.idFromName(id));
 }
 
-describe('TeamDO.getBillingBlocks — wiring', () => {
+describe('TeamDO.getBillingBlocks - wiring', () => {
   const team = () => getTeam('billing-blocks-wiring');
   const agentId = 'cursor:bb1';
   const ownerId = 'user-bb1';

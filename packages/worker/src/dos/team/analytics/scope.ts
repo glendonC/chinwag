@@ -1,7 +1,7 @@
 // Analytics scope: the canonical filter object every analytics query accepts.
 //
 // Why this exists. Pre-scope, every query function in this directory was
-// implicitly team-wide — `SELECT ... FROM sessions WHERE ...` returned data
+// implicitly team-wide - `SELECT ... FROM sessions WHERE ...` returned data
 // for every member of the team, regardless of which user asked. That broke
 // STRATEGY.md's "developer-level data is private by default" direction the
 // moment a second teammate joined: dev A could pull dev B's sentiment
@@ -19,7 +19,7 @@
 // fragment plus its params into its existing SQL. New filter axes become
 // new optional fields on the type, never new parameters.
 //
-// Default contract: an empty scope (`{}`) returns team-wide aggregates —
+// Default contract: an empty scope (`{}`) returns team-wide aggregates -
 // preserves existing semantics for the few endpoints that intentionally
 // expose cross-user data (project view summaries, lead-style aggregates
 // once team-tier ships). Routes that should be developer-scoped pass
@@ -112,7 +112,7 @@ export function buildScopeWhere(
 }
 
 /**
- * Type guard for scoped vs unscoped — useful when a function wants to
+ * Type guard for scoped vs unscoped - useful when a function wants to
  * skip an entire correlation step (e.g., team-wide cohort analysis) when
  * called with a personal scope.
  */

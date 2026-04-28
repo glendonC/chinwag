@@ -1,4 +1,4 @@
-// Team memory routes — save, search, update, delete memory.
+// Team memory routes - save, search, update, delete memory.
 
 import type { RouteDefinition } from '../../lib/router.js';
 import { checkContent, isBlocked } from '../../moderation.js';
@@ -68,11 +68,11 @@ export const handleTeamSaveMemory = teamJsonRoute(async ({ body, user, env, team
     }
   }
 
-  // Validate tags before moderation — no point running AI on invalid input
+  // Validate tags before moderation - no point running AI on invalid input
   const tagsResult = validateTagsArray(body.tags, MAX_TAGS_PER_MEMORY);
   if (tagsResult.error) return json({ error: tagsResult.error }, 400);
   const tags = tagsResult.tags!;
-  // Tags are short — blocklist is sufficient
+  // Tags are short - blocklist is sufficient
   if (tags.some((t) => isBlocked(t))) return json({ error: 'Content blocked' }, 400);
 
   // Validate categories (string array, optional)
@@ -104,7 +104,7 @@ export const handleTeamSaveMemory = teamJsonRoute(async ({ body, user, env, team
     const hashBuf = await crypto.subtle.digest('SHA-256', data);
     textHash = [...new Uint8Array(hashBuf)].map((b) => b.toString(16).padStart(2, '0')).join('');
   } catch {
-    // Non-critical — proceed without hash dedup
+    // Non-critical - proceed without hash dedup
   }
 
   // Generate embedding for near-dedup (bge-small-en-v1.5, 384 dims)
@@ -189,7 +189,7 @@ export const handleTeamSearchMemory = teamRoute(async ({ request, agentId, team,
 
   // Hybrid retrieval: generate a query embedding for non-literal queries.
   // Literal-shaped queries (paths, SHAs, identifiers) are strictly better
-  // served by FTS5 alone — embeddings semantically conflate similar paths.
+  // served by FTS5 alone - embeddings semantically conflate similar paths.
   // The DO will detect literal queries and skip vector regardless, but
   // skipping the embedding call here saves a Workers AI round-trip.
   let queryEmbedding: ArrayBuffer | null = null;
@@ -386,7 +386,7 @@ export const handleTeamUnmergeMemory = teamJsonRoute(async ({ body, user, team, 
 // Formation is the LLM-side counterpart to consolidation: it classifies a
 // memory as keep / merge / evolve / discard against top-K cosine
 // neighbours. Recommendations land in formation_observations as
-// observability — never auto-applied. Surfaces in the dashboard so the
+// observability - never auto-applied. Surfaces in the dashboard so the
 // reviewer can decide whether to tighten consolidation thresholds or
 // (eventually) opt-in to enforcement.
 

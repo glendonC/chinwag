@@ -40,7 +40,7 @@ export function merge(
   teamEntry: { team_id: string; team_name: string | null },
 ): void {
   // tool_comparison filters out `host_tool IS NULL OR host_tool = 'unknown'`
-  // in the DO query — for project totals that's the right scope, since
+  // in the DO query - for project totals that's the right scope, since
   // unknown-host sessions have no attributable tool anyway and would
   // otherwise inflate the total without a sensible primary_tool.
   let totalEdits = 0;

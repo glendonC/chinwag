@@ -2,8 +2,8 @@
  * See FocusedDetailView.tsx for the rationale.
  *
  * Active state is typographic (ink color + medium weight), not a tinted
- * rectangle with a left border — that's the SaaS-dashboard cliché and
- * doesn't belong in chinmeister's visual language, which signals state
+ * rectangle with a left border. That chrome doesn't belong in
+ * chinmeister's visual language, which signals state
  * through color and weight, not chrome boxes. */
 
 .root {
@@ -37,7 +37,7 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  /* Generous row gap because items have no chrome — vertical whitespace
+  /* Generous row gap because items have no chrome. Vertical whitespace
    * does the work a border or a bg would otherwise do. */
   gap: 20px;
 }
@@ -62,7 +62,7 @@
   min-width: 0;
 }
 
-/* No focus outline — the active pill IS the focus indicator. Only the
+/* No focus outline: the active pill IS the focus indicator. Only the
  * active item is tabbable (tabIndex=0 vs -1 on the others), so
  * "focused" and "active" are the same state. Matches the stat tab
  * pattern above, which also relies on the active pill for focus
@@ -79,7 +79,7 @@
  * tab label above: --accent-bg pill around the text, --accent ink,
  * rounded radius. Negative margin cancels the pill padding so the
  * text's left edge still aligns with the column's left edge (same
- * trick the stat tab label uses — see StatTabs.module.css). */
+ * trick the stat tab label uses (see StatTabs.module.css)). */
 .itemQuestion {
   position: relative;
   display: inline-flex;
@@ -113,7 +113,7 @@
 }
 
 /* Narrow-viewport variant: sidebar becomes a horizontal chip scroller
- * pinned above the main area. Chips carry Q only — the answer would
+ * pinned above the main area. Chips carry Q only. The answer would
  * bloat the chip height and defeat the strip's scannability. */
 @media (max-width: 899px) {
   .sidebar {
@@ -156,7 +156,7 @@
   animation: focusReveal 0.2s var(--motion) both;
 }
 
-/* The lead. No separate title — the sidebar already tells the reader
+/* The lead. No separate title: the sidebar already tells the reader
  * which question they're on. The answer IS the lead: large enough to
  * carry the page, prose enough to read like a sentence, with key terms
  * set off semantically via <Metric tone="..."> (ink / success / warn /
@@ -186,7 +186,7 @@
 }
 
 /* Cross-view link strip. Lives beneath the viz, never inside the answer
- * prose — clicking inside a sentence is a B1 affordance violation that
+ * prose. Clicking inside a sentence is a B1 affordance violation that
  * reads like a tooltip but jumps the user to a new surface. Chip strip
  * is a quiet "you might also want" cue; the viz remains the answer. */
 .relatedLinks {

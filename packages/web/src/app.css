@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════
-   chinmeister dashboard — global styles
+   chinmeister dashboard: global styles
    Clean, minimal, Apple-inspired.
    ═══════════════════════════════════════════ */
 
@@ -59,7 +59,7 @@
    * This rule is the whole point of the design language: lavender means
    * "something is happening right now," not "this is the active control."
    * If you find yourself reaching for --accent on a static count, a
-   * selected pill, or a focus ring — it's --ink, not --live. */
+   * selected pill, or a focus ring: it's --ink, not --live. */
   --live: var(--accent);
   --live-bg: var(--accent-bg);
 
@@ -69,7 +69,7 @@
    * meaningful, but the default is ink. */
   --focus-ring: var(--ink);
 
-  /* Alt accent — logo's top slab (dusty pink). Carries the vertical/
+  /* Alt accent: logo's top slab (dusty pink). Carries the vertical/
    * secondary axis (the sidebar question list). Splitting the axes
    * onto two logo colors makes the two navigations visually distinct
    * at a glance, mirrors how the logo stacks three different pastels,
@@ -94,8 +94,8 @@
   --shadow-xs: 0 2px 8px rgba(18, 19, 23, 0.06);
   --shadow-lg: 0 20px 60px rgba(18, 19, 23, 0.08);
 
-  /* Text color on filled accent / colored buttons. Constant across themes —
-     accent/success/danger fills stay saturated enough in dark mode that a
+  /* Text color on filled accent / colored buttons. Constant across themes
+     because accent/success/danger fills stay saturated enough in dark mode that a
      page-bg-relative "on-color" would fail contrast. */
   --on-accent: #ffffff;
 

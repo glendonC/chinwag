@@ -187,7 +187,7 @@ describe('hook.js logic', () => {
       for (const c of result.conflicts || []) {
         const who =
           c.tool && c.tool !== 'unknown' ? `${c.owner_handle} (${c.tool})` : c.owner_handle;
-        issues.push(`${who} is editing ${c.files.join(', ')} — "${c.summary}"`);
+        issues.push(`${who} is editing ${c.files.join(', ')} - "${c.summary}"`);
       }
 
       expect(issues.length).toBe(1);

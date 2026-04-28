@@ -1,5 +1,5 @@
 /**
- * Derived data for the dashboard view — combined agent rows, memory lists,
+ * Derived data for the dashboard view - combined agent rows, memory lists,
  * selection clamping, viewport windows.
  *
  * Was previously packaged as a `DataProvider` React context, but it had

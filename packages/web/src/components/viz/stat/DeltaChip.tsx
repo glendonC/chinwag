@@ -3,7 +3,7 @@ import styles from './DeltaChip.module.css';
 interface Props {
   /** Current-period value. */
   current: number;
-  /** Previous-period value. Nullable — renders nothing if null/zero. */
+  /** Previous-period value. Nullable - renders nothing if null/zero. */
   previous: number | null | undefined;
   /** 'up'=higher is better (default), 'down'=lower is better (e.g. warmup time). */
   sense?: 'up' | 'down';
@@ -14,7 +14,7 @@ interface Props {
 }
 
 /**
- * Inline delta pill — arrow + signed percentage + optional suffix. Color
+ * Inline delta pill - arrow + signed percentage + optional suffix. Color
  * token reflects semantic good/bad given `sense`. Returns null when the
  * previous-period value is missing or zero (can't compute a % change).
  */

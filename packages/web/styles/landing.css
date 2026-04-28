@@ -31,7 +31,7 @@
   color: rgba(19, 17, 15, 0.92);
 }
 
-/* Inline dashboard CTA — northeast arrow pill */
+/* Inline dashboard CTA: northeast arrow pill */
 .hero-cta {
   display: inline-flex;
   align-items: center;
@@ -265,7 +265,7 @@
   box-shadow: 0 8px 20px rgba(70, 61, 52, 0.08);
 }
 
-/* Brand tints — actual brand colors */
+/* Brand tints: actual brand colors */
 .hero-atmosphere__label[data-brand='claude'] {
   background: rgba(255, 237, 224, 0.82);
   border-color: rgba(217, 119, 60, 0.2);
@@ -340,7 +340,7 @@
 }
 
 /* ═══════════════════════════════════════════
-   TOOLS STRIP — dim → brand tint (mask icons), marquee, gloss sweep
+   TOOLS STRIP: dim → brand tint (mask icons), marquee, gloss sweep
    Brand hues: conservative neutrals where logos are monochrome (Cursor, Zed).
    VS Code mark: Simple Icons (CC0). “Any MCP” is text-only (no placeholder glyph).
    ═══════════════════════════════════════════ */
@@ -549,7 +549,7 @@
   mask-image: url(../assets/claude-code.svg);
 }
 
-/* Cursor product UI is dark/neutral — avoid blue or purple tints */
+/* Cursor product UI is dark/neutral, avoid blue or purple tints */
 .tools-strip__tool[data-tool='cursor'] {
   --brand: #111111;
 }
@@ -793,7 +793,7 @@
 }
 
 /* ═══════════════════════════════════════════
-   PANEL — Base
+   PANEL: Base
    ═══════════════════════════════════════════ */
 
 .panel {
@@ -1146,7 +1146,7 @@
 }
 
 /* ═══════════════════════════════════════════
-   TRUST — Full-width section layout
+   TRUST: Full-width section layout
    ═══════════════════════════════════════════ */
 
 .trust-section {
@@ -1200,7 +1200,7 @@
   flex-direction: column;
 }
 
-/* Local card — dark, code-like */
+/* Local card: dark, code-like */
 .trust-card--local {
   background: #0d0c0a;
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -1210,7 +1210,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-/* Sent card — light, sparse */
+/* Sent card: light, sparse */
 .trust-card--sent {
   background: rgba(255, 255, 255, 0.78);
   border: 1px solid rgba(24, 20, 17, 0.06);
@@ -1244,7 +1244,7 @@
   text-transform: uppercase;
 }
 
-/* Code body — uses <pre> to preserve whitespace */
+/* Code body: uses <pre> to preserve whitespace */
 .trust-card__body--code {
   flex: 1;
   padding: 0;

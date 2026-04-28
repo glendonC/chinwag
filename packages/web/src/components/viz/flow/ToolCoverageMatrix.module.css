@@ -1,5 +1,5 @@
 /* Tools × capabilities affordance grid. The matrix answers "which
- * questions can this tool answer," not "how much data has it produced" —
+ * questions can this tool answer," not "how much data has it produced",
  * cells encode capability state with shape, not count. Apple-minimalistic:
  * generous whitespace, light typography, no chrome boxes. */
 
@@ -87,7 +87,7 @@
   opacity: 0.85;
 }
 
-/* Affordance: hatched tile says "partial — some flavor of this answer." */
+/* Affordance: hatched tile says "partial: some flavor of this answer." */
 .markPartial {
   background: repeating-linear-gradient(
     -45deg,

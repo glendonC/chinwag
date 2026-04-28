@@ -44,7 +44,7 @@ export interface PerOsPathDiscovery {
  * walks every subdir of `baseDir`, checks whether `filename` exists inside,
  * and returns the newest such file that has been touched since `startedAt`.
  *
- * Projection by cwd is intentionally NOT done here — Copilot's session-ids
+ * Projection by cwd is intentionally NOT done here - Copilot's session-ids
  * are opaque UUIDs with no project-linking naming convention, so the
  * mtime-after-startedAt gate is what identifies the active session.
  */
@@ -164,8 +164,8 @@ export interface MarkdownExtractionSpec {
 
 export interface SqliteSource {
   /**
-   * Expected table name. The engine does not use it for extraction — the
-   * `query` is the source of truth — but it is kept as a documented field so
+   * Expected table name. The engine does not use it for extraction - the
+   * `query` is the source of truth - but it is kept as a documented field so
    * the validator (and future healer) can detect when a tool renames or drops
    * the table before wasting a query round-trip.
    */
@@ -204,7 +204,7 @@ export interface ModelStateCarry {
   carryFromPath: string;
   /**
    * Dot-notation path at which to *inject* the carried value on subsequent
-   * entries before extraction runs. Defaults to `model` — matching the flat
+   * entries before extraction runs. Defaults to `model` - matching the flat
    * conversation entry shape used by simpler tools like Copilot.
    */
   carryTargetPath?: string;

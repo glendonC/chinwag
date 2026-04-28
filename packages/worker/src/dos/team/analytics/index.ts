@@ -7,19 +7,19 @@
  * and this file wires them together.
  *
  * Domain modules (one concept per file):
- *   core.ts          — base rollup shared with the lightweight getAnalytics path
- *   activity.ts      — when + how often work happens (hourly, daily, velocity)
- *   outcomes.ts      — what came out (model/tool/work-type performance)
- *   codebase.ts      — where work happens (files, directories, churn, rework)
- *   sessions.ts      — how sessions behave (retry, conflicts, stuckness, scope)
- *   team.ts          — per-member slice
- *   memory.ts        — shared-memory usage and outcome correlation
- *   conversations.ts — conversation-level signals
- *   tokens.ts        — token usage and cost
- *   tool-calls.ts    — per-tool-call stats
- *   commits.ts       — git attribution
- *   comparison.ts    — period-over-period delta
- *   extended.ts      — prompt efficiency, hourly effectiveness, tags, handoffs
+ *   core.ts          - base rollup shared with the lightweight getAnalytics path
+ *   activity.ts      - when + how often work happens (hourly, daily, velocity)
+ *   outcomes.ts      - what came out (model/tool/work-type performance)
+ *   codebase.ts      - where work happens (files, directories, churn, rework)
+ *   sessions.ts      - how sessions behave (retry, conflicts, stuckness, scope)
+ *   team.ts          - per-member slice
+ *   memory.ts        - shared-memory usage and outcome correlation
+ *   conversations.ts - conversation-level signals
+ *   tokens.ts        - token usage and cost
+ *   tool-calls.ts    - per-tool-call stats
+ *   commits.ts       - git attribution
+ *   comparison.ts    - period-over-period delta
+ *   extended.ts      - prompt efficiency, hourly effectiveness, tags, handoffs
  *
  * Each module returns its slice of the UserAnalytics contract. Adding a new
  * analytics field is two steps: add a query to the right domain module, then

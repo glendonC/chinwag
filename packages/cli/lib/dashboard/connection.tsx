@@ -266,7 +266,7 @@ export function useDashboardConnection({
         return;
       }
 
-      // Fetch short-lived ticket — keeps real token out of WS URL
+      // Fetch short-lived ticket - keeps real token out of WS URL
       let wsTicket: string;
       try {
         const ticketData = await client.post<WebSocketTicketResponse>('/auth/ws-ticket');

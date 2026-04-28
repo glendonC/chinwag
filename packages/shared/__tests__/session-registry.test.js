@@ -249,7 +249,7 @@ describe('session-registry', () => {
       ).toBe(false);
     });
 
-    it('returns true when commandMarker is empty string (falsy) — treated as no marker', () => {
+    it('returns true when commandMarker is empty string (falsy) - treated as no marker', () => {
       expect(
         isSessionRecordAlive({ pid: 1234, commandMarker: '' }, { processAlive: () => true }),
       ).toBe(true);

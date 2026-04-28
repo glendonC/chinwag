@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
-// chinmeister-hook — coding-tool hook handler.
+// chinmeister-hook - coding-tool hook handler.
 // Called by the host tool's hook system as a shell command.
 // Reads hook input from stdin (JSON), calls chinmeister backend.
 //
 // Hosts supported: claude-code (default), cursor (identical payload), windsurf
-// (Cascade Hooks — different payload shape). Host is selected via --tool.
+// (Cascade Hooks - different payload shape). Host is selected via --tool.
 //
-// This is NOT the MCP server — stdout is the output channel for hooks.
+// This is NOT the MCP server - stdout is the output channel for hooks.
 // stdout text becomes user-visible in the host session.
 // Exit code 0 = allow, non-zero = block (for Pre* hooks).
 
@@ -32,7 +32,7 @@ const log = createLogger('hook');
 const { subcommand, hostId } = parseHookArgs(process.argv);
 
 async function main() {
-  // Read raw stdin first — enables fast rejection for report-commit.
+  // Read raw stdin first - enables fast rejection for report-commit.
   // The Bash/command PostToolUse hook fires on every command invocation
   // (~hundreds/session). For non-commit calls, we exit in <2ms by checking the
   // raw string before any JSON parsing or bootstrap (which costs ~200-300ms).
@@ -44,7 +44,7 @@ async function main() {
     process.exit(0);
   }
 
-  // Bootstrap: graceful degradation — exit(0) on missing config/token/team.
+  // Bootstrap: graceful degradation - exit(0) on missing config/token/team.
   // hostToolHint drives identity and telemetry tags for multi-host sessions.
   const ctx = await bootstrap({
     hostToolHint: hostId,
@@ -96,7 +96,7 @@ async function checkConflict(team, teamId, input) {
     if (result.conflicts && result.conflicts.length > 0) {
       for (const c of result.conflicts) {
         issues.push(
-          `${formatWho(c.handle, c.host_tool)} is editing ${c.files.join(', ')} — "${c.summary}"`,
+          `${formatWho(c.handle, c.host_tool)} is editing ${c.files.join(', ')} - "${c.summary}"`,
         );
       }
     }
@@ -109,7 +109,7 @@ async function checkConflict(team, teamId, input) {
 
     if (issues.length > 0) {
       process.stdout.write(`CONFLICT: ${issues.join('; ')}\n`);
-      // Per-host block code lives on the tool registry — Windsurf requires
+      // Per-host block code lives on the tool registry - Windsurf requires
       // exit 2 to block; other hosts accept any non-zero code.
       process.exit(getHookBlockExitCode(hostId));
     }
@@ -127,7 +127,7 @@ async function reportEdit(team, teamId, input) {
   if (!filePath) {
     // Silent exit used to hide capture gaps (unknown host payload shape,
     // malformed JSON, stdin cutoff). Log so operators can see *why* the
-    // edit didn't land — the hook still exits 0 to avoid blocking.
+    // edit didn't land - the hook still exits 0 to avoid blocking.
     const shape = input && typeof input === 'object' ? Object.keys(input).join(',') : typeof input;
     log.warn(`report-edit: no file_path for host=${hostId} (payload keys: ${shape})`);
     process.exit(0);
@@ -148,12 +148,12 @@ async function reportEdit(team, teamId, input) {
       ),
     ]);
     // recordEdit returns { ok: true, skipped: true } when there's no active
-    // session for this agent. Without this warn the edit just disappears —
+    // session for this agent. Without this warn the edit just disappears -
     // surface it so the operator knows to check session-start.
     const skipped = results.filter((r) => r && r.skipped).length;
     if (skipped > 0) {
       log.warn(
-        `report-edit: ${skipped}/${editList.length} edit(s) for ${filePath} dropped — no active session for this agent`,
+        `report-edit: ${skipped}/${editList.length} edit(s) for ${filePath} dropped - no active session for this agent`,
       );
     }
   } catch (err) {
@@ -181,7 +181,7 @@ async function reportCommit(team, teamId, input) {
   const resultStr = extractBashResult(input, hostId);
 
   // Verify the command was actually a git commit (not just mentioned in output).
-  // Also skip dry-runs — they don't update HEAD, so the Windsurf fallback of
+  // Also skip dry-runs - they don't update HEAD, so the Windsurf fallback of
   // `git log -1 HEAD` would incorrectly report the previous commit as new.
   if (!command.includes('git commit') || command.includes('--dry-run')) {
     process.exit(0);
@@ -212,7 +212,7 @@ async function reportCommit(team, teamId, input) {
     const opts = { encoding: 'utf-8', timeout: 3000, stdio: ['pipe', 'pipe', 'pipe'] };
 
     // Get full SHA + branch + message + timestamp.
-    // If we didn't parse a SHA from stdout (Windsurf), use HEAD — the hook
+    // If we didn't parse a SHA from stdout (Windsurf), use HEAD - the hook
     // fires immediately after `git commit` completes, so HEAD is the commit
     // that just happened.
     const ref = shortSha || 'HEAD';
@@ -220,7 +220,7 @@ async function reportCommit(team, teamId, input) {
 
     if (info[0] && /^[0-9a-f]{40}$/.test(info[0])) sha = info[0];
     if (!sha) {
-      // Nothing to report — commit might have failed or was dry-run.
+      // Nothing to report - commit might have failed or was dry-run.
       process.exit(0);
     }
     // Parse branch from ref names (e.g. "HEAD -> main, origin/main")
@@ -338,7 +338,7 @@ function readStdinWithRaw() {
       } catch (err) {
         const preview = data.length > 200 ? data.slice(0, 200) + '...' : data;
         log.warn(
-          `stdin parse failed (${data.length} bytes, subcommand=${subcommand}): ${err?.message || 'unknown error'} — data: ${preview}`,
+          `stdin parse failed (${data.length} bytes, subcommand=${subcommand}): ${err?.message || 'unknown error'} - data: ${preview}`,
         );
         done(data, {});
       }

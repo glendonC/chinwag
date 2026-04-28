@@ -134,7 +134,7 @@ const teamStore = createStore<TeamState>((set) => ({
       await api('POST', `/teams/${teamId}/join`, {}, token);
       joinedTeams.add(teamId);
     } catch {
-      // non-critical — continue even if join fails
+      // non-critical - continue even if join fails
     }
   },
 }));
@@ -152,19 +152,19 @@ if (typeof window !== 'undefined') {
   });
 }
 
-/** React hook — use inside components */
+/** React hook - use inside components */
 export function useTeamStore<T>(selector: (state: TeamState) => T): T {
   return useStore(teamStore, selector);
 }
 
 /** Clear the per-session join cache for a specific team so the next
  *  ensureJoined() call actually POSTs /join again. Called when a poll
- *  returns NOT_MEMBER — the member row was evicted server-side. */
+ *  returns NOT_MEMBER - the member row was evicted server-side. */
 export function clearJoinedCache(teamId: string): void {
   joinedTeams.delete(teamId);
 }
 
-/** Direct access — use outside components */
+/** Direct access - use outside components */
 export const teamActions = {
   getState: (): TeamState => teamStore.getState(),
   loadTeams: (autoSelect?: boolean): Promise<void> => teamStore.getState().loadTeams(autoSelect),

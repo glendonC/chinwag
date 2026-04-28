@@ -160,7 +160,7 @@ describe('detectSecrets', () => {
 
     it('catches generic api_key assignment with sufficient entropy', () => {
       const m = detectSecrets('config { api_key = "sk_test_abcdefghij1234567890" }');
-      // Could match either generic_credential_assignment or stripe_test_key — accept both
+      // Could match either generic_credential_assignment or stripe_test_key - accept both
       expect(m.length).toBeGreaterThan(0);
       expect(m[0]?.type).toMatch(/^(generic_credential_assignment|stripe_test_key)$/);
     });

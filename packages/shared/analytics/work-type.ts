@@ -5,7 +5,7 @@
 // The SQL sibling `WORK_TYPE_CASE` lives in the worker
 // (packages/worker/src/dos/team/analytics/outcomes.ts) because it has to
 // compose into SQLite queries at the DO storage layer. The two must stay
-// semantically equivalent — if you change one, change the other. The
+// semantically equivalent - if you change one, change the other. The
 // test suite asserts they agree on a fixed set of canonical paths.
 
 /**
@@ -28,7 +28,7 @@ export type WorkType = (typeof WORK_TYPES)[number];
 
 /**
  * Classify a file path into a canonical work type. Mirror of the SQL
- * `WORK_TYPE_CASE` expression in the worker — keep both in sync.
+ * `WORK_TYPE_CASE` expression in the worker - keep both in sync.
  *
  * Rule order matters: the first matching rule wins, so the more specific
  * patterns (tests, docs, styling) go before the broader ones (frontend,
@@ -72,7 +72,7 @@ export function classifyWorkType(filePath: string): WorkType {
   return 'other';
 }
 
-/** Runtime type guard — useful for narrowing server payloads where a
+/** Runtime type guard - useful for narrowing server payloads where a
  *  work_type string could be anything. */
 export function isWorkType(value: unknown): value is WorkType {
   return typeof value === 'string' && (WORK_TYPES as readonly string[]).includes(value);

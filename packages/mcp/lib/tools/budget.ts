@@ -58,7 +58,7 @@ function formatBudget(b: BudgetConfig): string {
 
 /**
  * Re-resolve team + user budgets at runtime. Used on `reset: true` to rewind
- * to the non-runtime layer without remembering the original bootstrap value —
+ * to the non-runtime layer without remembering the original bootstrap value -
  * this means picking up any edits to `.chinmeister` or `~/.chinmeister/config.json`
  * made since startup, which is usually what a user wants.
  */
@@ -75,7 +75,7 @@ export function registerBudgetTool(addTool: AddToolFn, deps: Pick<ToolDeps, 'sta
     'chinmeister_configure_budget',
     {
       description:
-        'Adjust per-session context budget for chinmeister tools. Runtime overrides only — changes revert when the session ends. Call with no arguments to read the current resolved budget. Pass `reset: true` to clear runtime overrides.',
+        'Adjust per-session context budget for chinmeister tools. Runtime overrides only - changes revert when the session ends. Call with no arguments to read the current resolved budget. Pass `reset: true` to clear runtime overrides.',
       inputSchema: configureBudgetSchema,
     },
     async (args: Record<string, unknown>) => {

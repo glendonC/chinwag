@@ -3,10 +3,10 @@
 // real per-tool tool-call analytics land, swap the source to props.
 //
 // Sections:
-//   - InternalUsageSection    — research-to-edit ratio + top internal tools
-//   - SessionShapeSection     — timeline replay of a representative session
-//   - ModelPairingsSection    — which models work best with this tool
-//   - ScopeComplexitySection  — files-touched distribution
+//   - InternalUsageSection    - research-to-edit ratio + top internal tools
+//   - SessionShapeSection     - timeline replay of a representative session
+//   - ModelPairingsSection    - which models work best with this tool
+//   - ScopeComplexitySection  - files-touched distribution
 
 import type { CSSProperties } from 'react';
 import {
@@ -74,7 +74,7 @@ export function InternalUsageSection({ toolId }: { toolId: string }) {
     <SectionFrame
       eyebrow="How it works"
       title="What this tool does inside a session"
-      subtitle="Every internal tool call captured from the agent — Read, Edit, Bash, Grep, and more. Error rate and latency reveal where the agent fights its environment."
+      subtitle="Every internal tool call captured from the agent - Read, Edit, Bash, Grep, and more. Error rate and latency reveal where the agent fights its environment."
       isPreview
     >
       <div className={styles.usageGrid}>

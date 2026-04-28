@@ -100,7 +100,7 @@ export function runCleanup(
     );
 
     // Mark orphaned sessions as stuck. These are sessions where the agent's heartbeat
-    // expired (15+ min without activity) while the session was still open — strong signal
+    // expired (15+ min without activity) while the session was still open - strong signal
     // the agent was genuinely stuck or crashed, not a graceful disconnect (which would
     // have called endSession before the heartbeat window expired).
     //
@@ -144,7 +144,7 @@ export function runCleanup(
         );
 
         // An orphan never hit reportOutcome, so the outcome field is typically null.
-        // Classify as 'abandoned' — the clean-path heuristic uses duration > 5 min as
+        // Classify as 'abandoned' - the clean-path heuristic uses duration > 5 min as
         // the abandonment threshold, and every orphan here crossed the 15-min stale
         // window, so 'abandoned' is always correct.
         orphans.push({

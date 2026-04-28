@@ -6,7 +6,7 @@
 // → enrichPeriodComparisonCost → verify period_comparison carries the
 // cost delta the renderer reads.
 //
-// Focused on the handoff between layers rather than the math — the pure
+// Focused on the handoff between layers rather than the math - the pure
 // math is covered in pricing-enrich.test.ts. If this file goes red while
 // pricing-enrich stays green, the bug is in plumbing, not arithmetic.
 
@@ -121,7 +121,7 @@ function makeAnalytics() {
 
 const mockEnv = {} as Env;
 
-describe('pricing enrichment — integration (team DO pipeline shape)', () => {
+describe('pricing enrichment - integration (team DO pipeline shape)', () => {
   beforeEach(() => {
     mockSnapshot = makeSnapshot({});
   });
@@ -142,7 +142,7 @@ describe('pricing enrichment — integration (team DO pipeline shape)', () => {
 
     // Stage 2: period-comparison cost enrichment (new this chat).
     // The DO passes the windowed aggregates that queryTokenAggregateForWindow
-    // returned — current matches the main token_usage window, previous is
+    // returned - current matches the main token_usage window, previous is
     // the N-days-before-that window.
     const currentAgg: WindowTokenAggregate = {
       by_model: [
@@ -171,7 +171,7 @@ describe('pricing enrichment — integration (team DO pipeline shape)', () => {
 
     await enrichPeriodComparisonCost(analytics, currentAgg, previousAgg, mockEnv);
 
-    // Current period: matches the main token_usage — same aggregate, same
+    // Current period: matches the main token_usage - same aggregate, same
     // snapshot, same arithmetic.
     expect(analytics.period_comparison.current.cost_per_edit).toBe(0.012);
     expect(analytics.period_comparison.current.total_estimated_cost_usd).toBe(1.2);
@@ -211,7 +211,7 @@ describe('pricing enrichment — integration (team DO pipeline shape)', () => {
     };
     await enrichPeriodComparisonCost(analytics, agg, agg, mockEnv);
 
-    // Both windows go null together — the UI can't show a stale-then-
+    // Both windows go null together - the UI can't show a stale-then-
     // mix-then-stale timeline; either the snapshot is fresh for both or
     // neither.
     expect(analytics.period_comparison.current.cost_per_edit).toBeNull();
@@ -237,7 +237,7 @@ describe('pricing enrichment — integration (team DO pipeline shape)', () => {
 
     // The 30-day retention case: comparison.ts returned previous but the
     // windowed aggregate query ran on sessions that don't exist, so
-    // previousAgg is semantically "no data here" — we pass null.
+    // previousAgg is semantically "no data here" - we pass null.
     await enrichPeriodComparisonCost(analytics, currentAgg, null, mockEnv);
 
     expect(analytics.period_comparison.current.cost_per_edit).toBe(0.012);

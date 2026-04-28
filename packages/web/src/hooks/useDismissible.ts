@@ -69,10 +69,10 @@ function subscribe(key: string, fn: () => void): () => void {
  * One-shot dismissible state backed by localStorage.
  *
  * Two usage modes:
- * - Boolean — omit `id`. One dismissal per storage key.
+ * - Boolean - omit `id`. One dismissal per storage key.
  *     const { isDismissed, dismiss } = useDismissible('chinmeister:hint:foo');
  *     isDismissed(); dismiss();
- * - Per-id — pass an id to track dismissals per subject under one key.
+ * - Per-id - pass an id to track dismissals per subject under one key.
  *     const { isDismissed, dismiss } = useDismissible('chinmeister:hint:bar');
  *     isDismissed(teamId); dismiss(teamId);
  *

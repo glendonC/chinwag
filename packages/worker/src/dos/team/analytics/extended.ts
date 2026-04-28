@@ -27,7 +27,7 @@ export function queryPromptEfficiency(
   try {
     // Scope applied to ce.handle (the conversation event's author). Filtering
     // ce in the JOIN narrows the universe; s.handle would be redundant since
-    // it's joined off ce.session_id, but for correctness we filter both — a
+    // it's joined off ce.session_id, but for correctness we filter both - a
     // shared session_id with mixed authors is rare but possible.
     const fCe = buildScopeFilter(scope, { handleColumn: 'ce.handle' });
     const fS = buildScopeFilter(scope, { handleColumn: 's.handle' });
@@ -163,7 +163,7 @@ export function queryToolHandoffs(
   try {
     // Scope handling: a "handoff" is one user's edits picked up across tools
     // (the primary chinmeister case is a single user running Claude Code +
-    // Cursor + Windsurf — same handle, different host_tools, same agent_id
+    // Cursor + Windsurf - same handle, different host_tools, same agent_id
     // axis). Filter both sides on the scoped handle so per-user views show
     // only that user's cross-tool transitions and team-wide views show all
     // handoffs unfiltered.

@@ -4,7 +4,7 @@ import styles from './SplitPillLink.module.css';
 /**
  * Shared "split pill" button primitive.
  *
- * Anatomy: a compact button with two visually separate rounded-rect segments —
+ * Anatomy: a compact button with two visually separate rounded-rect segments -
  * one square "icon" segment and one wider "label" segment. Both segments share
  * a height of 32px and `--radius-md` corners. The order of segments is driven
  * by `iconPosition`; colors by `tone` and the optional `accentColor`.

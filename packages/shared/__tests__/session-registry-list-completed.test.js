@@ -75,7 +75,7 @@ describe('listCompletedSessions', () => {
       },
       { homeDir },
     );
-    // Write a malformed file alongside — the sweep must keep going.
+    // Write a malformed file alongside - the sweep must keep going.
     writeFileSync(
       join(homeDir, '.chinmeister', 'sessions', 'agent-bad.completed.json'),
       'not json at all',

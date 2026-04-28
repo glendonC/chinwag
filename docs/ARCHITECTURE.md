@@ -91,7 +91,7 @@ flowchart TB
 
 </details>
 
-**AI agents** are the primary users. They interact with chinmeister through the MCP server that runs alongside each agent session. Developers interact with chinmeister indirectly: their agents are smarter because chinmeister is connected.
+**AI agents** are the primary users. They interact with chinmeister through the MCP server that runs alongside each agent session. Developers interact with chinmeister indirectly through the coordination and shared context available to their agents.
 
 **The TUI dashboard** is the primary human control surface for managing agentic workflows. It shows all agents (managed and connected) in one place, supports messaging, memory management, and agent lifecycle control for managed agents.
 
@@ -107,11 +107,11 @@ Claude Code, Codex, Aider, and other CLI-based AI agents. chinmeister can spawn 
 
 ### Connected agents (IDE tools)
 
-Cursor, Windsurf, and other IDE-embedded agents. These join via MCP and get full coordination (shared memory, conflict detection, messaging, file locks). chinmeister cannot control their lifecycle — that's the IDE's domain. Control signals are advisory (messages the agent reads and follows).
+Cursor, Windsurf, and other IDE-embedded agents. These join via MCP and get full coordination (shared memory, conflict detection, messaging, file locks). chinmeister cannot control their lifecycle, because the IDE owns it. Control signals are advisory messages the agent reads and follows.
 
-### Docker Desktop analogy
+### Dashboard visibility
 
-chinmeister follows the Docker Desktop model: agents appear in the dashboard regardless of how they were started. You can run `claude "refactor auth"` from any terminal tab and it shows up in chinmeister. Or you can press `[n]` in the TUI to spawn one. Both work. chinmeister does not gate your workflow — it enhances it.
+Agents appear in the dashboard regardless of how they were started. You can run `claude "refactor auth"` from any terminal tab and it shows up in chinmeister. You can also press `[n]` in the TUI to spawn one. Both paths use the same coordination model.
 
 ### Control mechanisms by tier
 
@@ -163,7 +163,7 @@ The `.chinmeister` file is committed to the repo. When a teammate clones and run
 | **JetBrains**       | Connected | Basic: tool-based                                | MCP tools via `.idea/mcp.json`. Lifecycle owned by IDE.                                                                                                     |
 | **Amazon Q**        | Connected | Basic: tool-based                                | MCP tools available. Shares `.mcp.json`.                                                                                                                    |
 
-Claude Code gets the deepest integration because it supports hooks (enforceable interception before file edits), channels (server-initiated push), and is a CLI tool (process control). Other tools improve as their MCP implementations mature. Tool detection and MCP config writing are driven by a declarative shared registry (`packages/shared/tool-registry.ts`), surfaced through the CLI (`packages/cli/lib/tools.ts`); the broader discover catalog is maintained in the worker (`packages/worker/src/catalog.ts`).
+Claude Code has the most complete integration because it supports hooks (enforceable interception before file edits), channels (server-initiated push), and process control as a CLI tool. Other tools improve as their MCP implementations mature. Tool detection and MCP config writing are driven by a declarative shared registry (`packages/shared/tool-registry.ts`), surfaced through the CLI (`packages/cli/lib/tools.ts`); the broader discover catalog is maintained in the worker (`packages/worker/src/catalog.ts`).
 
 ## TUI as control surface
 
@@ -370,34 +370,34 @@ Three bin entries remain JS (`index.js`, `hook.js`, `channel.js`) because they'r
 2. Agent calls `chinmeister_save_memory` MCP tool with the fact and optional freeform tags
 3. MCP server sends to backend, TeamDO persists in SQLite with metadata (source agent, timestamp, tags)
 4. Future agent sessions on the same team find memories via `chinmeister_search_memory` (text search, tag filter) or receive recent memories in `chinmeister_get_team_context`
-5. Memories are team knowledge — any team member can update or delete. Agents manage relevance themselves; chinmeister stores and retrieves
+5. Memories are team knowledge. Any team member can update or delete them. Agents manage relevance themselves; chinmeister stores and retrieves the entries.
 
 ### Session Intelligence
 
 chinmeister captures session-level data that powers workflow analytics and long-term intelligence.
 
-1. **Automatic capture (hook-enabled tools).** Every file edit fires a PostToolUse hook that records the file path, increments the session's edit count, and appends to files_touched. This happens without the agent opting in — hooks are system-level.
+1. **Automatic capture (hook-enabled tools).** Every file edit fires a PostToolUse hook that records the file path, increments the session's edit count, and appends to files_touched. This happens without the agent opting in, because hooks run at the host-tool level.
 2. **Voluntary reporting (all MCP tools).** Agents report activity, check conflicts, and manage memory through MCP tool calls. Each call updates the session's last-activity timestamp.
 3. **Session record.** Each session stores: `edit_count`, `files_touched`, `conflicts_hit`, `memories_saved`, `duration_minutes`, `agent_model`, `host_tool`, `transport`, `framework`. This is the raw material for analytics.
 4. **Derived metrics.** From raw session data, chinmeister derives edit velocity (edits/minute), codebase heatmaps (aggregate files_touched), stuckness patterns (correlate stuck sessions with file areas), and retry detection (multiple sessions on same files in short windows).
-5. **Conversation intelligence (managed agents).** After a managed session ends, chinmeister parses the agent's conversation logs and uploads normalized events — user and assistant messages with sequence, timestamps, and character counts. The backend stores these in `conversation_events` and runs analytics: sentiment distribution, topic classification, message length trends, and crucially, correlation between conversation patterns and session outcomes. Tool-specific parsers (isolated behind a generic `ConversationEvent[]` interface) handle each tool's log format; the analytics layer is tool-agnostic.
-6. **Integration depth determines data richness.** Hook-enabled tools provide granular, automatic data on every edit. MCP-only tools provide coordination data and voluntary reporting. Managed tools get the deepest tier: conversation-level analytics. The intelligence layer works with all, surfacing richer insights where richer data is available.
+5. **Conversation intelligence (managed agents).** After a managed session ends, chinmeister parses the agent's conversation logs and uploads normalized events: user and assistant messages with sequence, timestamps, and character counts. The backend stores these in `conversation_events` and runs analytics: sentiment distribution, topic classification, message length trends, and correlations between conversation patterns and session outcomes. Tool-specific parsers, isolated behind a generic `ConversationEvent[]` interface, handle each tool's log format; the analytics layer is tool-agnostic.
+6. **Integration depth determines data richness.** Hook-enabled tools provide granular, automatic data on every edit. MCP-only tools provide coordination data and voluntary reporting. Managed tools add conversation-level analytics. The analytics layer works with all tiers and uses richer data when the host tool provides it.
 
 ## Key Design Decisions
 
-**MCP server is the product, not the CLI.** The primary value is delivered invisibly through agent MCP connections. This is like git: you run `git init` once, then git works in the background. chinmeister works the same way: init once, then your agents are smarter.
+**MCP server is the product, not the CLI.** The primary value is delivered through agent MCP connections after project setup. The CLI helps initialize and manage the system, but agents receive coordination and shared context through MCP.
 
-**Two-tier agent model.** CLI agents (Claude Code, Codex, Aider) are managed: chinmeister can spawn, stop, and restart them. IDE agents (Cursor, Windsurf) are connected: they join via MCP and get full coordination, but lifecycle control stays with the IDE. Both tiers appear in the same dashboard. This matches reality — you cannot kill a Cursor agent from outside Cursor, but you can kill a Claude Code process.
+**Two-tier agent model.** CLI agents (Claude Code, Codex, Aider) are managed: chinmeister can spawn, stop, and restart them. IDE agents (Cursor, Windsurf) are connected: they join via MCP and get full coordination, but lifecycle control stays with the IDE. Both tiers appear in the same dashboard, with controls that match what chinmeister can safely manage.
 
-**Docker Desktop, not Docker Engine.** Agents show up in the dashboard regardless of how they were started. `chinmeister run` and `[n]` in the TUI are convenient launchers, not gatekeepers. An agent started from a random terminal tab auto-connects via MCP the same way.
+**Dashboard visibility for all agents.** Agents show up in the dashboard regardless of how they were started. `chinmeister run` and `[n]` in the TUI are convenient launchers, not requirements. An agent started from another terminal auto-connects through MCP the same way.
 
 **Three surfaces, one backend.** MCP server (for agents), TUI (for terminal users), web dashboard (for visual workflow management). All hit the same API. No surface gets special backend endpoints. This means features built for one surface are automatically available to the others.
 
 **One team per project, one account across projects within a runtime profile.** The `.chinmeister` file (committed to git) scopes a team to a repo. `~/.chinmeister/config.json` gives the user a cross-project production identity, while local development uses `~/.chinmeister/local/config.json` so local testing never overwrites production auth. This enables both team coordination within a repo and solo multi-project visibility across repos while keeping local and production environments intentionally separate.
 
-**Claude Code gets the deepest integration.** Claude Code supports hooks (enforceable interception before file edits), channels (server-initiated push), and is a CLI tool (full process control). This enables conflict prevention that the agent cannot bypass plus managed lifecycle. Other tools get softer integration via MCP instructions and tool descriptions. As tools add hook-like capabilities, their integration deepens.
+**Claude Code has the most complete integration.** Claude Code supports hooks (enforceable interception before file edits), channels (server-initiated push), and full process control as a CLI tool. This enables conflict prevention that the agent cannot bypass plus managed lifecycle. Other tools integrate through MCP instructions and tool descriptions. As tools add hook-like capabilities, chinmeister can use them.
 
-**Integration depth is a feature, not a limitation.** Tools with hook support (currently Claude Code) provide automatic, granular session analytics — every edit tracked, conflicts enforced, stuckness detected without agent cooperation. MCP-connected tools get coordination and shared memory. This graduated model means developers using deeply-integrated tools get the richest workflow intelligence, and all tools benefit as their platforms add hook-like capabilities.
+**Integration depth varies by host capability.** Tools with hook support, currently Claude Code, provide automatic granular session analytics: every edit tracked, conflicts enforced, and stuckness detected without agent cooperation. MCP-connected tools get coordination and shared memory. As host tools add hook-like capabilities, chinmeister can collect richer data from those integrations.
 
 **Durable Objects over external databases.** Each DO provides single-threaded coordination with embedded SQLite, eliminating the need for external database connections, connection pooling, or cache invalidation. State and compute are colocated at the edge. Trade-off: single-instance bottleneck for DatabaseDO, but adequate for our scale.
 
@@ -405,7 +405,7 @@ chinmeister captures session-level data that powers workflow analytics and long-
 
 **KV for auth only.** KV is eventually consistent, which is fine for token→user_id lookups (tokens are write-once). All other data lives in Durable Objects where we need strong consistency.
 
-**`chinmeister init` writes config for all detected tools.** Rather than requiring developers to manually configure MCP servers, the init command detects installed tools and writes their config files. This is the zero-friction adoption path: one command, then forget about it.
+**`chinmeister init` writes config for all detected tools.** Rather than requiring developers to manually configure MCP servers, the init command detects installed tools and writes their config files. One setup command connects the supported tools present in the project environment.
 
 ## Architectural Invariants
 
@@ -470,7 +470,7 @@ For what's shipped and what's next, see [ROADMAP.md](ROADMAP.md). For product vi
 
 **What this means for contributors:**
 
-- The MCP server is the primary interface. Build features that make agents smarter and more coordinated.
+- The MCP server is the primary interface. Build features that give agents better context and coordination.
 - Three surfaces, one backend: TUI, web dashboard, and MCP all hit the same API.
 - The web dashboard is designed to work both in a browser and embedded in IDE panels.
 - All DO communication uses RPC, not fetch. New features should follow this pattern.

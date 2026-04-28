@@ -1,10 +1,10 @@
 # chinmeister
 
-**Problem.** Every AI coding tool keeps its own memory and coordinates only with itself. Sessions in different tools diverge, duplicate work, and collide on files. No vendor ships neutral cross-tool coordination; doing so would help their competitors.
+**Problem.** AI coding tools keep separate memory and coordinate only with themselves. Sessions in different tools can diverge, duplicate work, and collide on files. Cross-tool coordination needs to be neutral so it can work across vendors.
 
-**Who.** chinmeister is for solo developers using several AI tools across a few active projects; small teams (2 to 5 people) on the same repo with different preferred tools; and team leads who need visibility into agent activity and coordination.
+**Who.** chinmeister is for solo developers using several AI tools across active projects, small teams working in the same repo with different preferred tools, and team leads who need visibility into agent activity and coordination.
 
-**Promise.** chinmeister is the vendor-neutral control layer for agentic development: connect your stack with `npx chinmeister init`, share project memory across tools and teammates, get live coordination and conflict prevention where the tool allows it, and see your workflow in one place. Agents are the primary user. Value shows up through the MCP server that runs beside each session.
+**What it does.** `npx chinmeister init` connects supported tools to shared project memory, live coordination, conflict checks where the host tool supports them, and a shared workflow view. The MCP server runs beside each agent session and provides the core coordination layer.
 
 **Non-goals.** chinmeister is not an agent orchestrator, not a standalone APM or observability product, not a community or social product, not a replacement for static project instructions like CLAUDE.md or AGENTS.md, and not a marketplace for arbitrary MCP servers.
 

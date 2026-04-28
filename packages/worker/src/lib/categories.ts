@@ -19,7 +19,7 @@ export interface CategoryEntry {
   addedBy: 'seed' | 'admin';
 }
 
-// Seed categories — auto-built from CATEGORY_NAMES in catalog.ts.
+// Seed categories - auto-built from CATEGORY_NAMES in catalog.ts.
 // New categories added to CATEGORY_NAMES are auto-merged into KV on next access.
 const SEED_CATEGORIES: Record<string, CategoryEntry> = Object.fromEntries(
   Object.entries(CATEGORY_NAMES).map(([id, label]) => [
@@ -60,7 +60,7 @@ export async function getCategories(env: Env): Promise<Record<string, CategoryEn
     return existing;
   }
 
-  // First access — seed from defaults
+  // First access - seed from defaults
   await env.AUTH_KV.put(KV_KEY_REGISTRY, JSON.stringify(SEED_CATEGORIES));
   return SEED_CATEGORIES;
 }

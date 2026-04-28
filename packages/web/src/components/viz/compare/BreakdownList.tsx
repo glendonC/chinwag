@@ -6,7 +6,7 @@ export interface BreakdownItem {
   label: ReactNode;
   /** 0–100. Clamped at render time. */
   fillPct: number;
-  /** Optional fill color — defaults to --ink. Pass a tool meta color
+  /** Optional fill color - defaults to --ink. Pass a tool meta color
    *  when breaking down by tool so the bar matches the tool brand. */
   fillColor?: string;
   /** Right-aligned value. Wrap a trailing segment in <BreakdownMeta>

@@ -162,7 +162,7 @@ describe('Heartbeat edge cases', () => {
 
 // --- Identity resolution: prefix matching ---
 
-describe('Identity resolution — prefix matching', () => {
+describe('Identity resolution - prefix matching', () => {
   const team = () => getTeam('identity-prefix');
 
   it('resolves agentId by prefix when exact match fails', async () => {

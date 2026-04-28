@@ -6,7 +6,7 @@ interface Props {
   label: ReactNode;
   /** 0-1 severity fill. Values outside the range are clamped. */
   barFill: number;
-  /** Bar fill color. Defaults to `var(--warn)` — the canonical friction
+  /** Bar fill color. Defaults to `var(--warn)` - the canonical friction
    *  tint. Pass `var(--danger)` for hard-failure rows or
    *  `var(--soft)` for muted-tone rows. */
   barColor?: string;
@@ -17,13 +17,13 @@ interface Props {
    *  as a div with the arrow column reserved (so list gutters stay
    *  aligned with adjacent clickable rows). */
   onClick?: () => void;
-  /** Hover tooltip — typically the full path when `label` is truncated. */
+  /** Hover tooltip - typically the full path when `label` is truncated. */
   title?: string;
   /** Animation index for cascade reveal. Caller passes the index from
    *  a `.map((row, i) => ...)`. */
   index?: number;
   /** Override the aria-label on the button form. Defaults to the label
-   *  text + " — open detail". */
+   *  text + " - open detail". */
   ariaLabel?: string;
 }
 
@@ -76,7 +76,7 @@ export default function FileFrictionRow({
         style={style}
         onClick={onClick}
         title={title}
-        aria-label={ariaLabel ?? (labelText ? `${labelText} — open detail` : undefined)}
+        aria-label={ariaLabel ?? (labelText ? `${labelText} - open detail` : undefined)}
       >
         {inner}
       </button>

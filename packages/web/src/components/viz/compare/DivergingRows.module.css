@@ -1,4 +1,4 @@
-/* Diverging rows — horizontal bars; removed grows left, added grows
+/* Diverging rows: horizontal bars; removed grows left, added grows
  * right. Shared max across rows keeps magnitudes comparable. Relies on
  * the global `rowReveal` keyframe (app.css). */
 
@@ -39,7 +39,7 @@
   position: relative;
 }
 
-/* Center axis — 1px rule at the boundary between the two halves. Drawn
+/* Center axis: 1px rule at the boundary between the two halves. Drawn
  * with a pseudo-element so the grid stays clean and the rule scales
  * with row height. */
 .tracks::after {

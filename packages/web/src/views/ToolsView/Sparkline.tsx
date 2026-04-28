@@ -1,4 +1,4 @@
-// Tiny inline SVG sparkline. No axes, no tooltips — pure shape signal.
+// Tiny inline SVG sparkline. No axes, no tooltips - pure shape signal.
 
 interface SparklineProps {
   data: number[];

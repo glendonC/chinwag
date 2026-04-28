@@ -1,4 +1,4 @@
-// Reusable floating hint pill — fixed bottom-center of the content column.
+// Reusable floating hint pill - fixed bottom-center of the content column.
 // Pairs with the useDismissible hook for one-shot dismissal state.
 
 import type { ReactNode } from 'react';

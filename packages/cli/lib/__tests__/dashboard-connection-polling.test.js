@@ -321,7 +321,7 @@ describe('contextFingerprint', () => {
         { agent_id: 'a', status: 'active' },
       ],
     };
-    // Fingerprints SHOULD differ because order changed — this is by design
+    // Fingerprints SHOULD differ because order changed - this is by design
     // (cheap fingerprint, not a hash-set comparison)
     expect(contextFingerprint(ctx1)).not.toBe(contextFingerprint(ctx2));
   });

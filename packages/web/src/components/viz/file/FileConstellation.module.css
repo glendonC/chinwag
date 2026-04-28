@@ -1,4 +1,4 @@
-/* File constellation — 2D scatter fusing touch count × completion rate.
+/* File constellation: 2D scatter fusing touch count × completion rate.
  * Relies on the global `rowReveal` keyframe (app.css). */
 
 .svg {

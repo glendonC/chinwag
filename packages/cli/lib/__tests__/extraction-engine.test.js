@@ -637,7 +637,7 @@ describe('extract(): JSONL parse health', () => {
       parsedLines: 2,
       malformedLines: 2,
     });
-    // Valid entries still contribute to tokens — malformed lines are skipped,
+    // Valid entries still contribute to tokens - malformed lines are skipped,
     // not fatal.
     expect(result.tokens).toEqual({
       input_tokens: 4,

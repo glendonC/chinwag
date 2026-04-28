@@ -1,4 +1,4 @@
-// Conversation intelligence — store and analyze parsed messages from managed agent sessions.
+// Conversation intelligence - store and analyze parsed messages from managed agent sessions.
 // Captures user/assistant messages for sentiment tracking, message length trends,
 // topic classification, and correlation with session outcomes.
 

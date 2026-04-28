@@ -2,12 +2,12 @@
  * Slice-by-volume helper. Returns the subset of `rows` whose count value is
  * at or above the given percentile threshold (default 25). Used to suppress
  * tail-noise rows in widgets that mix a volume axis with a quality color
- * — e.g. hourly-effectiveness (sessions × completion rate) where the 2am
+ * - e.g. hourly-effectiveness (sessions × completion rate) where the 2am
  * cell with one stuck session would otherwise blot the entire palette red.
  *
  * The percentile is computed across the count distribution of `rows` itself,
  * so the threshold scales with the dataset rather than living as a magic
- * number. Empty/all-zero inputs return [] (not an error — the caller
+ * number. Empty/all-zero inputs return [] (not an error - the caller
  * surfaces an empty state).
  *
  * - `percentile = 0` returns every row with count > 0.

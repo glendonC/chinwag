@@ -1,6 +1,6 @@
 // Coverage for the MCP tool handlers that the legacy tools.test.js doesn't
 // reach: commits, outcome, telemetry, and the consolidation/formation/batch
-// memory tools. Each handler follows the same shape — register, capture, call,
+// memory tools. Each handler follows the same shape - register, capture, call,
 // assert team-method invocation and response shape.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -278,7 +278,7 @@ describe('telemetry tools (unit)', () => {
 });
 
 // =====================================================================
-// memory.ts — consolidation, formation, batch, unmerge
+// memory.ts - consolidation, formation, batch, unmerge
 // =====================================================================
 
 describe('memory tools (consolidation/formation)', () => {
@@ -451,7 +451,7 @@ describe('memory tools (consolidation/formation)', () => {
         limit: 10,
       });
       expect(result.content[0].text).toMatch(
-        /\[merge \(conf 0\.83\)\] memory m1 -> m2 — duplicate/,
+        /\[merge \(conf 0\.83\)\] memory m1 -> m2 - duplicate/,
       );
       expect(result.content[0].text).toMatch(/\[keep\] memory m3/);
     });

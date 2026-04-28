@@ -1,9 +1,9 @@
 // Shared LiteLLM-to-chinmeister transformation helpers.
 //
 // The same work happens in two environments:
-//   1. Build time — scripts/fetch-pricing-seed.ts regenerates the committed
+//   1. Build time - scripts/fetch-pricing-seed.ts regenerates the committed
 //      snapshot by running `npm run build:pricing-seed` under Node.
-//   2. Runtime   — lib/refresh-model-prices.ts runs every 6h from the
+//   2. Runtime   - lib/refresh-model-prices.ts runs every 6h from the
 //      scheduled Worker handler, refreshing DatabaseDO.model_prices.
 //
 // Both need to: skip sample_spec, filter by mode (chat/completion/responses),
@@ -65,7 +65,7 @@ export function perMillion(value: number | undefined | null): number | null {
 /**
  * Decide whether a LiteLLM entry is a text-token-priced model we want to
  * store. Nullish (not falsy) check so free-tier models with
- * `input_cost_per_token: 0` are kept — this was the CodeBurn bug that
+ * `input_cost_per_token: 0` are kept - this was the CodeBurn bug that
  * dropped legitimate zero-priced models (see models.ts:58 in that repo).
  */
 export function isTextTokenModel(name: string, entry: LiteLLMEntry): boolean {
@@ -79,7 +79,7 @@ export function isTextTokenModel(name: string, entry: LiteLLMEntry): boolean {
 
 /**
  * Convert one LiteLLM entry into the normalized row shape. Assumes
- * isTextTokenModel has already passed — the function itself doesn't guard
+ * isTextTokenModel has already passed - the function itself doesn't guard
  * against missing required fields because the caller is expected to filter
  * first.
  */

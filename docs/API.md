@@ -152,7 +152,7 @@ Create a new account. Returns credentials for CLI/MCP authentication.
 
 **Errors:**
 
-- `429` — Too many accounts created recently
+- `429`: Too many accounts created recently
 
 ---
 
@@ -182,9 +182,9 @@ Exchange a refresh token for a new access token and refresh token. The old refre
 
 **Errors:**
 
-- `400` — `refresh_token` missing or wrong format (must start with `rt_`)
-- `401` — Invalid or expired refresh token
-- `429` — Token refresh limit reached
+- `400`: `refresh_token` missing or wrong format (must start with `rt_`)
+- `401`: Invalid or expired refresh token
+- `429`: Token refresh limit reached
 
 ---
 
@@ -204,13 +204,13 @@ GitHub OAuth callback. Exchanges the authorization code for an access token, cre
 
 **Error redirects:**
 
-- `#error=github_denied` — User denied the OAuth request
-- `#error=github_invalid` — Missing code or state
-- `#error=github_expired` — OAuth state expired (10-minute window)
-- `#error=github_token_failed` — GitHub token exchange failed
-- `#error=github_profile_failed` — Failed to fetch GitHub profile
-- `#error=rate_limited` — Account creation rate limit exceeded
-- `#error=account_failed` — Account creation failed
+- `#error=github_denied`: User denied the OAuth request
+- `#error=github_invalid`: Missing code or state
+- `#error=github_expired`: OAuth state expired (10-minute window)
+- `#error=github_token_failed`: GitHub token exchange failed
+- `#error=github_profile_failed`: Failed to fetch GitHub profile
+- `#error=rate_limited`: Account creation rate limit exceeded
+- `#error=account_failed`: Account creation failed
 
 ---
 
@@ -222,11 +222,11 @@ GitHub OAuth callback for linking an existing account to GitHub. Requires a vali
 
 **Error redirects:**
 
-- `#error=github_invalid` — Missing code or state
-- `#error=github_expired` — OAuth state expired
-- `#error=github_token_failed` — Token exchange failed
-- `#error=github_profile_failed` — Profile fetch failed
-- `#error=github_already_linked` — GitHub account linked to another user
+- `#error=github_invalid`: Missing code or state
+- `#error=github_expired`: OAuth state expired
+- `#error=github_token_failed`: Token exchange failed
+- `#error=github_profile_failed`: Profile fetch failed
+- `#error=github_already_linked`: GitHub account linked to another user
 
 ---
 
@@ -289,11 +289,11 @@ Browse the tool integrations catalog with filtering and pagination.
 
 | Param         | Type       | Default | Description                  |
 | ------------- | ---------- | ------- | ---------------------------- |
-| `q`           | string     | —       | Full-text search query       |
-| `verdict`     | string     | —       | Filter by evaluation verdict |
-| `category`    | string     | —       | Filter by category           |
-| `mcp_support` | `0` or `1` | —       | Filter by MCP compatibility  |
-| `in_registry` | `0` or `1` | —       | Filter by registry presence  |
+| `q`           | string     | None    | Full-text search query       |
+| `verdict`     | string     | None    | Filter by evaluation verdict |
+| `category`    | string     | None    | Filter by category           |
+| `mcp_support` | `0` or `1` | None    | Filter by MCP compatibility  |
+| `in_registry` | `0` or `1` | None    | Filter by registry presence  |
 | `limit`       | integer    | `50`    | Results per page (1-200)     |
 | `offset`      | integer    | `0`     | Pagination offset            |
 
@@ -344,7 +344,7 @@ Get a single tool evaluation by ID.
 
 **Errors:**
 
-- `404` — Tool not found
+- `404`: Tool not found
 
 ---
 
@@ -454,9 +454,9 @@ Change the user's handle. Content-moderated.
 
 **Errors:**
 
-- `400` — Invalid format, content blocked, or handle missing
-- `409` — Handle already taken
-- `503` — Content moderation unavailable
+- `400`: Invalid format, content blocked, or handle missing
+- `409`: Handle already taken
+- `503`: Content moderation unavailable
 
 ---
 
@@ -485,7 +485,7 @@ Change the user's display color.
 
 **Errors:**
 
-- `400` — Invalid color
+- `400`: Invalid color
 
 ---
 
@@ -511,8 +511,8 @@ Set the user's status. Content-moderated. Max 280 characters.
 
 **Errors:**
 
-- `400` — Status missing, too long, or content blocked
-- `503` — Content moderation unavailable
+- `400`: Status missing, too long, or content blocked
+- `503`: Content moderation unavailable
 
 ---
 
@@ -726,8 +726,8 @@ Join an existing team.
 
 **Errors:**
 
-- `400` — Already a member, or join failed
-- `503` — Content moderation unavailable
+- `400`: Already a member, or join failed
+- `503`: Content moderation unavailable
 
 ---
 
@@ -844,7 +844,7 @@ Full team state snapshot. Returns members, activity, conflicts, locks, memories,
 
 **Errors:**
 
-- `403` — Not a member of this team
+- `403`: Not a member of this team
 
 ---
 
@@ -862,7 +862,7 @@ Agent heartbeat. Keeps the agent marked as active (60-second window). Agents tha
 
 **Errors:**
 
-- `403` — Not a member of this team
+- `403`: Not a member of this team
 
 ---
 
@@ -1015,8 +1015,8 @@ Search team memories.
 
 | Param   | Type    | Default | Description                         |
 | ------- | ------- | ------- | ----------------------------------- |
-| `q`     | string  | —       | Text search (substring match)       |
-| `tags`  | string  | —       | Comma-separated tag list (OR match) |
+| `q`     | string  | None    | Text search (substring match)       |
+| `tags`  | string  | None    | Comma-separated tag list (OR match) |
 | `limit` | integer | `20`    | Max results (1-50)                  |
 
 **Example:** `GET /teams/t_a7b3c9d2e1f04856/memory?tags=auth,security&limit=10`
@@ -1072,7 +1072,7 @@ Update an existing memory's text and/or tags. Any team member can update any mem
 
 **Errors:**
 
-- `404` — Memory not found
+- `404`: Memory not found
 
 ---
 
@@ -1100,7 +1100,7 @@ Delete a memory. Any team member can delete any memory.
 
 **Errors:**
 
-- `404` — Memory not found
+- `404`: Memory not found
 
 ---
 
@@ -1317,7 +1317,7 @@ End the active session.
 
 **Errors:**
 
-- `404` — Session not found or not owned by this agent
+- `404`: Session not found or not owned by this agent
 
 ---
 
@@ -1429,7 +1429,7 @@ Team coordination WebSocket. Provides real-time updates for team activity, membe
 
 | Param    | Type                 | Default   | Description                                                                          |
 | -------- | -------------------- | --------- | ------------------------------------------------------------------------------------ |
-| `ticket` | string               | —         | Single-use WebSocket ticket                                                          |
+| `ticket` | string               | None      | Single-use WebSocket ticket                                                          |
 | `role`   | `agent` or `watcher` | `watcher` | `agent` = MCP server (connection is presence). `watcher` = dashboard (observe only). |
 
 **On connect:** The server sends the full team context as the first message:

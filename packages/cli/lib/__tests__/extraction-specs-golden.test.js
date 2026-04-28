@@ -5,7 +5,7 @@
  * these tests lock in what the bundled specs (claude-code.json, aider.json) must
  * produce against realistic fixtures that mirror each tool's real log format.
  *
- * If a future spec edit drops signal, the relevant assertion breaks — not a
+ * If a future spec edit drops signal, the relevant assertion breaks - not a
  * rolling-window health drift that takes 20 sessions to notice.
  *
  * We override each spec's `discovery` to a fixed-path pointing at the test
@@ -159,7 +159,7 @@ describe('golden: claude-code.json against realistic JSONL', () => {
 
     // The human prompt + two assistant turns with text blocks. The middle
     // assistant entry is pure tool_use (no text), and both user tool_result
-    // entries have array content with no text blocks — none are conversation
+    // entries have array content with no text blocks - none are conversation
     // events, which is what we want (they're tool I/O, not dialog).
     expect(result.conversations.length).toBe(3);
     expect(result.conversations[0]).toMatchObject({
@@ -279,7 +279,7 @@ describe('golden: aider.json against realistic markdown', () => {
     const result = await extract(spec, dir, 0);
     expect(result.tokens).toBeNull();
     expect(result.toolCalls).toEqual([]);
-    // Markdown path doesn't populate parseHealth — that field is JSONL-only.
+    // Markdown path doesn't populate parseHealth - that field is JSONL-only.
     expect(result.parseHealth).toBeUndefined();
   });
 });

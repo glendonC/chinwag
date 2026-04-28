@@ -233,7 +233,7 @@ export class TeamDO extends DurableObject<Env> {
     return handleError(this.#wsCtx(), ws);
   }
 
-  /** Dependency bag for the WebSocket handlers — rebuilt per call so closures
+  /** Dependency bag for the WebSocket handlers - rebuilt per call so closures
    *  stay tied to live class state. Cheap: just a literal. */
   #wsCtx(): WsCtx {
     return {
@@ -256,7 +256,7 @@ export class TeamDO extends DurableObject<Env> {
   }
 
   /** All member IDs with any active WebSocket (agent, watcher, daemon).
-   *  Used for cleanup eviction protection — any connected socket keeps
+   *  Used for cleanup eviction protection - any connected socket keeps
    *  the member row alive regardless of role. */
   #getAllConnectedMemberIds(): Set<string> {
     return getAllConnectedMemberIds(this.ctx);
@@ -287,8 +287,8 @@ export class TeamDO extends DurableObject<Env> {
   // Three write-through paths feed DatabaseDO.updateUserMetrics so lifetime
   // percentile ranks stay complete:
   //   1. Clean session end (activity.ts route handler)
-  //   2. Orphan close (this sweep — for MCP crashes / hard Ctrl+C)
-  //   3. Historical backfill (this sweep — self-heals pre-fix drift and any
+  //   2. Orphan close (this sweep - for MCP crashes / hard Ctrl+C)
+  //   3. Historical backfill (this sweep - self-heals pre-fix drift and any
   //      future rollup-path bug that leaves user_metrics holes)
   // Without these, getUserGlobalRank returns rank:null and every percentile
   // widget silently reads zeros.
@@ -315,7 +315,7 @@ export class TeamDO extends DurableObject<Env> {
 
     // Path 3: self-healing backfill for handles that have closed sessions but
     // no user_metrics row. One RPC to check existence, then per-session emits
-    // for the missing handles only. Idempotent — a handle that already has a
+    // for the missing handles only. Idempotent - a handle that already has a
     // row is skipped, so re-running across sweeps converges at zero work.
     try {
       const candidates = this.sql
@@ -349,7 +349,7 @@ export class TeamDO extends DurableObject<Env> {
    * Public surface for telemetry-only RPC calls. Route handlers that
    * decide to record a metric without invoking a write path (e.g. the
    * secret detector blocking a save) call this. Cheap; just bumps
-   * daily_metrics. No member resolution needed — the route already
+   * daily_metrics. No member resolution needed - the route already
    * authenticated the caller.
    */
   async recordTelemetry(metric: string): Promise<{ ok: true }> {
@@ -387,7 +387,7 @@ export class TeamDO extends DurableObject<Env> {
    *   2. Run `run(resolvedAgentId)` to produce a domain result.
    *   3. If the result is NOT a DOError, fire the optional `broadcast` hook
    *      (delta event to connected watchers) and/or the `metric` hook (bump a
-   *      telemetry counter). Error returns skip both by design — we never
+   *      telemetry counter). Error returns skip both by design - we never
    *      broadcast a state change that didn't happen.
    *
    * Generic note: `isDOError(result)` narrows at runtime, but TS can't
@@ -421,7 +421,7 @@ export class TeamDO extends DurableObject<Env> {
   /**
    * Owner-scoped RPC wrapper for endpoints that do not resolve a specific
    * agent (dashboard/summary calls). Gates on the persistent roster
-   * (`team_owners`), not presence (`members`) — an idle user with no live
+   * (`team_owners`), not presence (`members`) - an idle user with no live
    * agents is still a roster member and must be able to read summary data.
    * The roster row is added by `join` and removed only on explicit leave;
    * cleanup never touches it.
@@ -438,7 +438,7 @@ export class TeamDO extends DurableObject<Env> {
   // --- Bound helper for submodules that need to record telemetry ---
   #boundRecordMetric = (metric: string): void => this.#recordMetric(metric);
 
-  /** Dependency bag for the per-domain *-rpc modules — rebuilt per call so
+  /** Dependency bag for the per-domain *-rpc modules - rebuilt per call so
    *  closures stay tied to live class state. Cheap: just an object literal
    *  with already-bound function references. */
   #rpcCtx(): RpcCtx {
@@ -1037,7 +1037,7 @@ export class TeamDO extends DurableObject<Env> {
   /**
    * Return the caller's billing-block history for this team's sessions.
    * Scoped by `ownerId` (the caller's user id) so a single user gets
-   * their own window state regardless of which agent they were using —
+   * their own window state regardless of which agent they were using -
    * the Anthropic limit is billed to the account, not the session.
    *
    * When chinmeister eventually grows a cross-team aggregator for Pro

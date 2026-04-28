@@ -101,14 +101,14 @@ export interface EditDiff {
  *
  * Returns one entry per logical edit so the caller can record one edit_count
  * increment per element. Windsurf's Cascade hook packs N edits into a single
- * `tool_info.edits[]` array — summing to a single pair silently under-reports
+ * `tool_info.edits[]` array - summing to a single pair silently under-reports
  * Windsurf edit counts by a factor of N while leaving lines_added/removed
  * correct, breaking any cross-tool comparison and the
  * `sessions.edit_count == COUNT(*) FROM edits` invariant.
  *
  * Claude Code: `tool_input.old_string`/`new_string` (Edit) or `tool_input.content` (Write)
- *              — always returns a single-entry array.
- * Windsurf:    `tool_info.edits[]` — one entry per array element, empty array
+ *              - always returns a single-entry array.
+ * Windsurf:    `tool_info.edits[]` - one entry per array element, empty array
  *              if the payload carries no edits.
  */
 export function extractEdits(input: unknown, hostId: string): EditDiff[] {
@@ -126,7 +126,7 @@ export function extractEdits(input: unknown, hostId: string): EditDiff[] {
     });
   }
 
-  // Claude Code / Cursor shape — one edit per hook invocation.
+  // Claude Code / Cursor shape - one edit per hook invocation.
   const ti = asObject(obj.tool_input);
   const oldStr = asString(ti.old_string);
   const newStr = asString(ti.new_string);
@@ -179,7 +179,7 @@ export function extractBashCommand(input: unknown, hostId: string): string {
  *
  * Windsurf's post_run_command does not include stdout, so this returns empty
  * for that host. The commit handler falls back to `git log -1 HEAD` when this
- * is empty — which is correct for Windsurf since the hook fires immediately
+ * is empty - which is correct for Windsurf since the hook fires immediately
  * after the command completes.
  */
 export function extractBashResult(input: unknown, hostId: string): string {

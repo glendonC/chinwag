@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════
-   ReportRunView — live + completed run view
+   ReportRunView: live + completed run view
    Typography-led hierarchy. Severity bar on findings.
    ═══════════════════════════════════════════ */
 
@@ -234,7 +234,7 @@
 }
 
 /* ═══════════════════════════════════════════
-   Citations — clean grid layout
+   Citations: clean grid layout
    ═══════════════════════════════════════════ */
 
 .citationList {
@@ -282,7 +282,7 @@
 }
 
 /* ═══════════════════════════════════════════
-   Finding actions — three categories, distinct
+   Finding actions: three categories, distinct
    ═══════════════════════════════════════════ */
 
 .actions {
@@ -292,7 +292,7 @@
   padding-top: 6px;
 }
 
-/* Unified action pill — same pill shape for state / export / spawn.
+/* Unified action pill: same pill shape for state / export / spawn.
    The icon distinguishes intent; color stays uniform so the row reads
    as a group of related affordances, not a rainbow. */
 .action {
@@ -323,7 +323,7 @@
 }
 
 /* ═══════════════════════════════════════════
-   Tab nav — pill-group style (not underline divider)
+   Tab nav: pill-group style (not underline divider)
    ═══════════════════════════════════════════ */
 
 .tabNav {
@@ -362,7 +362,7 @@
 }
 
 /* ═══════════════════════════════════════════
-   Steps tab — pipeline as a vertical checklist
+   Steps tab: pipeline as a vertical checklist
    ═══════════════════════════════════════════ */
 
 .stepsList {
@@ -402,7 +402,7 @@
 }
 
 /* ═══════════════════════════════════════════
-   Sources tab — coverage stats
+   Sources tab: coverage stats
    ═══════════════════════════════════════════ */
 
 .statsRow {

@@ -1,4 +1,4 @@
-/* File churn scatter — 2D scatter of (lines added, lines removed).
+/* File churn scatter: 2D scatter of (lines added, lines removed).
  * Shares visual language with FileConstellation: fixed-radius dots,
  * work-type palette, rowReveal stagger. */
 

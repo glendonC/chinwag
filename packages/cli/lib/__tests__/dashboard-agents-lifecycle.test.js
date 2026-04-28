@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 /**
- * Tests for packages/cli/lib/dashboard/agents.js — useAgentLifecycle hook.
+ * Tests for packages/cli/lib/dashboard/agents.js - useAgentLifecycle hook.
  *
  * Strategy: mock React hooks (useState, useEffect, useRef) to run the hook's
  * logic outside of a render tree. We capture the effect callbacks and refs
@@ -170,7 +170,7 @@ describe('useAgentLifecycle', () => {
       const mountEffect = effects.find((e) => Array.isArray(e.deps) && e.deps.length === 0);
       expect(mountEffect).toBeDefined();
 
-      // Run the effect — this calls setManagedAgents(getAgents())
+      // Run the effect - this calls setManagedAgents(getAgents())
       mountEffect.fn();
 
       // Re-read state by re-running the hook
@@ -207,7 +207,7 @@ describe('useAgentLifecycle', () => {
 
       const mountEffect = effects.find((e) => Array.isArray(e.deps) && e.deps.length === 0);
 
-      // Run the effect first — it sets mountedRef.current = true
+      // Run the effect first - it sets mountedRef.current = true
       const cleanup = mountEffect.fn();
 
       // mountedRef is the second useRef call (index 1):
@@ -311,7 +311,7 @@ describe('useAgentLifecycle', () => {
       // Simulate unmount
       refs[1].current = false;
 
-      // Advance timer — the ticker callback should check mountedRef and skip
+      // Advance timer - the ticker callback should check mountedRef and skip
       vi.advanceTimersByTime(10_000);
 
       // getAgents is still called (the interval fires), but setManagedAgents

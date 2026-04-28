@@ -7,7 +7,7 @@ function getTeam(id = 'test-team') {
 
 // --- Leave cleans up activities and locks ---
 
-describe('Leave cleanup — activities and locks removed', () => {
+describe('Leave cleanup - activities and locks removed', () => {
   const team = () => getTeam('cleanup-ext-leave');
   const agentId = 'cursor:cxl1';
   const ownerId = 'user-cxl1';
@@ -46,7 +46,7 @@ describe('Leave cleanup — activities and locks removed', () => {
     // Agent should not be in members list
     expect(ctx.members.some((m) => m.agent_id === agentId)).toBe(false);
 
-    // Locks should be released — observer can claim them
+    // Locks should be released - observer can claim them
     const claim = await team().claimFiles(
       observer,
       ['src/cleanup-a.js', 'src/cleanup-b.js'],
@@ -174,19 +174,19 @@ describe('getSummary after cleanup', () => {
 
   it('getSummary detects conflicts', async () => {
     const summary = await team().getSummary(owner1);
-    // Both agents are on src/summary.js — conflict_count should be >= 1
+    // Both agents are on src/summary.js - conflict_count should be >= 1
     expect(summary.conflict_count).toBeGreaterThanOrEqual(1);
   });
 });
 
 // --- Leave then rejoin ---
 
-describe('Leave then rejoin — clean slate', () => {
+describe('Leave then rejoin - clean slate', () => {
   const team = () => getTeam('cleanup-ext-rejoin');
   const agentId = 'cursor:cxr1';
   const ownerId = 'user-cxr1';
 
-  it('join, add data, leave, rejoin — old data is gone', async () => {
+  it('join, add data, leave, rejoin - old data is gone', async () => {
     // Join and add data
     await team().join(agentId, ownerId, 'alice', 'cursor');
     await team().updateActivity(agentId, ['src/old-file.js'], 'Old activity', ownerId);

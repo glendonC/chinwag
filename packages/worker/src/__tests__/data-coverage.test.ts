@@ -34,13 +34,13 @@ describe('buildDataCoverage', () => {
     expect(cov.tools_without_data).toEqual(['made-up-tool']);
     expect(cov.coverage_rate).toBe(0);
     // With one active tool that has no capabilities, every capability lands
-    // in missing — not skipped. That's the disclosure path for
+    // in missing - not skipped. That's the disclosure path for
     // "your active tool can't report cost."
     expect(cov.capabilities_missing.length).toBeGreaterThan(0);
   });
 
   it('partitions reporting vs non-reporting correctly when mixed', () => {
-    // claude-code reports; made-up-tool doesn't. The split is structural —
+    // claude-code reports; made-up-tool doesn't. The split is structural -
     // the registry may evolve (e.g. cursor gaining tokenUsage via hooks),
     // so we verify the partition rule, not the list contents.
     const cov = buildDataCoverage(new Set(['claude-code', 'made-up-tool']));

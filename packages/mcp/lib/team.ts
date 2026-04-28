@@ -38,7 +38,7 @@ export interface MemorySearchResult {
   memories: MemoryInfo[];
 }
 
-/** Standard API result for mutating operations — discriminated union. */
+/** Standard API result for mutating operations - discriminated union. */
 export type OkResult = ({ ok: true } & Record<string, unknown>) | { ok: false; error: string };
 
 /** Team membership: join, leave, heartbeat. */
@@ -118,7 +118,7 @@ export interface TeamConsolidationHandlers {
   unmergeMemory(teamId: string, memoryId: string): Promise<OkResult>;
 }
 
-/** Shadow-mode formation auditor — classifies but never applies. */
+/** Shadow-mode formation auditor - classifies but never applies. */
 export type FormationRecommendation = 'keep' | 'merge' | 'evolve' | 'discard';
 
 export interface FormationObservation {

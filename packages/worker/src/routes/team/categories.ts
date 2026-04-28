@@ -1,4 +1,4 @@
-// Team memory category routes — CRUD for per-project categories.
+// Team memory category routes - CRUD for per-project categories.
 
 import type { RouteDefinition } from '../../lib/router.js';
 import { json } from '../../lib/http.js';

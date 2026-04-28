@@ -13,7 +13,7 @@ import { MAX_STATUS_LENGTH, MAX_FRAMEWORK_LENGTH, VALID_COLORS_SET } from '../..
 
 const log = createLogger('routes.user.profile');
 
-// GET /me — return the caller's profile minus the internal id.
+// GET /me - return the caller's profile minus the internal id.
 // The id is the DO storage key and not something the client needs.
 export const handleMe: RouteHandler = (_req: Request, _env: Env, user: User | null) => {
   const { id: _id, ...profile } = user as User;
@@ -29,7 +29,7 @@ export const handleUpdateHandle = authedJsonRoute(async ({ user, env, body }) =>
   if (!handle || typeof handle !== 'string') {
     return json({ error: 'Handle is required' }, 400);
   }
-  // Validate format before moderation — no point running AI on something we'll reject
+  // Validate format before moderation - no point running AI on something we'll reject
   if (!/^[a-zA-Z0-9_]{3,20}$/.test(handle)) {
     return json({ error: 'Handle must be 3-20 characters, alphanumeric + underscores only' }, 400);
   }
@@ -137,7 +137,7 @@ export const handleUpdateBudgets = authedJsonRoute(async ({ user, env, body }) =
 });
 
 /**
- * POST /me/revoke-tokens — invalidate every bearer token issued to the
+ * POST /me/revoke-tokens - invalidate every bearer token issued to the
  * caller. The current request's token stops working immediately on the next
  * authed call. Use cases: credential rotation, suspected compromise, account
  * security incidents.

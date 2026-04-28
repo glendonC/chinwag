@@ -32,7 +32,7 @@ try {
   const pkg = JSON.parse(readFileSync(join(_CLI_ROOT, '..', 'package.json'), 'utf-8'));
   PKG_VERSION = pkg.version;
 } catch {
-  /* keep default — bundled path must resolve; missing file is non-fatal */
+  /* keep default - bundled path must resolve; missing file is non-fatal */
 }
 
 let VSCODE_EXTENSION = { publisher: 'chinmeister', name: 'chinmeister', version: PKG_VERSION };
@@ -169,8 +169,8 @@ export function Customize({
       }
       showFlash(
         wasInstalled
-          ? `Updated — ${IDE_COMMAND_SHORTCUT} → "chinmeister: Open Dashboard"`
-          : `Installed — restart IDE, then ${IDE_COMMAND_SHORTCUT} → "chinmeister: Open Dashboard"`,
+          ? `Updated - ${IDE_COMMAND_SHORTCUT} → "chinmeister: Open Dashboard"`
+          : `Installed - restart IDE, then ${IDE_COMMAND_SHORTCUT} → "chinmeister: Open Dashboard"`,
       );
     } catch (err: unknown) {
       log.error(formatError(err));

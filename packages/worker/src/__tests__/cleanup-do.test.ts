@@ -9,7 +9,7 @@ function getTeam(id = 'test-team') {
 // Tests that cleanup preserves referential integrity -- activities, locks,
 // memories, and sessions for active members are never orphaned or corrupted.
 
-describe('Cleanup — data consistency across multiple cycles', () => {
+describe('Cleanup - data consistency across multiple cycles', () => {
   const team = () => getTeam('cleanup-consistency');
   const agent1 = 'cursor:cc1';
   const agent2 = 'claude:cc2';
@@ -74,7 +74,7 @@ describe('Cleanup — data consistency across multiple cycles', () => {
 
 // --- Cleanup: leave during active session closes session ---
 
-describe('Cleanup — leave closes active session', () => {
+describe('Cleanup - leave closes active session', () => {
   const team = () => getTeam('cleanup-leave-session');
   const agent1 = 'cursor:cls1';
   const agent2 = 'claude:cls2';
@@ -121,7 +121,7 @@ describe('Cleanup — leave closes active session', () => {
 
 // --- Cleanup: getSummary triggers cleanup ---
 
-describe('Cleanup — getSummary triggers cleanup', () => {
+describe('Cleanup - getSummary triggers cleanup', () => {
   const team = () => getTeam('cleanup-summary-trigger');
   const agentId = 'cursor:cst1';
   const ownerId = 'user-cst1';
@@ -153,7 +153,7 @@ describe('Cleanup — getSummary triggers cleanup', () => {
 
 // --- Cleanup: multiple leave+rejoin cycles ---
 
-describe('Cleanup — leave and rejoin cycle', () => {
+describe('Cleanup - leave and rejoin cycle', () => {
   const team = () => getTeam('cleanup-rejoin-cycle');
   const agentId = 'cursor:crc1';
   const ownerId = 'user-crc1';
@@ -204,7 +204,7 @@ describe('Cleanup — leave and rejoin cycle', () => {
 
 // --- Cleanup: memory persists across member lifecycle ---
 
-describe('Cleanup — memories persist after author leaves', () => {
+describe('Cleanup - memories persist after author leaves', () => {
   const team = () => getTeam('cleanup-memory-persist');
   const author = 'cursor:cmp1';
   const authorOwner = 'user-cmp1';
@@ -279,7 +279,7 @@ describe('Cleanup — memories persist after author leaves', () => {
 
 // --- Cleanup: session history survives cleanup ---
 
-describe('Cleanup — session history integrity', () => {
+describe('Cleanup - session history integrity', () => {
   const team = () => getTeam('cleanup-session-history');
   const agentId = 'cursor:csh1';
   const ownerId = 'user-csh1';
@@ -316,7 +316,7 @@ describe('Cleanup — session history integrity', () => {
 
 // --- Cleanup: enrichModel for active session ---
 
-describe('Cleanup — enrichModel and session model tracking', () => {
+describe('Cleanup - enrichModel and session model tracking', () => {
   const team = () => getTeam('cleanup-enrich-model');
   const agentId = 'cursor:cem1';
   const ownerId = 'user-cem1';

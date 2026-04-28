@@ -12,7 +12,7 @@ import type {
 /**
  * Function signature for registering an MCP tool.
  * Handler args are typed as Record<string, unknown> at the registration
- * boundary — individual tool handlers use Zod-inferred types internally
+ * boundary - individual tool handlers use Zod-inferred types internally
  * for static type checking, with a cast at the registration site only.
  */
 
@@ -24,7 +24,7 @@ export type AddToolFn = (
   handler: ToolHandler,
 ) => void;
 
-/** Integration doctor interface — mirrors shared/integration-doctor.ts exports. */
+/** Integration doctor interface - mirrors shared/integration-doctor.ts exports. */
 export interface IntegrationDoctor {
   scanHostIntegrations(cwd: string): IntegrationScanResult[];
   configureHostIntegration(

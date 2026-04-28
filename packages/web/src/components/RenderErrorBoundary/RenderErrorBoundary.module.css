@@ -1,4 +1,4 @@
-/* ── RenderErrorBoundary — view-level crash fallback ── */
+/* ── RenderErrorBoundary: view-level crash fallback ── */
 
 .wrapper {
   display: flex;

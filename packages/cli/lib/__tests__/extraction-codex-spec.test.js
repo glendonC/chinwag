@@ -25,7 +25,7 @@ function fixtureRoot() {
 const codexSpecPath = fileURLToPath(new URL('../extraction/specs/codex.json', import.meta.url));
 const codexSpec = JSON.parse(readFileSync(codexSpecPath, 'utf8'));
 
-// Override discovery so the test can write to a tmp dir — the production
+// Override discovery so the test can write to a tmp dir - the production
 // spec's glob-based discovery doesn't apply to fixture paths.
 function specForFixture() {
   return {

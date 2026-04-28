@@ -5,7 +5,7 @@
 //   - concrete-path claim: `file_path` is the path, `path_glob` is NULL.
 //   - glob-pattern claim:  `file_path` stores the raw glob string (so the
 //     primary-key ON CONFLICT path still serialises duplicate glob claims),
-//     and `path_glob` mirrors it — we read the glob via `path_glob` rather
+//     and `path_glob` mirrors it - we read the glob via `path_glob` rather
 //     than re-parsing `file_path`, and the index on `path_glob` lets
 //     conflict checks filter globs from concrete paths cheaply.
 //
@@ -14,7 +14,7 @@
 //   2. Walk every other agent's glob claims and test F against each.
 //      Any match → blocked, with `blocked_by_glob` identifying the pattern.
 //
-// Glob-vs-glob overlap is NOT detected here — two agents may hold
+// Glob-vs-glob overlap is NOT detected here - two agents may hold
 // overlapping glob claims simultaneously. The actual edit still blocks
 // through step 2 when either agent touches a file inside the overlap,
 // which is the semantic that matters in practice.
@@ -48,7 +48,7 @@ function verifyOwnership(
 
 /**
  * Row shape for an active lock as stored. Keeps `locks.ts` decoupled from
- * serialisation quirks — callers can depend on these names regardless of
+ * serialisation quirks - callers can depend on these names regardless of
  * future column renames in schema.ts.
  */
 interface ActiveLockRow {
@@ -134,14 +134,14 @@ export function claimFiles(
   // chosen pattern round-trips exactly. normalizePath strips leading `/`,
   // resolves `..`, and collapses `//`, which is the right behaviour for
   // concrete paths but would strip semantically meaningful `/` from a glob
-  // like `**/` — keep globs untouched.
+  // like `**/` - keep globs untouched.
   const normalized = files.map((f) => (isGlobPattern(f) ? f : normalizePath(f)));
 
   // TTL timestamps are written using SQLite's `datetime(...)` modifier
   // syntax so they round-trip through the same string format as every
   // other datetime in this schema. Mixing JS `.toISOString()` (e.g.
   // "2026-04-19T21:38:39.123Z") with SQLite's "YYYY-MM-DD HH:MM:SS" is a
-  // silent-bug magnet — string comparison in the reaper would always see
+  // silent-bug magnet - string comparison in the reaper would always see
   // the ISO strings as greater, so expired locks would never be swept.
   const ttlSeconds = typeof options.ttlSeconds === 'number' ? options.ttlSeconds : null;
 
@@ -157,7 +157,7 @@ export function claimFiles(
     const entryIsGlob = isGlobPattern(entry);
 
     // Concrete-path claims additionally check against other agents' globs
-    // — an edit to src/auth/tokens.ts while someone holds src/auth/** is a
+    // - an edit to src/auth/tokens.ts while someone holds src/auth/** is a
     // conflict, even though no exact-path row collides.
     if (!entryIsGlob) {
       const matchingGlob = otherGlobs.find((g) => g.path_glob && matchesGlob(entry, g.path_glob));
@@ -175,7 +175,7 @@ export function claimFiles(
     // expires_ts is computed in SQL via `datetime('now', '+N seconds')` so
     // it ends up in the same string format SQLite uses for every other
     // datetime column, keeping string comparisons honest. The seconds value
-    // is coerced to an integer before interpolation — `ttlSeconds` is typed
+    // is coerced to an integer before interpolation - `ttlSeconds` is typed
     // as a number but that's a TS-only guarantee, so the coercion is the
     // actual defence against an exotic caller sneaking in a SQL fragment.
     const expiresExpr =
@@ -200,7 +200,7 @@ export function claimFiles(
 
     const changed = sqlChanges(sql);
     if (changed === 0) {
-      // Lock held by another agent — fetch their details for the response.
+      // Lock held by another agent - fetch their details for the response.
       const row = sql
         .exec(
           'SELECT file_path, agent_id, handle, host_tool, agent_surface, claimed_at, path_glob, expires_ts FROM locks WHERE file_path = ?',
@@ -224,7 +224,7 @@ export function claimFiles(
  * "would editing these files right now conflict with any lock not owned by
  * `resolvedAgentId`?" without writing anything.
  *
- * Globs in the input are ignored — this is a concrete-path check. Callers
+ * Globs in the input are ignored - this is a concrete-path check. Callers
  * asking about scopes should use `claimFiles` directly (it both checks and
  * claims atomically).
  */
@@ -296,7 +296,7 @@ export function releaseFiles(
     // Release all locks for this agent
     sql.exec('DELETE FROM locks WHERE agent_id = ?', resolvedAgentId);
   } else {
-    // Release by exact key — globs are stored under their own pattern string
+    // Release by exact key - globs are stored under their own pattern string
     // as the `file_path` key, so the same DELETE handles both shapes.
     const normalized = files.map((f) => (isGlobPattern(f) ? f : normalizePath(f)));
     for (const file of normalized) {

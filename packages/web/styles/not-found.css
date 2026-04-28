@@ -30,7 +30,7 @@
 .not-found-sheet {
   box-sizing: border-box;
   width: 100%;
-  /* 100% — parent padding already defines width; avoid 100vw (scrollbar / double-count) */
+  /* 100%, parent padding already defines width; avoid 100vw (scrollbar / double-count) */
   max-width: min(22rem, 44ch, 100%);
   min-width: 0;
   margin: 0 auto;

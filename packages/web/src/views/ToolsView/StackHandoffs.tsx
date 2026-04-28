@@ -1,4 +1,4 @@
-// Who passes work to whom — the handoff strip view of the Tools tab.
+// Who passes work to whom - the handoff strip view of the Tools tab.
 // Consolidates the old N×N matrix and the separate "stack concurrency"
 // section into one visual. Borrows the concurrency strip's vocabulary
 // (big stat + vertical bars + axis + peak callout) but carries handoff
@@ -82,7 +82,7 @@ export default function StackHandoffs({ breakdown, onPairClick }: Props) {
         <h2 className={styles.title}>Who passes work to whom</h2>
         <p className={styles.subtitle}>
           {isPreview
-            ? 'Example data — files one tool started and another picked up within 24 hours. Each bar is one directed tool pair; taller bars carry more files.'
+            ? 'Example data - files one tool started and another picked up within 24 hours. Each bar is one directed tool pair; taller bars carry more files.'
             : 'Files one tool started and another picked up within 24 hours. Each bar is one directed tool pair; taller bars carry more files.'}
         </p>
       </header>

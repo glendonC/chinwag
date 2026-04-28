@@ -22,7 +22,7 @@ export interface PollingState {
   pollError: string | null;
   pollErrorData: DashboardSummary | null;
   lastUpdate: Date | null;
-  /** Consecutive API failures — drives slow-mode polling at 3+. */
+  /** Consecutive API failures - drives slow-mode polling at 3+. */
   consecutiveFailures: number;
 }
 

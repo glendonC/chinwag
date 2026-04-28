@@ -9,7 +9,7 @@ describe('shared MCP tool registry', () => {
 
   it('includes discovery metadata for every tool, and configurability invariants for MCP-compatible ones', () => {
     for (const tool of MCP_TOOLS) {
-      // Every registered tool needs basic catalog metadata — this is what the
+      // Every registered tool needs basic catalog metadata - this is what the
       // install/catalog UI renders regardless of MCP compatibility.
       expect(tool.catalog?.name ?? tool.name).toBeTruthy();
       expect(tool.catalog?.description).toBeTruthy();

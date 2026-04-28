@@ -225,10 +225,10 @@ describe('PUT /me/handle', () => {
       headers: h1,
       body: JSON.stringify({ handle: uniqueHandle }),
     });
-    // If moderation blocked the first attempt, skip — cannot test duplicate logic
+    // If moderation blocked the first attempt, skip - cannot test duplicate logic
     if (res1.status !== 200) return;
 
-    // Second user tries the same handle — must not succeed
+    // Second user tries the same handle - must not succeed
     const res2 = await SELF.fetch('http://localhost/me/handle', {
       method: 'PUT',
       headers: h2,
@@ -246,7 +246,7 @@ describe('PUT /me/handle', () => {
       headers,
       body: JSON.stringify({ handle: newHandle }),
     });
-    // If AI moderation mock is unavailable (503), skip — handle won't be updated
+    // If AI moderation mock is unavailable (503), skip - handle won't be updated
     if (updateRes.status === 503) return;
     expect(updateRes.status).toBe(200);
 
@@ -371,7 +371,7 @@ describe('PUT /status', () => {
     // We accept any non-length-related response here.
     if (res.status === 400) {
       const body = (await res.json()) as Record<string, unknown>;
-      // If it's 400, it must NOT be a length error — that would mean 280 was rejected
+      // If it's 400, it must NOT be a length error - that would mean 280 was rejected
       expect(body.error as string).not.toContain('280');
     }
   });

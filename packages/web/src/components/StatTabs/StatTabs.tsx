@@ -16,7 +16,7 @@ export interface StatTabDef<T extends string> {
    *  Pass this ONLY when the tab's value is a period aggregate AND a
    *  comparable previous-period value exists. Live-state surfaces
    *  (LiveNowView) and categorical tabs (ProjectView) intentionally
-   *  omit it — their values aren't period aggregates, so a delta would
+   *  omit it - their values aren't period aggregates, so a delta would
    *  be invented data. UsageDetailView uses an em-dash placeholder for
    *  KPI tabs whose previous period isn't queryable, so the strip stays
    *  visually uniform without faking unavailable comparisons. */
@@ -39,7 +39,7 @@ interface Props<T extends string> {
 /**
  * Canonical "uppercase mono label / large display value" tab row.
  * Single source of truth for ProjectView's hero strip and DetailView's
- * stat strip — both surfaces render the same shape at the same scale.
+ * stat strip - both surfaces render the same shape at the same scale.
  *
  * Value font-size is locked at 2.25rem regardless of tab count. Density
  * on narrow viewports is solved by grid wrapping in CSS, not by

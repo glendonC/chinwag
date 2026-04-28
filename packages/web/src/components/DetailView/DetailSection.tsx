@@ -5,7 +5,7 @@ import styles from './DetailSection.module.css';
 interface Props extends Omit<HTMLAttributes<HTMLElement>, 'children'> {
   /** Plain label. Use when the section is purely descriptive (no
    * question/answer framing applies). Prefer `question` for analytical
-   * sections — every viz should answer a real user question. */
+   * sections - every viz should answer a real user question. */
   label?: ReactNode;
   /** The question this section answers, in the user's voice. Replaces
    * `label` when provided. Short, active, something the reader would
@@ -20,7 +20,7 @@ interface Props extends Omit<HTMLAttributes<HTMLElement>, 'children'> {
 
 /**
  * One section inside a DetailView panel. The dominant structural primitive
- * in every detail view panel — "By tool", "Daily outcome mix", etc.
+ * in every detail view panel - "By tool", "Daily outcome mix", etc.
  *
  * Two framings:
  * - `question` + `answer` + viz: preferred for analytical sections. The

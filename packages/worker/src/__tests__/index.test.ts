@@ -425,7 +425,7 @@ describe('POST /teams (create team)', () => {
 
   it('rate limits team creation', async () => {
     const { headers } = await createAuthUser();
-    // Create 5 teams (the limit) — omit name to skip moderation
+    // Create 5 teams (the limit) - omit name to skip moderation
     for (let i = 0; i < 5; i++) {
       const res = await SELF.fetch('http://localhost/teams', {
         method: 'POST',
@@ -449,7 +449,7 @@ describe('Team join/leave/context', () => {
   it('join and context workflow', async () => {
     const { headers } = await createAuthUser();
 
-    // Create team — omit name to skip moderation
+    // Create team - omit name to skip moderation
     const createRes = await SELF.fetch('http://localhost/teams', {
       method: 'POST',
       headers,
@@ -1039,7 +1039,7 @@ describe('GET /me/dashboard', () => {
   // Cleanup deletes stale `members` rows after the heartbeat window. Before
   // the fix, #withOwner gated on `members` (presence), so the next /me/dashboard
   // call returned NOT_MEMBER for every team, and the route handler "reconciled"
-  // by deleting `user_teams` rows — permanently removing the user from each
+  // by deleting `user_teams` rows - permanently removing the user from each
   // team's roster. The fix splits roster (`team_owners`) from presence and
   // stops the handler from ever mutating roster on a transient summary error.
   it('keeps roster intact when an idle user has no live presence rows', async () => {
@@ -1059,13 +1059,13 @@ describe('GET /me/dashboard', () => {
     // Simulate the cleanup path. leave(value, null) first tries to delete
     // members by agent_id; on no match it falls through to deleting by
     // owner_id. Passing user.id forces the owner_id fallback, wiping every
-    // members row for this user — the same shape as the cleanup.ts staleness
+    // members row for this user - the same shape as the cleanup.ts staleness
     // DELETE that fires after 15 min idle. This branch intentionally does
     // not touch team_owners.
     const team = env.TEAM.get(env.TEAM.idFromName(team_id));
     await team.leave(user.id, null);
 
-    // Roster still admits the user — getSummary succeeds even with zero
+    // Roster still admits the user - getSummary succeeds even with zero
     // members rows present.
     const summaryAfter = await team.getSummary(user.id);
     expect(summaryAfter.error).toBeUndefined();
@@ -1123,7 +1123,7 @@ describe('GET /me/dashboard', () => {
     expect(body.teams).toHaveLength(1);
     expect(body.teams[0].team_id).toBe(realTeamId);
 
-    // Roster should be unchanged — the bug we fixed was a destructive
+    // Roster should be unchanged - the bug we fixed was a destructive
     // removeUserTeam call from the dashboard handler. The broken team
     // stays on the roster so a future retry can succeed.
     const after = await db.getUserTeams(user.id);
@@ -1523,7 +1523,7 @@ describe('Content moderation: team name on create', () => {
 describe('Content moderation: team name on join', () => {
   it('rejects team join with blocked name', async () => {
     const { headers } = await createAuthUser();
-    // Create a team — omit name to skip moderation
+    // Create a team - omit name to skip moderation
     const createRes = await SELF.fetch('http://localhost/teams', {
       method: 'POST',
       headers,

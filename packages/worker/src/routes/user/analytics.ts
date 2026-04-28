@@ -4,7 +4,7 @@
 // team's analytics in parallel, then merges them through a set of
 // per-analytic modules under ./analytics/. Each module owns one analytic
 // (accumulator + merge + project), so this file only knows how to iterate
-// them — not what any particular one computes.
+// them - not what any particular one computes.
 
 import { getDB, getTeam, rpc } from '../../lib/env.js';
 import { getErrorMessage } from '../../lib/errors.js';
@@ -174,7 +174,7 @@ export const handleUserAnalytics = authedRoute(async ({ request, user, env }) =>
   // Iterate team results and fold each into every accumulator. Indexed
   // loop so per-project merges can correlate `results[i]` with the
   // team_id / team_name metadata at `capped[i]`. noUncheckedIndexedAccess
-  // makes both reads `| undefined` — the index math is sound (we iterate
+  // makes both reads `| undefined` - the index math is sound (we iterate
   // results.length, capped and results are same length), so a single
   // defensive guard at the top keeps the rest of the body narrowed.
   for (let i = 0; i < results.length; i++) {

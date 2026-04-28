@@ -28,7 +28,7 @@ describe('Partial file claim (mixed results)', () => {
     expect(claim.claimed).toHaveLength(2);
   });
 
-  it('agent2 claims mix of free and locked files — partial result', async () => {
+  it('agent2 claims mix of free and locked files - partial result', async () => {
     const claim = await team().claimFiles(
       agent2,
       ['src/locked-a.js', 'src/free-c.js', 'src/locked-b.js', 'src/free-d.js'],
@@ -97,7 +97,7 @@ describe('Lock ownership verification', () => {
 
 // --- getLockedFiles: filtering by active agents ---
 
-describe('getLockedFiles — active agent filtering', () => {
+describe('getLockedFiles - active agent filtering', () => {
   const team = () => getTeam('getlockedfiles-active');
   const agent1 = 'cursor:glf1';
   const agent2 = 'claude:glf2';
@@ -215,7 +215,7 @@ describe('Idempotent lock refresh', () => {
 
 // --- Lock with empty file array ---
 
-describe('Lock edge cases — empty arrays', () => {
+describe('Lock edge cases - empty arrays', () => {
   const team = () => getTeam('lock-empty-edge');
   const agentId = 'cursor:lee1';
   const ownerId = 'user-lee1';

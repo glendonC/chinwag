@@ -1,4 +1,4 @@
-/* Directory share — horizontal stacked bars, one row per top-level dir.
+/* Directory share: horizontal stacked bars, one row per top-level dir.
  * Segment colors are work-type-tinted so the row reads both "how much
  * work landed here" (length) and "what kind" (segment mix). Paired with
  * FileHeatgrid on the left half of Row 4. */

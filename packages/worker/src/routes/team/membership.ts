@@ -1,4 +1,4 @@
-// Team membership routes — join, leave, heartbeat, context.
+// Team membership routes - join, leave, heartbeat, context.
 
 import type { RouteDefinition } from '../../lib/router.js';
 import { checkContent } from '../../moderation.js';
@@ -29,7 +29,7 @@ export const handleTeamJoin = teamRoute(
         name = trimmed || null;
       }
     } catch {
-      /* body may be empty or non-JSON — name stays null */
+      /* body may be empty or non-JSON - name stays null */
     }
 
     if (name) {
@@ -62,7 +62,7 @@ export const handleTeamJoin = teamRoute(
           return json({ error: result.error }, 400);
         }
 
-        // addUserTeam is INSERT ON CONFLICT DO UPDATE — fully idempotent.
+        // addUserTeam is INSERT ON CONFLICT DO UPDATE - fully idempotent.
         // Retry on transient failure so the user_teams roster row converges
         // with the TeamDO state. handleTeamContext also self-heals this row
         // on the next read, but explicit retry catches the gap sooner.
@@ -97,7 +97,7 @@ export const handleTeamLeave = teamRoute(async ({ user, teamId, db, agentId, tea
     meta: { team_id: teamId, agent_id: agentId },
   });
 
-  // removeUserTeam is DELETE WHERE — idempotent. Retry transient failures.
+  // removeUserTeam is DELETE WHERE - idempotent. Retry transient failures.
   // If retry exhausts, accept the orphan: TeamDO has marked the user gone,
   // and the user can re-trigger cleanup by calling /leave again. Avoid
   // surfacing a 500 to the client when the primary intent (leave) succeeded.
@@ -121,8 +121,8 @@ export const handleTeamContext = teamRoute(async ({ user, teamId, db, agentId, t
 });
 
 export const handleTeamHeartbeat = teamRoute(async ({ request, env, agentId, team, user }) => {
-  // Also populate global presence so CLI/MCP sessions — not just web dashboard
-  // viewers — show up in /stats (online count + countries map). Country comes
+  // Also populate global presence so CLI/MCP sessions - not just web dashboard
+  // viewers - show up in /stats (online count + countries map). Country comes
   // from Cloudflare's edge geolocation, same source as /presence/heartbeat.
   // Fire-and-forget: a lobby write failure must not break the team heartbeat.
   const country = request.headers.get('CF-IPCountry') || null;

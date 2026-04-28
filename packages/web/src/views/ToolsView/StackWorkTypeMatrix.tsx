@@ -1,4 +1,4 @@
-// Stack × Work Type matrix — the hero view on the Tools tab.
+// Stack × Work Type matrix - the hero view on the Tools tab.
 // Rows: tools in the user's stack. Columns: work types.
 // Cell: % of that tool's sessions doing that type of work, with
 // background intensity scaled by session count.
@@ -96,7 +96,7 @@ export default function StackWorkTypeMatrix({ breakdown, onToolClick }: Props) {
         <h2 className={styles.title}>Which tool for which job</h2>
         <p className={styles.subtitle}>
           {isPreview
-            ? 'Example data — this matrix shows what the view looks like with sessions from multiple tools. Your own numbers will replace this once work-type data flows through.'
+            ? 'Example data - this matrix shows what the view looks like with sessions from multiple tools. Your own numbers will replace this once work-type data flows through.'
             : "How each tool in your stack spreads across kinds of work. Darker = bigger share of that tool's sessions."}
         </p>
       </header>
@@ -149,7 +149,7 @@ export default function StackWorkTypeMatrix({ breakdown, onToolClick }: Props) {
                     title={`${meta.label} · ${t}: ${value} sessions (${Math.round(pct * 100)}%)`}
                   >
                     {pct === 0 ? (
-                      <span className={styles.zero}>—</span>
+                      <span className={styles.zero}>-</span>
                     ) : (
                       <span className={styles.pct}>{Math.round(pct * 100)}%</span>
                     )}

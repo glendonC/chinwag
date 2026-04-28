@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 /**
- * Tests for process/registry.ts — the pure registry functions.
+ * Tests for process/registry.ts - the pure registry functions.
  *
  * We import from process-manager.js (the barrel) like the existing
  * process-manager.test.js does, but focus on uncovered paths:
@@ -124,7 +124,7 @@ describe('process registry - waitForExit', () => {
       pid: 999999999,
     });
 
-    // The agent is "running" — waitForExit subscribes to updates
+    // The agent is "running" - waitForExit subscribes to updates
     const exitPromise = pm.waitForExit(result.id);
 
     // Mark it dead via liveness check

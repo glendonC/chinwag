@@ -43,7 +43,7 @@ export function registerOutcomeTool(
         content: [
           {
             type: 'text' as const,
-            text: `${preamble}Session outcome recorded: ${outcome}${summary ? ` — ${summary}` : ''}`,
+            text: `${preamble}Session outcome recorded: ${outcome}${summary ? ` - ${summary}` : ''}`,
           },
         ],
       };

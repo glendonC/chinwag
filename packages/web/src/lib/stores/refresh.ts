@@ -2,7 +2,7 @@ type RefreshHandler = () => void;
 
 const refreshSubscribers = new Set<RefreshHandler>();
 
-/** When true, WebSocket is connected and will deliver deltas — skip HTTP refresh. */
+/** When true, WebSocket is connected and will deliver deltas - skip HTTP refresh. */
 let wsConnected = false;
 
 export function addRefreshHandler(handler: RefreshHandler): () => void {
@@ -10,13 +10,13 @@ export function addRefreshHandler(handler: RefreshHandler): () => void {
   return () => refreshSubscribers.delete(handler);
 }
 
-// Legacy single-handler API — delegates to subscriber set
+// Legacy single-handler API - delegates to subscriber set
 export function setRefreshHandler(handler: RefreshHandler): void {
   refreshSubscribers.add(handler);
 }
 
 export function requestRefresh(): void {
-  if (wsConnected) return; // WS will deliver the delta — no need to HTTP poll
+  if (wsConnected) return; // WS will deliver the delta - no need to HTTP poll
   for (const handler of refreshSubscribers) {
     handler();
   }

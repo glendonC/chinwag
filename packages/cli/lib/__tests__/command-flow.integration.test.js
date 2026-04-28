@@ -173,7 +173,7 @@ describe('cli command flow integration', () => {
       process.chdir(repoDir);
       await runAdd(undefined);
 
-      // No API call — the simplified add uses MCP_TOOLS only.
+      // No API call - the simplified add uses MCP_TOOLS only.
       expect(fakeApi.state.directoryCalls).toBe(0);
       const output = logs.join('\n');
       expect(output).toContain('Usage: npx chinmeister add <tool>');

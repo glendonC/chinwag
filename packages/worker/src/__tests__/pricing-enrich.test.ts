@@ -5,7 +5,7 @@
 // enrichment. If this function is right, both callers are right.
 //
 // The four null causes documented on the `cost_per_edit` schema field
-// are the load-bearing invariants — each gets its own test here so a
+// are the load-bearing invariants - each gets its own test here so a
 // future refactor can't silently break the contract.
 
 import { describe, it, expect, vi } from 'vitest';
@@ -17,7 +17,7 @@ import type { PricingSnapshot } from '../lib/pricing-cache.js';
 import type { NormalizedModelPrice } from '../lib/litellm-transform.js';
 
 // Minimal Sonnet-shaped pricing row. Numbers chosen so 1M input + 1M output
-// = $3 + $15 = $18 — round numbers for assertion readability.
+// = $3 + $15 = $18 - round numbers for assertion readability.
 const SONNET_ROW: NormalizedModelPrice = {
   canonical_name: 'claude-sonnet-4-5-20250929',
   input_per_1m: 3,
@@ -65,7 +65,7 @@ function agg(
   };
 }
 
-describe('computeWindowCost — null-cause invariants', () => {
+describe('computeWindowCost - null-cause invariants', () => {
   // Each of the four reasons the schema doc-comment enumerates must
   // produce a null result. These are the contract boundary: future
   // refactors can change the math inside, but these four cases stay null.
@@ -111,7 +111,7 @@ describe('computeWindowCost — null-cause invariants', () => {
   });
 });
 
-describe('computeWindowCost — positive-case math', () => {
+describe('computeWindowCost - positive-case math', () => {
   // Token counts stay under 200k so estimateSessionCost stays on base rates.
   // Above-200k tiered pricing is exercised in model-pricing.test.ts already.
 
@@ -128,10 +128,10 @@ describe('computeWindowCost — positive-case math', () => {
 
   it('stores cost_per_edit at 4 decimals so sub-cent movements survive', () => {
     // 200k output * $15/1M = $3.00 (zero input keeps us off the 200k
-    // tier — tiering is gated on totalInputVolume). 10000 edits →
+    // tier - tiering is gated on totalInputVolume). 10000 edits →
     // $0.0003/edit exactly. 3-decimal rounding would collapse this to
     // $0.000 (lost); 4-decimal preserves $0.0003. That's the point of
-    // storing 4 decimals — sub-cent movements exist in real data.
+    // storing 4 decimals - sub-cent movements exist in real data.
     const result = computeWindowCost(
       {
         by_model: [

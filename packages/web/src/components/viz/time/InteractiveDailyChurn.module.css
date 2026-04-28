@@ -1,4 +1,4 @@
-/* Interactive daily churn — stacked area chart with toggleable legend,
+/* Interactive daily churn: stacked area chart with toggleable legend,
  * cursor scanner (ring dots + floating tooltip card), and a sized-to-
  * container SVG via ResizeObserver (no preserveAspectRatio distortion).
  */
@@ -39,7 +39,7 @@
   text-transform: uppercase;
 }
 
-/* Filled area band — reveals on mount with a quick fade so the chart
+/* Filled area band: reveals on mount with a quick fade so the chart
  * doesn't snap in. `--row-index` staggers bands so the stack builds
  * bottom-up. */
 .band {
@@ -92,7 +92,7 @@
   transition: r var(--motion-fast) ease;
 }
 
-/* Floating tooltip card — mono header, breakdown rows, total footer.
+/* Floating tooltip card: mono header, breakdown rows, total footer.
  * Chromeless against the app canvas: solid surface, thin 1px border,
  * soft shadow. No arrow/pointer tail, just a card. */
 .tooltipCard {
@@ -275,7 +275,7 @@
   text-decoration-thickness: 1px;
 }
 
-/* Rectangle swatch — mirrors the filled band's identity so the legend
+/* Rectangle swatch: mirrors the filled band's identity so the legend
  *  reads as "these bars sit inside the chart," not "these dots mark
  *  points." */
 .legendSwatch {

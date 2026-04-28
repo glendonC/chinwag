@@ -393,7 +393,7 @@ describe('diffState', () => {
       diffState({ members: [] }, state, alerted);
       expect(alerted.size).toBe(1);
 
-      // Second call with same state — should not alert again
+      // Second call with same state - should not alert again
       const events2 = diffState(state, state, alerted);
       const stuckEvents2 = events2.filter((e) => e.includes('may be stuck'));
       expect(stuckEvents2).toHaveLength(0);
@@ -426,7 +426,7 @@ describe('diffState', () => {
       const alerted = new Map();
 
       diffState({ members: [] }, { members: [m1] }, alerted);
-      // updated_at changed — alert should be cleared then re-checked
+      // updated_at changed - alert should be cleared then re-checked
       const events = diffState({ members: [m1] }, { members: [m2] }, alerted);
       const stuckEvents = events.filter((e) => e.includes('may be stuck'));
       expect(stuckEvents).toHaveLength(1);

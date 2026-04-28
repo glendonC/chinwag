@@ -1,5 +1,5 @@
 /**
- * Dashboard view state — reducer + flash notifications.
+ * Dashboard view state - reducer + flash notifications.
  *
  * This file used to host a mega-provider with seven contexts (View,
  * Connection, Agent, Composer, Memory, Integration, Data). Six of those
@@ -11,7 +11,7 @@
  * ViewProvider stays because it has multiple consumers at different
  * nesting levels (the outer DashboardProviders reads `flash` from it,
  * and the inner DashboardViewComponent reads `state`, `dispatch`, and
- * `notice`) — that's the case where a context genuinely earns its
+ * `notice`) - that's the case where a context genuinely earns its
  * keep.
  *
  * useCommandSuggestions stays here because it's still the command
@@ -118,7 +118,7 @@ interface UseCommandSuggestionsArgs {
 
 /**
  * Command suggestions derived from agent/memory/integration state.
- * Pure hook — no provider needed.
+ * Pure hook - no provider needed.
  */
 export function useCommandSuggestions({
   composer,

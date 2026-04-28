@@ -16,7 +16,7 @@ const log = createLogger('TeamDO.analytics');
 // Without this, LIMIT 50 truncation was silent.
 export function queryMemberCount(sql: SqlStorage, _scope: AnalyticsScope, days: number): number {
   try {
-    // Scope intentionally ignored — this metric is cross-member by design (team cohort view).
+    // Scope intentionally ignored - this metric is cross-member by design (team cohort view).
     const countRows = sql
       .exec(
         `SELECT COUNT(DISTINCT handle) AS total
@@ -39,7 +39,7 @@ export function queryMemberAnalytics(
   days: number,
 ): MemberAnalytics[] {
   try {
-    // Scope intentionally ignored — this metric is cross-member by design (team cohort view).
+    // Scope intentionally ignored - this metric is cross-member by design (team cohort view).
     // Audit 2026-04-21: SQL trimmed to the fields the contract still carries.
     // See memberAnalyticsSchema for the list of dropped fields and rationale.
     const memberRows = sql
@@ -107,7 +107,7 @@ export function queryMemberAnalytics(
 // Per-teammate daily timeline. Scoped to the same top-50 handles as
 // queryMemberAnalytics (ranked by total edits in the window) so the two
 // fields agree on which handles exist. Uses the recursive-CTE spine +
-// CROSS JOIN pattern from queryToolDaily for dense day axes — each
+// CROSS JOIN pattern from queryToolDaily for dense day axes - each
 // handle's sparkline stays legible when they worked on non-contiguous days.
 export function queryMemberDailyLines(
   sql: SqlStorage,
@@ -115,7 +115,7 @@ export function queryMemberDailyLines(
   days: number,
 ): MemberDailyLineTrend[] {
   try {
-    // Scope intentionally ignored — this metric is cross-member by design (team cohort view).
+    // Scope intentionally ignored - this metric is cross-member by design (team cohort view).
     const dailyRows = sql
       .exec(
         `WITH RECURSIVE spine(day) AS (

@@ -127,7 +127,7 @@ export function useToolsViewData(): ToolsViewData {
     if (dashboardData) return;
     // Demo: read directly from the scenario instead of hitting /me/dashboard.
     // Render-time fallthrough below pulls the scenario's dashboard, so the
-    // effect just bails — polling won't populate dashboardData under demo.
+    // effect just bails - polling won't populate dashboardData under demo.
     if (demo.active) return;
     let cancelled = false;
     async function fetchDashboard() {
@@ -190,7 +190,7 @@ export function useToolsViewData(): ToolsViewData {
     };
   }, [userToolIds, userHostIds, seenSurfaceIds]);
 
-  // Categories the user already has tools in — for relevance sorting
+  // Categories the user already has tools in - for relevance sorting
   const _userCategoryIds = useMemo(() => {
     const ids = new Set<string>();
     for (const tool of toolShare) {
@@ -205,7 +205,7 @@ export function useToolsViewData(): ToolsViewData {
   const categoryList = useMemo(() => Object.entries(categories), [categories]);
   const connectedProjects = dashboardSnapshot?.teams?.length || 0;
 
-  // Known tools only — filter out "unknown", "daemon", unidentified agents.
+  // Known tools only - filter out "unknown", "daemon", unidentified agents.
   // Recalculate shares so they sum to 100% among recognized tools.
   const knownToolShare = useMemo(() => {
     const known = toolShare.filter((t) => isKnownTool(t.tool as string));
@@ -250,7 +250,7 @@ export function useToolsViewData(): ToolsViewData {
     }));
 
     // Per-side label collision: highest-value branded arcs win. Other is
-    // excluded — the muted slice never claims a leader line.
+    // excluded - the muted slice never claims a leader line.
     const labeled = pickLabeledArcs(
       entries.map((e) => ({
         value: e.joins,
@@ -267,7 +267,7 @@ export function useToolsViewData(): ToolsViewData {
 
   const uniqueTools = knownToolShare.length;
 
-  // Score cache — compute once per evaluation set, reuse for sort + display
+  // Score cache - compute once per evaluation set, reuse for sort + display
   const scoreCache = useMemo(() => {
     const cache = new Map<string, { total: number; dataComplete: boolean }>();
     for (const ev of evaluations) {

@@ -218,7 +218,7 @@ const migrations: Migration[] = [
     up(sql) {
       // Canonical model pricing snapshot, refreshed every 6h from LiteLLM.
       // Keyed by LiteLLM canonical name (e.g. `claude-sonnet-4-5-20250929`,
-      // `gpt-5`, `xai/grok-4`) — the resolver in lib/litellm-resolver.ts
+      // `gpt-5`, `xai/grok-4`) - the resolver in lib/litellm-resolver.ts
       // maps raw agent_model strings to these keys.
       //
       // Prices are per 1,000,000 tokens (display convention). Cache fields
@@ -294,10 +294,10 @@ const migrations: Migration[] = [
       //
       //   total_tool_calls / total_errored_tool_calls: Reliability blends
       //     stuck_rate with the share of tool calls that errored. Stuck
-      //     alone captures only "did MCP die" — errored calls capture
+      //     alone captures only "did MCP die" - errored calls capture
       //     "did the agent actually fail at its work."
       //
-      //   total_active_min: Focus now measures active work — minutes
+      //   total_active_min: Focus now measures active work - minutes
       //     bracketing real activity (edits, tool calls, memory ops).
       //     Idle minutes with the agent open no longer inflate the axis.
       //

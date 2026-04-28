@@ -67,7 +67,7 @@ export function queryFilesTouchedTotal(
 // Distinct-file count for each half of the current window. Two COUNT(DISTINCT
 // file_path) queries with time bounds. Distinct counts aren't additive across
 // days, so the daily_trends-based splitPeriodDelta helper used by
-// sessions/edits/lines can't compute this — the split has to happen in SQL.
+// sessions/edits/lines can't compute this - the split has to happen in SQL.
 //
 // Window split mirrors the JS splitPeriodDelta convention: halfDays =
 // floor(periodDays/2) on each side, with odd windows dropping the single
@@ -153,7 +153,7 @@ export function queryDailyTrends(
   // modifier. Session timestamps are stored UTC and shifted at match time.
   // The UTC pre-filter keeps a 1-day buffer so the index on started_at still
   // prunes the scan regardless of TZ. Every day in the period appears in the
-  // result — days with zero sessions return a row of zeros so the resulting
+  // result - days with zero sessions return a row of zeros so the resulting
   // sparkline can't elide gaps and misrepresent activity density.
   //
   // Scope filter is spliced into the LEFT JOIN's ON clause so spine days with
@@ -284,7 +284,7 @@ export function queryDailyMetrics(
   _scope: AnalyticsScope,
   days: number,
 ): DailyMetricEntry[] {
-  // Scope: not applicable — daily_metrics has no per-user dimension
+  // Scope: not applicable - daily_metrics has no per-user dimension
   try {
     const rawRows = sql
       .exec(

@@ -7,7 +7,7 @@ import { isBlocked, checkContent } from '../moderation.js';
 
 // --- Layer 1: Blocklist (sync) ---
 
-describe('isBlocked — edge cases', () => {
+describe('isBlocked - edge cases', () => {
   it('blocks mixed case slurs', () => {
     expect(isBlocked('NiGgEr')).toBe(true);
     expect(isBlocked('FAGGOT')).toBe(true);
@@ -52,14 +52,14 @@ describe('isBlocked — edge cases', () => {
 
 // --- Layer 2: AI moderation ---
 
-describe('checkContent — AI moderation layer', () => {
+describe('checkContent - AI moderation layer', () => {
   it('returns blocked when blocklist catches (AI not called)', async () => {
     const mockAI = { run: vi.fn() };
     const env = { AI: mockAI };
 
     const result = await checkContent('kill yourself', env);
     expect(result).toEqual({ blocked: true, reason: 'blocked_term' });
-    // AI should NOT have been called — blocklist caught it first
+    // AI should NOT have been called - blocklist caught it first
     expect(mockAI.run).not.toHaveBeenCalled();
   });
 

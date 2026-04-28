@@ -399,14 +399,14 @@ describe('sqlChanges', () => {
 
 // --- normalizePath: extended edge cases ---
 
-describe('normalizePath — edge cases', () => {
+describe('normalizePath - edge cases', () => {
   it('returns empty string for empty input', () => {
     expect(normalizePath('')).toBe('');
   });
 
   it('does not fully resolve a lone dot (strips leading ./ only)', () => {
     // normalizePath strips leading "./" but a bare "." is not "./", so it remains.
-    // This is acceptable — bare "." is not a realistic file path argument.
+    // This is acceptable - bare "." is not a realistic file path argument.
     expect(normalizePath('.')).toBe('.');
   });
 
@@ -448,7 +448,7 @@ describe('normalizePath — edge cases', () => {
 
   it('collapses mixed path issues in one string', () => {
     // normalizePath strips leading ./, collapses //, removes .. segments, strips trailing /
-    // But it does NOT remove mid-path "." segments — only ".." is filtered.
+    // But it does NOT remove mid-path "." segments - only ".." is filtered.
     // './..//src///./lib/../utils.js/' → strip ./ → '..//src///./lib/../utils.js/'
     // → collapse // → '../src/./lib/../utils.js/' → strip trailing / → '../src/./lib/../utils.js'
     // → remove .. segments → 'src/./lib/utils.js' → strip leading / → 'src/./lib/utils.js'

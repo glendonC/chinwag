@@ -1,5 +1,5 @@
 // chinmeister API client
-// Pure utility — no store imports to avoid circular deps.
+// Pure utility - no store imports to avoid circular deps.
 
 import { createJsonApiClient } from '@chinmeister/shared/api-client.js';
 import { resolveRuntimeTargets, type RuntimeTargets } from '@chinmeister/shared/runtime-profile.js';

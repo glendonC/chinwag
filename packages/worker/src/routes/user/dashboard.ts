@@ -36,7 +36,7 @@ export const handleDashboardSummary = authedRoute(async ({ user, env }) => {
           ),
         );
         if (summary.error) {
-          // Treat any TeamDO error here as transient — surface the team in
+          // Treat any TeamDO error here as transient - surface the team in
           // failed_teams so the frontend can render "summary unavailable",
           // but never mutate the user's roster from a read path. Removing
           // user_teams here was the cause of the "kicked out while idle" bug

@@ -5,7 +5,7 @@
 // When WebSocket is connected: polls every 60s (safety net).
 // When WebSocket is disconnected: polls every 10s (graceful fallback).
 //
-// CRITICAL: Never console.log — stdio transport.
+// CRITICAL: Never console.log - stdio transport.
 
 import { diffState } from './diff-state.js';
 import type { TeamContext } from './utils/display.js';

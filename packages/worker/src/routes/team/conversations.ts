@@ -1,4 +1,4 @@
-// Conversation intelligence routes — upload and query conversation events.
+// Conversation intelligence routes - upload and query conversation events.
 
 import type { RouteDefinition } from '../../lib/router.js';
 import { rpc } from '../../lib/env.js';

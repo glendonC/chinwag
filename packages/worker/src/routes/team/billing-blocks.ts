@@ -1,4 +1,4 @@
-// Team billing-blocks route — 5-hour Anthropic rate-limit window state.
+// Team billing-blocks route - 5-hour Anthropic rate-limit window state.
 //
 // Scoped to the caller's owner_id: the response covers every session
 // the caller ran inside this team, regardless of which agent was used.

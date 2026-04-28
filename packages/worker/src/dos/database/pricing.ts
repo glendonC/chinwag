@@ -1,4 +1,4 @@
-// Model pricing snapshot and metadata — lives in DatabaseDO as globally-shared
+// Model pricing snapshot and metadata - lives in DatabaseDO as globally-shared
 // data, refreshed every 6h from LiteLLM by src/lib/refresh-model-prices.ts.
 //
 // This module exports pure functions that take a SqlStorage handle. The
@@ -8,7 +8,7 @@
 // Atomicity: upsertModelPricesTxn wraps DELETE + INSERT + metadata UPDATE in
 // a single transact() call so readers never see a partial refresh. Readers
 // that query while a refresh is mid-flight will see the pre-refresh snapshot
-// in its entirety, then the post-refresh snapshot in its entirety — never a
+// in its entirety, then the post-refresh snapshot in its entirety - never a
 // mix. This is why the read path (getModelPricesSnapshot) does NOT need its
 // own transaction; SQLite-in-DO serializes reads and writes already.
 
@@ -52,7 +52,7 @@ export interface BundledPricingSeed {
 
 // -- Input to upsert (no updated_at; the DO sets it inline) --
 //
-// Identical to NormalizedModelPrice — the upsert accepts whatever the
+// Identical to NormalizedModelPrice - the upsert accepts whatever the
 // LiteLLM transform emits with no additional shaping. Kept as an exported
 // alias so call sites read as "ModelPriceInput" (the DO contract) rather
 // than borrowing the transform's more generic name.
@@ -105,7 +105,7 @@ export function getPricingMetadata(sql: SqlStorage): PricingMetadata | null {
 
 /**
  * Return the set of canonical names currently in model_prices. Used by the
- * refresh path's derived validation — a new snapshot must share at least N%
+ * refresh path's derived validation - a new snapshot must share at least N%
  * of these keys to be accepted. Much cheaper than fetching the full snapshot
  * for a set-intersection check.
  */
@@ -116,7 +116,7 @@ export function getModelCanonicalNames(sql: SqlStorage): string[] {
   return rows.map((r) => r.canonical_name);
 }
 
-/** Count rows in model_prices — used by seedFromBundled to decide whether to seed. */
+/** Count rows in model_prices - used by seedFromBundled to decide whether to seed. */
 export function getModelPricesCount(sql: SqlStorage): number {
   const rows = sql.exec('SELECT COUNT(*) AS n FROM model_prices').toArray();
   return (rows[0] as { n: number }).n;
@@ -126,7 +126,7 @@ export function getModelPricesCount(sql: SqlStorage): number {
 
 /**
  * Atomic refresh: delete all existing rows, insert the new snapshot, and
- * upsert the metadata row — all in one transaction so a reader never sees a
+ * upsert the metadata row - all in one transaction so a reader never sees a
  * half-refreshed table. The caller provides the `transact` helper bound to
  * the DO's ctx.storage.transactionSync.
  */
@@ -140,7 +140,7 @@ export function upsertModelPricesTxn(
   // MIN_MODELS and the volume-drop guard, but we refuse empty upserts here
   // too so any future caller that bypasses validation cannot accidentally
   // wipe the pricing table. An empty table means all cost lookups return
-  // null — a failure mode we want to make structurally impossible.
+  // null - a failure mode we want to make structurally impossible.
   if (rows.length === 0) {
     throw new Error('upsertModelPricesTxn: refusing to upsert empty rows array');
   }
@@ -197,7 +197,7 @@ export function upsertModelPricesTxn(
 
 /**
  * Record a refresh attempt that failed, preserving the existing model_prices
- * rows (stale data is better than no data — the read path decides when
+ * rows (stale data is better than no data - the read path decides when
  * staleness is bad enough to return null).
  */
 export function recordRefreshFailure(
@@ -210,7 +210,7 @@ export function recordRefreshFailure(
     // If metadata row doesn't exist yet (very first refresh attempt failed
     // before any successful write), we still want the failure recorded. Use
     // INSERT ... ON CONFLICT to cover both cases. Source defaults to 'unknown'
-    // on a first-attempt failure — a successful refresh will overwrite it.
+    // on a first-attempt failure - a successful refresh will overwrite it.
     sql.exec(
       `INSERT INTO pricing_metadata (
          id, source, fetched_at, models_count, last_attempt_at,

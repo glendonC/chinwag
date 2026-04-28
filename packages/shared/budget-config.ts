@@ -29,7 +29,7 @@ export interface BudgetConfig {
   memoryContentTruncation: number;
   /**
    * Whether activity updates are broadcast to teammates.
-   * 'silent' skips the backend call entirely — the agent's local state still
+   * 'silent' skips the backend call entirely - the agent's local state still
    * reflects its work, but teammates see no file or summary update.
    */
   coordinationBroadcast: CoordinationBroadcast;
@@ -51,7 +51,7 @@ function isNonNegativeFiniteNumber(value: unknown): value is number {
 
 /**
  * Parse an unknown value (e.g. parsed JSON) into a partial BudgetConfig.
- * Unknown or ill-typed fields are dropped silently — a malformed config
+ * Unknown or ill-typed fields are dropped silently - a malformed config
  * should never block the agent from running.
  *
  * Returns null when the input is not an object.
@@ -62,7 +62,7 @@ export function parseBudgetConfig(value: unknown): Partial<BudgetConfig> | null 
   const result: Partial<BudgetConfig> = {};
 
   if (isNonNegativeFiniteNumber(obj.memoryResultCap)) {
-    // Clamp to max — a team config requesting 1000 shouldn't exceed the hard cap.
+    // Clamp to max - a team config requesting 1000 shouldn't exceed the hard cap.
     result.memoryResultCap = Math.min(Math.floor(obj.memoryResultCap), MEMORY_SEARCH_MAX_LIMIT);
   }
   if (isNonNegativeFiniteNumber(obj.memoryContentTruncation)) {

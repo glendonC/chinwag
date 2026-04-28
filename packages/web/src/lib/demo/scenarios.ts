@@ -1,6 +1,6 @@
 // Demo scenario registry. Each scenario returns a { analytics, conversation,
 // live } triple. Scenarios build from the healthy baseline and override only
-// the fields that change — this keeps the surface area auditable and
+// the fields that change - this keeps the surface area auditable and
 // prevents "shadow baseline" drift when one widget needs a tweak.
 //
 // Adding a scenario: pick a specific question a widget asks (e.g. "what
@@ -77,7 +77,7 @@ export interface DemoScenario {
 
 // ── Helpers for the non-Overview slices ─────────────────────────────
 //
-// Most scenarios share the same identity/teams/dashboard/global frames —
+// Most scenarios share the same identity/teams/dashboard/global frames -
 // the differentiating story lives in analytics/conversation/live. These
 // helpers keep that story authored in one place per builder instead of
 // repeating 7 fields per scenario. Solo scenarios narrow to one team;
@@ -856,7 +856,7 @@ export const DEMO_SCENARIOS: Record<DemoScenarioId, DemoScenario> = {
   empty: {
     id: 'empty',
     label: 'Empty period',
-    description: 'Zero sessions — every empty state at once',
+    description: 'Zero sessions - every empty state at once',
     build: empty,
   },
   'solo-cc': {
@@ -868,7 +868,7 @@ export const DEMO_SCENARIOS: Record<DemoScenarioId, DemoScenario> = {
   'solo-no-hooks': {
     id: 'solo-no-hooks',
     label: 'Solo · no hooks',
-    description: 'MCP-only tool, no deep capture — coverage notes everywhere',
+    description: 'MCP-only tool, no deep capture - coverage notes everywhere',
     build: soloNoHooks,
   },
   'stale-pricing': {
@@ -886,19 +886,19 @@ export const DEMO_SCENARIOS: Record<DemoScenarioId, DemoScenario> = {
   'first-period': {
     id: 'first-period',
     label: 'First period',
-    description: 'No previous window — delta pills suppress',
+    description: 'No previous window - delta pills suppress',
     build: firstPeriod,
   },
   'team-conflicts': {
     id: 'team-conflicts',
     label: 'Team conflicts',
-    description: 'Active collisions, retries, overlap — coordination story',
+    description: 'Active collisions, retries, overlap - coordination story',
     build: teamConflicts,
   },
   'negative-delta': {
     id: 'negative-delta',
     label: 'Negative delta',
-    description: 'Period got worse — red arrows, invert semantics',
+    description: 'Period got worse - red arrows, invert semantics',
     build: negativeDelta,
   },
   'no-live-agents': {
@@ -910,13 +910,13 @@ export const DEMO_SCENARIOS: Record<DemoScenarioId, DemoScenario> = {
   'memory-stale': {
     id: 'memory-stale',
     label: 'Memory · stale',
-    description: 'Aging skews to >90d, stale count high — freshness warn',
+    description: 'Aging skews to >90d, stale count high - freshness warn',
     build: memoryStale,
   },
   'memory-concentrated': {
     id: 'memory-concentrated',
     label: 'Memory · concentrated',
-    description: 'Single-author directories with severe shares — concentration warn',
+    description: 'Single-author directories with severe shares - concentration warn',
     build: memoryConcentrated,
   },
 };

@@ -19,7 +19,7 @@ interface Props {
   /** When defined, segments render as tab-selectors. Clicking a segment
    * or its legend row fires `onSelect(work_type)`; clicking the current
    * selection fires `onSelect(null)` to clear the filter. Active segment
-   * stays in full ink/color, inactive dim toward --soft — matches the
+   * stays in full ink/color, inactive dim toward --soft - matches the
    * design language rule for stat values doubling as tab selectors. */
   activeWorkType?: string | null;
   onSelect?: (workType: string | null) => void;
@@ -27,7 +27,7 @@ interface Props {
 
 // Segments below this share fold into a single trailing "other"-tinted segment
 // so specks don't render at card scale. 3% is the same threshold the tool-ring
-// in the Sessions detail uses — matches the project's existing visual tolerance
+// in the Sessions detail uses - matches the project's existing visual tolerance
 // for chart-slice legibility.
 const MIN_SHARE = 0.03;
 
@@ -91,7 +91,7 @@ export default function WorkTypeStrip({
   const interactive = typeof onSelect === 'function';
   const hasFilter = activeWorkType != null;
 
-  // Clicking the active segment again clears the filter — same idempotent
+  // Clicking the active segment again clears the filter - same idempotent
   // toggle pattern as the per-tool hero selectors in SessionsPanel.
   const handleSelect = (workType: string) => {
     if (!onSelect) return;

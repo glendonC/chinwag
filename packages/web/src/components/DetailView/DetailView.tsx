@@ -14,7 +14,7 @@ export interface DetailTabDef<T extends string> {
   value: ReactNode;
   /** Period-comparison annotation rendered as a small mono caption
    *  below the value (e.g. "↑26"). See StatTabDef.delta for the full
-   *  rule on when to populate this field — short version: only on
+   *  rule on when to populate this field - short version: only on
    *  period-aggregate KPI tabs, never on live state or categorical
    *  tabs. */
   delta?: { text: string; color?: string };
@@ -34,7 +34,7 @@ interface Props<T extends string> {
   onBack: () => void;
   title: string;
   subtitle?: string;
-  /** Right-aligned slot on the scope row — typically RangePills. */
+  /** Right-aligned slot on the scope row - typically RangePills. */
   actions?: ReactNode;
   tabs: ReadonlyArray<DetailTabDef<T>>;
   /** Returned by `useTabs(...)` at the call site. Keeping the hook at

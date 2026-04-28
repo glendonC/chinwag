@@ -121,7 +121,7 @@ describe('writeHooksConfig', () => {
     expect(content.hooks.SessionStart).toBeInstanceOf(Array);
   });
 
-  it('is idempotent — running twice does not duplicate hooks', () => {
+  it('is idempotent - running twice does not duplicate hooks', () => {
     writeHooksConfig(tmpDir);
     writeHooksConfig(tmpDir);
 

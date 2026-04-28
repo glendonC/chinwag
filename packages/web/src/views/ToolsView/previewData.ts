@@ -2,7 +2,7 @@
 // When a section receives an empty live dataset, it falls back to these
 // values and shows a "Preview" badge so the reader sees what the view
 // looks like under real conditions. When real data arrives, the preview
-// is replaced automatically — no flags, no toggles, no dead code path.
+// is replaced automatically - no flags, no toggles, no dead code path.
 //
 // Keep these numbers realistic: 3 tools with differentiated work-type
 // mixes plus a small set of files co-edited across those tools to feed
@@ -35,7 +35,7 @@ function wt(
 }
 
 export const PREVIEW_TOOL_WORK_TYPE: ToolWorkTypeBreakdown[] = [
-  // Claude Code — frontend-heavy, some backend, some styling
+  // Claude Code - frontend-heavy, some backend, some styling
   wt('claude-code', 'frontend', 58, 412, 82),
   wt('claude-code', 'backend', 26, 198, 73),
   wt('claude-code', 'styling', 19, 141, 58),
@@ -44,7 +44,7 @@ export const PREVIEW_TOOL_WORK_TYPE: ToolWorkTypeBreakdown[] = [
   wt('claude-code', 'config', 4, 19, 75),
   wt('claude-code', 'other', 2, 8, 50),
 
-  // Cursor — styling specialist
+  // Cursor - styling specialist
   wt('cursor', 'styling', 26, 134, 84),
   wt('cursor', 'frontend', 16, 97, 76),
   wt('cursor', 'backend', 13, 64, 39),
@@ -53,7 +53,7 @@ export const PREVIEW_TOOL_WORK_TYPE: ToolWorkTypeBreakdown[] = [
   wt('cursor', 'config', 2, 7, 50),
   wt('cursor', 'other', 2, 5, 50),
 
-  // Codex — backend-dominant, heavy on config
+  // Codex - backend-dominant, heavy on config
   wt('codex', 'backend', 12, 83, 75),
   wt('codex', 'config', 6, 28, 67),
   wt('codex', 'frontend', 5, 31, 40),
@@ -66,7 +66,7 @@ export const PREVIEW_TOOL_WORK_TYPE: ToolWorkTypeBreakdown[] = [
 // ── Shared file stream ──
 // Per-file edit timelines where multiple tools have touched the same
 // file. This is the raw shape of cross-tool coordination at the file
-// grain — the list-view section computes handoff delta, tightest pair,
+// grain - the list-view section computes handoff delta, tightest pair,
 // and everything else from these events, so every stat stays honest
 // against whatever shapes we mock in here.
 
@@ -74,7 +74,7 @@ export type FileEditOutcome = 'completed' | 'abandoned' | 'failed';
 
 export interface FileEditEvent {
   tool: string;
-  timestamp: string; // ISO — sequence order is what matters for the viz
+  timestamp: string; // ISO - sequence order is what matters for the viz
   sessionId: string;
   sessionMinutes: number;
   handle: string;
@@ -134,7 +134,7 @@ export const PREVIEW_SHARED_FILES: SharedFile[] = [
         lockContested: true,
         linesAdded: 0,
         linesRemoved: 0,
-        summary: 'Refactor attempt — hit file lock from cursor',
+        summary: 'Refactor attempt - hit file lock from cursor',
       },
       {
         tool: 'codex',
@@ -257,7 +257,7 @@ export const PREVIEW_SHARED_FILES: SharedFile[] = [
         lockContested: false,
         linesAdded: 0,
         linesRemoved: 0,
-        summary: 'Routing rewrite — rolled back',
+        summary: 'Routing rewrite - rolled back',
       },
       {
         tool: 'cursor',
@@ -444,7 +444,7 @@ export const PREVIEW_SHARED_FILES: SharedFile[] = [
         lockContested: true,
         linesAdded: 0,
         linesRemoved: 0,
-        summary: 'Rolled back — lock held by claude',
+        summary: 'Rolled back - lock held by claude',
       },
       {
         tool: 'claude-code',
@@ -592,7 +592,7 @@ export const PREVIEW_SHARED_FILES: SharedFile[] = [
         lockContested: false,
         linesAdded: 0,
         linesRemoved: 0,
-        summary: 'Bash syntax error — exit nonzero',
+        summary: 'Bash syntax error - exit nonzero',
       },
       {
         tool: 'claude-code',
@@ -614,7 +614,7 @@ export const PREVIEW_SHARED_FILES: SharedFile[] = [
 // ── Tool handoff pairs ──
 // Computed deterministically from PREVIEW_SHARED_FILES using the same
 // 24h-adjacency rule as the server query. Any change to the file mock
-// automatically propagates — there are no hand-written numbers here.
+// automatically propagates - there are no hand-written numbers here.
 
 const HANDOFF_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -738,7 +738,7 @@ export const PREVIEW_TOOL_HANDOFFS: ToolHandoff[] = derivePreviewHandoffs(PREVIE
 // Synthesized 30-day daily session curve per tool, anchored to today so
 // the preview always aligns with the chart's rolling window. Tells a
 // shape-story: Claude Code is the steady workhorse, Cursor is a medium
-// secondary, Codex ramps up partway through the window. No random — the
+// secondary, Codex ramps up partway through the window. No random - the
 // curves are deterministic arrays so preview renders identically on
 // every mount.
 

@@ -30,7 +30,7 @@ export interface TerminalEnvironment {
 }
 
 export function detectTerminalEnvironment(): TerminalEnvironment {
-  // 1. tmux — best experience: split pane in current session
+  // 1. tmux - best experience: split pane in current session
   if (process.env.TMUX) {
     return { type: 'tmux' as const, name: 'tmux pane' };
   }
@@ -52,7 +52,7 @@ export function detectTerminalEnvironment(): TerminalEnvironment {
     return { type: 'ide-terminal' as const, name: `${name} terminal` };
   }
 
-  // 3. iTerm2 — macOS power terminal, AppleScript for new tab
+  // 3. iTerm2 - macOS power terminal, AppleScript for new tab
   if (termProgram === 'iterm.app' || process.env.ITERM_SESSION_ID) {
     return { type: 'iterm2' as const, name: 'iTerm2 tab' };
   }
@@ -62,7 +62,7 @@ export function detectTerminalEnvironment(): TerminalEnvironment {
     return { type: 'macos-terminal' as const, name: 'Terminal.app' };
   }
 
-  // 5. Linux — try common terminal emulators
+  // 5. Linux - try common terminal emulators
   if (process.platform === 'linux') {
     return { type: 'linux' as const, name: 'terminal' };
   }
@@ -120,7 +120,7 @@ export function buildTerminalCommand(launch: TerminalLaunch): string {
   const toolParts = [cmd, ...args];
   if (task) toolParts.push(shellQuote(task));
 
-  // clear && tool command — user only sees the tool starting
+  // clear && tool command - user only sees the tool starting
   return `${setup.join(' && ')} && clear && ${toolParts.join(' ')}`;
 }
 

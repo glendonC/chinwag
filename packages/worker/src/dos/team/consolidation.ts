@@ -1,4 +1,4 @@
-// Background consolidation pass — identifies near-duplicate memories using
+// Background consolidation pass - identifies near-duplicate memories using
 // the Graphiti funnel pattern (cosine recall → Jaccard structural → tag
 // agreement) and writes propose-only candidates to the review queue. The
 // agent or operator applies a proposal explicitly via apply_consolidation;
@@ -96,7 +96,7 @@ interface ConsolidationStats {
  * gates and record passing pairs as pending proposals.
  *
  * O(n^2) over the full corpus. At MEMORY_MAX_COUNT=2000 with embedding
- * size 384, this is ~2M comparisons of 1.5KB BLOBs — runs in seconds on
+ * size 384, this is ~2M comparisons of 1.5KB BLOBs - runs in seconds on
  * a DO. If the corpus grows beyond ~5K rows, pre-bucket by cosine LSH or
  * limit the scan to the most-recent N writes since the last consolidation.
  */
@@ -217,7 +217,7 @@ export function consolidateMemories(sql: SqlStorage): DOResult<{ ok: true } & Co
 //
 // Port of the contradiction-resolution algorithm from
 // getzep/graphiti `edge_operations.py:537-572` (Apache-2.0). Pure temporal
-// interval algebra — no LLM, no graph. Given a newer memory and an older
+// interval algebra - no LLM, no graph. Given a newer memory and an older
 // candidate, decides whether the older memory should be invalidated and at
 // what timestamp.
 //
@@ -227,7 +227,7 @@ export function consolidateMemories(sql: SqlStorage): DOResult<{ ok: true } & Co
 // newer one began, or the newer one ends before the older one starts, no
 // invalidation is proposed.
 //
-// Both memories MUST have non-null `valid_at` — enforced by the save-time
+// Both memories MUST have non-null `valid_at` - enforced by the save-time
 // default in memory.ts and migration 023's backfill. `invalid_at` is
 // nullable on either side; null = open-ended ("still valid").
 
@@ -254,7 +254,7 @@ export interface SupersessionDecision {
  *      < incoming.valid_at).
  *
  * When true, the returned `newInvalidAt` is the string-valued
- * `incoming.valid_at` — assigning it to `candidate.invalid_at` truncates
+ * `incoming.valid_at` - assigning it to `candidate.invalid_at` truncates
  * the candidate's validity at the exact moment the superseding fact began.
  */
 export function resolveSupersession(
@@ -264,7 +264,7 @@ export function resolveSupersession(
   const incomingValid = new Date(incoming.valid_at).getTime();
   const candidateValid = new Date(candidate.valid_at).getTime();
   if (Number.isNaN(incomingValid) || Number.isNaN(candidateValid)) {
-    // Corrupt timestamps — refuse to make a supersession call rather than
+    // Corrupt timestamps - refuse to make a supersession call rather than
     // guess. The caller keeps the candidate active.
     return { shouldInvalidate: false, newInvalidAt: null };
   }
@@ -280,7 +280,7 @@ export function resolveSupersession(
   if (candidateInvalid <= incomingValid) return { shouldInvalidate: false, newInvalidAt: null };
   if (incomingInvalid <= candidateValid) return { shouldInvalidate: false, newInvalidAt: null };
 
-  // Overlap exists. Only invalidate if candidate is strictly older — a
+  // Overlap exists. Only invalidate if candidate is strictly older - a
   // newer candidate overlapping with an even-newer incoming is not
   // supersession, it's concurrent knowledge.
   if (candidateValid >= incomingValid) return { shouldInvalidate: false, newInvalidAt: null };
@@ -289,7 +289,7 @@ export function resolveSupersession(
 }
 
 /**
- * List pending consolidation proposals for review. Newest first — agents
+ * List pending consolidation proposals for review. Newest first - agents
  * triaging the queue see most recent proposals at the top.
  */
 export interface ProposalRow {
@@ -434,7 +434,7 @@ export function rejectConsolidationProposal(
 
 /**
  * Restore a hidden memory so search picks it up again. Counterpart to
- * applyConsolidationProposal — gives the agent/operator recourse when
+ * applyConsolidationProposal - gives the agent/operator recourse when
  * consolidation absorbed or invalidated something it shouldn't have.
  *
  * Clears whichever hiding mechanism is active:
@@ -443,7 +443,7 @@ export function rejectConsolidationProposal(
  * - If the memory was invalidated by supersession (invalid_at set),
  *   clears invalid_at.
  *
- * If both somehow ended up set via separate paths, both are cleared —
+ * If both somehow ended up set via separate paths, both are cleared -
  * restoration should be unambiguous.
  */
 export function unmergeMemory(

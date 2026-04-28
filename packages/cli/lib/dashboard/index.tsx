@@ -57,7 +57,7 @@ export function Dashboard({
   const viewportRows = layout?.viewportRows || 18;
 
   // ViewProvider owns the reducer (view, selectedIdx, mainFocus, etc.)
-  // and the flash notification — no more prop drilling.
+  // and the flash notification - no more prop drilling.
   return (
     <ViewProvider>
       <DashboardProviders
@@ -161,7 +161,7 @@ function DashboardProviders({
   useCollectorSubscription({ config, teamId });
   // Drains `<agentId>.completed.json` records left behind by externally
   // launched agents (user ran claude-code directly, not through chinmeister).
-  // Runs once per dashboard mount — subsequent external sessions fill the
+  // Runs once per dashboard mount - subsequent external sessions fill the
   // queue again and get swept next time.
   useOrphanCollectorSweep({ config, teamId });
   const integrations = useIntegrationDoctor({ projectRoot, flash });
@@ -218,7 +218,7 @@ interface DashboardViewProps {
 
 /**
  * Handles input, rendering, and all view-level logic. Takes hook returns
- * as props — only view-state is still read from a context, since that is
+ * as props - only view-state is still read from a context, since that is
  * the one piece of state genuinely shared with outer components.
  */
 function DashboardViewComponent({

@@ -18,7 +18,7 @@ interface Props {
   /** Height in px. Default 320. Width fills the container. */
   height?: number;
   /** When set, only files whose path starts with this prefix (at segment
-   *  boundaries — "packages/web" won't match "packages/worker") are laid
+   *  boundaries - "packages/web" won't match "packages/worker") are laid
    *  out. Used by the Row 4 directory selector to scope the treemap. */
   filterPrefix?: string | null;
 }

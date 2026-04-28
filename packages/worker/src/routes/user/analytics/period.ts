@@ -17,7 +17,7 @@ interface PeriodAcc {
   total_sessions_sum: number;
   count: number;
   // Cost/edits summed null-stickily across teams (daily-trends pattern).
-  // cost_sum stays null when no team reported a priced cost — matches the
+  // cost_sum stays null when no team reported a priced cost - matches the
   // per-team "no token data / stale pricing / all-unpriced → --" rule, so
   // a partial-coverage team can't contaminate the aggregate with zero.
   cost_sum: number | null;
@@ -107,7 +107,7 @@ export function project(acc: PeriodComparisonAcc): PeriodComparison {
       total_sessions: cs,
       // Cost/edits summed null-stickily in `merge`; cost_per_edit re-derived
       // here from the merged totals. A simple average of per-team ratios
-      // would mis-weight small teams — same reasoning as daily-trends.
+      // would mis-weight small teams - same reasoning as daily-trends.
       total_estimated_cost_usd: curCost,
       total_edits_in_token_sessions: acc.current.edits_sum,
       cost_per_edit: curCostPerEdit,

@@ -30,7 +30,7 @@ function dirKey(path: string, depth: number): string {
 }
 
 /**
- * Horizontal stacked bars — one row per top-level directory. Bar length
+ * Horizontal stacked bars - one row per top-level directory. Bar length
  * encodes that directory's share of total touches; the bar itself is
  * segmented by work-type. Pairs with FileHeatgrid (file-level) so Row 4
  * reads "where landed, by directory × work-type".

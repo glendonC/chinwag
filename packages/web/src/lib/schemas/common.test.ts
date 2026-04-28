@@ -5,7 +5,7 @@ import { dashboardSummarySchema } from './common.js';
 //
 // Why: before this schema was tightened, optional server fields like
 // `conflict_count` and `recent_sessions_24h` were coerced to 0 on omission
-// via `.default(0)`. That masked degraded payloads — "server said zero"
+// via `.default(0)`. That masked degraded payloads - "server said zero"
 // looked identical to "server omitted." Widgets need to distinguish.
 //
 // Also locks `.passthrough()` so worker-shipped fields outside the web
@@ -54,7 +54,7 @@ describe('dashboardSummarySchema', () => {
     const parsed = dashboardSummarySchema.parse({
       teams: [{ team_id: 't1' }],
     });
-    // These used to silently default to 0 — hiding server omission.
+    // These used to silently default to 0 - hiding server omission.
     // The renderer must see `undefined` so "server said zero" and "server
     // omitted" stay distinguishable.
     expect(parsed.teams[0].conflict_count).toBeUndefined();
@@ -99,7 +99,7 @@ describe('dashboardSummarySchema', () => {
   });
 
   it('preserves active_members via passthrough (web-only field)', () => {
-    // active_members is not declared in the web schema — the shared MCP/CLI
+    // active_members is not declared in the web schema - the shared MCP/CLI
     // contract doesn't carry presence payloads. Passthrough keeps the field
     // available at runtime for consumers like useOverviewData.
     const parsed = dashboardSummarySchema.parse({

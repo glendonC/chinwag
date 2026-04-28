@@ -1,4 +1,4 @@
-// chinmeister init — zero-friction setup command.
+// chinmeister init - zero-friction setup command.
 // Detects tools, writes MCP configs, creates/joins team, configures hooks.
 // Pure stdout output, no TUI.
 //
@@ -68,7 +68,7 @@ export async function runInit(): Promise<void> {
     } catch (err: unknown) {
       const typedErr = err as { status?: number; message?: string };
       if (typedErr.status === 401 || typedErr.status === 403) {
-        // Token expired — attempt refresh before creating a new account.
+        // Token expired - attempt refresh before creating a new account.
         // Creating a new account would orphan the user's existing team memberships.
         const refreshed = await tryRefreshConfig(config);
         if (refreshed) {
@@ -97,7 +97,7 @@ export async function runInit(): Promise<void> {
   }
 
   const coloredHandle = chalk.bold(colorize(handle, color));
-  const accountSuffix = accountVerb ? dim(` — ${accountVerb}`) : '';
+  const accountSuffix = accountVerb ? dim(` - ${accountVerb}`) : '';
   console.log(`  ${ok} Account  ${coloredHandle}${accountSuffix}`);
 
   const client = api(config);
@@ -118,7 +118,7 @@ export async function runInit(): Promise<void> {
       const classified = classifyError(typedErr);
       const hint =
         typedErr.status === 404
-          ? 'Team not found — the .chinmeister file may be stale. Delete it and re-run init.'
+          ? 'Team not found - the .chinmeister file may be stale. Delete it and re-run init.'
           : typedErr.status === 403
             ? 'Access denied. Ask a team member to verify your access.'
             : classified.detail || 'Check your connection and try again.';
@@ -153,9 +153,9 @@ export async function runInit(): Promise<void> {
     }
   }
 
-  console.log(`  ${ok} Team     ${chalk.bold(teamName)} ${dim(`— ${teamVerb}`)}`);
+  console.log(`  ${ok} Team     ${chalk.bold(teamName)} ${dim(`- ${teamVerb}`)}`);
 
-  // Step 3: Detect tools — iterate the registry, not hardcoded checks
+  // Step 3: Detect tools - iterate the registry, not hardcoded checks
   const detected = detectTools(cwd);
 
   // Step 4: Configure detected integrations through the shared doctor path
@@ -195,13 +195,13 @@ export async function runInit(): Promise<void> {
 
   // Step 5: Git pre-commit hook (tool-agnostic enforcement of file leases).
   // Skips silently outside a git repo; prints a single line of status when
-  // it fires. Advisory by default — developers can set CHINMEISTER_GUARD=block
+  // it fires. Advisory by default - developers can set CHINMEISTER_GUARD=block
   // to have the hook actually refuse commits on conflict.
   const hookResult = installChinmeisterHooks(cwd);
   if (hookResult.status === 'installed') {
     const where = hookResult.customHooksPath ? dim(' (custom hooksPath)') : '';
     const preservedNote = hookResult.preservedOriginal
-      ? dim(' — your existing pre-commit preserved as .orig and chained first')
+      ? dim(' - your existing pre-commit preserved as .orig and chained first')
       : '';
     console.log(`  ${ok} Git hook installed${where}${preservedNote}`);
   } else if (hookResult.status === 'upgraded') {
@@ -210,7 +210,7 @@ export async function runInit(): Promise<void> {
   } else if (hookResult.status === 'error') {
     console.log(`  ${chalk.yellow('!')} Git hook skipped: ${hookResult.error}`);
   }
-  // status === 'skipped-not-a-repo' is silent — a non-git directory is a
+  // status === 'skipped-not-a-repo' is silent - a non-git directory is a
   // legitimate use case (e.g. running chinmeister in a plain project folder).
 
   // Next steps
@@ -251,7 +251,7 @@ async function tryRefreshConfig(
 ): Promise<{ config: ChinmeisterConfig; handle: string; color: string } | null> {
   if (!staleConfig.refresh_token) return null;
   try {
-    const client = api(null); // unauthenticated — refresh endpoint uses body token
+    const client = api(null); // unauthenticated - refresh endpoint uses body token
     const result = await client.post<{ token: string; refresh_token: string }>('/auth/refresh', {
       refresh_token: staleConfig.refresh_token,
     });
@@ -266,6 +266,6 @@ async function tryRefreshConfig(
     const me = await api(refreshedConfig).get<AuthenticatedUser>('/me');
     return { config: refreshedConfig, handle: me.handle, color: me.color };
   } catch {
-    return null; // Refresh failed — caller will fall back to new account
+    return null; // Refresh failed - caller will fall back to new account
   }
 }

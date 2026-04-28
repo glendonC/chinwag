@@ -13,7 +13,7 @@ function getTeam(id = 'test-team') {
 // we test the behavior that IS observable: recently active members are NOT evicted,
 // and the cleanup does not crash or corrupt state.
 
-describe('Cleanup — active members preserved', () => {
+describe('Cleanup - active members preserved', () => {
   const team = () => getTeam('cleanup-active-tests');
   const agent1 = 'cursor:cleanup-a1';
   const agent2 = 'claude:cleanup-a2';
@@ -42,7 +42,7 @@ describe('Cleanup — active members preserved', () => {
   });
 
   it('multiple getContext calls do not erroneously evict active members', async () => {
-    // Call getContext multiple times — cleanup should not evict fresh members
+    // Call getContext multiple times - cleanup should not evict fresh members
     for (let i = 0; i < 5; i++) {
       const ctx = await team().getContext(agent1, owner1);
       expect(ctx.members.length).toBe(2);
@@ -52,7 +52,7 @@ describe('Cleanup — active members preserved', () => {
 
 // --- Cleanup does not remove data for active members ---
 
-describe('Cleanup — data integrity', () => {
+describe('Cleanup - data integrity', () => {
   const team = () => getTeam('cleanup-data-tests');
   const agentId = 'cursor:cleanup-d1';
   const ownerId = 'user-cleanup-d1';
@@ -100,7 +100,7 @@ describe('Cleanup — data integrity', () => {
 // Since we can't backdate sessions in the test harness, we test that
 // recently created sessions are NOT pruned.
 
-describe('Cleanup — recent sessions preserved', () => {
+describe('Cleanup - recent sessions preserved', () => {
   const team = () => getTeam('cleanup-session-tests');
   const agentId = 'cursor:cleanup-s1';
   const ownerId = 'user-cleanup-s1';
@@ -141,7 +141,7 @@ describe('Cleanup throttling', () => {
   });
 
   it('multiple rapid getContext calls succeed (cleanup throttled)', async () => {
-    // Call getContext 10 times rapidly — cleanup should not run more than once
+    // Call getContext 10 times rapidly - cleanup should not run more than once
     const results = [];
     for (let i = 0; i < 10; i++) {
       const ctx = await team().getContext(agentId, ownerId);
@@ -196,7 +196,7 @@ describe('Leave cleans up member data', () => {
 // Locks from stale agents (no heartbeat, no WS) are cleaned up.
 // We can test that active members' locks are NOT cleaned up.
 
-describe('Stale lock cleanup — active locks preserved', () => {
+describe('Stale lock cleanup - active locks preserved', () => {
   const team = () => getTeam('cleanup-stalelock-tests');
   const agent1 = 'cursor:slk1';
   const agent2 = 'claude:slk2';
@@ -228,7 +228,7 @@ describe('Stale lock cleanup — active locks preserved', () => {
 // When a member goes stale, their open sessions are auto-closed.
 // We test that active members' sessions are NOT auto-closed.
 
-describe('Orphaned session auto-close — active sessions preserved', () => {
+describe('Orphaned session auto-close - active sessions preserved', () => {
   const team = () => getTeam('cleanup-orphan-tests');
   const agentId = 'cursor:orphan1';
   const ownerId = 'user-orphan1';

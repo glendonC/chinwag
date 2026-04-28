@@ -21,7 +21,7 @@ type ThemePreference = (typeof THEME_OPTIONS)[number];
 // The mapping lives here (the only place in the UI that knows the magnitudes).
 // If someone edits `~/.chinmeister/config.json` or `.chinmeister` to an off-preset
 // combination we show no preset as active rather than lying about which one
-// matches — the MCP still honors the concrete values either way.
+// matches - the MCP still honors the concrete values either way.
 const BUDGET_DEFAULTS = {
   memoryResultCap: 20,
   memoryContentTruncation: 500,
@@ -82,7 +82,7 @@ interface BudgetShape {
 /**
  * Extract only the fields the user has actively set. Unset fields stay
  * `undefined` so the UI can distinguish "defaults are showing through"
- * from "the user explicitly picked this value" — which matters for the
+ * from "the user explicitly picked this value" - which matters for the
  * empty state: we don't want to highlight `Balanced` as the user's choice
  * just because that's what the defaults happen to be.
  */

@@ -134,7 +134,7 @@ export function useConversationAnalytics(
 
         if (!cancelled) setData(merged);
       } catch {
-        // Non-critical — keep empty state
+        // Non-critical - keep empty state
       } finally {
         if (!cancelled) setIsLoading(false);
       }

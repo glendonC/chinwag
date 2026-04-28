@@ -1,4 +1,4 @@
-// Active report runs — in-memory, keyed by reportId.
+// Active report runs - in-memory, keyed by reportId.
 //
 // When the real backend lands, this becomes the subscription surface
 // for server-pushed run state (launched / completed / failed events).

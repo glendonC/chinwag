@@ -9,7 +9,7 @@ function getTeam(id = 'test-team') {
 // WebSocket handler tests
 //
 // The TeamDO's webSocketMessage() and webSocketClose() are Hibernation
-// API callbacks invoked by the Workers runtime — they can't be called
+// API callbacks invoked by the Workers runtime - they can't be called
 // directly via RPC. Instead, we test through two complementary paths:
 //
 // 1. The DO's fetch() endpoint (WebSocket connection setup and validation)
@@ -26,7 +26,7 @@ function getTeam(id = 'test-team') {
 // rejection/error paths of the fetch() endpoint here. The success path (101) is
 // implicitly validated by the DO accepting connections in production.
 
-describe('WebSocket connection setup — validation', () => {
+describe('WebSocket connection setup - validation', () => {
   const team = () => getTeam('ws-setup-validation');
   const agentId = 'cursor:ws-setup-val1';
   const ownerId = 'user-ws-setup-val1';
@@ -105,7 +105,7 @@ describe('WebSocket connection setup — validation', () => {
 
 // --- WebSocket fetch endpoint: path routing ---
 
-describe('WebSocket fetch endpoint — path routing', () => {
+describe('WebSocket fetch endpoint - path routing', () => {
   const team = () => getTeam('ws-path-routing');
 
   it('returns 404 for /ws/extra path', async () => {
@@ -286,13 +286,13 @@ describe('Activity update via WS path (updateActivity)', () => {
   });
 
   it('activity update with empty files array succeeds', async () => {
-    // WS handler sends (data.files || []) — empty arrays are valid
+    // WS handler sends (data.files || []) - empty arrays are valid
     const res = await team().updateActivity(agent1, [], '', owner1);
     expect(res.ok).toBe(true);
   });
 
   it('activity update with empty summary succeeds', async () => {
-    // WS handler sends (data.summary || '') — empty string is valid
+    // WS handler sends (data.summary || '') - empty string is valid
     const res = await team().updateActivity(agent1, ['src/a.js'], '', owner1);
     expect(res.ok).toBe(true);
   });
@@ -398,7 +398,7 @@ describe('File report via WS path (reportFile)', () => {
 
 // --- WebSocket close behavior: lock release on disconnect ---
 
-describe('WebSocket close — lock release on disconnect', () => {
+describe('WebSocket close - lock release on disconnect', () => {
   const team = () => getTeam('ws-close-lock-release');
   const agent1 = 'cursor:ws-cl1';
   const agent2 = 'claude:ws-cl2';
@@ -421,7 +421,7 @@ describe('WebSocket close — lock release on disconnect', () => {
   });
 
   it('releaseFiles(null) releases ALL locks (simulates webSocketClose)', async () => {
-    // webSocketClose calls releaseFilesFn(sql, agentId, null) — no ownerId check
+    // webSocketClose calls releaseFilesFn(sql, agentId, null) - no ownerId check
     const rel = await team().releaseFiles(agent1, null, owner1);
     expect(rel.ok).toBe(true);
 
@@ -440,7 +440,7 @@ describe('WebSocket close — lock release on disconnect', () => {
 
 // --- WebSocket close behavior: agent leave (member_left) ---
 
-describe('WebSocket close — agent leaves team', () => {
+describe('WebSocket close - agent leaves team', () => {
   const team = () => getTeam('ws-close-leave');
   const agent1 = 'cursor:ws-leave1';
   const agent2 = 'claude:ws-leave2';
@@ -478,7 +478,7 @@ describe('WebSocket close — agent leaves team', () => {
 
 // --- WebSocket close: abnormal close (no explicit leave, just disconnect) ---
 
-describe('WebSocket close — abnormal disconnect (locks released, member stays)', () => {
+describe('WebSocket close - abnormal disconnect (locks released, member stays)', () => {
   const team = () => getTeam('ws-close-abnormal');
   const agent1 = 'cursor:ws-abnormal1';
   const agent2 = 'claude:ws-abnormal2';
@@ -524,7 +524,7 @@ describe('Watcher role restrictions (watchers cannot update activity or report f
 
   // NOTE: The watcher restriction (isAgent check) happens inside webSocketMessage()
   // which we can't call directly. However, the RPC methods themselves don't have
-  // role restrictions — they work for any team member. The role check is specifically
+  // role restrictions - they work for any team member. The role check is specifically
   // a WebSocket-layer guard. We verify the RPC path works for both to ensure the
   // underlying functions don't have unexpected restrictions.
 

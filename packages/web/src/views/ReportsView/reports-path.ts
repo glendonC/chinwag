@@ -23,7 +23,7 @@ export type PathAvailability = {
   secondaryOffered: boolean;
   /** Display label for the active path. */
   label: string;
-  /** Short copy for the trust line — what happens when the user launches. */
+  /** Short copy for the trust line - what happens when the user launches. */
   trustLine: string;
 };
 

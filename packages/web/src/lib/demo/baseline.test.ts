@@ -3,13 +3,13 @@
  *
  * Walks the healthy baseline UserAnalytics payload and asserts every array
  * field has at least one element. Numeric scalars are not checked (zero is a
- * legal value for many of them — e.g. memory_secrets_shield.blocked_period
+ * legal value for many of them - e.g. memory_secrets_shield.blocked_period
  * in a clean week). The trap this catches is the one we just hit: a new
  * schema field gets added (cross_tool_memory_flow, memory_categories, etc.),
  * the widget reads it, but baseline.ts forgets to populate it. Demo mode then
  * silently shows empty tiles for redesigned widgets.
  *
- * Allow-list entries are intentional empties — fields that should be `[]` in
+ * Allow-list entries are intentional empties - fields that should be `[]` in
  * a healthy team because the data only exists under specific conditions
  * (e.g. retry_patterns when no retries happened). Each allow-list entry must
  * carry a one-line rationale. Keep the list short.
@@ -33,11 +33,11 @@ const ALLOW_EMPTY_ARRAYS: Record<string, string> = {
   // Models the pricing layer has not yet priced. Healthy baseline assumes
   // every observed model is in the LiteLLM snapshot.
   'token_usage.models_without_pricing': 'healthy baseline assumes all models priced',
-  // Token-coverage capabilities — when every reporting tool has full
+  // Token-coverage capabilities - when every reporting tool has full
   // capability coverage, capabilities_missing is empty.
   'data_coverage.capabilities_missing': 'healthy baseline has full capability coverage',
   'data_coverage.tools_without_data': 'healthy baseline has every tool reporting',
-  // Conversation tool coverage breakdown — healthy baseline has every
+  // Conversation tool coverage breakdown - healthy baseline has every
   // conversation-capable tool reporting.
   'conversation.tool_coverage.unsupported_tools': 'healthy baseline has full conversation coverage',
 };

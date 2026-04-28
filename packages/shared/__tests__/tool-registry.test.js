@@ -3,7 +3,7 @@ import { MCP_TOOLS, getMcpToolById } from '../tool-registry.js';
 
 describe('MCP_TOOLS', () => {
   it('registers every known tool', () => {
-    // Asserted against the explicit expectedTools list below — count is
+    // Asserted against the explicit expectedTools list below - count is
     // derived so adding a tool means adding it to expectedTools (a single
     // source of truth), not updating a hardcoded number here.
     expect(MCP_TOOLS.length).toBe(expectedTools.length);
@@ -304,7 +304,7 @@ describe('tool spawn configurations', () => {
 
 describe('tool catalog mcpCompatible flags', () => {
   // MCP_TOOLS holds every tool whose sessions chinmeister wants to attribute
-  // — not strictly "tools that speak MCP". Copilot, for example, is in the
+  // - not strictly "tools that speak MCP". Copilot, for example, is in the
   // registry so clientInfo can be routed to a distinct `copilot` id, but
   // Copilot itself is not an MCP host. The invariant we actually care about
   // is: anything claiming `mcpCompatible` must also be `mcpConfigurable`

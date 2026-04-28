@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 
 // Per-message by_model rollup: migration 019 populated conversation_events
 // with per-assistant token + model metadata, but queryTokenUsage summed only
-// from the sessions table — which meant multi-model sessions (Opus main +
+// from the sessions table - which meant multi-model sessions (Opus main +
 // Haiku sub-agents, a common Claude Code pattern) attributed every token to
 // the session's single `agent_model` column. These tests lock the hybrid
 // rollup: per-message data wins where available, session-level fallback
@@ -81,14 +81,14 @@ describe('by_model rollup: per-message preference', () => {
     const sess = await team.startSession(agentId, 'alice', 'react', ownerId);
     const sessionId = sess.session_id;
     await team.recordTokenUsage(agentId, sessionId, 20000, 4000, 10000, 0, ownerId);
-    // No conversation_events uploaded — simulates pre-migration-019 sessions
+    // No conversation_events uploaded - simulates pre-migration-019 sessions
     // or tools without a tokenPaths-equipped spec (e.g. raw MCP telemetry).
 
     const analytics = await team.getAnalytics(agentId, 7, ownerId, true);
     const byModel = analytics.token_usage.by_model;
     // Fallback CTE attributes tokens to sessions.agent_model. The session
     // was started without an explicit agent_model; any non-empty string
-    // works — we just need the one row from the fallback path.
+    // works - we just need the one row from the fallback path.
     // startSession doesn't set agent_model by itself, so the session may
     // be excluded from by_model (requires non-null agent_model). Totals
     // still reflect the token upload; we only assert totals don't vanish.

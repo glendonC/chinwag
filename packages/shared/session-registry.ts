@@ -230,7 +230,7 @@ export function deleteCompletedSession(
  * List every completion record currently on disk. Used by the dashboard's
  * orphan-sweep path: externally-launched agents (claude-code run directly,
  * not via chinmeister's managed flow) still produce `<agentId>.completed.json`
- * via MCP cleanup, but the dashboard never observes their exit — so those
+ * via MCP cleanup, but the dashboard never observes their exit - so those
  * files pile up until a future dashboard session picks them up. Sweeping
  * on mount lets post-session collectors run against external agents too,
  * closing the cost-coverage gap for the common "user launches their own

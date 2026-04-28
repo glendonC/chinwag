@@ -16,7 +16,7 @@ export function getConnectedAgentIds(ctx: DurableObjectState): Set<string> {
 
 /**
  * All member IDs with any active WebSocket (agent, watcher, daemon).
- * Used by cleanup eviction protection — any connected socket keeps the
+ * Used by cleanup eviction protection - any connected socket keeps the
  * member row alive regardless of role.
  */
 export function getAllConnectedMemberIds(ctx: DurableObjectState): Set<string> {

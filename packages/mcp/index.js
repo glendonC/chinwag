@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-// chinmeister MCP server — connects AI agents to the chinmeister network.
+// chinmeister MCP server - connects AI agents to the chinmeister network.
 // Runs locally via stdio transport. Reads ~/.chinmeister/config.json for auth.
-// CRITICAL: Never use console.log — it corrupts stdio JSON-RPC. Use the structured logger.
+// CRITICAL: Never use console.log - it corrupts stdio JSON-RPC. Use the structured logger.
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -77,7 +77,7 @@ async function main() {
 
   // 4. Resolve context-budget config from team → user defaults.
   // Runtime overrides land later via `chinmeister_configure_budget`.
-  // Budget loading is best-effort — a broken team or user config must never
+  // Budget loading is best-effort - a broken team or user config must never
   // prevent the MCP server from starting.
   //
   // User-layer budgets are now stored server-side (web-managed) and returned
@@ -145,13 +145,13 @@ async function main() {
     },
   });
 
-  // ── Team join helper — called once after identity is fully resolved ──
+  // ── Team join helper - called once after identity is fully resolved ──
   let teamJoined = false;
   async function joinTeamOnce() {
     if (teamJoined || !state.teamId) return;
     teamJoined = true;
     // Expose an in-flight promise so the tool middleware can await membership
-    // registration before hitting the backend — prevents 403s from tool calls
+    // registration before hitting the backend - prevents 403s from tool calls
     // that race ahead of the initial joinTeam round-trip.
     let resolveJoin;
     state.teamJoinComplete = new Promise((res) => {
@@ -165,7 +165,7 @@ async function main() {
         const session = await team.startSession(state.teamId, profile.frameworks?.[0] || 'unknown');
         const sessionId = session?.session_id;
         if (!sessionId) {
-          log.warn('Session start returned invalid response — continuing without session');
+          log.warn('Session start returned invalid response - continuing without session');
         } else {
           state.sessionId = sessionId;
           log.info(`Session started: ${state.sessionId}`);
@@ -183,7 +183,7 @@ async function main() {
           const payload = data.payload || {};
 
           // First-claim-wins across all connected MCPs. Execution is deferred
-          // until the server confirms the claim was accepted — the server
+          // until the server confirms the claim was accepted - the server
           // responds to every claim_command with a claim_result, and the
           // losing MCPs get { error, code: 'CONFLICT' } so their callback
           // is a no-op. The 5-second timeout is a fallback for disconnects.
@@ -256,15 +256,15 @@ async function main() {
     }
   }
 
-  // 7. Create MCP server (tools are registered before join — they work with deferred team state)
+  // 7. Create MCP server (tools are registered before join - they work with deferred team state)
   const server = new McpServer({
     name: 'chinmeister',
     version: PKG.version,
-    instructions: `You are connected to chinmeister — a shared brain for your team's AI coding agents. Other agents (potentially from different tools like Cursor, Claude Code, Windsurf) may be working on this project right now.
+    instructions: `You are connected to chinmeister - a shared brain for your team's AI coding agents. Other agents (potentially from different tools like Cursor, Claude Code, Windsurf) may be working on this project right now.
 
-CRITICAL WORKFLOW — follow these steps every session:
+CRITICAL WORKFLOW - follow these steps every session:
 1. FIRST call chinmeister_get_team_context to see who's working, what files are active, any locked files, recent messages, and shared project knowledge. Include your model identifier if you know it (e.g. "claude-opus-4-6", "gpt-4o").
-2. BEFORE editing any file, call chinmeister_check_conflicts with the files you plan to modify. If a file is locked or another agent is editing it, coordinate first — use chinmeister_send_message to notify them.
+2. BEFORE editing any file, call chinmeister_check_conflicts with the files you plan to modify. If a file is locked or another agent is editing it, coordinate first - use chinmeister_send_message to notify them.
 3. AFTER you start editing, call chinmeister_claim_files to lock the files you're working on, then call chinmeister_update_activity with your file list and a brief summary.
 4. When you discover something important about the project (setup requirements, gotchas, conventions, decisions), call chinmeister_save_memory so every future agent session starts with that knowledge.
 5. AFTER running git commit, call chinmeister_report_commits with the commit SHA(s), branch name, and commit message. This links your commits to this session for git attribution analytics.
@@ -278,7 +278,7 @@ This coordination prevents merge conflicts across tools and builds shared projec
   registerResources(server, profile);
 
   // 8. Hook into MCP initialization to resolve identity, then join team.
-  //    The MCP handshake includes clientInfo.name — the most reliable signal for
+  //    The MCP handshake includes clientInfo.name - the most reliable signal for
   //    which tool is hosting us. We defer the team join until this fires so the
   //    first (and only) join carries the correct host_tool identity.
   //    Fallback: if the handshake doesn't fire within 5s, join with whatever
@@ -289,7 +289,7 @@ This coordination prevents merge conflicts across tools and builds shared projec
   if (state.teamId) {
     identityTimer = setTimeout(() => {
       if (!teamJoined) {
-        log.info('MCP handshake timeout — joining with pre-handshake identity');
+        log.info('MCP handshake timeout - joining with pre-handshake identity');
         joinTeamOnce();
       }
     }, IDENTITY_TIMEOUT_MS);

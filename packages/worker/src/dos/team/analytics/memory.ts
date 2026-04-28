@@ -20,7 +20,7 @@ const log = createLogger('TeamDO.analytics');
 
 // Days since last access (or since creation, for never-accessed memories)
 // before a memory counts as stale. Feeds memory-health's `stale` stat.
-// Named constant so the threshold lives in one place — a future stale-list
+// Named constant so the threshold lives in one place - a future stale-list
 // widget or a tunable setting can read from here instead of re-hardcoding.
 const STALE_MEMORY_DAYS = 30;
 
@@ -34,7 +34,7 @@ export function queryMemoryUsage(
     // memories the caller authored (per ANALYTICS_SPEC.md §10, per-user
     // memory access tracking is deferred).
 
-    // Total memories — exclude soft-merged rows so the count reflects what
+    // Total memories - exclude soft-merged rows so the count reflects what
     // search would actually return. The merged rows stay in the table for
     // unmerge recourse but are not "live" memory.
     const { sql: totalQ, params: totalParams } = withScope(
@@ -58,7 +58,7 @@ export function queryMemoryUsage(
 
     // Stale memories: last access (or creation, for never-accessed rows) is
     // older than STALE_MEMORY_DAYS. Excludes soft-merged. Thresholded, not
-    // period-windowed — age is absolute, so this field is 'all-time' scope.
+    // period-windowed - age is absolute, so this field is 'all-time' scope.
     const { sql: staleQ, params: staleParams } = withScope(
       `SELECT COUNT(*) AS cnt FROM memories
          WHERE merged_into IS NULL AND invalid_at IS NULL
@@ -104,7 +104,7 @@ export function queryMemoryUsage(
 
     // Unaddressed formation observations by recommendation (live).
     // `status = 'observed'` means the auditor flagged it but no reviewer has
-    // acted yet — that is the live review-queue signal the memory-safety
+    // acted yet - that is the live review-queue signal the memory-safety
     // widget surfaces. Age does not gate the queue; a year-old unaddressed
     // flag still needs a decision.
     // Scope not applied: formation_observations has no handle column.
@@ -131,7 +131,7 @@ export function queryMemoryUsage(
 
     // Live count of secret-detector blocks in the last 24h. Fixed window
     // (not the global date picker) because the memory-safety widget is a
-    // live review surface — a recent block is actionable, an old block is
+    // live review surface - a recent block is actionable, an old block is
     // audit history that lives elsewhere.
     // Scope not applied: daily_metrics has no handle column.
     const secretsRow = row(
@@ -204,9 +204,9 @@ export function queryMemoryOutcomeCorrelation(
 ): MemoryOutcomeCorrelation[] {
   try {
     // Three-bucket split:
-    //   hit memory          — at least one search call returned results
-    //   searched, no results — searched but every call came back empty
-    //   no search           — did not search memory at all
+    //   hit memory          - at least one search call returned results
+    //   searched, no results - searched but every call came back empty
+    //   no search           - did not search memory at all
     // Bucketing on hits (not raw search count) keeps the correlation honest
     // under hybrid + MMR retrieval: a session that searches and gets noise
     // is materially different from one that searches and finds relevant
@@ -299,7 +299,7 @@ export function queryTopMemories(
 // consumer_tool ran sessions in the period that COULD have read memories
 // authored by author_tool. Honest framing: this measures co-presence
 // (consumer_tool had sessions while author_tool's memories existed) and
-// the AVAILABLE memory pool — not exact read attribution. The per-memory
+// the AVAILABLE memory pool - not exact read attribution. The per-memory
 // `memory_search_results` join table is unbuilt (ANALYTICS_SPEC §10), so
 // we cannot say which sessions read which memories. The renderer labels
 // each row "available to" not "read by" to keep the framing honest.
@@ -368,10 +368,10 @@ export function queryCrossToolMemoryFlow(
 }
 
 // Memory aging composition. Currently-live memories bucketed by age. Lifetime
-// scope by design — picker doesn't apply (catalog timeScope='all-time').
+// scope by design - picker doesn't apply (catalog timeScope='all-time').
 //
 // Detail-view English questions this anchors:
-//   1. Is knowledge fresh? (this widget — composition bar)
+//   1. Is knowledge fresh? (this widget - composition bar)
 //   2. Which categories age fastest? (categories × age bucket)
 //   3. Are we accumulating or replacing? (created vs invalidated trend)
 //   4. Which directories have fresh knowledge? (memory.tags or path heuristic)
@@ -412,7 +412,7 @@ export function queryMemoryAging(sql: SqlStorage): MemoryAgingComposition {
 // state names the gate.
 //
 // Detail-view English questions this anchors:
-//   1. Top categories? (this widget — ranked list)
+//   1. Top categories? (this widget - ranked list)
 //   2. Which categories help completion? (category × outcome correlation)
 //   3. Which directories have which categories? (heatmap)
 //   4. Who authors which categories? (handle-blind handle counts × category)

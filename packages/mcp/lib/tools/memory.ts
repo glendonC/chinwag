@@ -299,7 +299,7 @@ export function registerMemoryTools(
     'chinmeister_review_consolidation_proposals',
     {
       description:
-        'List pending consolidation proposals — pairs of memories that look like duplicates (cosine similarity + lexical overlap + tag-set agreement). Each proposal shows both memories side-by-side so you can decide whether to apply (merge) or reject. Nothing merges automatically.',
+        'List pending consolidation proposals - pairs of memories that look like duplicates (cosine similarity + lexical overlap + tag-set agreement). Each proposal shows both memories side-by-side so you can decide whether to apply (merge) or reject. Nothing merges automatically.',
       inputSchema: reviewProposalsSchema,
     },
     withTeam(
@@ -346,7 +346,7 @@ export function registerMemoryTools(
     'chinmeister_apply_consolidation',
     {
       description:
-        'Apply a consolidation proposal — soft-merges the source memory into the target. The source stays in the database with a merged_into pointer; search excludes it. Reversible via chinmeister_unmerge_memory.',
+        'Apply a consolidation proposal - soft-merges the source memory into the target. The source stays in the database with a merged_into pointer; search excludes it. Reversible via chinmeister_unmerge_memory.',
       inputSchema: applyProposalSchema,
     },
     withTeam(deps, async (args, { preamble }) => {
@@ -376,7 +376,7 @@ export function registerMemoryTools(
     'chinmeister_run_formation_sweep',
     {
       description:
-        'Run shadow-mode formation auditor on recent memories. For each unclassified memory, an LLM looks at the top-5 cosine-similar neighbours and records whether the new memory should be kept, merged, evolved, or discarded. Recommendations are observability only — nothing applies automatically. Use this periodically to audit memory quality and tune consolidation thresholds.',
+        'Run shadow-mode formation auditor on recent memories. For each unclassified memory, an LLM looks at the top-5 cosine-similar neighbours and records whether the new memory should be kept, merged, evolved, or discarded. Recommendations are observability only - nothing applies automatically. Use this periodically to audit memory quality and tune consolidation thresholds.',
       inputSchema: formationSweepSchema,
     },
     withTeam(deps, async (args, { preamble }) => {
@@ -408,7 +408,7 @@ export function registerMemoryTools(
     'chinmeister_review_formation_observations',
     {
       description:
-        'List recent formation observations — what the auditor LLM thought about each memory (keep / merge / evolve / discard). Filter by recommendation to focus on flagged cases. Recommendations are observability; apply consolidation explicitly via chinmeister_apply_consolidation if you agree.',
+        'List recent formation observations - what the auditor LLM thought about each memory (keep / merge / evolve / discard). Filter by recommendation to focus on flagged cases. Recommendations are observability; apply consolidation explicitly via chinmeister_apply_consolidation if you agree.',
       inputSchema: formationListSchema,
     },
     withTeam(
@@ -446,7 +446,7 @@ export function registerMemoryTools(
         const lines = obs.map((o) => {
           const target = o.target_id ? ` -> ${o.target_id}` : '';
           const conf = typeof o.confidence === 'number' ? ` (conf ${o.confidence.toFixed(2)})` : '';
-          const reason = o.llm_reason ? ` — ${o.llm_reason}` : '';
+          const reason = o.llm_reason ? ` - ${o.llm_reason}` : '';
           return `[${o.recommendation}${conf}] memory ${o.memory_id}${target}${reason}`;
         });
         return { content: [{ type: 'text' as const, text: lines.join('\n') }] };

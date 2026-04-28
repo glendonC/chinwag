@@ -74,7 +74,7 @@ async function loadMainPaneModule() {
       try {
         return type({ ...rest, children });
       } catch {
-        // component threw — record it as-is
+        // component threw - record it as-is
       }
     }
     const el = {

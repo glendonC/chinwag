@@ -35,7 +35,7 @@ async function createTeamWithUser() {
   return { ...auth, teamId: team_id };
 }
 
-describe('memory save — secret detection', () => {
+describe('memory save - secret detection', () => {
   it('rejects a save containing an AWS access key with code SECRET_DETECTED', async () => {
     const { teamId, headers } = await createTeamWithUser();
     const res = await SELF.fetch(`http://localhost/teams/${teamId}/memory`, {
@@ -119,7 +119,7 @@ describe('memory save — secret detection', () => {
   });
 });
 
-describe('memory update — secret detection', () => {
+describe('memory update - secret detection', () => {
   it('rejects updating a memory with secret-bearing text', async () => {
     const { teamId, headers } = await createTeamWithUser();
     // First, save a clean memory

@@ -28,7 +28,7 @@ export default function SharedFileDetail({ filePath, onBack }: Props) {
       <div className={styles.detail}>
         <BackLink label="Tools" onClick={onBack} />
         <div className={styles.notFound}>
-          That file isn&apos;t in the current handoff view. The link may be stale — try going back
+          That file isn&apos;t in the current handoff view. The link may be stale - try going back
           to the Tools tab.
         </div>
       </div>
@@ -45,7 +45,7 @@ export default function SharedFileDetail({ filePath, onBack }: Props) {
 
   const toolStats = buildToolStats(file.edits);
 
-  // One plain-English context line in place of a stat grid — per the
+  // One plain-English context line in place of a stat grid - per the
   // design spec, file-grained aggregate metrics (completion %, conflict
   // count) would dress inference up as fact when the underlying signals
   // are SOFT. The edit log IS the content.

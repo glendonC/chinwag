@@ -23,7 +23,7 @@ import type { AddToolFn, ToolDeps } from './types.js';
 
 const log = createLogger('team');
 
-/** Shorter timeout for heartbeats — lightweight, latency-sensitive. */
+/** Shorter timeout for heartbeats - lightweight, latency-sensitive. */
 const HEARTBEAT_TIMEOUT_MS = 5_000;
 
 const joinTeamSchema = z.object({
@@ -124,7 +124,7 @@ export function registerTeamTool(
                 }
               } catch (joinErr: unknown) {
                 log.error('Rejoin failed: ' + getErrorMessage(joinErr));
-                // Rejoin failed — count it as a failure (already incremented above)
+                // Rejoin failed - count it as a failure (already incremented above)
               }
             } else if (consecutiveFailures <= 3 || consecutiveFailures % 10 === 0) {
               // Log first few failures, then throttle to every 10th to avoid spam

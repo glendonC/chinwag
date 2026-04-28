@@ -88,7 +88,7 @@ describe('safeParse', () => {
   });
 
   it('handles numeric input (non-string)', () => {
-    // JSON.parse(123) returns 123 — this is valid
+    // JSON.parse(123) returns 123 - this is valid
     expect(safeParse(123, 'test')).toBe(123);
   });
 

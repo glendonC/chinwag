@@ -25,7 +25,7 @@ async function loadGuardsModule() {
   vi.resetModules();
   resetElementTracker();
 
-  // Mock React — createElement captures what the component returns
+  // Mock React - createElement captures what the component returns
   vi.doMock('react', () => {
     const createElement = (type, props, ...children) => {
       const el = { type, props: props || {}, children };
@@ -38,7 +38,7 @@ async function loadGuardsModule() {
     };
   });
 
-  // Mock Ink components — they're just tag names
+  // Mock Ink components - they're just tag names
   vi.doMock('ink', () => ({
     Box: 'Box',
     Text: 'Text',

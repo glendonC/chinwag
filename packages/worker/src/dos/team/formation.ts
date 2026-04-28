@@ -1,4 +1,4 @@
-// Shadow-mode formation pass — after each successful memory save, an LLM
+// Shadow-mode formation pass - after each successful memory save, an LLM
 // looks at the new memory alongside top-K cosine-similar neighbours and
 // classifies it as keep / merge / evolve / discard. The recommendation is
 // recorded but NEVER applied automatically.
@@ -6,7 +6,7 @@
 // Why shadow-mode and not auto-apply: Mem0 reversed write-time
 // auto-classification in v3 (Apr 2025) explicitly because auto-merge ate
 // agent context too often. Same-model maker-checker is variance reduction,
-// not bias reduction — both calls hallucinate the same way. Production
+// not bias reduction - both calls hallucinate the same way. Production
 // memory systems converged on "append-only writes, defer disambiguation
 // to retrieval / consolidation review." This module honors that.
 //
@@ -54,7 +54,7 @@ function cosineSimilarity(a: Float32Array, b: Float32Array): number {
 /**
  * Strip a value down to a structured recommendation. Returns null if the
  * LLM output couldn't be parsed into something usable; caller logs and
- * skips. We deliberately don't fail-open or fail-closed — formation is
+ * skips. We deliberately don't fail-open or fail-closed - formation is
  * advisory and a missing observation is fine.
  */
 export function parseFormationDecision(raw: string): FormationDecision | null {
@@ -85,7 +85,7 @@ export function parseFormationDecision(raw: string): FormationDecision | null {
       recommendation: 'keep',
       target_id: null,
       confidence: null,
-      reason: 'LLM proposed merge/evolve without a target id — downgraded to keep',
+      reason: 'LLM proposed merge/evolve without a target id - downgraded to keep',
     };
   }
   const confRaw = obj.confidence;
@@ -97,7 +97,7 @@ export function parseFormationDecision(raw: string): FormationDecision | null {
 /**
  * Run formation classification on a freshly-saved memory and write the
  * recommendation as an observation. Designed to be invoked from
- * ctx.waitUntil() — fire and forget; never throws.
+ * ctx.waitUntil() - fire and forget; never throws.
  */
 export async function runFormationPass(sql: SqlStorage, env: Env, memoryId: string): Promise<void> {
   try {
@@ -173,7 +173,7 @@ export async function runFormationPass(sql: SqlStorage, env: Env, memoryId: stri
     }
 
     // Validate target_id: if the LLM picked one, it must be in the top-K
-    // we showed it. Defensive — if it hallucinated an id, downgrade to keep.
+    // we showed it. Defensive - if it hallucinated an id, downgrade to keep.
     if (decision.target_id && !top.some((t) => t.id === decision.target_id)) {
       log.warn('formation hallucinated target_id; downgrading to keep', {
         memoryId,
@@ -195,7 +195,7 @@ export async function runFormationPass(sql: SqlStorage, env: Env, memoryId: stri
       FORMATION_MODEL,
     );
   } catch (err) {
-    log.warn('formation pass threw — skipping observation', {
+    log.warn('formation pass threw - skipping observation', {
       memoryId,
       error: err instanceof Error ? err.message : String(err),
     });
@@ -234,7 +234,7 @@ JSON response:`;
 /**
  * Sweep the N most recent memories that don't yet have a formation
  * observation and run formation on each. Designed to be called from a
- * cron, dashboard, or explicit MCP invocation — auditor mode.
+ * cron, dashboard, or explicit MCP invocation - auditor mode.
  *
  * Caps the per-invocation work to avoid runaway Workers AI usage when
  * many memories accumulate.

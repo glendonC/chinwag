@@ -10,7 +10,7 @@ interface Props {
 
 const GLOBE_PX = 480;
 
-// Cobe "pulse" showcase — designed for live activity on dark globe
+// Cobe "pulse" showcase - designed for live activity on dark globe
 const MARKER_COLOR: [number, number, number] = [0.2, 0.8, 0.9];
 
 export default function GlobalMap({ countries, online }: Props): ReactNode {

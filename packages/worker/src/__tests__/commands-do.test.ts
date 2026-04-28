@@ -7,7 +7,7 @@ function getTeam(id = 'test-team') {
 
 // --- Command submission, claiming, and completion ---
 
-describe('Command relay — DO methods', () => {
+describe('Command relay - DO methods', () => {
   const team = () => getTeam('cmd-relay');
   const dashboardAgent = 'dashboard:cmd1';
   const daemonAgent = 'daemon:cmd1';

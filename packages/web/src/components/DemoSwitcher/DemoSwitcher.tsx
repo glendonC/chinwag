@@ -8,10 +8,10 @@
 // - No card chrome. Surface is the existing --surface-glass backdrop,
 //   inheriting the page's backdrop-filter.
 // - Hierarchy through font weight + opacity only:
-//     active scenario label — weight 500, full ink
-//     inactive label        — weight 400, --soft
-//     description line      — IBM Plex Mono, --muted
-// - Accent blue (--accent) only touches the "active" dot — accent is the
+//     active scenario label - weight 500, full ink
+//     inactive label        - weight 400, --soft
+//     description line      - IBM Plex Mono, --muted
+// - Accent blue (--accent) only touches the "active" dot - accent is the
 //   live-data color in the rest of the dashboard, and the active scenario
 //   dot is the one piece of state this surface reflects about now.
 
@@ -60,7 +60,7 @@ export default function DemoSwitcher() {
   const activeInUrl = isDemoActive();
 
   function select(id: DemoScenarioId) {
-    // Picking a scenario implicitly turns demo on — the URL gets ?demo=id,
+    // Picking a scenario implicitly turns demo on - the URL gets ?demo=id,
     // which flips isDemoActive() to true.
     setActiveScenarioId(id);
     setOpen(false);

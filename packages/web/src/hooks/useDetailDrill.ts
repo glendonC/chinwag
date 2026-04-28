@@ -7,7 +7,7 @@ export interface DetailDrill {
   param: string | null;
   /** True iff the detail view should render. */
   shifted: boolean;
-  /** Clear the drill param — returns the user to the overview. */
+  /** Clear the drill param - returns the user to the overview. */
   close: () => void;
 }
 

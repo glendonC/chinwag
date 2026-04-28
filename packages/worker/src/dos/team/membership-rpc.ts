@@ -1,6 +1,6 @@
 // Membership RPC bodies extracted from TeamDO.
 //
-// Pure functions over RpcCtx — see rpc-ctx.ts for the dependency shape.
+// Pure functions over RpcCtx - see rpc-ctx.ts for the dependency shape.
 // Class methods on TeamDO delegate here so the DO shell stays a thin facade
 // over the hibernation-sensitive boundary.
 

@@ -9,15 +9,15 @@ import { formatCost } from '../../widgets/utils.js';
  *
  * Em-dash placeholder for tabs without a comparable previous-period value
  * (e.g. files-touched has no per-day breakdown). Keeps the delta caption
- * visible on every tab so the strip stays visually uniform — no conditional
+ * visible on every tab so the strip stays visually uniform - no conditional
  * renders that hide treatment during testing.
  */
-export const MISSING_DELTA = { text: '—', color: 'var(--soft)' } as const;
+export const MISSING_DELTA = { text: '-', color: 'var(--soft)' } as const;
 
 /**
  * In-window delta: split a daily series in half by position and compare
  * sums. Matches the widget convention (see `splitPeriodDelta` in
- * `widgets/bodies/UsageWidgets.tsx`) — preferred over `period_comparison`
+ * `widgets/bodies/UsageWidgets.tsx`) - preferred over `period_comparison`
  * because the worker's 30-day session retention empties the previous
  * window for production users, which would null every cross-window
  * delta. Splitting the current window sidesteps retention and keeps the

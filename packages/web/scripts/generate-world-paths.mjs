@@ -14,7 +14,7 @@ import * as topojson from 'topojson-client';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Use 110m resolution — light file size, looks great at dashboard scale
+// Use 110m resolution: light file size, looks great at dashboard scale
 const topoPath = resolve(__dirname, '../../../node_modules/world-atlas/countries-110m.json');
 const topo = JSON.parse(readFileSync(topoPath, 'utf-8'));
 
@@ -79,10 +79,10 @@ for (const feature of landGeo.features) {
 const combinedLandPath = landPaths.join(' ');
 
 const output = `// Auto-generated from Natural Earth 50m data via generate-world-paths.mjs
-// Do not edit by hand — regenerate with: node scripts/generate-world-paths.mjs
+// Do not edit by hand; regenerate with: node scripts/generate-world-paths.mjs
 
 /**
- * Combined land mass outline — all continents and islands as a single SVG path.
+ * Combined land mass outline: all continents and islands as a single SVG path.
  * Equirectangular projection, viewBox 0 0 1000 500.
  */
 export const LAND_PATH = ${JSON.stringify(combinedLandPath)};

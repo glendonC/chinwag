@@ -34,7 +34,7 @@ describe('diffState', () => {
       };
       const events = diffState(prev, curr, stucknessAlerted);
       expect(events).toEqual([
-        'Agent alice (cursor) joined the team — working on src/index.js, src/utils.js',
+        'Agent alice (cursor) joined the team - working on src/index.js, src/utils.js',
       ]);
     });
 
@@ -273,7 +273,7 @@ describe('diffState', () => {
       diffState(state1, state1, stucknessAlerted);
       expect(stucknessAlerted.has('a1')).toBe(true);
 
-      // Activity updated — different updated_at, still stuck
+      // Activity updated - different updated_at, still stuck
       const member2 = {
         ...member1,
         activity: { files: ['stuck.js'], updated_at: '2026-01-01T00:20:00Z' },
@@ -315,7 +315,7 @@ describe('diffState', () => {
       diffState(state1, state1, stucknessAlerted);
       expect(stucknessAlerted.has('a1')).toBe(true);
 
-      // Agent switches files but updated_at stays the same — stucknessAlerted
+      // Agent switches files but updated_at stays the same - stucknessAlerted
       // key matches updated_at, so no reset occurs and dedup prevents re-alert
       const member2 = {
         ...member1,

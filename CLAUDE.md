@@ -22,22 +22,22 @@ Monorepo with five packages:
 
 ## Development Principles
 
-### Smart infrastructure over manual maintenance
+### Maintainable infrastructure
 
-Do not solve problems with static lists, hardcoded values, or patterns that require ongoing manual curation. Build systems that scale themselves.
+Prefer systems that scale with usage over static lists, hardcoded values, or patterns that require ongoing manual curation.
 
 **Example (content moderation):** Two-layer system in `packages/worker/src/moderation.js`:
 
-- **Layer 1 (blocklist):** Static regex patterns for obvious slurs. Instant, zero-latency. This is the fallback, not the strategy. Do not grow this list; improve the AI layer instead.
-- **Layer 2 (AI):** Llama Guard 3 (`@cf/meta/llama-guard-3-8b`) on Cloudflare Workers AI. Outperforms OpenAI Moderation API on real-world benchmarks. No external API key, runs on CF edge, customizable taxonomy. Bound as `env.AI` in wrangler.toml.
-- **Why not OpenAI Moderation?** Fixed categories, can't customize, external dependency, over-moderates counter-speech, under-moderates implicit hate. Llama Guard is strictly better for our use case.
-- **Architecture:** Blocklist runs first (sync, <1ms). AI runs second (async). For status text and team names, both layers run before persisting.
+- Layer 1 is a blocklist of static regex patterns for obvious slurs. It is fast and zero-latency, but it is the fallback. Do not grow this list as the main strategy.
+- Layer 2 is Llama Guard 3 (`@cf/meta/llama-guard-3-8b`) on Cloudflare Workers AI. It does not require an external API key, runs on the Cloudflare edge, and supports a customizable taxonomy. It is bound as `env.AI` in `wrangler.toml`.
+- OpenAI Moderation is not used because its fixed categories are a poor fit for this product and it adds an external dependency.
+- The blocklist runs first, synchronously in under 1 ms. AI moderation runs second, asynchronously. For status text and team names, both layers run before persistence.
 
-This same principle applies everywhere: prefer intelligent systems over growing config files.
+Apply this pattern elsewhere when appropriate: improve the underlying system instead of adding long-term manual maintenance.
 
 ### Model-agnostic coordination infrastructure
 
-chinmeister provides the network, shared state, and coordination primitives — agents bring the intelligence. Primitives are freeform and unopinionated so they scale as models get smarter, not against them. Memory uses freeform tags, not fixed categories. Search returns results by recency — agents are the semantic ranker. Conflict detection surfaces data — agents decide what to do with it.
+chinmeister provides the network, shared state, and coordination primitives. Agents bring the intelligence. Primitives are freeform and unopinionated so they scale as models improve. Memory uses freeform tags, not fixed categories. Search returns results by recency, and agents decide how to rank them semantically. Conflict detection surfaces data, and agents decide what to do with it.
 
 For product vision, positioning, ICP, and differentiation, see [`docs/VISION.md`](docs/VISION.md).
 
@@ -64,24 +64,28 @@ Every change must pass these checks. These are not aspirational; they are blocke
 
 ### Security
 
-- **Every read endpoint must verify the caller has access.** If data is scoped to a team, room, or user, check membership before returning it. Never assume the URL is proof of authorization. Unauthenticated reads are bugs.
-- **Every write endpoint must validate and sanitize input.** Accept only known fields. Cap string lengths. Ensure arrays contain the expected types. Reject unexpected shapes. No raw body passthrough to storage.
-- **Every creation endpoint must be rate-limited.** If a user can create unbounded resources (teams, accounts, notes), add a per-user or per-IP daily limit. Use `db.checkRateLimit(key, maxPerDay)`; the `account_limits` table handles all per-day rate limits.
-- **Never expose internal IDs, DO names, or server internals** in API responses. Return only what the client needs.
+- Every read endpoint must verify that the caller has access. If data is scoped to a team, room, or user, check membership before returning it. Never assume the URL is proof of authorization. Unauthenticated reads are bugs.
+- Every write endpoint must validate and sanitize input. Accept only known fields. Cap string lengths. Ensure arrays contain the expected types. Reject unexpected shapes. Do not pass raw request bodies through to storage.
+- Every creation endpoint must be rate-limited. If a user can create unbounded resources (teams, accounts, notes), add a per-user or per-IP daily limit. Use `db.checkRateLimit(key, maxPerDay)`; the `account_limits` table handles all per-day rate limits.
+- Never expose internal IDs, DO names, or server internals in API responses. Return only what the client needs.
 
 ### Robustness
 
-- **Keep time logic in one domain.** When working with SQLite timestamps, use SQLite's `datetime('now', '-60 seconds')` for comparisons, not JS `Date` math converted to strings. Mixing time domains causes silent bugs when formats or timezones drift.
-- **Normalize data on write, not read.** File paths, tags, handles: normalize once when storing, so every read is clean. `normalizePath()` in `lib/text-utils.js` is the pattern.
-- **One query over two.** If you can UPDATE and check the result in one step (`SELECT changes()`), don't SELECT then UPDATE. Fewer round trips, no race window.
-- **Idempotent schema initialization.** Every DO uses `#ensureSchema()` with `CREATE TABLE IF NOT EXISTS`. Guard with a `#schemaReady` flag so it runs once per instance.
+- Keep time logic in one domain. When working with SQLite timestamps, use SQLite's `datetime('now', '-60 seconds')` for comparisons, not JS `Date` math converted to strings. Mixing time domains causes silent bugs when formats or timezones drift.
+- Normalize data on write, not read. File paths, tags, and handles should be normalized once when stored so every read is clean. `normalizePath()` in `lib/text-utils.js` is the pattern.
+- Prefer one query over two. If you can update and check the result in one step (`SELECT changes()`), do not select and then update. This avoids an extra round trip and a race window.
+- Schema initialization should be idempotent. Every DO uses `#ensureSchema()` with `CREATE TABLE IF NOT EXISTS`. Guard with a `#schemaReady` flag so it runs once per instance.
 
 ### Patterns to follow
 
-- **DO RPC, not fetch — with one exception.** All Durable Object communication uses native RPC (direct method calls), not HTTP fetch. `await db.someMethod(args)`, not `await db.fetch(new Request(...))`. The one place `team.fetch()` is still required is the WebSocket upgrade in `routes/team/membership.ts`: Cloudflare's Hibernation API only exposes WebSockets through a fetch-shaped entry point, so the worker sets `X-Chinmeister-Verified: 1` on the internal request and `TeamDO.fetch` trusts it. Every other code path is RPC.
-- **Error returns, not throws.** DO methods return `{ ok: true }` or `{ error: 'message' }`. Route handlers check for `.error` and return the appropriate HTTP status. Throws are for unexpected failures only.
-- **Handlers validate, DOs trust — with defense in depth on untrusted inputs.** Input validation (type checking, length caps, sanitization) happens in the route handler. DO methods then trust the shape, but will still cap lengths on free-text inputs that get persisted (e.g. `tool.slice(0,100)`, `error_preview.slice(0,200)` in `dos/team/sessions.ts`) and will still reject unknown enum values on outcomes and moderation categories. The rule is: handlers are the primary validation line, DOs carry the minimum defensive truncation for fields that directly land in the database.
-- **MCP server: never `console.log`.** Stdio transport uses stdout for JSON-RPC. Any `console.log` corrupts the protocol. Use `console.error` for all logging. Enforced by ESLint (`no-console` as `error` for the MCP package).
+- Use DO RPC instead of fetch for Durable Object communication. Call methods directly, for example `await db.someMethod(args)`, instead of `await db.fetch(new Request(...))`. The WebSocket upgrade in `routes/team/membership.ts` is the exception because Cloudflare's Hibernation API exposes WebSockets through a fetch-shaped entry point. The worker sets `X-Chinmeister-Verified: 1` on the internal request and `TeamDO.fetch` trusts it. Every other code path is RPC.
+- DO methods return `{ ok: true }` or `{ error: 'message' }` instead of throwing for expected failures. Route handlers check for `.error` and return the appropriate HTTP status. Throws are for unexpected failures only.
+- Route handlers validate inputs, and DO methods trust validated shapes with a small amount of defense in depth for persisted free text. Handlers perform type checks, length caps, and sanitization. DOs still cap directly persisted free-text fields, for example `tool.slice(0,100)` and `error_preview.slice(0,200)` in `dos/team/sessions.ts`, and reject unknown enum values on outcomes and moderation categories.
+- The MCP server must never call `console.log`. Stdio transport uses stdout for JSON-RPC, so any `console.log` corrupts the protocol. Use `console.error` for all logging. ESLint enforces this with `no-console` as `error` for the MCP package.
+
+### Comments and documentation
+
+The full standard is in [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md#comments-and-documentation). Two rules trip people up most often. Do not reference private, gitignored files from a comment, doc, or user-visible string, because those references are dead to anyone reading the public repo. Do not use em-dashes anywhere; use commas, periods, colons, hyphens, or parentheses depending on context.
 
 ## Key Design Decisions
 
@@ -89,7 +93,7 @@ Every change must pass these checks. These are not aspirational; they are blocke
 - **Three surfaces, one backend:** MCP server (agents), TUI (terminal users), web dashboard (visual workflow management). All hit the same API.
 - **`chinmeister init` writes config for all detected tools:** zero-friction, one command setup
 - **Claude Code gets deepest integration** (hooks + channels = enforceable). Other tools get MCP-based awareness. Depth increases as tools add hook-like capabilities.
-- **Four-tier analytics model:** Agent-level (observe/measure/control individual sessions), project-level (what's happening in this codebase — the repo-axis view, scoped by `.chinmeister`), developer-level (personal AI performance across projects and tools), team-level (manage a team of developers and their agents). Analytics endpoints mirror this: session detail, `GET /teams/:tid/analytics` (project scope), `GET /me/analytics` (developer scope), team-scoped analytics with `member_analytics`. Every session captures duration, edits, files, tokens, cost, conflicts, outcome, and conversation events. Hook-enabled tools (Claude Code) provide automatic granular capture; MCP-only tools provide coordination data.
+- **Four-tier analytics model:** Agent-level (observe/measure/control individual sessions), project-level (activity in this codebase, scoped by `.chinmeister`), developer-level (personal AI performance across projects and tools), team-level (manage a team of developers and their agents). Analytics endpoints mirror this: session detail, `GET /teams/:tid/analytics` (project scope), `GET /me/analytics` (developer scope), team-scoped analytics with `member_analytics`. Every session captures duration, edits, files, tokens, cost, conflicts, outcome, and conversation events. Hook-enabled tools (Claude Code) provide automatic granular capture; MCP-only tools provide coordination data.
 - **TeamDO is the coordination hub:** one instance per team, single-writer for conflict detection
 - **One team per project, one account across projects:** `.chinmeister` file scopes team to repo, `~/.chinmeister/config.json` gives the user a cross-project identity
 - Handle format: 3-20 chars, alphanumeric + underscores, globally unique

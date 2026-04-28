@@ -1,6 +1,6 @@
 // Global cross-user views: rank percentiles, global stats, session timeline.
 // All three are tertiary to the Overview/Reports core, so the baselines are
-// believable but thin — empty arrays where the real surface relies on
+// believable but thin - empty arrays where the real surface relies on
 // thousands of users we don't simulate. Most scenarios use baseline; empty
 // scenario uses the empty variants.
 
@@ -197,7 +197,7 @@ export function createBaselineSessions(): SessionsDemoData {
         'packages/web/src/widgets/bodies/shared.tsx',
       ],
       outcome: 'completed',
-      outcome_summary: 'Tool widget redesign — tab-selector pattern',
+      outcome_summary: 'Tool widget redesign - tab-selector pattern',
       lines_added: 142,
       lines_removed: 78,
       duration_minutes: 36,
@@ -251,7 +251,7 @@ export function createBaselineSessions(): SessionsDemoData {
         'packages/worker/src/dos/team/context.ts',
       ],
       outcome: 'abandoned',
-      outcome_summary: 'Race in claim release — agent ran out of context',
+      outcome_summary: 'Race in claim release - agent ran out of context',
       lines_added: 184,
       lines_removed: 96,
       duration_minutes: 61,

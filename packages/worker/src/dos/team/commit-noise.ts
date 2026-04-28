@@ -2,13 +2,13 @@
 //
 // Distinguishes substantive commits from noise (dependency bumps, formatting
 // passes, WIP checkpoints, trivial-message + small-diff combos). Flagged
-// commits are still recorded — they get `is_noise = 1` in the commits table
-// — but they don't bump the session-level `commit_count` and analytics
+// commits are still recorded - they get `is_noise = 1` in the commits table
+// - but they don't bump the session-level `commit_count` and analytics
 // queries filter them out by default. The audit trail stays intact; the
 // signal stays clean.
 //
 // Adapted from memorix's `src/git/noise-filter.ts` (Apache 2.0). Rules are
-// a deliberate subset of memorix's set — lockfile-only detection is omitted
+// a deliberate subset of memorix's set - lockfile-only detection is omitted
 // because the commits schema doesn't carry per-file change lists. If that
 // becomes valuable, add a `changed_files` column and extend the rule set
 // here.

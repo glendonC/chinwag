@@ -1,7 +1,7 @@
 // React binding for the Reports demo payload. Subscribes to scenario
 // changes via useDemoScenario so the Reports view re-renders when the
 // switcher swaps. Mirrors useUserAnalytics' pattern minus the API fall-
-// through — Reports has no backend yet, so the demo payload is the source
+// through - Reports has no backend yet, so the demo payload is the source
 // today. When the backend lands, this becomes a conditional fetch hook
 // that falls through to the API when the demo flag is off.
 

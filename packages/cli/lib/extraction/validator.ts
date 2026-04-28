@@ -53,7 +53,7 @@ export async function validateSpec(
   }
 
   // Check if the sample file has content. SQLite DBs are binary, so we can't
-  // validate "non-empty" via UTF-8 read — stat the file and let `extract()`
+  // validate "non-empty" via UTF-8 read - stat the file and let `extract()`
   // surface query errors through its own warn path instead.
   if (candidate.format === 'sqlite') {
     // Spec must declare how to query the DB before we can evaluate it.

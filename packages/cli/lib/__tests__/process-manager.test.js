@@ -394,7 +394,7 @@ describe('checkExternalAgentLiveness', () => {
       cmd: 'test',
       task: 'task',
       cwd: '/repo',
-      pid: process.pid, // current process — definitely alive
+      pid: process.pid, // current process - definitely alive
     });
 
     const changed = processManager.checkExternalAgentLiveness();

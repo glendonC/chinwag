@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════
-   ReportsView — Catalog of reports
+   ReportsView: Catalog of reports
    Stripped card: art + title + tagline + view.
    All the extra detail lives in the hover tooltip.
    ═══════════════════════════════════════════ */
@@ -8,12 +8,12 @@
   animation: viewFadeIn 0.3s var(--motion) both;
   /* Horizontal padding comes from App.module.css `.content`. Catalog uses
      a negative margin to bleed into the gutter so card content aligns
-     with the title — same as OverviewView's gridBleed pattern. */
+     with the title, same as OverviewView's gridBleed pattern. */
 
   /* Shared grid tracks: referenced by both .catalogHeader and .row so
      column widths stay aligned across the header and every data row.
      Four columns: [art] [name+tagline] [freshness] [view]. Last column
-     is a fixed 80px — NOT `auto`, because auto sizes to content and the
+     is a fixed 80px, NOT `auto`, because auto sizes to content and the
      header's empty span would collapse to 0 while the row's View pill
      is ~62px, pushing every header label right of its data via the 1fr
      column. */
@@ -43,7 +43,7 @@
   margin-bottom: 32px;
 }
 
-/* Static project badge — matches OverviewView's .projectFilterStatic
+/* Static project badge: matches OverviewView's .projectFilterStatic
    visual so the "which project am I looking at" indicator reads
    identically across views. Reports always run on the sidebar's
    active project; switching projects happens there, not here. */
@@ -83,7 +83,7 @@
 
    Grid columns: art · name+tagline · freshness · view
    A shared --row-grid CSS variable keeps the header row and the data
-   rows aligned pixel-perfect — same track sizing and gap on both.
+   rows aligned pixel-perfect, same track sizing and gap on both.
    ═══════════════════════════════════════════ */
 
 .catalogHeader {
@@ -135,7 +135,7 @@
 }
 
 /* Dim non-hovered rows so the hovered row reads as the focal anchor.
-   :has(.row:hover) not :hover — only dim when a row is actually hovered,
+   :has(.row:hover) not :hover, only dim when a row is actually hovered,
    not when the cursor is in the gap between rows. Prevents a flash of
    "all rows dim" when sweeping between them. Opacity only (no filter
    blur), so nothing extra composites. */
@@ -146,7 +146,7 @@
 /* ── Art slot: icon only, no background ──
    The mesh gradient now lives inside the Lucide icon's stroke via a
    per-report <linearGradient> (see ReportGradientDefs in
-   ReportsView.tsx). No squircle, no background layer — the icon is
+   ReportsView.tsx). No squircle, no background layer, the icon is
    the whole visual. */
 
 .rowArt {
@@ -212,7 +212,7 @@
 /* ── View pill ──
    Filled-dark default like DirectoryView's .viewButton, slightly bigger
    (6px 14px vs Directory's 4px 12px). On hover, the pill takes the row's
-   per-report palette color — Directory uses a single --accent for every
+   per-report palette color, Directory uses a single --accent for every
    row, Reports gets red/blue/green/etc per report identity. */
 
 .rowView {
@@ -245,7 +245,7 @@
 /* ═══════════════════════════════════════════
    Cursor-relative hover preview
 
-   Stays mounted across mouse-leave — visibility is toggled via the
+   Stays mounted across mouse-leave, visibility is toggled via the
    .tooltipVisible class, not by unmounting, so repeat hovers never pay
    layout/paint cost. On enter, fades in after a short delay (suppresses
    flicker when sweeping across rows); on leave, fades out instantly.
@@ -263,7 +263,7 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg), var(--shadow-xs);
   /* Clips the ::before wash to the rounded border. Safe for the
-     box-shadow — shadows render outside the element's border box. */
+     box-shadow, shadows render outside the element's border box. */
   overflow: hidden;
   opacity: 0;
   pointer-events: none;
@@ -293,7 +293,7 @@
     transform 0.12s ease 0.15s;
 }
 
-/* The expanded state doesn't need its own visual treatment — the extra
+/* The expanded state doesn't need its own visual treatment, the extra
    blocks inherit the same vertical rhythm. This class is kept as a hook
    for future per-state tweaks (e.g. subtle animation on block reveal). */
 .tooltipExpanded {
@@ -316,7 +316,7 @@
   margin: 0;
 }
 
-/* One-line hint in the collapsed state. Honest copy only — "N findings
+/* One-line hint in the collapsed state. Honest copy only, "N findings
    last run" / "Not yet run" / "Running now". No fabricated severity
    counts, no invented quality claims. */
 .tooltipHint {
@@ -369,7 +369,7 @@
 }
 
 /* ── Tooltip actions row ──
-   Flex row pinned to the bottom. No divider line — spacing separates,
+   Flex row pinned to the bottom. No divider line, spacing separates,
    per the dashboard design rules. kbd chips + label per action. Three
    actions: Enter → detail view, L → launch run, D → toggle details. */
 

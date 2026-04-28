@@ -1,6 +1,6 @@
 // Resolve the git hooks directory for a repo. Respects `core.hooksPath` so
 // repos already using husky, lefthook, or a monorepo-level hooks dir keep
-// working after `chinmeister init` — we install into whatever path git actually
+// working after `chinmeister init` - we install into whatever path git actually
 // consults, not a hard-coded `.git/hooks/`.
 
 import { execFileSync } from 'node:child_process';
@@ -22,7 +22,7 @@ export interface GitHookLocation {
 
 /**
  * Look up the git hooks location for `cwd`. Returns null if `cwd` isn't
- * inside a git repo. Never throws — any error becomes null so the init
+ * inside a git repo. Never throws - any error becomes null so the init
  * flow can degrade gracefully on non-git directories.
  */
 export function resolveGitHookLocation(cwd: string): GitHookLocation | null {

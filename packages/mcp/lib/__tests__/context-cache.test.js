@@ -28,7 +28,7 @@ describe('context cache (TTL, inflight dedup, preamble memoization)', () => {
       await refreshContext(team, 't_abc');
       expect(team.getTeamContext).toHaveBeenCalledTimes(1);
 
-      // Advance to 29 seconds — still within 30s TTL
+      // Advance to 29 seconds - still within 30s TTL
       vi.advanceTimersByTime(29_000);
 
       const result = await refreshContext(team, 't_abc');
@@ -43,7 +43,7 @@ describe('context cache (TTL, inflight dedup, preamble memoization)', () => {
 
       await refreshContext(team, 't_abc');
 
-      // Advance to exactly 29.999s — still within TTL
+      // Advance to exactly 29.999s - still within TTL
       vi.advanceTimersByTime(29_999);
 
       await refreshContext(team, 't_abc');
@@ -96,7 +96,7 @@ describe('context cache (TTL, inflight dedup, preamble memoization)', () => {
       const ctx = { members: [{ handle: 'alice' }] };
       const team = { getTeamContext: vi.fn().mockReturnValue(apiPromise) };
 
-      // Fire two concurrent refreshes — neither should have resolved yet
+      // Fire two concurrent refreshes - neither should have resolved yet
       const p1 = refreshContext(team, 't_abc');
       const p2 = refreshContext(team, 't_abc');
 
@@ -139,7 +139,7 @@ describe('context cache (TTL, inflight dedup, preamble memoization)', () => {
         getTeamContext: vi.fn().mockRejectedValueOnce(new Error('fail')).mockResolvedValueOnce(ctx),
       };
 
-      // First call fails — inflight should be cleared
+      // First call fails - inflight should be cleared
       await refreshContext(team, 't_abc');
 
       // Second call should try again (cache was never populated so TTL check is skipped)
@@ -181,7 +181,7 @@ describe('context cache (TTL, inflight dedup, preamble memoization)', () => {
       vi.advanceTimersByTime(31_000);
 
       const second = await teamPreamble(team, 't_abc');
-      expect(second).toBe(''); // Memoized — no new info
+      expect(second).toBe(''); // Memoized - no new info
     });
 
     it('returns full preamble again when state changes', async () => {

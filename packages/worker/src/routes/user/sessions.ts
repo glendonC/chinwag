@@ -1,6 +1,6 @@
 // GET /me/sessions: lightweight session list for the dashboard timeline.
 //
-// Unlike /me/analytics this is a straight cross-team fan-out + concat — no
+// Unlike /me/analytics this is a straight cross-team fan-out + concat - no
 // merge, no accumulators. Kept separate from the analytics module tree so
 // the analytics handler only has to think about one response shape.
 
@@ -22,7 +22,7 @@ function todayStr(): string {
 // Filter param shapes. Handles are alnum + underscore per the registration
 // rules; host_tool ids are alnum + hyphen. Both cap at 64 so we never bind
 // oversized strings into DO SQL. Anything outside the whitelist silently
-// drops the filter rather than 400ing — this cross-team list route treats
+// drops the filter rather than 400ing - this cross-team list route treats
 // unknown inputs as "no filter."
 const HANDLE_RE = /^[A-Za-z0-9_]{1,64}$/;
 const HOST_TOOL_RE = /^[A-Za-z0-9_-]{1,64}$/;

@@ -131,7 +131,7 @@ export function useProjectData(): UseProjectDataReturn {
     [contextData?.usage],
   );
 
-  // Trivial derivations — compute directly, no memo overhead
+  // Trivial derivations - compute directly, no memo overhead
   const activeAgents = members.filter((member) => member.status === 'active');
   const offlineAgents = members.filter((member) => member.status === 'offline');
   const sortedAgents = activeAgents.concat(offlineAgents);
@@ -140,7 +140,7 @@ export function useProjectData(): UseProjectDataReturn {
   const outcomeBreakdown: OutcomeBreakdown = buildOutcomeBreakdown(allSessions);
   const lineStats: LineStats = sumLineStats(allSessions);
 
-  // Heavier derivations — build Maps/Sets/complex structures, worth memoizing
+  // Heavier derivations - build Maps/Sets/complex structures, worth memoizing
   const liveToolMix = useMemo(() => buildLiveToolMix(members), [members]);
   const usageEntries = useMemo(() => buildUsageEntries(usage), [usage]);
   const conflicts: FileConflict[] = useMemo(

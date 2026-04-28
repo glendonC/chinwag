@@ -15,7 +15,7 @@ import { type AnalyticsScope, withScope } from './scope.js';
 // The JS classifier and the canonical WORK_TYPES list live in shared so
 // the web package, demo fixtures, and the worker all agree on the same
 // enum. The SQL CASE below must stay in lockstep with that JS classifier
-// — any rule change goes in both places, and work-type.test.js pins
+// - any rule change goes in both places, and work-type.test.js pins
 // behavior for a canonical set of paths.
 export { classifyWorkType, WORK_TYPES } from '@chinmeister/shared/analytics/work-type.js';
 export type { WorkType } from '@chinmeister/shared/analytics/work-type.js';
@@ -55,7 +55,7 @@ export function queryModelPerformance(
     // GROUP BY includes host_tool so the models widget can show cross-tool
     // attribution per model (Claude Code ran Sonnet for X sessions, Cursor
     // ran it for Y). Rows where host_tool is null collapse into a single
-    // per-model null-tool bucket — they still count toward the model total
+    // per-model null-tool bucket - they still count toward the model total
     // but drop out of the per-tool breakdown in the renderer.
     const { sql: q, params } = withScope(
       `SELECT agent_model,
@@ -317,13 +317,13 @@ export function queryToolWorkType(
     // JOIN sessions to bring outcome into the (host_tool, work_type) cell.
     // Distinct session count is the cell denominator; SUM of completed sessions
     // is the numerator. Computing completion_rate at the SQL layer keeps the
-    // serialized payload cheap and the math in one place — the renderer just
+    // serialized payload cheap and the math in one place - the renderer just
     // colors a cell, never derives it.
     //
     // The JOIN is on edits.session_id = sessions.id and constrains by edits'
     // window so the cell counts the same edits the legacy query did. Sessions
     // can hit multiple work-types; here a session contributes to every cell
-    // its edits land in (matching pre-change behavior — the "primary work-type
+    // its edits land in (matching pre-change behavior - the "primary work-type
     // per session" model lives in queryWorkTypeOutcomes for the aggregate
     // view, not here where the granularity is per-tool, per-type).
     const { sql: q, params } = withScope(

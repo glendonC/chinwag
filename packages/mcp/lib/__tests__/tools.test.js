@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock the context module — all tool modules import from it.
+// Mock the context module - all tool modules import from it.
 vi.mock('../context.js', () => ({
   refreshContext: vi.fn().mockResolvedValue(null),
   teamPreamble: vi.fn().mockResolvedValue(''),
@@ -303,7 +303,7 @@ describe('memory tools (unit)', () => {
     it('ignores error property in resolved value (handler does not check it)', async () => {
       team.saveMemory.mockResolvedValue({ error: 'Rate limit exceeded' });
       const result = await collector.callTool('chinmeister_save_memory', { text: 'x' });
-      // Handler does not inspect the resolved value — returns success
+      // Handler does not inspect the resolved value - returns success
       expect(result.isError).toBeUndefined();
       expect(result.content[0].text).toMatch(/Memory saved/);
     });
@@ -370,7 +370,7 @@ describe('memory tools (unit)', () => {
     it('returns "no memories" when API returns error object (no .memories property)', async () => {
       team.searchMemories.mockResolvedValue({ error: 'Unauthorized' });
       const result = await collector.callTool('chinmeister_search_memory', { query: 'x' });
-      // Handler checks !result.memories — error object has no .memories, so "No memories found"
+      // Handler checks !result.memories - error object has no .memories, so "No memories found"
       expect(result.isError).toBeUndefined();
       expect(result.content[0].text).toMatch(/No memories found/);
     });
@@ -576,7 +576,7 @@ describe('lock tools (unit)', () => {
     it('returns empty output when API returns error object (handler does not check it)', async () => {
       team.claimFiles.mockResolvedValue({ error: 'Too many locks' });
       const result = await collector.callTool('chinmeister_claim_files', { files: ['a.js'] });
-      // Handler checks result.claimed and result.blocked — both undefined on error object
+      // Handler checks result.claimed and result.blocked - both undefined on error object
       expect(result.isError).toBeUndefined();
     });
 
@@ -619,7 +619,7 @@ describe('lock tools (unit)', () => {
     it('ignores error property in resolved value (handler does not check it)', async () => {
       team.releaseFiles.mockResolvedValue({ error: 'Not lock owner' });
       const result = await collector.callTool('chinmeister_release_files', { files: ['a.js'] });
-      // Handler does not inspect the resolved value — returns success
+      // Handler does not inspect the resolved value - returns success
       expect(result.isError).toBeUndefined();
       expect(result.content[0].text).toMatch(/Released: a\.js/);
     });
@@ -680,7 +680,7 @@ describe('context tool (unit)', () => {
   it('reports model on first call only', async () => {
     refreshContext.mockResolvedValue({ members: [] });
 
-    // First call with model — should report
+    // First call with model - should report
     await collector.callTool('chinmeister_get_team_context', { model: 'claude-opus-4-6' });
     expect(team.reportModel).toHaveBeenCalledWith('t_ctx', 'claude-opus-4-6');
     // reportModelAsync is fire-and-forget; flush microtasks so the withTimeout
@@ -690,7 +690,7 @@ describe('context tool (unit)', () => {
 
     team.reportModel.mockClear();
 
-    // Second call with same model — should NOT report again
+    // Second call with same model - should NOT report again
     await collector.callTool('chinmeister_get_team_context', { model: 'claude-opus-4-6' });
     expect(team.reportModel).not.toHaveBeenCalled();
   });
@@ -816,7 +816,7 @@ describe('activity tool (unit)', () => {
       files: ['x.js'],
       summary: 'test',
     });
-    // Handler does not inspect the resolved value — returns success
+    // Handler does not inspect the resolved value - returns success
     expect(result.isError).toBeUndefined();
     expect(result.content[0].text).toMatch(/Activity updated: test/);
   });
@@ -893,7 +893,7 @@ describe('messaging tool (unit)', () => {
   it('ignores error property in resolved value (handler does not check it)', async () => {
     team.sendMessage.mockResolvedValue({ error: 'Message rejected' });
     const result = await collector.callTool('chinmeister_send_message', { text: 'x' });
-    // Handler does not inspect the resolved value — returns success
+    // Handler does not inspect the resolved value - returns success
     expect(result.isError).toBeUndefined();
     expect(result.content[0].text).toMatch(/Message sent to team: x/);
   });

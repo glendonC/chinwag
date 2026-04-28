@@ -1,5 +1,5 @@
 /**
- * Core team entity types — members, conflicts, locks, memory, messages, sessions.
+ * Core team entity types - members, conflicts, locks, memory, messages, sessions.
  *
  * Naming convention: snake_case for API-persisted fields (database columns),
  * camelCase for ephemeral runtime identity (MCP process-internal).

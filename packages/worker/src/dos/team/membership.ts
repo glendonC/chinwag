@@ -100,7 +100,7 @@ export function leave(
       }
       // Roster cleanup mirrors what handleTeamLeave does at the DatabaseDO
       // level (db.removeUserTeam). Only revoke the roster row when this owner
-      // has no remaining agents on the team — otherwise other agents owned
+      // has no remaining agents on the team - otherwise other agents owned
       // by the same user would lose dashboard access.
       const remaining = sql
         .exec('SELECT 1 FROM members WHERE owner_id = ? LIMIT 1', ownerId)

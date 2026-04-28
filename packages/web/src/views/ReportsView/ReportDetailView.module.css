@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════
-   ReportDetailView — report home page.
+   ReportDetailView: report home page.
    Back · title · launch · runs table · data-source chips.
    Everything left-aligned to the same margin. No prose, no labels.
    ═══════════════════════════════════════════ */
@@ -115,7 +115,7 @@
    Subgrid pattern borrowed from the live-agents widget. Outer grid
    owns the column tracks; header and rows are subgrids so cells share
    x-coords. Date absorbs all leftover space (1fr) so Status/Findings/
-   Duration/View cluster against the right edge — clear reading axis
+   Duration/View cluster against the right edge, a clear reading axis
    with identity left, metadata + action right.
 
    Row hover uses the `margin: 0 -14px; padding: 10px 14px` trick so

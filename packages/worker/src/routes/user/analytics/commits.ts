@@ -96,7 +96,7 @@ export function merge(acc: CommitsAcc, team: TeamResult): void {
 
 /**
  * Project into the CommitStats shape. Needs `totalSessions` to compute
- * commits_per_session — the handler has that figure from the completion
+ * commits_per_session - the handler has that figure from the completion
  * accumulator, so it's passed in explicitly rather than duplicated here.
  */
 export function project(acc: CommitsAcc, totalSessions: number): CommitStats {

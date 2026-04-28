@@ -1,7 +1,7 @@
 // React binding for the demo-scenario URL param. Hooks subscribe to the
 // custom 'chinmeister:demo-scenario-changed' event so a switcher swap causes
 // every dashboard hook to re-derive its fixture in lockstep. Avoids
-// routing the scenario through a global store — the URL is already the
+// routing the scenario through a global store - the URL is already the
 // source of truth, and React's re-render tree is cheap enough at demo
 // scale.
 

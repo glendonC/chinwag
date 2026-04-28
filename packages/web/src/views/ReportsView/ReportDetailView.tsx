@@ -1,8 +1,8 @@
-// Report home page — opened when ?report=<id> is in the URL.
+// Report home page - opened when ?report=<id> is in the URL.
 //
 // Structured data only: runs table (date, status, findings, duration)
 // and data-source chips. Launch button transforms into an in-place
-// running pill when an active run exists for this report — no
+// running pill when an active run exists for this report - no
 // dedicated live-run page.
 
 import { type CSSProperties, type ReactNode } from 'react';
@@ -63,19 +63,19 @@ function findingsCell(run: MockRun): string {
     const n = run.findingsCount ?? 0;
     return `${n} finding${n === 1 ? '' : 's'}`;
   }
-  return '—';
+  return '-';
 }
 
 function durationCell(run: MockRun): string {
   if (run.status === 'complete' && run.durationMs) return formatDuration(run.durationMs);
-  return '—';
+  return '-';
 }
 
 // ── Running group ──
 //
 // Two-squircle mirror of LaunchLink: left pill shows "running {N}s",
 // right pill is the cancel button. Same height, same report-color, same
-// rhythm as the launch state — only the labels differ.
+// rhythm as the launch state - only the labels differ.
 
 function RunningGroup({
   startedAt,

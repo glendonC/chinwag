@@ -87,7 +87,7 @@ describe('WebSocket message handling via activity updates', () => {
 
 // --- WebSocket close behavior (lock release) ---
 
-describe('WebSocket close behavior — lock release', () => {
+describe('WebSocket close behavior - lock release', () => {
   const team = () => getTeam('ws-close-tests');
   const agent1 = 'cursor:ws-close1';
   const agent2 = 'claude:ws-close2';
@@ -206,7 +206,7 @@ describe('Malformed input resilience', () => {
   });
 
   it('updateActivity with empty files array succeeds', async () => {
-    // The DO accepts it — validation is in the route handler
+    // The DO accepts it - validation is in the route handler
     const res = await team().updateActivity(agentId, [], '', ownerId);
     expect(res.ok).toBe(true);
   });

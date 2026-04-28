@@ -111,13 +111,13 @@ export default function App(): ReactNode {
     contextTeamId === activeTeamId &&
     !!contextData;
   const errorDismissed = pollError && dismissedError === pollError;
-  // Only show after 2+ consecutive failures — prevents flicker during dev server restarts
+  // Only show after 2+ consecutive failures - prevents flicker during dev server restarts
   const showError =
     pollError &&
     !errorDismissed &&
     consecutiveFailures >= 2 &&
     (hasOverviewSnapshot || hasProjectSnapshot);
-  // Derive boot state — no effect sync needed.
+  // Derive boot state - no effect sync needed.
   const bootState: BootState = !bootCompleted
     ? 'loading'
     : isAuthenticated

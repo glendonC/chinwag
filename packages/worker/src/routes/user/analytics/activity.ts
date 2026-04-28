@@ -125,7 +125,7 @@ export function mergePromptEff(acc: PromptEffAcc, team: TeamResult): void {
   for (const pe of team.prompt_efficiency ?? []) {
     // Skip null days (no conversation+edit activity this day for this team).
     // A team contributing nothing to a day must not drag the cross-team
-    // aggregate toward zero — the projection below returns null when every
+    // aggregate toward zero - the projection below returns null when every
     // team is silent on a day.
     if (pe.avg_turns_per_edit == null) continue;
     const existing = acc.get(pe.day) ?? { turns_sum: 0, sessions: 0 };

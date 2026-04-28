@@ -1,4 +1,4 @@
-// Memory analytics queries — covers queryMemoryUsage,
+// Memory analytics queries - covers queryMemoryUsage,
 // queryMemoryOutcomeCorrelation, and queryTopMemories. The widget-level
 // audit on 2026-04-21 split memory-safety's mixed scopes, renamed fields,
 // cut formation-summary, and promoted memory-outcomes to the default
@@ -14,7 +14,7 @@ function getTeam(id) {
 
 // queryMemoryUsage ────────────────────────────────────────────────────
 
-describe('queryMemoryUsage — empty team', () => {
+describe('queryMemoryUsage - empty team', () => {
   it('returns zero-shaped stats without the deprecated fields', async () => {
     const team = getTeam('mq-usage-empty');
     const agentId = 'claude-code:mq-usage-empty';
@@ -43,14 +43,14 @@ describe('queryMemoryUsage — empty team', () => {
 
     // Regression guard for the 2026-04-21 field cleanup. If any of these
     // come back, it's either a contract revert or a parallel-WIP merge
-    // artifact — both worth a second look.
+    // artifact - both worth a second look.
     expect(m.memories_updated_period).toBeUndefined();
     expect(m.merged_memories).toBeUndefined();
     expect(m.secrets_blocked_period).toBeUndefined();
   });
 });
 
-describe('queryMemoryUsage — populated', () => {
+describe('queryMemoryUsage - populated', () => {
   it('counts memories and tracks hit-rate after save/search', async () => {
     const team = getTeam('mq-usage-populated');
     const agentId = 'claude-code:mq-usage-populated';
@@ -76,7 +76,7 @@ describe('queryMemoryUsage — populated', () => {
       ownerId,
     );
 
-    // Two searches: one that hits, one that misses — should produce 50% hit rate.
+    // Two searches: one that hits, one that misses - should produce 50% hit rate.
     await team.searchMemories(agentId, 'Postgres', null, null, 10, ownerId);
     await team.searchMemories(agentId, 'xyzneverexists', null, null, 10, ownerId);
 
@@ -94,7 +94,7 @@ describe('queryMemoryUsage — populated', () => {
 
 // queryMemoryOutcomeCorrelation ───────────────────────────────────────
 
-describe('queryMemoryOutcomeCorrelation — bucket semantics', () => {
+describe('queryMemoryOutcomeCorrelation - bucket semantics', () => {
   it('returns empty array on a fresh team', async () => {
     const team = getTeam('mq-corr-empty');
     const agentId = 'claude-code:mq-corr-empty';
@@ -107,7 +107,7 @@ describe('queryMemoryOutcomeCorrelation — bucket semantics', () => {
   });
 
   it('uses the "searched, no results" label (not the old "missed search")', async () => {
-    // The 2026-04-21 memory audit renamed this bucket for B1 clarity —
+    // The 2026-04-21 memory audit renamed this bucket for B1 clarity -
     // "missed search" read ambiguously ("searched for the wrong thing"
     // vs "searched and found nothing"). Regression guard.
     const team = getTeam('mq-corr-missed');
@@ -191,7 +191,7 @@ describe('queryTopMemories', () => {
 
   it('excludes memories that were saved but never accessed', async () => {
     // top-memories windows by last_accessed_at, not by created_at. A
-    // never-accessed memory must not appear — the widget is explicitly
+    // never-accessed memory must not appear - the widget is explicitly
     // "most-accessed," not "all memories."
     const team = getTeam('mq-top-unaccessed');
     const agentId = 'claude-code:mq-top-unaccessed';
@@ -216,7 +216,7 @@ describe('queryTopMemories', () => {
   it('returns only the accessed subset when some memories are searched and others are not', async () => {
     // The SQL throttles access_count increments so rapid back-to-back
     // searches inside one test can't reliably produce a count gradient
-    // (see memory.ts:568 — last_accessed_at only bumps on stale rows).
+    // (see memory.ts:568 - last_accessed_at only bumps on stale rows).
     // What the test CAN lock in: the `access_count > 0 AND
     // last_accessed_at IS NOT NULL` filter means only memories the agent
     // actually retrieved appear in the list.

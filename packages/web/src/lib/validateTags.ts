@@ -1,5 +1,5 @@
 // Tag validation for memory entries.
-// Uses shared constants — single source of truth across all packages.
+// Uses shared constants - single source of truth across all packages.
 
 import { MAX_TAG_LENGTH, MAX_TAGS_PER_MEMORY } from '@chinmeister/shared/constants.js';
 

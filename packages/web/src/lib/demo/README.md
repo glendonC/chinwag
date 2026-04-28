@@ -38,7 +38,7 @@ state, widget data, and Reports content all flow from here.
 
 When the bottom-right switcher's toggle is **on**, every consumer below reads
 from the active scenario instead of the network. Writes silently no-op so
-the user can interact with the UI without corrupting demo state — the next
+the user can interact with the UI without corrupting demo state. The next
 poll/refresh reasserts the baseline.
 
 | Surface                  | Hook / store                               | Demo slice                |
@@ -72,7 +72,7 @@ alongside the other per-team fixtures.
 
 Two events keep this in sync without a page reload:
 
-- `chinmeister:demo-scenario-changed` — fired by the switcher. Hooks subscribe
+- `chinmeister:demo-scenario-changed`: fired by the switcher. Hooks subscribe
   via `useDemoScenario`; stores listen at module level and re-run their
   loaders.
 - Auth's listener handles three branches: real token in storage → re-auth
@@ -81,7 +81,7 @@ Two events keep this in sync without a page reload:
 
 If you add a new view that hits the network, follow the same pattern. The
 rule: **no read path outside `lib/demo/` should fire when `isDemoActive()`
-returns true.** The same goes for writes — they should no-op silently
+returns true.** The same goes for writes: they should no-op silently
 (throwing on write would break optimistic UI).
 
 ## The 12 scenarios
@@ -89,20 +89,20 @@ returns true.** The same goes for writes — they should no-op silently
 Each scenario is a single-question fixture: pick one widget question, build
 the minimum override that exercises it. Don't clone the baseline.
 
-| ID                       | What it asserts                                                                                                                                                            |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `healthy`                | Full team, full coverage, positive delta. The baseline.                                                                                                                    |
-| `empty`                  | Zero sessions, no live agents, no Reports runs — every empty state at once.                                                                                                |
-| `solo-cc`                | One handle on Claude Code only. No team coordination data. Reports still populated (CC has the data).                                                                      |
-| `solo-no-hooks`          | One handle on a non-hook MCP tool (JetBrains). No tokens, no conversation, no tool calls — every coverage note fires. Reports empty (foundational reports need that data). |
-| `stale-pricing`          | LiteLLM snapshot >7 days old. Cost fields render `--` with the "pricing refresh pending" coverage note.                                                                    |
-| `models-without-pricing` | Some observed models missing from LiteLLM. Coverage note names them.                                                                                                       |
-| `first-period`           | No previous window. Every delta pill suppresses.                                                                                                                           |
-| `team-conflicts`         | Active collisions, retries, overlap. Drives the coordination story.                                                                                                        |
-| `negative-delta`         | Period got worse — red downward arrows in stat cards.                                                                                                                      |
-| `no-live-agents`         | Analytics intact, zero active agents. Live widgets show their empty state.                                                                                                 |
-| `memory-stale`           | Aging skewed >90d, stale count high. Freshness warn.                                                                                                                       |
-| `memory-concentrated`    | Single-author directories dominate. Concentration warn.                                                                                                                    |
+| ID                       | What it asserts                                                                                                                                                           |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `healthy`                | Full team, full coverage, positive delta. The baseline.                                                                                                                   |
+| `empty`                  | Zero sessions, no live agents, no Reports runs. Every empty state at once.                                                                                                |
+| `solo-cc`                | One handle on Claude Code only. No team coordination data. Reports still populated (CC has the data).                                                                     |
+| `solo-no-hooks`          | One handle on a non-hook MCP tool (JetBrains). No tokens, no conversation, no tool calls. Every coverage note fires. Reports empty (foundational reports need that data). |
+| `stale-pricing`          | LiteLLM snapshot >7 days old. Cost fields render `--` with the "pricing refresh pending" coverage note.                                                                   |
+| `models-without-pricing` | Some observed models missing from LiteLLM. Coverage note names them.                                                                                                      |
+| `first-period`           | No previous window. Every delta pill suppresses.                                                                                                                          |
+| `team-conflicts`         | Active collisions, retries, overlap. Drives the coordination story.                                                                                                       |
+| `negative-delta`         | Period got worse. Red downward arrows in stat cards.                                                                                                                      |
+| `no-live-agents`         | Analytics intact, zero active agents. Live widgets show their empty state.                                                                                                |
+| `memory-stale`           | Aging skewed >90d, stale count high. Freshness warn.                                                                                                                      |
+| `memory-concentrated`    | Single-author directories dominate. Concentration warn.                                                                                                                   |
 
 ## Adding a scenario (reusing existing fixture domains)
 

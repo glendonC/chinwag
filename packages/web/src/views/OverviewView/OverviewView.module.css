@@ -20,7 +20,7 @@
  * from the widget edges. With no visible widget chrome, the page-text edge
  * needs to line up with widget *content*, not widget containers. Pull the
  * grid 20px outward on each side so the internal padding visually absorbs
- * into the page gutter — title and widget content share a single vertical
+ * into the page gutter, title and widget content share a single vertical
  * guide.
  */
 .gridBleed {
@@ -100,7 +100,7 @@
  * catalog widget is being dragged. The real drop indicator is the sized
  * ghost placeholder in the grid (see WidgetGrid.module.css `.placeholder`);
  * this chip is just a lightweight "thing in hand" bridging the catalog
- * panel and the grid. No hard accent border — the ghost already owns the
+ * panel and the grid. No hard accent border, the ghost already owns the
  * system-color affordance. Shadow + page-bg fill make the chip read as
  * "lifted from the panel," not "stamped with system color". */
 .dragOverlayCard {
@@ -125,7 +125,7 @@
   color: var(--ink);
 }
 
-/* Sortable drag overlay — sized inline to match the original cell's
+/* Sortable drag overlay: sized inline to match the original cell's
  * measured w × h. Same surface vocabulary as a regular widget (page-bg,
  * 20px padding, rounded corners, hidden overflow) plus a stronger shadow
  * so it reads as "lifted off the grid." Faint downward tilt to feel held
@@ -325,7 +325,7 @@
 
 /* ── Static ProjectFilter label (single-project case) ──
    Matches the Customize button's border/color weight so the two sit at
-   visual parity. No hover state — this is a label, not a button. Uses the
+   visual parity. No hover state, this is a label, not a button. Uses the
    chinmeister project gradient squircle as the icon to match the Sidebar's
    existing project identity vocabulary. */
 

@@ -13,7 +13,7 @@ import {
 
 // Write-path tests use real fs in a tmp home to catch torn-write regressions and
 // file-mode drift. Mock-based assertions lived in session-registry.test.js until
-// atomic writes were introduced — expectations on `writeFileSync(target, ...)`
+// atomic writes were introduced - expectations on `writeFileSync(target, ...)`
 // broke because writes now go through a tmp file + rename.
 
 describe('session-registry write paths (real fs)', () => {
@@ -105,7 +105,7 @@ describe('session-registry write paths (real fs)', () => {
       }
     });
 
-    it('overwrites atomically — a concurrent reader sees the previous content, not a half-written file', () => {
+    it('overwrites atomically - a concurrent reader sees the previous content, not a half-written file', () => {
       const path = writeSessionRecord(
         'agent',
         { pid: 1, tool: 'test', cwd: '/', tty: null },

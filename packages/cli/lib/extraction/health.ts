@@ -30,7 +30,7 @@ export interface ExtractionAttempt {
   toolCallCount: number;
   error?: string;
   /**
-   * JSONL parse health — present only when the spec is JSONL and the file
+   * JSONL parse health - present only when the spec is JSONL and the file
    * was non-empty. parsedLines / totalLines is the ratio actually usable;
    * a sudden drop here is the earliest detectable signal of a tool format
    * change that neither diagnose() nor the healer would otherwise catch

@@ -150,7 +150,7 @@ export async function rpcGetAnalytics(
   // snapshot so the cost-per-edit delta shown by CostPerEditWidget reflects
   // behavior change, not price drift. Previous-window aggregate falls to
   // empty when outside retention (30d default), which computeWindowCost
-  // maps to a null cost — StatWidget's delta gate then skips rendering.
+  // maps to a null cost - StatWidget's delta gate then skips rendering.
   const currentAgg = queryTokenAggregateForWindow(ctx.sql, scope, days, 0);
   const previousAgg = queryTokenAggregateForWindow(ctx.sql, scope, days * 2, days);
   await enrichPeriodComparisonCost(enriched, currentAgg, previousAgg, ctx.env);

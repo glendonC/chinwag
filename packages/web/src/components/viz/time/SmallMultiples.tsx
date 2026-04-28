@@ -7,7 +7,7 @@ export interface SmallMultipleItem {
   label: ReactNode;
   /** Right-aligned mono meta (e.g. "+123 / −45"). */
   meta?: ReactNode;
-  /** The chart body — usually a compact DivergingColumns. */
+  /** The chart body - usually a compact DivergingColumns. */
   body: ReactNode;
 }
 

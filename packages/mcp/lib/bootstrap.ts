@@ -1,6 +1,6 @@
 // Shared initialization factory for all MCP entry points (index.js, hook.js, channel.js).
 // Consolidates config loading, identity resolution, API client init, and team setup.
-// CRITICAL: Never console.log — stdio transport. Use console.error for all logging.
+// CRITICAL: Never console.log - stdio transport. Use console.error for all logging.
 
 import { loadConfig, configExists } from './config.js';
 import { api, type IdentityUpdatableClient } from './api.js';
@@ -44,7 +44,7 @@ export interface BootstrapOptions {
 
   /**
    * What to do when config, token, or team file is missing.
-   * - 'require-all': log error and exit with non-zero code — fail on any missing config, token, or team (index.js)
+   * - 'require-all': log error and exit with non-zero code - fail on any missing config, token, or team (index.js)
    * - 'require-config': exit(1) for missing config/token, exit(0) for missing team (channel.js)
    * - 'optional': exit(0) silently, never block the caller (hook.js)
    */
@@ -61,7 +61,7 @@ export interface BootstrapOptions {
  */
 export type BootstrapConfig = Record<string, unknown> & { token?: string };
 
-/** Fully resolved bootstrap result — everything an entry point needs. */
+/** Fully resolved bootstrap result - everything an entry point needs. */
 export interface BootstrapResult {
   config: BootstrapConfig;
   runtime: RuntimeIdentity;
@@ -111,7 +111,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
     }
     const loaded = loadConfig();
     if (!loaded?.token) {
-      return handleMissing(onMissing, logPrefix, 'Invalid config — missing token.');
+      return handleMissing(onMissing, logPrefix, 'Invalid config - missing token.');
     }
     config = loaded as BootstrapConfig;
   }
@@ -121,7 +121,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
   if (!teamId) {
     if (onMissing === 'require-config') {
       // channel.js: missing team is a clean exit, not an error
-      log.info('No .chinmeister file — inactive.');
+      log.info('No .chinmeister file - inactive.');
       process.exit(0);
     } else if (onMissing === 'optional') {
       process.exit(0);
@@ -168,7 +168,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
 
 /**
  * Handle a missing prerequisite (config, token, or team) according to the
- * configured onMissing strategy. Always exits the process — never returns.
+ * configured onMissing strategy. Always exits the process - never returns.
  */
 function handleMissing(
   mode: NonNullable<BootstrapOptions['onMissing']>,

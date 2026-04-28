@@ -72,7 +72,7 @@ describe('normalizePath', () => {
   });
 
   it('handles whitespace in filenames (does not trim)', () => {
-    // normalizePath does not trim whitespace — that is a separate concern
+    // normalizePath does not trim whitespace - that is a separate concern
     expect(normalizePath(' src/a.js ')).toBe(' src/a.js ');
   });
 });

@@ -156,7 +156,7 @@ describe('dashboardReducer', () => {
     it('ignores invalid view names', () => {
       const state = defaultState({ view: 'home' });
       const result = dashboardReducer(state, navigateToView('invalid-view'));
-      expect(result).toBe(state); // same reference — no change
+      expect(result).toBe(state); // same reference - no change
     });
   });
 
@@ -307,7 +307,7 @@ describe('dashboardReducer', () => {
     it('does nothing when list is empty and already at defaults', () => {
       const state = defaultState({ selectedIdx: -1, mainFocus: 'input' });
       const result = dashboardReducer(state, clampSelection(0));
-      expect(result).toBe(state); // same reference — no update
+      expect(result).toBe(state); // same reference - no update
     });
 
     it('clamps index when it exceeds list length', () => {
@@ -319,7 +319,7 @@ describe('dashboardReducer', () => {
     it('does not change index when within bounds', () => {
       const state = defaultState({ selectedIdx: 2 });
       const result = dashboardReducer(state, clampSelection(5));
-      expect(result).toBe(state); // same reference — no update
+      expect(result).toBe(state); // same reference - no update
     });
 
     it('does not change index of -1 when list is non-empty', () => {

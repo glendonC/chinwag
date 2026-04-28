@@ -84,7 +84,7 @@ describe('setupShutdownHandlers', () => {
     clearInterval(parentWatch);
   });
 
-  it('cleanup is idempotent — second call is a no-op', () => {
+  it('cleanup is idempotent - second call is a no-op', () => {
     const { cleanup, parentWatch } = setupShutdownHandlers({
       agentId: 'a1',
       state,

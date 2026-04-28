@@ -2,7 +2,7 @@ name = "chinmeister-api"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
 
-# Custom domain — canonical public API URL. Cloudflare creates the DNS
+# Custom domain: canonical public API URL. Cloudflare creates the DNS
 # record and provisions the TLS certificate automatically when this
 # block is present and the zone is in the same CF account.
 [[routes]]
@@ -11,14 +11,14 @@ zone_name = "chinmeister.com"
 custom_domain = true
 
 # Scheduled triggers:
-#   - "0 3 * * 1" — weekly pulse check (Mon 3am UTC) verifying tool directory
+#   - "0 3 * * 1": weekly pulse check (Mon 3am UTC) verifying tool directory
 #     freshness: GitHub stars, website uptime.
-#   - "0 */6 * * *" — 6-hour model pricing refresh from LiteLLM.
+#   - "0 */6 * * *": 6-hour model pricing refresh from LiteLLM.
 # Every cron must have an explicit case in src/index.ts scheduled() dispatch.
 [triggers]
 crons = ["0 3 * * 1", "0 */6 * * *"]
 
-# Workers Observability — logs + traces persisted to CF dashboard
+# Workers Observability: logs + traces persisted to CF dashboard
 # View at: dash.cloudflare.com → Workers & Pages → chinmeister-api → Observability
 [observability]
 enabled = true

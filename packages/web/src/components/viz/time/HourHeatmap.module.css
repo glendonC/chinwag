@@ -1,6 +1,6 @@
 /* Hour × day-of-week heatmap. Cell opacity = volume normalized against the
  * p95 of populated cells (caller passes `max`); ink color stays constant
- * so dark mode flows through token. Layout reads as a chart, not a list —
+ * so dark mode flows through token. Layout reads as a chart, not a list,
  * y axis is day labels, x axis is hour labels. */
 
 .wrap {

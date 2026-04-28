@@ -88,7 +88,7 @@ export function queryConversationEditCorrelation(
 }
 
 // Files where the user-side conversation showed confusion or frustration in
-// 2+ sessions touching the file. Surfaces FILES, not sentiment polarity —
+// 2+ sessions touching the file. Surfaces FILES, not sentiment polarity -
 // sentiment is an input to the file-axis question per ANALYTICS_SPEC §10
 // anti-pattern #1 ("use as input to Failure Analysis, never alone"). The
 // HAVING confused_sessions >= 2 floor is what makes this distinct from a
@@ -162,7 +162,7 @@ export function queryConfusedFiles(
 // switched tools, asked again or hit confusion immediately."
 //
 // Substrate-unique to chinmeister: no single-tool analytics surface sees
-// both sides of the handoff. Sentiment/topic are filter inputs only — the
+// both sides of the handoff. Sentiment/topic are filter inputs only - the
 // returned row exposes file, tools, handles, gap-time. The classifier's
 // polarity never reaches the UI, preserving the §10 #1 firewall.
 //
@@ -261,7 +261,7 @@ export function queryCrossToolHandoffs(
 }
 
 // Count of user messages classified topic='question' in sessions that ended
-// abandoned. Single scalar — the signal is "intent the agent couldn't
+// abandoned. Single scalar - the signal is "intent the agent couldn't
 // fulfill, walk this back into memory or a follow-up session." Frame is
 // navigation aid, not metric (same shape as live-conflicts: number drives
 // drill into the underlying sessions).

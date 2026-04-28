@@ -11,7 +11,7 @@
  *
  * `grid-auto-flow: row dense` preserves rough source order while backfilling
  * holes left by mixed rowSpans. Because all widgets share the same 80px row
- * track, adjacent widgets in a row land on the same y-coordinate — this
+ * track, adjacent widgets in a row land on the same y-coordinate, which
  * structurally eliminates the staircase that RGL's vertical packer produced.
  */
 
@@ -52,7 +52,7 @@
  * grid gap (offset -12px from the cell edge), so it reads as a boundary
  * hint BETWEEN widgets rather than an outline AROUND them.
  *
- * Cells on the outer edge of the grid still draw their dividers — the
+ * Cells on the outer edge of the grid still draw their dividers, and the
  * gradient's end-fades naturally prevent them from forming hard page
  * corners, so we don't need JS to identify "which widget is on the
  * edge" (hard to do under grid-auto-flow:row dense anyway).
@@ -110,13 +110,13 @@
 /* ── Drag-from-catalog affordance ────────────────
  *
  * A sized ghost placeholder rendered in the grid flow at the exact cell
- * the catalog drop will occupy — insert-before a hovered widget, or at
+ * the catalog drop will occupy, insert-before a hovered widget, or at
  * the end of the grid when dropping into empty space. The grid container
  * itself never lights up: the affordance is local to the drop location,
  * sized to the dragged widget's colSpan × rowSpan, so the user sees
  * both WHERE and HOW BIG the landing widget will be. Because the
  * placeholder is a real grid child, `grid-auto-flow: row dense` reflows
- * neighbors automatically — no manual shift math. Radius matches .widget
+ * neighbors automatically, with no manual shift math. Radius matches .widget
  * so the ghost reads as a widget-shaped preview, not arbitrary chrome.
  */
 .placeholder {
@@ -149,8 +149,8 @@
 /*
  * `.widget` is the visible inner box. It fills the cell and carries the
  * 20px internal padding that shared OverviewView.module.css already expects
- * on the outer wrapper (our replacement inherits the same zone rules —
- * .widgetHead / .widgetBody / [data-widget-viz='stat'] overrides — because
+ * on the outer wrapper (our replacement inherits the same zone rules:
+ * .widgetHead / .widgetBody / [data-widget-viz='stat'] overrides, because
  * the data attrs live on `.cell`).
  */
 .widget {
@@ -180,14 +180,14 @@
  * Fit-content widgets (opt-in via WidgetDef.fitContent).
  *
  * `height: auto` lets the widget size to its content instead of stretching
- * to fill the grid cell — WidgetGrid.tsx then measures the scrollHeight and
+ * to fill the grid cell. WidgetGrid.tsx then measures the scrollHeight and
  * shrinks the cell's grid-row span to match, so no vertical space is
  * reserved past the widget's actual needs. `max-height: 100%` caps at the
  * cell's computed height (which is driven by the declared `h` rowSpan acting
  * as a ceiling); when content exceeds that cap, the body scrolls.
  *
  * Targets `[data-widget-zone='body']` rather than a CSS-module class because
- * the body div's class is hashed inside WidgetRenderer's own module — the
+ * the body div's class is hashed inside WidgetRenderer's own module, so the
  * data attribute is the stable contract between the grid frame and the
  * renderer's zones.
  */
@@ -215,7 +215,7 @@
  * The actual widget renders in the parent view's DragOverlay (sized to
  * its measured cell dimensions, follows the cursor cleanly). This ghost
  * fills the original cell so the grid keeps its shape and sortable can
- * shift it as siblings make room — it visibly tracks the drop target.
+ * shift it as siblings make room, so it visibly tracks the drop target.
  * Dashed accent border is the "blue outline" the user remembered from
  * the old RGL behavior. */
 .widgetGhost {
@@ -229,8 +229,8 @@
 /* ── Hover controls ───────────────────────────
  *
  * Top-right pair of controls revealed on cell hover:
- *   .gripButton   — drag handle; activator node for useSortable
- *   .removeButton — click to remove (undoable via Cmd/Ctrl-Z)
+ *   .gripButton   - drag handle; activator node for useSortable
+ *   .removeButton - click to remove (undoable via Cmd/Ctrl-Z)
  *
  * Hidden by default to keep widget chrome clean. Revealed on cell hover
  * (pointer users) or focus-within (keyboard users). Hidden at the mobile

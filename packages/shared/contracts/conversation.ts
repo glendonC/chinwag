@@ -1,5 +1,5 @@
 /**
- * Conversation intelligence types — message analysis, sentiment, and topic tracking.
+ * Conversation intelligence types - message analysis, sentiment, and topic tracking.
  */
 
 import { z } from 'zod';

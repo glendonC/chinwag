@@ -19,7 +19,7 @@ let activeWs: WebSocket | null = null;
 let reconcileTimer: ReturnType<typeof setTimeout> | null = null;
 let reconcileDelay: number = RECONCILE_INITIAL_MS;
 let reconcileInFlight = false;
-/** Monotonic generation counter — prevents stale onclose handlers from
+/** Monotonic generation counter - prevents stale onclose handlers from
  *  restarting polling after a newer connection has replaced them. */
 let wsGeneration = 0;
 /** Track reconnection attempts for the connection state machine. */
@@ -111,7 +111,7 @@ export async function connectTeamWebSocket(teamId: string): Promise<void> {
   // Close any existing connection before opening a new one
   closeWebSocket();
 
-  // Capture the generation at the start — if it changes, a newer call
+  // Capture the generation at the start - if it changes, a newer call
   // has superseded this one and we should bail out.
   const gen = ++wsGeneration;
 
@@ -121,7 +121,7 @@ export async function connectTeamWebSocket(teamId: string): Promise<void> {
       : { status: 'connecting' },
   );
 
-  // Fetch a short-lived ticket — keeps the real token out of the WS URL
+  // Fetch a short-lived ticket - keeps the real token out of the WS URL
   let ticket: string;
   try {
     const data = await api<WsTicketResponse>('POST', '/auth/ws-ticket', null, token);
@@ -167,7 +167,7 @@ export async function connectTeamWebSocket(teamId: string): Promise<void> {
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      // Stale connection — a newer generation has taken over
+      // Stale connection - a newer generation has taken over
       if (wsGeneration !== gen) {
         ws.close();
         return;
@@ -176,7 +176,7 @@ export async function connectTeamWebSocket(teamId: string): Promise<void> {
         ws.close();
         return;
       }
-      // WebSocket connected — stop polling, start reconciliation with backoff
+      // WebSocket connected - stop polling, start reconciliation with backoff
       reconnectAttempt = 0;
       setWsConnected(true);
       setConnectionState({ status: 'connected', connectedAt: Date.now() });
@@ -193,7 +193,7 @@ export async function connectTeamWebSocket(teamId: string): Promise<void> {
       if (wsGeneration !== gen) return;
       if (teamActions.getState().activeTeamId !== teamId) return;
       // Restart the reconciliation timer relative to the last event, but
-      // preserve the current backoff delay — resetting on every message would
+      // preserve the current backoff delay - resetting on every message would
       // defeat exponential backoff under high-frequency streams.
       if (reconcileTimer) {
         clearTimeout(reconcileTimer);
@@ -212,7 +212,7 @@ export async function connectTeamWebSocket(teamId: string): Promise<void> {
               applyDelta as (context: unknown, event: unknown) => unknown,
               event,
             );
-            // Return full state (identity) when delta cannot be applied —
+            // Return full state (identity) when delta cannot be applied -
             // Zustand skips the update when the return is the same reference.
             return patch ?? state;
           });
@@ -223,7 +223,7 @@ export async function connectTeamWebSocket(teamId: string): Promise<void> {
     };
 
     ws.onclose = () => {
-      // Only act if this is still the active generation — prevents a
+      // Only act if this is still the active generation - prevents a
       // replaced connection from interfering with its successor.
       if (wsGeneration !== gen) return;
       activeWs = null;
@@ -249,12 +249,12 @@ export async function connectTeamWebSocket(teamId: string): Promise<void> {
 
     activeWs = ws;
   } catch {
-    // WebSocket constructor failed — stay on polling
+    // WebSocket constructor failed - stay on polling
     setConnectionState({ status: 'error', error: 'WebSocket constructor failed' });
   }
 }
 
-// Module-level subscription — intentionally never unsubscribed. Ensures the
+// Module-level subscription - intentionally never unsubscribed. Ensures the
 // WebSocket is closed whenever the auth token changes (logout, refresh, etc.).
 authActions.subscribe((state, prev) => {
   if (state.token !== prev?.token) {

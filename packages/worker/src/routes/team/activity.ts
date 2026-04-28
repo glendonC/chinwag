@@ -1,4 +1,4 @@
-// Team activity routes — activity reporting, conflicts, file reporting, sessions, history.
+// Team activity routes - activity reporting, conflicts, file reporting, sessions, history.
 
 import type { RouteDefinition } from '../../lib/router.js';
 import { checkContent } from '../../moderation.js';
@@ -174,7 +174,7 @@ export const handleTeamSessionEdit = teamJsonRoute(async ({ body, user, db, agen
   }
   if (file.length > MAX_FILE_PATH_LENGTH) return json({ error: 'file path too long' }, 400);
 
-  // Optional diff stats (lines added/removed) — privacy-safe counts only
+  // Optional diff stats (lines added/removed) - privacy-safe counts only
   const linesAdded = Math.max(0, Math.min(Number(body.lines_added) || 0, MAX_DIFF_LINES));
   const linesRemoved = Math.max(0, Math.min(Number(body.lines_removed) || 0, MAX_DIFF_LINES));
 
@@ -342,7 +342,7 @@ const SHA_PATTERN = /^[0-9a-f]{7,40}$/;
 export const handleTeamRecordCommits = teamJsonRoute(
   async ({ body, request, user, db, agentId, team }) => {
     const { session_id, commits } = body;
-    // session_id is optional — if omitted, the backend resolves the active session
+    // session_id is optional - if omitted, the backend resolves the active session
     const resolvedSessionId =
       typeof session_id === 'string' && session_id.trim() ? session_id : null;
     if (!Array.isArray(commits) || commits.length === 0) {

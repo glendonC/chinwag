@@ -1,4 +1,4 @@
-// Pair Detail — the drill-in for a tool-pair handoff.
+// Pair Detail - the drill-in for a tool-pair handoff.
 // Opened via ?pair=<from>:<to> from StackHandoffMatrix. Renders into the
 // shared detailPanel slot in ToolsView alongside StackToolDetail and
 // SharedFileDetail.
@@ -76,7 +76,7 @@ export default function PairDetail({ fromToolId, toToolId, handoffs, onBack, onF
       <div className={styles.detail}>
         <BackLink label="Tools" onClick={onBack} />
         <div className={styles.notFound}>
-          No handoff data for {fromMeta.label} → {toMeta.label}. The link may be stale — try going
+          No handoff data for {fromMeta.label} → {toMeta.label}. The link may be stale - try going
           back to the Tools tab and clicking another pair.
         </div>
       </div>

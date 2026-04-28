@@ -1,7 +1,7 @@
 // Zero-dependency route dispatcher.
 //
 // Design choice: hand-rolled route map over itty-router/Hono/chanfana.
-// The worker has zero runtime deps and the routing needs are simple —
+// The worker has zero runtime deps and the routing needs are simple -
 // flat static paths plus two parametric patterns. A library would add
 // bundle size and a learning curve for a problem solved in <30 lines.
 // Adding a new endpoint is one line in the route table.
@@ -59,7 +59,7 @@ export interface RouteMatch {
  * patterns are tested in registration order.
  */
 export function matchRoute(routes: RouteTable, method: string, path: string): RouteMatch | null {
-  // 1. Try static lookup (most routes are static — fast path)
+  // 1. Try static lookup (most routes are static - fast path)
   const staticKey = `${method} ${path}`;
   const staticRoute = routes.staticMap.get(staticKey);
   if (staticRoute) return { route: staticRoute, params: [] };

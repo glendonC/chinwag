@@ -145,7 +145,7 @@ export function useGlobalRank(): GlobalRank {
 
         setRank({ metrics, totals, totalDevelopers });
       } catch {
-        // Silently ignore — page works with mock data
+        // Silently ignore - page works with mock data
       }
     }
 

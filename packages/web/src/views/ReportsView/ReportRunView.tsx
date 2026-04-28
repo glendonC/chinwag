@@ -1,6 +1,6 @@
 // Completed / queued / failed run view. Mounted inside ReportsView
 // when the `run` query param is present. Running state is handled by
-// ReportDetailView in-place — there's no dedicated live-run view.
+// ReportDetailView in-place - there's no dedicated live-run view.
 
 import { useState, type ReactNode } from 'react';
 import clsx from 'clsx';

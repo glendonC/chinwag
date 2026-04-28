@@ -133,7 +133,7 @@ describe('RenderErrorBoundary', () => {
 
     expect(container.textContent).toContain('Something went wrong');
 
-    // Change resetKey and stop throwing — boundary should reset
+    // Change resetKey and stop throwing - boundary should reset
     shouldThrow = false;
     act(() => {
       root.render(

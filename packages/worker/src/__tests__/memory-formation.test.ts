@@ -1,4 +1,4 @@
-// Shadow-mode formation — verifies the LLM-output parser handles
+// Shadow-mode formation - verifies the LLM-output parser handles
 // well-formed JSON, fence-wrapped JSON, prose-wrapped JSON, and
 // malformed input safely. Plus DO lifecycle tests for the sweep / list
 // surface.

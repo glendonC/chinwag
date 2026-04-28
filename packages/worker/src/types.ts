@@ -145,7 +145,7 @@ export interface Memory {
   text: string;
   /** JSON-parsed from stored JSON array */
   tags: string[];
-  /** JSON-parsed from stored JSON array — project-defined categories (dormant) */
+  /** JSON-parsed from stored JSON array - project-defined categories (dormant) */
   categories: string[];
   /** User handle of the memory author */
   handle: string;

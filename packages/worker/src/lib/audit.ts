@@ -11,7 +11,7 @@
 //
 //   ScriptName eq "chinmeister-api" AND $1 contains '"audit":true'
 //
-// No per-deploy config is required — Logpush is account-level. The audit
+// No per-deploy config is required - Logpush is account-level. The audit
 // payloads below are designed to survive the JSON-string round-trip through
 // the workers logging pipeline (no nested objects deeper than 1 level, all
 // IDs as plain strings, timestamps in ISO-8601).

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 /**
- * Tests for packages/cli/lib/dashboard/memory.js — useMemoryManager hook.
+ * Tests for packages/cli/lib/dashboard/memory.js - useMemoryManager hook.
  *
  * Since we cannot render React hooks in a node environment without a test renderer,
  * we test the logic by importing the module with mocked dependencies and exercising
@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
  */
 
 // ── Minimal hook simulation ────────────────────────────
-// We don't render React — we simulate useState/useRef so the hook's logic
+// We don't render React - we simulate useState/useRef so the hook's logic
 // functions are callable and we can inspect state changes.
 
 let hookStates;

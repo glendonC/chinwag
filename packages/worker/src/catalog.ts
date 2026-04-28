@@ -16,7 +16,7 @@ export const TOOL_CATALOG = [
   ...buildAgentSurfaceCatalogEntries(),
 ];
 
-// 13 browse categories — derived from 6-agent research + 3-agent challenge process.
+// 13 browse categories - derived from 6-agent research + 3-agent challenge process.
 //
 // Architecture: categories (primary, one per tool) + tags (secondary, multiple per tool).
 // Tags live in evaluation metadata as string[]. When a tag accumulates 8+ tools,

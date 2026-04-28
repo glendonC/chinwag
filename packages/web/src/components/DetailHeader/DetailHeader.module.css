@@ -1,5 +1,5 @@
 /*
- * Detail view header — one layout for every drilled-in surface.
+ * Detail view header: one layout for every drilled-in surface.
  * Title + subtitle on the left; optional actions (typically RangePills)
  * right-aligned on the same row. Collapses to stacked on narrow viewports.
  */

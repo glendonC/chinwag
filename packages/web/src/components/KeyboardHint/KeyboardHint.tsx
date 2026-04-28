@@ -4,7 +4,7 @@ import { useDismissible } from '../../hooks/useDismissible.js';
 import styles from './KeyboardHint.module.css';
 
 // Storage keys split by axis so dismissing the horizontal hint doesn't
-// dismiss the vertical one (the two navs are independent — a user who
+// dismiss the vertical one (the two navs are independent - a user who
 // learned ←/→ may still benefit from seeing ↑/↓). Keeping the
 // horizontal key at its existing value preserves dismissal state for
 // users who've already clicked through the legacy hint.

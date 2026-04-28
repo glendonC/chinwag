@@ -52,11 +52,11 @@ export function agentGradient(hex: string): string {
   const accent = (h + 160) % 360;
 
   return [
-    // Primary bloom — anchored upper-left, carries the agent hue
+    // Primary bloom - anchored upper-left, carries the agent hue
     `radial-gradient(ellipse at 28% 22%, hsla(${h}, 72%, 68%, 0.42) 0%, transparent 55%)`,
-    // Accent bloom — lower-right, split-complementary for depth
+    // Accent bloom - lower-right, split-complementary for depth
     `radial-gradient(ellipse at 78% 72%, hsla(${accent}, 60%, 72%, 0.22) 0%, transparent 50%)`,
-    // Base wash — barely-there tint so the background doesn't read as flat white
+    // Base wash - barely-there tint so the background doesn't read as flat white
     `linear-gradient(135deg, hsla(${h}, 35%, 94%, 0.18), hsla(${analog}, 35%, 96%, 0.10))`,
   ].join(', ');
 }

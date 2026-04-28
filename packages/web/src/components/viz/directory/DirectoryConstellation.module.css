@@ -1,4 +1,4 @@
-/* Directory constellation — 2D scatter of (file count, avg touches per
+/* Directory constellation: 2D scatter of (file count, avg touches per
  * file). Tint encodes completion rate; dot size encodes total lines churn.
  * Relies on the global `rowReveal` keyframe (app.css). */
 

@@ -21,7 +21,7 @@ const PAD_R = 24;
 const PAD_T = 18;
 const PAD_B = 42;
 
-// Fixed dot radius — avoids the bubble-chart pattern (variable-size orbs
+// Fixed dot radius - avoids the bubble-chart pattern (variable-size orbs
 // encoding a third dimension). Tint carries completion; size stays uniform.
 const DOT_RADIUS = 6;
 
@@ -32,14 +32,14 @@ const DOT_RADIUS = 6;
  *
  * Upper-right = wide + deep (hot zones). Upper-left = focused rework on
  * few files. Lower-right = wide-and-shallow. Lower-left = edges. Dot tint
- * encodes completion rate — an ink-alpha spread from muted (low completion)
+ * encodes completion rate - an ink-alpha spread from muted (low completion)
  * to full ink (high completion).
  */
 export default function DirectoryConstellation({ entries, ariaLabel }: Props) {
   const dataset = useMemo(() => {
     if (entries.length === 0) return null;
 
-    // Derive avg touches per file — the "depth" axis. file_count > 0 is
+    // Derive avg touches per file - the "depth" axis. file_count > 0 is
     // guaranteed by the query (the directory wouldn't exist otherwise) but
     // Math.max cap keeps the division safe regardless.
     const enriched = entries.map((e) => ({

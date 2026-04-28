@@ -23,7 +23,7 @@ if (parseInt(process.version.slice(1)) < 22) {
 
 // Hand off to an MCP/hook/channel runtime module in the same process.
 // Same-process import is required because MCP uses stdin/stdout for JSON-RPC
-// and hooks need direct stdio access — child_process would add broken-pipe risk.
+// and hooks need direct stdio access - child_process would add broken-pipe risk.
 // The never-resolving promise keeps the top-level await alive so the imported
 // module's signal handlers and event loops continue running.
 interface HandOffOptions {
@@ -43,7 +43,7 @@ async function handOffToRuntime(
     process.argv = [node, script, ...process.argv.slice(3)];
   }
   await import(modulePath);
-  // Keep process alive — the imported module owns the event loop from here.
+  // Keep process alive - the imported module owns the event loop from here.
   await new Promise<void>(() => {});
 }
 
@@ -151,7 +151,7 @@ if (process.argv[2] === 'run') {
   process.exit(exitCode);
 }
 
-// Handle dashboard command — open web dashboard in browser
+// Handle dashboard command - open web dashboard in browser
 if (process.argv[2] === 'dashboard') {
   const { openDashboard } = await import('./lib/open-dashboard.js');
   await openDashboard();

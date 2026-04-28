@@ -1,6 +1,6 @@
 // Verbatim scripts copied into the user's git hooks directory by
 // `installChinmeisterHooks`. Everything here is the exact text the user will
-// eventually see on disk — no transformation, no string templating at
+// eventually see on disk - no transformation, no string templating at
 // install time. Keeping the scripts inline as string constants (rather
 // than loading from files at runtime) means they travel inside the
 // bundled CLI with no build-system plumbing to configure.
@@ -66,7 +66,7 @@ try {
     .filter((f) => !f.startsWith('.') && !f.endsWith('.orig'))
     .sort();
 } catch {
-  // no plugins dir — nothing to run
+  // no plugins dir - nothing to run
   process.exit(0);
 }
 
@@ -91,9 +91,9 @@ export const GUARD_SCRIPT = `#!/usr/bin/env node
 // and surfaces the result. Fail-open: any unexpected error exits 0.
 //
 // Modes (via CHINMEISTER_GUARD env var):
-//   off       — skip the check entirely
-//   advisory  — print conflicts, exit 0 (default; lets the commit go)
-//   block     — print conflicts, exit 1 if any found
+//   off       - skip the check entirely
+//   advisory  - print conflicts, exit 0 (default; lets the commit go)
+//   block     - print conflicts, exit 1 if any found
 
 'use strict';
 const { readFileSync, existsSync } = require('node:fs');
@@ -186,7 +186,7 @@ if (staged.length === 0) process.exit(0);
   process.stderr.write('chinmeister: staged files conflict with peer locks\\n');
   for (const b of blocked) {
     const scope = b.blocked_by_glob ? ' via scope ' + b.blocked_by_glob : '';
-    process.stderr.write('  ' + b.file + ' — held by ' + b.held_by + scope + '\\n');
+    process.stderr.write('  ' + b.file + ' - held by ' + b.held_by + scope + '\\n');
   }
   process.stderr.write(
     MODE === 'block'

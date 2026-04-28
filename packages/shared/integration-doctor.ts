@@ -51,7 +51,7 @@ export function formatIntegrationScanResults(
 
   const lines = ['Integrations:'];
   for (const item of rows) {
-    const summary = `${item.name} [${item.tier}] — ${item.status}`;
+    const summary = `${item.name} [${item.tier}] - ${item.status}`;
     const capabilityText = item.capabilities.length ? ` (${item.capabilities.join(', ')})` : '';
     lines.push(`- ${summary}${capabilityText}`);
     if (item.detected) lines.push(`  config: ${item.configPath}`);
@@ -88,7 +88,7 @@ export function scanHostIntegrations(cwd: string): IntegrationScanResult[] {
   return HOST_INTEGRATIONS.map((host) => {
     const detected = detectHost(cwd, host);
     // Tools without an MCP config file (e.g. Copilot) still detect and report
-    // but have nothing to "configure" — treat them as ready-when-detected and
+    // but have nothing to "configure" - treat them as ready-when-detected and
     // skip the config-path reads entirely.
     let mcpConfigured: boolean;
     if (host.mcpConfig) {

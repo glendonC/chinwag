@@ -30,7 +30,7 @@ async function createTeamAndJoin() {
 
 // --- Memory CRUD routes ---
 
-describe('Memory routes — save', () => {
+describe('Memory routes - save', () => {
   let headers: Record<string, string>;
   let teamId: string;
 
@@ -136,7 +136,7 @@ describe('Memory routes — save', () => {
   });
 });
 
-describe('Memory routes — search', () => {
+describe('Memory routes - search', () => {
   let headers: Record<string, string>;
   let teamId: string;
   let memorySaved = false;
@@ -187,7 +187,7 @@ describe('Memory routes — search', () => {
   it('caps limit at maximum (50)', async () => {
     const res = await SELF.fetch(`http://localhost/teams/${teamId}/memory?limit=100`, { headers });
     expect(res.status).toBe(200);
-    // Should not error — just cap silently
+    // Should not error - just cap silently
   });
 
   it('returns empty for non-matching query', async () => {
@@ -205,7 +205,7 @@ describe('Memory routes — search', () => {
   });
 });
 
-describe('Memory routes — update', () => {
+describe('Memory routes - update', () => {
   let headers: Record<string, string>;
   let teamId: string;
   let memoryId: string | undefined;
@@ -304,7 +304,7 @@ describe('Memory routes — update', () => {
   });
 });
 
-describe('Memory routes — delete', () => {
+describe('Memory routes - delete', () => {
   let headers: Record<string, string>;
   let teamId: string;
   let memoryId: string | undefined;
@@ -517,7 +517,7 @@ describe('File report routes', () => {
 
 // --- Lock routes ---
 
-describe('Lock routes — claim', () => {
+describe('Lock routes - claim', () => {
   let headers: Record<string, string>;
   let teamId: string;
 
@@ -736,7 +736,7 @@ describe('Session routes', () => {
   it('history caps days at max (30)', async () => {
     const res = await SELF.fetch(`http://localhost/teams/${teamId}/history?days=100`, { headers });
     expect(res.status).toBe(200);
-    // Should not error — just cap silently
+    // Should not error - just cap silently
   });
 
   it('enriches session model', async () => {

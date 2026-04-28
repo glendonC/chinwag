@@ -105,7 +105,7 @@ export function getUserGlobalRank(
 
   const rank = rows[0] as Record<string, unknown>;
 
-  // No composite "effectiveness score" — the 8 raw percentile dimensions
+  // No composite "effectiveness score" - the 8 raw percentile dimensions
   // (completion_rate_pct, edit_velocity_pct, tool_diversity_pct,
   // first_edit_pct, stuck_rate_pct, lines_per_session_pct,
   // total_lines_pct, focus_hours_pct) are what the UI consumes. Any

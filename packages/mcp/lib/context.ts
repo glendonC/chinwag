@@ -4,7 +4,7 @@
  *
  * Architecture note: This MCP server runs as a single Node.js process with serial
  * tool execution (stdio transport). The module-level cache singleton is the simplest
- * correct design for this single-process architecture — there is no concurrent access
+ * correct design for this single-process architecture - there is no concurrent access
  * and no multi-instance scenario that would justify dependency injection for state.
  *
  * The `createContextCache()` factory exists purely for test isolation: tests can call
@@ -33,7 +33,7 @@ export interface ContextCacheState {
   offlineRetryTimer: ReturnType<typeof setInterval> | null;
 }
 
-/** Returns a fresh default state — useful for testing isolated instances. */
+/** Returns a fresh default state - useful for testing isolated instances. */
 export function createContextCache(): ContextCacheState {
   return {
     cachedContext: null,
@@ -47,7 +47,7 @@ export function createContextCache(): ContextCacheState {
   };
 }
 
-/** Module-level singleton — all exported functions operate on this. */
+/** Module-level singleton - all exported functions operate on this. */
 const cache: ContextCacheState = createContextCache();
 
 export async function refreshContext(
@@ -127,7 +127,7 @@ async function doRefresh(
     cache.isOffline = true;
     startOfflineRetry(team, teamId);
 
-    // If cached context is too stale, discard it — callers handle null gracefully.
+    // If cached context is too stale, discard it - callers handle null gracefully.
     if (cache.cachedContext && now - cache.cachedContextAt > CONTEXT_MAX_STALE_MS) {
       log.warn(
         `Cached context too stale (${Math.round((now - cache.cachedContextAt) / 1000)}s) -- discarding`,
@@ -135,7 +135,7 @@ async function doRefresh(
       cache.cachedContext = null;
     }
 
-    return cache.cachedContext; // null if never fetched or discarded — caller must handle
+    return cache.cachedContext; // null if never fetched or discarded - caller must handle
   }
 }
 

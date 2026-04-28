@@ -35,7 +35,7 @@ export function registerCommitsTool(
     'chinmeister_report_commits',
     {
       description:
-        'Report git commits made during your current session. Call this after running git commit to link your commits to this agent session. This enables git attribution analytics — understanding which commits came from which agent sessions, tools, and models.',
+        'Report git commits made during your current session. Call this after running git commit to link your commits to this agent session. This enables git attribution analytics - understanding which commits came from which agent sessions, tools, and models.',
       inputSchema: reportCommitsSchema,
     },
     withTeam(deps, async (args, { preamble }) => {
@@ -45,7 +45,7 @@ export function registerCommitsTool(
           content: [
             {
               type: 'text' as const,
-              text: `${preamble}No active session — commits not recorded. Start a session first.`,
+              text: `${preamble}No active session - commits not recorded. Start a session first.`,
             },
           ],
         };

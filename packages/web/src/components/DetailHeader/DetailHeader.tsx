@@ -7,7 +7,7 @@ interface Props {
   onBack: () => void;
   title: string;
   subtitle?: string;
-  /** Optional right-aligned slot — typically a RangePills control. Shares
+  /** Optional right-aligned slot - typically a RangePills control. Shares
    * a baseline with the subtitle so the two tie into the same "scope" line. */
   actions?: ReactNode;
 }

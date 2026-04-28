@@ -1,5 +1,5 @@
 /**
- * Barrel re-export — all contract types available from a single import.
+ * Barrel re-export - all contract types available from a single import.
  *
  * Prefer direct domain imports for new code:
  *   import type { TeamMember } from '@chinmeister/shared/contracts/team.js';

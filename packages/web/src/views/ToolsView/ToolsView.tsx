@@ -1,4 +1,4 @@
-// Tools tab — your tools, observed.
+// Tools tab - your tools, observed.
 // One row per tool in your stack with concrete per-tool analytics.
 // Click any row → drill into a per-tool detail view (slide-in panel for now;
 // PR 2 will replace this with a proper /tools/:toolId route).
@@ -73,7 +73,7 @@ export default function ToolsView() {
     return { from: pairParam.slice(0, idx), to: pairParam.slice(idx + 1) };
   }, [pairParam]);
 
-  // Stack, pair, and file detail panels are mutually exclusive — opening
+  // Stack, pair, and file detail panels are mutually exclusive - opening
   // one clears the others so the URL always reflects a single active drill.
   const openStackTool = useCallback((toolId: string | null) => {
     if (toolId) {
@@ -142,7 +142,7 @@ export default function ToolsView() {
           <ViewHeader eyebrow="Across projects" title="Tools" />
 
           <section className={styles.stackZone} onMouseLeave={() => setHoveredTool(null)}>
-            {/* Ring chart — visual identity for the stack */}
+            {/* Ring chart - visual identity for the stack */}
             {uniqueTools === 0 ? (
               <div className={styles.stackEmptyRingWrap}>
                 <svg viewBox="0 0 260 260" className={styles.ringSvg}>

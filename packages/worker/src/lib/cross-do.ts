@@ -35,7 +35,7 @@ interface RetryOptions {
 
 /**
  * Run an idempotent DO operation with exponential backoff. The operation
- * MUST be safe to retry — typically `db.addUserTeam` (upsert), `db.removeUserTeam`
+ * MUST be safe to retry - typically `db.addUserTeam` (upsert), `db.removeUserTeam`
  * (DELETE WHERE), or any other write that can be replayed without side effects.
  *
  * On terminal failure, logs and rethrows. Caller decides whether the failure
@@ -68,12 +68,12 @@ export async function withDORetry<T>(op: () => Promise<T>, options: RetryOptions
 
 /**
  * Same as withDORetry but swallows the terminal error. Use when the second
- * write of a cross-DO sequence isn't required for the request to succeed —
+ * write of a cross-DO sequence isn't required for the request to succeed -
  * the route reports success based on the first write, and a self-heal path
  * elsewhere will reconcile the second store on the next operation. The
  * failure is still logged for ops visibility.
  *
- * Example: handleTeamLeave's db.removeUserTeam — if it fails terminally, the
+ * Example: handleTeamLeave's db.removeUserTeam - if it fails terminally, the
  * user appears to have left (TeamDO removed them), and the orphan user_teams
  * row gets cleaned up the next time `chinmeister init` runs (or when the
  * user manually re-leaves).

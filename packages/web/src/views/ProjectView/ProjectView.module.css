@@ -78,7 +78,7 @@
  * breathing room from the widget edges. With no visible widget chrome,
  * the page-text edge needs to line up with widget *content*, not widget
  * containers. We pull the grid 20px outward on each side so the internal
- * padding visually absorbs into the page gutter — title and widget
+ * padding visually absorbs into the page gutter, title and widget
  * content share a single vertical guide.
  *
  * Pair with `containerPadding={[0, 0]}` on the Responsive grid so RGL
@@ -295,7 +295,7 @@
   white-space: nowrap;
 }
 
-/* Pill CTA — mirrors .hero-cta from landing page */
+/* Pill CTA: mirrors .hero-cta from landing page */
 .spawnBtn {
   display: inline-flex;
   align-items: center;

@@ -74,7 +74,7 @@ export default function LiveNowView({
 
   // Open on the tab the drill-in requested (conflicts/files rows carry it
   // via ?live-tab). Agent rows don't set the param, so they default to the
-  // Agents tab — which is also where the focus scroll belongs.
+  // Agents tab - which is also where the focus scroll belongs.
   const resolvedInitialTab: LiveTab = isLiveTab(initialTab)
     ? initialTab
     : focusAgentId
@@ -114,7 +114,7 @@ export default function LiveNowView({
     );
   }
 
-  // One-line subtitle — shared formatScope keeps it in sync with Usage.
+  // One-line subtitle - shared formatScope keeps it in sync with Usage.
   const teamsRepresented = new Set(liveAgents.map((a) => a.teamId).filter(Boolean)).size;
   const liveSubtitle = formatScope([
     { count: totalAgents, singular: 'agent' },
@@ -173,7 +173,7 @@ export default function LiveNowView({
               const sessionLabel =
                 a.session_minutes != null && a.session_minutes > 0
                   ? formatDuration(a.session_minutes)
-                  : '—';
+                  : '-';
               const isFocused = a.agent_id === focusAgentId;
               return (
                 <button
@@ -192,7 +192,7 @@ export default function LiveNowView({
                     <span>{meta.label}</span>
                   </span>
                   <span className={styles.agentCell} title={a.teamName}>
-                    {a.teamName || '—'}
+                    {a.teamName || '-'}
                   </span>
                   <span
                     className={clsx(
@@ -205,7 +205,7 @@ export default function LiveNowView({
                   <span
                     className={clsx(
                       styles.agentCellNum,
-                      sessionLabel === '—' && styles.agentCellMuted,
+                      sessionLabel === '-' && styles.agentCellMuted,
                     )}
                   >
                     {sessionLabel}

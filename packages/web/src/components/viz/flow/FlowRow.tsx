@@ -31,9 +31,9 @@ interface Props {
    *  arrow's opacity (so a weaker primary signal reads as a fainter arrow);
    *  pass empty for a connector-only row. */
   bars: ReadonlyArray<FlowRowBar>;
-  /** Optional trailing meta on the head row — typically a count or rate. */
+  /** Optional trailing meta on the head row - typically a count or rate. */
   meta?: ReactNode;
-  /** Animation index — controls cascade reveal when many rows render at
+  /** Animation index - controls cascade reveal when many rows render at
    *  once. Caller passes the index from a `.map((row, i) => ...)`. */
   index?: number;
 }
@@ -46,7 +46,7 @@ function clampShare(value: number, max: number): number {
 /**
  * Single flow row: paired tool-icon endpoints with twin micro-bars
  * beneath. Used by Memory's `cross-tool-flow` widget body and the
- * upcoming Tools handoff strip — same shape, different bar semantics.
+ * upcoming Tools handoff strip - same shape, different bar semantics.
  *
  * Connector arrow opacity scales with the primary bar's value (first bar
  * in `bars`). Empty `bars` renders a connector-only row at a fixed mid

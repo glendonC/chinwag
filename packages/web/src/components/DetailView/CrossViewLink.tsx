@@ -4,7 +4,7 @@ import styles from './CrossViewLink.module.css';
 
 interface Props {
   /** Visible label. Phrased as a destination ("See per-tool breakdown"),
-   *  not a verb ("Click here"). The eye is the primary affordance — the
+   *  not a verb ("Click here"). The eye is the primary affordance - the
    *  trailing arrow is the secondary cue. */
   label: ReactNode;
   /** Target detail view (drill-param key). Must match a DETAIL_DRILL_KEYS
@@ -19,7 +19,7 @@ interface Props {
 /**
  * Inline navigation chip that jumps from one detail view to another in a
  * single history entry. Renders inside a question's `relatedLinks` slot
- * (FocusedDetailView), never inside answer prose — clicking inside a
+ * (FocusedDetailView), never inside answer prose - clicking inside a
  * sentence is a B1 affordance violation.
  *
  * Style: muted ink, subtle hover lift, trailing ↗. Same vocabulary as

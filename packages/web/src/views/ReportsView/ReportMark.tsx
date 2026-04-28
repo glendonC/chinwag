@@ -1,29 +1,15 @@
-// Per-report Lucide icon. Stroke is painted in a single solid color —
-// the report's accent — giving each report a quiet identity cue
+// Per-report Lucide icon. Stroke is painted in a single solid color -
+// the report's accent - giving each report a quiet identity cue
 // without the gradient decoration that previously made the catalog
 // feel performative.
 
 import type { ReactNode } from 'react';
-import {
-  Brain,
-  CircleDollarSign,
-  Flame,
-  FlaskConical,
-  GitMerge,
-  Microscope,
-  Network,
-  Shuffle,
-  type LucideIcon,
-} from 'lucide-react';
+import { Brain, Compass, Flame, GitMerge, type LucideIcon } from 'lucide-react';
 
 const MARKS: Record<string, LucideIcon> = {
   'failure-analysis': Flame,
   'coordination-audit': GitMerge,
-  'cost-leak': CircleDollarSign,
-  'cross-tool-effectiveness': Shuffle,
-  'test-edit-gap': FlaskConical,
-  'architecture-drift': Network,
-  'failure-forensics': Microscope,
+  'onboarding-brief': Compass,
   'memory-hygiene': Brain,
 };
 

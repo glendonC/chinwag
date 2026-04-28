@@ -8,7 +8,7 @@
 //     token_usage object
 //
 // Lives in lib/ rather than dos/team/ because it's a generic enrichment
-// concern consumed by both the team DO and a cross-team route handler —
+// concern consumed by both the team DO and a cross-team route handler -
 // not a team-DO-specific helper.
 //
 // Fills in:
@@ -63,7 +63,7 @@ interface TokenUsageShape {
  * Token aggregate for a specific period window. Used by
  * enrichPeriodComparisonCost to compute cost + cost_per_edit for the
  * previous period (and verify the current period matches the ongoing
- * token_usage enrichment). Intentionally minimal — only the fields needed
+ * token_usage enrichment). Intentionally minimal - only the fields needed
  * for pricing, no per-tool or session breakdowns.
  */
 export interface WindowTokenAggregate {
@@ -93,7 +93,7 @@ export interface WindowCostResult {
 
 /**
  * Pure cost computation for a window of token aggregates. No mutation, no
- * I/O — the caller supplies the pricing snapshot. Enforces the four null
+ * I/O - the caller supplies the pricing snapshot. Enforces the four null
  * causes documented on the schema's cost_per_edit field so the behavior is
  * consistent whether we're enriching the main token_usage payload or a
  * previous-period aggregate for the comparison.
@@ -159,7 +159,7 @@ export function computeWindowCost(
 
 /**
  * Enrich a single analytics response object's token_usage section with cost
- * data. Safe to call when token_usage is missing or empty — it's a no-op in
+ * data. Safe to call when token_usage is missing or empty - it's a no-op in
  * that case. Returns the same reference (mutates in place).
  *
  * The generic is unconstrained so TypeScript infers T from the call site
@@ -255,7 +255,7 @@ interface PeriodMetricsCostFields {
 /**
  * Fill the cost fields on period_comparison.current and .previous using the
  * same pricing snapshot both windows' token aggregates are priced against.
- * Both periods use the CURRENT snapshot — if Anthropic halved prices in the
+ * Both periods use the CURRENT snapshot - if Anthropic halved prices in the
  * newer period, the delta would otherwise go green independent of behavior.
  * Applying a single snapshot to both windows yields a behavior-only delta
  * ("what would last period have cost at today's rates").

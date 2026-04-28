@@ -6,7 +6,7 @@
   justify-content: center;
 }
 
-/* Lazy-loaded view fallback — intentionally invisible.
+/* Lazy-loaded view fallback, intentionally invisible.
    First-paint view (OverviewView) is eager so users never see this
    during a normal flow. When a user clicks into a lazy view we stay
    quiet rather than flashing a spinner mid-navigation. */
@@ -97,7 +97,7 @@
   padding: 28px 56px 88px;
 }
 
-/* Banner slot — centers the Banner component at the top of .main */
+/* Banner slot: centers the Banner component at the top of .main */
 .bannerSlot {
   max-width: var(--content-max-width);
   margin: 0 auto;

@@ -8,12 +8,12 @@ import type { DetailViewKey } from '../../lib/router.js';
  * Why centralize:
  * - Detail views agree on the same target without redefining destinations.
  * - One place to audit when adding/renaming tabs or questions.
- * - Bidirectional links (Tools workload ↔ Usage by-tool) stay consistent —
+ * - Bidirectional links (Tools workload ↔ Usage by-tool) stay consistent -
  *   if A points to B, B should point to A; missing return links are easy
  *   to spot in this single table.
  *
  * Keys are URL-style: `view:tab:q`. Looking up an unknown key returns an
- * empty array (no chips) — a safe default that lets a question opt out of
+ * empty array (no chips) - a safe default that lets a question opt out of
  * cross-linking without touching this file.
  */
 

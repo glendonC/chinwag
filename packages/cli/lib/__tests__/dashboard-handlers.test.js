@@ -33,7 +33,7 @@ async function loadHandlersModule(overrides = {}) {
     },
   }));
 
-  // Mock the input module — createInputHandler / createCommandHandler
+  // Mock the input module - createInputHandler / createCommandHandler
   const mockCreateInputHandler = overrides.createInputHandler || vi.fn(() => vi.fn());
   const mockCreateCommandHandler = overrides.createCommandHandler || vi.fn(() => vi.fn());
 
@@ -47,7 +47,7 @@ async function loadHandlersModule(overrides = {}) {
     isAgentAddressable: overrides.isAgentAddressable || vi.fn(() => false),
   }));
 
-  // Mock utils — openWebDashboard
+  // Mock utils - openWebDashboard
   const mockOpenWebDashboard = overrides.openWebDashboard || vi.fn(() => ({ ok: true }));
 
   vi.doMock('../dashboard/utils.js', () => ({

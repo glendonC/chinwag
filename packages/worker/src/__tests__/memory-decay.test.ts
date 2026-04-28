@@ -1,4 +1,4 @@
-// Decay-aware ranking — verifies that searchMemories applies tag-aware
+// Decay-aware ranking - verifies that searchMemories applies tag-aware
 // exponential decay and access-count boost when decay is enabled (default),
 // and falls back to recency-only ordering when decay='off'.
 
@@ -9,7 +9,7 @@ function getTeam(id) {
   return env.TEAM.get(env.TEAM.idFromName(id));
 }
 
-describe('Memory search — decay-aware ranking', () => {
+describe('Memory search - decay-aware ranking', () => {
   const team = () => getTeam('memory-decay');
   const agentId = 'cursor:dec1';
   const ownerId = 'user-dec1';
@@ -59,7 +59,7 @@ describe('Memory search — decay-aware ranking', () => {
   });
 });
 
-describe('Memory search — tag-aware halflife', () => {
+describe('Memory search - tag-aware halflife', () => {
   const team = () => getTeam('memory-halflife');
   const agentId = 'cursor:hl1';
   const ownerId = 'user-hl1';
@@ -106,7 +106,7 @@ describe('Memory search — tag-aware halflife', () => {
   });
 });
 
-describe('Memory search — decay does not break empty result sets', () => {
+describe('Memory search - decay does not break empty result sets', () => {
   const team = () => getTeam('memory-decay-empty');
   const agentId = 'cursor:de1';
   const ownerId = 'user-de1';

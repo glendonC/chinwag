@@ -2,7 +2,7 @@
 //
 // Save / search / update / delete plus batch delete for shared project memory.
 // searchMemories carries non-trivial side effects: telemetry counters, active
-// time bumping, and per-session search-hit accounting — kept verbatim here.
+// time bumping, and per-session search-hit accounting - kept verbatim here.
 
 import type { DOResult, DOError } from '../../types.js';
 import {
@@ -31,7 +31,7 @@ export async function rpcSaveMemory(
   embedding: ArrayBuffer | null = null,
 ): Promise<ReturnType<typeof saveMemoryFn> | DOError> {
   // DUPLICATE results carry `error: string`, so #op's isDOError guard skips
-  // the broadcast for them automatically — no explicit filter needed here.
+  // the broadcast for them automatically - no explicit filter needed here.
   return ctx.op(
     agentId,
     ownerId,

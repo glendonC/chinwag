@@ -1,4 +1,4 @@
-// Compact format — verifies that searchMemories returns trimmed
+// Compact format - verifies that searchMemories returns trimmed
 // {id, tags, preview, updated_at} when format='compact', and falls back
 // to full Memory shape otherwise.
 
@@ -9,7 +9,7 @@ function getTeam(id) {
   return env.TEAM.get(env.TEAM.idFromName(id));
 }
 
-describe('Memory search — compact format', () => {
+describe('Memory search - compact format', () => {
   const team = () => getTeam('memory-compact');
   const agentId = 'cursor:cmp1';
   const ownerId = 'user-cmp1';

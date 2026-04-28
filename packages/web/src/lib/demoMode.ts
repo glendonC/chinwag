@@ -19,7 +19,7 @@ function readParam(): string | null {
   return new URLSearchParams(window.location.search).get(DEMO_PARAM);
 }
 
-/** True when the URL carries `?demo` — regardless of value. Hooks use this
+/** True when the URL carries `?demo` - regardless of value. Hooks use this
  *  to gate the API-fetch path. */
 export function isDemoActive(): boolean {
   if (typeof window === 'undefined') return false;

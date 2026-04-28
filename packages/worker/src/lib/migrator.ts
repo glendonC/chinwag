@@ -59,7 +59,7 @@ export function runMigrations(
         name: migration.name,
         error: getErrorMessage(err),
       });
-      // Stop on first failure — don't skip and run later migrations
+      // Stop on first failure - don't skip and run later migrations
       // that might depend on this one
       throw err;
     }

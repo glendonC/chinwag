@@ -46,7 +46,7 @@ describe('Atomic join ownership enforcement', () => {
     const res = await team().join(agentId, ownerB, 'mallory', 'cursor');
     expect(res.error).toBe('Agent ID already claimed by another user');
 
-    // Verify ownerA's data is still intact — not overwritten by the failed join
+    // Verify ownerA's data is still intact - not overwritten by the failed join
     const ctx = await team().getContext(agentId, ownerA);
     expect(ctx.error).toBeUndefined();
     const me = ctx.members.find((m) => m.agent_id === agentId);

@@ -4,7 +4,7 @@
 // stack up on completion, first-edit warmup, tokens per completed session,
 // and work-type mix.
 //
-// All numbers come from the existing getDrillIn helper — no new data
+// All numbers come from the existing getDrillIn helper - no new data
 // required. This exists as a dedicated interactive rather than a section
 // because comparison is a tactical operation, not an always-on view.
 
@@ -194,9 +194,9 @@ function ComparisonBody({ left, right }: { left: ComparedTool; right: ComparedTo
     },
     {
       label: 'First edit',
-      leftValue: left.row.avgFirstEditMin != null ? formatDuration(left.row.avgFirstEditMin) : '—',
+      leftValue: left.row.avgFirstEditMin != null ? formatDuration(left.row.avgFirstEditMin) : '-',
       rightValue:
-        right.row.avgFirstEditMin != null ? formatDuration(right.row.avgFirstEditMin) : '—',
+        right.row.avgFirstEditMin != null ? formatDuration(right.row.avgFirstEditMin) : '-',
       leftBetter:
         left.row.avgFirstEditMin == null || right.row.avgFirstEditMin == null
           ? null

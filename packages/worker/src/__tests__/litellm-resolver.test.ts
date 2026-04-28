@@ -8,7 +8,7 @@ import { resolveLiteLLMKey, generateCandidates } from '../lib/litellm-resolver.j
 // tiered candidate generation. Each test asserts the resolver picks the
 // EXPECTED LiteLLM key for a raw `agent_model` string that might arrive
 // from a captured session. A more exhaustive harness runs against the
-// live LiteLLM JSON in scripts/litellm-resolver.test.ts — this suite
+// live LiteLLM JSON in scripts/litellm-resolver.test.ts - this suite
 // exists so CI catches regressions on the tiering logic itself without
 // fetching external data.
 const FIXTURE_KEYS = new Set([
@@ -46,7 +46,7 @@ const FIXTURE_KEYS = new Set([
   'deepseek/deepseek-r1',
 ]);
 
-describe('resolveLiteLLMKey — Claude', () => {
+describe('resolveLiteLLMKey - Claude', () => {
   it('resolves exact dated Claude Sonnet 4.5', () => {
     expect(resolveLiteLLMKey('claude-sonnet-4-5-20250929', FIXTURE_KEYS)).toBe(
       'claude-sonnet-4-5-20250929',
@@ -81,7 +81,7 @@ describe('resolveLiteLLMKey — Claude', () => {
   });
 });
 
-describe('resolveLiteLLMKey — Bedrock variants', () => {
+describe('resolveLiteLLMKey - Bedrock variants', () => {
   it('resolves raw Bedrock dated-with-version key', () => {
     expect(resolveLiteLLMKey('claude-sonnet-4-5-20250929-v1:0', FIXTURE_KEYS)).toBe(
       'claude-sonnet-4-5-20250929-v1:0',
@@ -101,7 +101,7 @@ describe('resolveLiteLLMKey — Bedrock variants', () => {
   });
 });
 
-describe('resolveLiteLLMKey — OpenAI / Codex', () => {
+describe('resolveLiteLLMKey - OpenAI / Codex', () => {
   it('resolves bare gpt-5', () => {
     expect(resolveLiteLLMKey('gpt-5', FIXTURE_KEYS)).toBe('gpt-5');
   });
@@ -119,7 +119,7 @@ describe('resolveLiteLLMKey — OpenAI / Codex', () => {
   });
 });
 
-describe('resolveLiteLLMKey — Gemini', () => {
+describe('resolveLiteLLMKey - Gemini', () => {
   it('resolves bare Gemini', () => {
     expect(resolveLiteLLMKey('gemini-2.5-pro', FIXTURE_KEYS)).toBe('gemini-2.5-pro');
   });
@@ -143,7 +143,7 @@ describe('resolveLiteLLMKey — Gemini', () => {
   });
 });
 
-describe('resolveLiteLLMKey — xAI / DeepSeek (prefix-required vendors)', () => {
+describe('resolveLiteLLMKey - xAI / DeepSeek (prefix-required vendors)', () => {
   it('adds xai/ prefix for bare grok-4', () => {
     expect(resolveLiteLLMKey('grok-4', FIXTURE_KEYS)).toBe('xai/grok-4');
   });
@@ -168,7 +168,7 @@ describe('resolveLiteLLMKey — xAI / DeepSeek (prefix-required vendors)', () =>
   });
 });
 
-describe('resolveLiteLLMKey — edge cases', () => {
+describe('resolveLiteLLMKey - edge cases', () => {
   it('returns null for empty string', () => {
     expect(resolveLiteLLMKey('', FIXTURE_KEYS)).toBeNull();
   });

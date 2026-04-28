@@ -10,13 +10,13 @@ export interface HeroStatDef {
   unit?: string;
   /** Mono uppercase label beneath the value. */
   label: string;
-  /** Mono context line beneath the label — a concrete ratio or date.
+  /** Mono context line beneath the label - a concrete ratio or date.
    *  Accepts ReactNode so callers can inline small chips (e.g. period-
    *  comparison delta arrows) without redesigning the hero. */
   sublabel?: ReactNode;
   /** Value color token. Defaults to inherited ink. */
   color?: string;
-  /** Optional visual sibling rendered to the left of the text column —
+  /** Optional visual sibling rendered to the left of the text column -
    *  e.g. a `<DotMatrix />` pairing value with literal reference. */
   viz?: ReactNode;
 }
@@ -29,7 +29,7 @@ export interface HeroStatDef {
  *
  * `direction` controls flow: 'row' (default) packs stats horizontally
  * with wrap; 'column' stacks them vertically so each stat takes the
- * container's full width — useful when the hero column needs to balance
+ * container's full width - useful when the hero column needs to balance
  * height against a denser neighbor (table or ring) across a topGrid.
  */
 export default function HeroStatRow({

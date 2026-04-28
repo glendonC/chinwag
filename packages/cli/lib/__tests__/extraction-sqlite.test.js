@@ -16,7 +16,7 @@ function fixtureRoot() {
 }
 
 /**
- * Build a DB whose shape mirrors Cursor's state.vscdb — a single cursorDiskKV
+ * Build a DB whose shape mirrors Cursor's state.vscdb - a single cursorDiskKV
  * table with a JSON-encoded `value` column keyed by `bubbleId:*`. This is the
  * shape the cursor.json spec is going to target, so exercising it here
  * validates the whole per-os-path → SQLite → extraction chain.
@@ -137,7 +137,7 @@ describe('extract(): SQLite source', () => {
       },
       sqlite: {
         table: 'cursorDiskKV',
-        // Multi-statement — must be rejected by the safety guard
+        // Multi-statement - must be rejected by the safety guard
         query: 'SELECT 1; DROP TABLE cursorDiskKV',
       },
       extractions: {

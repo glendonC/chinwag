@@ -3,7 +3,7 @@
 
 import type { WidgetSlot } from '../../widgets/widget-catalog.js';
 
-// Activity tab — live operational surface. Who's working in this repo
+// Activity tab - live operational surface. Who's working in this repo
 // right now, what files are contested, what's in play. KPI strip below
 // for at-a-glance project health. Trends tab owns the historical charts.
 export const ACTIVITY_DEFAULT_LAYOUT: WidgetSlot[] = [
@@ -19,10 +19,10 @@ export const ACTIVITY_DEFAULT_LAYOUT: WidgetSlot[] = [
   { id: 'files-touched', colSpan: 3, rowSpan: 2 },
 ];
 
-// Trends tab — historical reflection. Bigger charts, full coverage.
+// Trends tab - historical reflection. Bigger charts, full coverage.
 export const TRENDS_DEFAULT_LAYOUT: WidgetSlot[] = [
   // session-trend was cut 2026-04-24 (see widget-catalog.ts Trends
-  // block). Outcomes snaps to its natural 8 cols — was 4 only because
+  // block). Outcomes snaps to its natural 8 cols - was 4 only because
   // session-trend filled the other 8. No forced backfill on the row.
   { id: 'outcomes', colSpan: 8, rowSpan: 3 },
   { id: 'heatmap', colSpan: 12, rowSpan: 3 },

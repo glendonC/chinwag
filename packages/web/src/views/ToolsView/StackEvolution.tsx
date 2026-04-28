@@ -1,4 +1,4 @@
-// Stack evolution — how your AI stack has been used over time.
+// Stack evolution - how your AI stack has been used over time.
 // Stacked area over analytics.tool_daily: x = day, y = sessions,
 // one color layer per tool. Replaces the previous "adoption timeline"
 // framing, which made a claim chinmeister couldn't actually back (firstSeen
@@ -177,7 +177,7 @@ export default function StackEvolution({ daily, rangeDays = 30 }: Props) {
     return { series: s, areaPath, topLinePath };
   });
 
-  // X-axis ticks — 5 evenly-spaced date labels.
+  // X-axis ticks - 5 evenly-spaced date labels.
   const tickIndices: number[] = [];
   const TICK_COUNT = 5;
   for (let t = 0; t < TICK_COUNT; t++) {
@@ -191,7 +191,7 @@ export default function StackEvolution({ daily, rangeDays = 30 }: Props) {
         <h2 className={styles.title}>Your stack over time</h2>
         <p className={styles.subtitle}>
           {isPreview
-            ? 'Example data — daily session volume stacked across your tools. Where a tool is quiet, its slice thins. Your own history will replace this once sessions flow through.'
+            ? 'Example data - daily session volume stacked across your tools. Where a tool is quiet, its slice thins. Your own history will replace this once sessions flow through.'
             : 'Daily session volume, stacked across your tools. Where a tool is quiet, its slice thins.'}
         </p>
       </header>

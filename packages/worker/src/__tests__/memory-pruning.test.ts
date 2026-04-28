@@ -16,7 +16,7 @@ describe('Memory save and search', () => {
     await team().join(agentId, ownerId, 'alice', 'cursor');
   });
 
-  it('save a memory, search for it — found', async () => {
+  it('save a memory, search for it - found', async () => {
     const save = await team().saveMemory(
       agentId,
       'Always use connection pooling for database access',
@@ -72,7 +72,7 @@ describe('Memory eviction beyond MEMORY_MAX_COUNT', () => {
         ownerId,
       );
     }
-    // Under cap — no eviction expected
+    // Under cap - no eviction expected
     const underCap = await team().saveMemory(
       agentId,
       'Under cap memory',
@@ -103,7 +103,7 @@ describe('Memory update lifecycle', () => {
     await team().join(agentId, ownerId, 'alice', 'cursor');
   });
 
-  it('save memory, update it, search — updated version found', async () => {
+  it('save memory, update it, search - updated version found', async () => {
     // Save original
     const save = await team().saveMemory(
       agentId,
@@ -190,7 +190,7 @@ describe('Memory delete lifecycle', () => {
     await team().join(agentId, ownerId, 'alice', 'cursor');
   });
 
-  it('delete memory, search — not found', async () => {
+  it('delete memory, search - not found', async () => {
     // Save
     const save = await team().saveMemory(
       agentId,

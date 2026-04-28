@@ -1,4 +1,4 @@
-/* Hero stat row — display-sized value over a mono label, optional viz
+/* Hero stat row: display-sized value over a mono label, optional viz
  * sibling (e.g. DotMatrix) to the left. Used at the fold of detail
  * panels (Sessions, Edits, Lines). Relies on the global `rowReveal`
  * keyframe declared in app.css. */
@@ -37,7 +37,7 @@
 }
 
 /* Section heroes stay display-weighted but cap below the stat-tab size
- * (2.25rem) so the row of tabs at the top retains its orientation role —
+ * (2.25rem) so the row of tabs at the top retains its orientation role,
  * a section's hero metric is subordinate to the tab that selected it. */
 .value {
   font-family: var(--display);

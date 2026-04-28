@@ -130,7 +130,7 @@ describe('diagnose()', () => {
 
   it('does not trigger healing until minimum attempts reached', async () => {
     const { recordAttempt, diagnose } = await loadHealth(home);
-    // 4 failures — under the min of 5
+    // 4 failures - under the min of 5
     for (let i = 0; i < 4; i++) recordAttempt('claude-code', attempt(false));
     expect(diagnose('claude-code').needsHealing).toBe(false);
   });

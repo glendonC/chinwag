@@ -3,7 +3,7 @@ import type { DataCapabilities } from '@chinmeister/shared/tool-registry.js';
 import styles from './ToolCoverageMatrix.module.css';
 
 /** Capability keys in `DataCapabilities` whose state the matrix renders.
- *  Limited to boolean-shaped fields — `costSource` and `tokenFormat` are
+ *  Limited to boolean-shaped fields - `costSource` and `tokenFormat` are
  *  format enums and don't fit a "tool can answer this" affordance. */
 export type ToolCoverageCapability =
   | 'conversationLogs'
@@ -19,7 +19,7 @@ export interface ToolCoverageEntry {
   color: string;
   /** State per capability:
    *   - true:      filled solid (covered)
-   *   - 'partial': hatched (some flavor — e.g. tokens estimated, not first-party)
+   *   - 'partial': hatched (some flavor - e.g. tokens estimated, not first-party)
    *   - false / missing: ghost outline (uncovered) */
   capabilities: Partial<Record<ToolCoverageCapability, boolean | 'partial'>>;
 }
@@ -31,7 +31,7 @@ interface Props {
    *  list when only a subset is relevant to the surrounding question. */
   capabilities?: ReadonlyArray<ToolCoverageCapability>;
   /** Override the column header label for a capability. The default labels
-   *  are short — pass overrides when a tighter slot demands them. */
+   *  are short - pass overrides when a tighter slot demands them. */
   labels?: Partial<Record<ToolCoverageCapability, string>>;
 }
 
@@ -53,7 +53,7 @@ const DEFAULT_LABELS: Record<ToolCoverageCapability, string> = {
 
 // Type-system note: ToolCoverageCapability is a strict subset of the boolean
 // fields on DataCapabilities. The aliasing line below assists callers who
-// build entries directly from `getDataCapabilities(toolId)` — it keeps the
+// build entries directly from `getDataCapabilities(toolId)` - it keeps the
 // matrix consumable without forcing an intermediate map step.
 type _Assert = ToolCoverageCapability extends keyof DataCapabilities ? true : never;
 const _check: _Assert = true;
@@ -61,7 +61,7 @@ void _check;
 
 /**
  * Tools × capabilities affordance matrix. Rows are tools, columns are
- * capabilities. Cells encode coverage state with shape — not numbers —
+ * capabilities. Cells encode coverage state with shape - not numbers -
  * because the question is "which tool can answer this," not "how much
  * data has it produced." The latter is a different lens and lives in
  * the workload widgets.

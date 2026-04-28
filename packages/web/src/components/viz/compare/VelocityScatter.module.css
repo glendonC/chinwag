@@ -1,4 +1,4 @@
-/* Velocity scatter — XY scatter with colored dots. Hours on X, rate on
+/* Velocity scatter: XY scatter with colored dots. Hours on X, rate on
  * Y (or whatever the caller labels them). Replaces a pair of one-axis
  * BreakdownLists with a single positional viz that surfaces outliers.
  * Relies on the global `rowReveal` keyframe (app.css). */

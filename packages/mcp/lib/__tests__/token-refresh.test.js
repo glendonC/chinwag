@@ -195,7 +195,7 @@ describe('refreshAndPersistToken', () => {
 
   // --- Concurrent refresh deduplication ---
 
-  it('deduplicates concurrent refresh calls — only one API call is made', async () => {
+  it('deduplicates concurrent refresh calls - only one API call is made', async () => {
     let resolvePost;
     mockPost.mockImplementation(
       () =>

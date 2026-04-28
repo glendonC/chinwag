@@ -1,8 +1,8 @@
 // Auto-generated from Natural Earth 110m data via generate-world-paths.mjs
-// Do not edit by hand — regenerate with: node scripts/generate-world-paths.mjs
+// Do not edit by hand - regenerate with: node scripts/generate-world-paths.mjs
 
 /**
- * Combined land mass outline — all continents and islands as a single SVG path.
+ * Combined land mass outline - all continents and islands as a single SVG path.
  * Equirectangular projection, viewBox 0 0 1000 500.
  */
 export const LAND_PATH =

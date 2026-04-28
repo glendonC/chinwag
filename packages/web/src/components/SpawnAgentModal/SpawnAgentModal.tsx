@@ -4,7 +4,7 @@ import { getToolMeta } from '../../lib/toolMeta.js';
 import { teamActions } from '../../lib/stores/teams.js';
 import styles from './SpawnAgentModal.module.css';
 
-// All tools that can be spawned — keyed by registry ID.
+// All tools that can be spawned - keyed by registry ID.
 // Only shown if the daemon reports them as available.
 const TOOL_INFO: Record<string, { metaId: string; desc: string; type: string }> = {
   'claude-code': { metaId: 'claude', desc: 'Anthropic terminal agent', type: 'CLI' },

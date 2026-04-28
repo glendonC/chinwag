@@ -8,7 +8,7 @@ import { classifyError } from '../utils/errors.js';
  */
 
 describe('connection error classification', () => {
-  it('401 is fatal — requires re-auth', () => {
+  it('401 is fatal - requires re-auth', () => {
     const err = Object.assign(new Error('Unauthorized'), { status: 401 });
     const c = classifyError(err);
     expect(c.fatal).toBe(true);

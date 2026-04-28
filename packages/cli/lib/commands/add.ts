@@ -1,4 +1,4 @@
-// chinmeister add <tool> — write MCP config for a specific tool from the registry.
+// chinmeister add <tool> - write MCP config for a specific tool from the registry.
 // Pure stdout output, no TUI.
 
 import { MCP_TOOLS } from '../tools.js';

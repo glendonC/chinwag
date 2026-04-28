@@ -3,10 +3,10 @@
 // don't take a 30KB dep on a single call site.
 //
 // Supported:
-//   *       — match any run of chars, stopping at `/`
-//   **      — match any run of chars, including `/` (use for directory spans)
-//   ?       — match exactly one char, not `/`
-//   literal — anything else (regex metachars are escaped)
+//   *       - match any run of chars, stopping at `/`
+//   **      - match any run of chars, including `/` (use for directory spans)
+//   ?       - match exactly one char, not `/`
+//   literal - anything else (regex metachars are escaped)
 //
 // Not supported (yet, add when a real call site needs them):
 //   [abc]          character class
@@ -37,7 +37,7 @@ export function globToRegExp(glob: string): RegExp {
     if (c === '*') {
       // Double-star: span any run including path separators. Consume an
       // immediately-following `/` so `**/foo` cleanly matches `foo` at the
-      // root — otherwise the regex would require a leading slash.
+      // root - otherwise the regex would require a leading slash.
       if (g[i + 1] === '*') {
         regex += '.*';
         i += 2;
@@ -52,7 +52,7 @@ export function globToRegExp(glob: string): RegExp {
       regex += '[^/]';
       i += 1;
     } else if (c && /[.+^$(){}|\\]/.test(c)) {
-      // Regex metacharacters that have no glob meaning — escape them so they
+      // Regex metacharacters that have no glob meaning - escape them so they
       // match literally. `/` intentionally falls through as a literal.
       regex += '\\' + c;
       i += 1;

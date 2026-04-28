@@ -84,7 +84,7 @@
   margin-left: 2px;
 }
 
-/* Panel — floats above the trigger. Glass backdrop; no divider lines,
+/* Panel: floats above the trigger. Glass backdrop; no divider lines,
    no nested card. */
 .panel {
   display: flex;
@@ -132,7 +132,7 @@
   color: var(--muted);
 }
 
-/* On/off toggle in the panel head. Replaces the old "exit" link — same
+/* On/off toggle in the panel head. Replaces the old "exit" link, same
    spot, but a binary switch the user can flip in either direction. Mono
    on/off label echoes the panel eyebrow's typography so they read as
    peers, not button vs label. */
@@ -200,7 +200,7 @@
   min-width: 1.6em;
 }
 
-/* Scenario list — stack of rows, each a button. No dividers. Weight +
+/* Scenario list: stack of rows, each a button. No dividers. Weight +
    opacity give the active row its weight; dot color is accent only when
    active. */
 .list {

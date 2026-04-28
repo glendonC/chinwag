@@ -31,7 +31,7 @@ export function queryCommitStats(
   };
 
   try {
-    // Totals — substantive commits only. Noise (dep bumps, formatting, WIP
+    // Totals - substantive commits only. Noise (dep bumps, formatting, WIP
     // checkpoints, merges) stays in the table for audit but is excluded from
     // analytics so per-session and per-tool averages aren't diluted.
     const { sql: totalsQ, params: totalsP } = withScope(
@@ -102,7 +102,7 @@ export function queryCommitStats(
       avg_lines: r.number('avg_lines'),
     }));
 
-    // Daily commits — substantive only. Day buckets follow the caller's
+    // Daily commits - substantive only. Day buckets follow the caller's
     // timezone via the offset modifier so a commit made at 11:55pm PT lands
     // on the same local day the user sees in the rest of the dashboard.
     const { sql: dailyQ, params: dailyP } = withScope(

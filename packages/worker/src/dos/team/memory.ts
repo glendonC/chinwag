@@ -143,7 +143,7 @@ export function saveMemory(
   withTransaction(transact, () => {
     // valid_at mirrors created_at at save time. Once bi-temporal supersession
     // flows (migration 023) land an `invalidate` proposal kind,
-    // applyConsolidationProposal may set `invalid_at` on older rows — but
+    // applyConsolidationProposal may set `invalid_at` on older rows - but
     // `valid_at` is always "when the fact was recorded" and stays immutable.
     sql.exec(
       `INSERT INTO memories (id, text, tags, categories, agent_id, handle, host_tool, agent_surface, agent_model, session_id, text_hash, embedding, created_at, updated_at, valid_at)
@@ -181,7 +181,7 @@ export function saveMemory(
     }
 
     // Record in active session. bumpActiveTime fires first so last_active_at
-    // advances on memory saves too — otherwise a session of pure memory work
+    // advances on memory saves too - otherwise a session of pure memory work
     // would never accrue active_min.
     bumpActiveTime(sql, resolvedAgentId);
     sql.exec(
@@ -203,7 +203,7 @@ interface SearchMemoriesResult {
   format?: 'detail' | 'compact';
   /**
    * True when the route asked for hybrid retrieval but the query embedding
-   * could not be generated (Workers AI failed) — results came from FTS5
+   * could not be generated (Workers AI failed) - results came from FTS5
    * alone. Lets callers retry with backoff or surface a quality warning.
    */
   degraded?: boolean;
@@ -230,7 +230,7 @@ export interface SearchFilters {
   /**
    * Response shape. 'detail' (default) returns the full Memory object.
    * 'compact' returns {id, tags, preview, updated_at} for token-budgeted
-   * use cases — agents can scan the result list without loading every full
+   * use cases - agents can scan the result list without loading every full
    * text, then call back for detail on hits worth investigating.
    */
   format?: 'detail' | 'compact';
@@ -262,7 +262,7 @@ function buildPreview(text: string): string {
   const PREVIEW_MAX = 160;
   if (trimmed.length <= PREVIEW_MAX) return trimmed;
 
-  // Try first sentence — most chinmeister memories lead with a one-line summary
+  // Try first sentence - most chinmeister memories lead with a one-line summary
   const sentenceMatch = trimmed.match(/^[^.!?]{20,200}[.!?]/);
   if (sentenceMatch && sentenceMatch[0].length <= PREVIEW_MAX) {
     return sentenceMatch[0].trim();
@@ -311,7 +311,7 @@ function decayScore(createdAt: string, accessCount: number, tags: string[]): num
 /**
  * Detect literal-shaped queries (file paths, SHAs, identifiers, command
  * names, file extensions). For these, FTS5 is strictly better than vector
- * search — embeddings semantically conflate similar paths or hashes and
+ * search - embeddings semantically conflate similar paths or hashes and
  * push the exact match down. The router falls back to FTS-only.
  *
  * Two consumers, single source of truth:
@@ -365,7 +365,7 @@ export function rrfMerge(
  * Prevents one hot memory from starving diverse results.
  *
  * Skips diversification (returns input ordering) when any candidate is
- * missing an embedding — partial diversity is worse than none.
+ * missing an embedding - partial diversity is worse than none.
  */
 export function mmrDiversify(
   ranked: { id: string; relevance: number; embedding: Float32Array | null }[],
@@ -423,7 +423,7 @@ export function searchMemories(sql: SqlStorage, filters: SearchFilters): SearchM
       conditions.push('m.rowid IN (SELECT rowid FROM memories_fts WHERE memories_fts MATCH ?)');
       params.push(ftsQuery);
     } catch {
-      // FTS5 not available or query invalid — fall back to LIKE
+      // FTS5 not available or query invalid - fall back to LIKE
       conditions.push("text LIKE ? ESCAPE '\\'");
       params.push(`%${escapeLike(query)}%`);
     }
@@ -465,7 +465,7 @@ export function searchMemories(sql: SqlStorage, filters: SearchFilters): SearchM
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
   // is_stale is computed in SQL so the throttle decision stays in SQLite's
-  // time domain — no JS Date parsing of SQLite datetime strings.
+  // time domain - no JS Date parsing of SQLite datetime strings.
   const throttleSeconds = Math.round(LAST_ACCESSED_THROTTLE_MS / 1000);
 
   // Decay-aware ranking: when enabled, fetch a wider candidate pool from SQL
@@ -476,7 +476,7 @@ export function searchMemories(sql: SqlStorage, filters: SearchFilters): SearchM
   const decayEnabled = filters.decay !== 'off';
   // Hybrid retrieval activates only when the route supplied a query
   // embedding AND the query is non-literal. Literal queries (paths, SHAs,
-  // function names) are strictly better served by FTS5 alone — embeddings
+  // function names) are strictly better served by FTS5 alone - embeddings
   // semantically conflate similar paths and push the exact match down.
   const hybridEligible = !!filters.queryEmbedding && !!query && !isLiteralQuery(query);
   const fetchLimit =
@@ -576,7 +576,7 @@ export function searchMemories(sql: SqlStorage, filters: SearchFilters): SearchM
     candidateRows = merged;
   }
 
-  // Throttled last_accessed_at update — only touch rows flagged is_stale by SQL.
+  // Throttled last_accessed_at update - only touch rows flagged is_stale by SQL.
   // Writes cost 20x reads on DO SQLite, so we avoid updating on every search.
   const idsToTouch: string[] = [];
   type Scored = {
@@ -691,7 +691,7 @@ export function searchMemories(sql: SqlStorage, filters: SearchFilters): SearchM
         ...idsToTouch,
       );
     } catch (e) {
-      // Non-critical — log and continue
+      // Non-critical - log and continue
       log.error('failed to update last_accessed_at', {
         error: e instanceof Error ? e.message : String(e),
       });
