@@ -981,7 +981,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     id: 'memory-outcomes',
     name: 'outcomes by memory use',
     description:
-      "How often sessions that read memory finish, compared to sessions that didn't. A rough session-level proxy for now. Per-memory attribution is still being worked on, so this isn't a true per-memory ROI.",
+      "How often sessions that read memory finish, compared to sessions that didn't. Session-grain comparison; the per-memory question lives inside the Memory detail view's Health tab.",
     category: 'memory',
     scope: 'both',
     viz: 'bar-chart',
@@ -1198,9 +1198,9 @@ export const WIDGET_ALIASES: Record<string, string[]> = {
   // memory-supersession-flow + memory-secrets-shield (the supersession +
   // secrets components of safety surface as their own widgets), and the
   // remaining auditor-flag piece pre-empts Memory Hygiene Autopilot Report.
-  // memory-health, top-memories were revived; memory-outcomes was demoted
-  // to catalog-only (will restore to default once memory_search_results
-  // join lands).
+  // memory-health, top-memories were revived; memory-outcomes was promoted
+  // back to default 2026-04-28 once migration 028 landed and the body picked
+  // up a per-bucket min-N floor.
   'memory-activity': [],
   'memory-safety': [],
 
@@ -1323,13 +1323,13 @@ export const DEFAULT_LAYOUT: WidgetSlot[] = [
   { id: 'tool-handoffs', colSpan: 6, rowSpan: 3 },
   { id: 'tool-call-errors', colSpan: 3, rowSpan: 2 },
 
-  // memory-outcomes was demoted to catalog-only 2026-04-25 after the
-  // agent-team audit. The 3-bucket session-grain proxy is honest about what
-  // it measures but is NOT the per-memory-attribution surface ANALYTICS_SPEC
-  // §10 promised — the `memory_search_results` join table is unshipped.
-  // At full-width with single-bucket cases unguarded, the widget can render
-  // a lonely strip. Demoted to 6×3 catalog default; earns default again
-  // when the join table lands AND a min-bucket guard is added.
+  // Memory — memory-outcomes regraduated 2026-04-28 once migration 028
+  // shipped the per-memory attribution surface (now answered inside
+  // MemoryDetailView.Health) and the body gained a per-bucket min-N floor.
+  // Full-width keeps the bars wide enough to read as data; the per-bucket
+  // floor + min-2-bucket guard kills the lonely-strip case the original
+  // demotion flagged.
+  { id: 'memory-outcomes', colSpan: 12, rowSpan: 3 },
 
   // Projects + stuckness — 8 + 4. Projects shrank from 12→8 on 2026-04-22
   // (the comparator-table redesign doesn't earn full width), opening room

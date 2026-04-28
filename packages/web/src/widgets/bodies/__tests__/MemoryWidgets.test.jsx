@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
 
 // memory-outcomes is the only memory widget after the 2026-04-25 audit cut
-// memory-activity, memory-health, memory-safety, and top-memories. The
-// MEMORY_OUTCOMES_MIN_SESSIONS = 10 sample-size gate is the load-bearing
-// guard the test locks: below 10 sessions the 3-bucket bar chart collapses
-// to one bar (rubric C1 fail).
+// memory-activity, memory-health, memory-safety, and top-memories. Two
+// sample-size gates lock the chart's honesty:
+//   total floor (10 sessions) — below this the period is too sparse to
+//     compare anything (avoids rubric C1 fail of one-bar bar chart).
+//   per-bucket floor (5 sessions) and a min-2-bucket guard — block the case
+//     where a bucket of 1-2 sessions reads as 100% completion and the
+//     widget reads as a comparison even though only one bucket cleared.
 
 import React from 'react';
 import { act } from 'react';
@@ -93,15 +96,15 @@ describe('MemoryOutcomesWidget — sample-size gate', () => {
     r.unmount();
   });
 
-  it('renders the three-bucket chart when session count clears the gate', async () => {
+  it('renders the three-bucket chart when every bucket clears the per-bucket floor', async () => {
     const W = await loadMemoryWidget('memory-outcomes');
     const r = render(
       W,
       makeProps({
         memory_outcome_correlation: [
           { bucket: 'hit memory', sessions: 8, completed: 7, completion_rate: 87.5 },
-          { bucket: 'searched, no results', sessions: 3, completed: 1, completion_rate: 33.3 },
-          { bucket: 'no search', sessions: 4, completed: 2, completion_rate: 50.0 },
+          { bucket: 'searched, no results', sessions: 5, completed: 1, completion_rate: 20.0 },
+          { bucket: 'no search', sessions: 7, completed: 3, completion_rate: 42.9 },
         ],
       }),
     );
@@ -109,6 +112,24 @@ describe('MemoryOutcomesWidget — sample-size gate', () => {
     expect(r.container.textContent).toContain('searched, no results');
     expect(r.container.textContent).toContain('no search');
     expect(r.container.textContent).toContain('87.5%');
+    r.unmount();
+  });
+
+  it('suppresses sub-floor buckets and shows the per-bucket gate when only one clears', async () => {
+    const W = await loadMemoryWidget('memory-outcomes');
+    const r = render(
+      W,
+      makeProps({
+        memory_outcome_correlation: [
+          { bucket: 'hit memory', sessions: 2, completed: 2, completion_rate: 100.0 },
+          { bucket: 'searched, no results', sessions: 1, completed: 0, completion_rate: 0.0 },
+          { bucket: 'no search', sessions: 9, completed: 5, completion_rate: 55.6 },
+        ],
+      }),
+    );
+    expect(r.container.textContent).toContain('Need 5');
+    expect(r.container.textContent).toContain('2+ buckets');
+    expect(r.container.textContent).not.toContain('100');
     r.unmount();
   });
 });

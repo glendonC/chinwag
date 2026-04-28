@@ -23,6 +23,7 @@ import type { WidgetBodyProps, WidgetRegistry } from './types.js';
  */
 
 const MEMORY_OUTCOMES_MIN_SESSIONS = 10;
+const MEMORY_OUTCOMES_MIN_BUCKET_SESSIONS = 5;
 const TOP_CATEGORIES_VISIBLE = 8;
 const FLOW_PAIRS_VISIBLE = 6;
 const SINGLE_AUTHOR_VISIBLE = 8;
@@ -323,9 +324,21 @@ function MemoryOutcomesWidget({ analytics }: WidgetBodyProps) {
       </SectionEmpty>
     );
   }
+  // Per-bucket floor: a bucket with 1-2 sessions can render 100% completion
+  // and read as "memory works" when it's just noise. Drop sub-floor buckets,
+  // and require at least two cleared buckets so the chart is a comparison,
+  // not a lone bar.
+  const visible = moc.filter((m) => m.sessions >= MEMORY_OUTCOMES_MIN_BUCKET_SESSIONS);
+  if (visible.length < 2) {
+    return (
+      <SectionEmpty>
+        Need {MEMORY_OUTCOMES_MIN_BUCKET_SESSIONS}+ sessions in 2+ buckets to compare.
+      </SectionEmpty>
+    );
+  }
   return (
     <div className={s.outcomeBars}>
-      {moc.map((m, i) => (
+      {visible.map((m, i) => (
         <div key={m.bucket} className={s.outcomeRow} style={{ '--row-index': i } as CSSProperties}>
           <span className={s.outcomeLabel}>{m.bucket}</span>
           <span
