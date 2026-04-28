@@ -239,6 +239,10 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     dataKeys: ['dashboard'],
     timeScope: 'live',
     fitContent: true,
+    // Drill opens the LiveNow Files tab where claims show up alongside
+    // unclaimed files-in-play, so a single surface answers "what is
+    // anyone holding right now and how long has it been held."
+    drillTarget: { view: 'live', tab: 'files' },
   },
 
   // ── Usage (KPI stats) ─────────────────
@@ -965,6 +969,12 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['file_overlap'],
     ownsCoverageNote: true,
+    // The codebase Risk panel's collisions question already shows the
+    // directional version of this rate (which files multiple agents
+    // touched, per agent count). Drilling there reuses an answered
+    // question instead of opening a new tab the team detail view does
+    // not have.
+    drillTarget: { view: 'codebase', tab: 'risk', q: 'collisions' },
   },
 
   {

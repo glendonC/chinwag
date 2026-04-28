@@ -157,12 +157,26 @@ const DETAIL_AUX_KEYS = ['live-tab', 'q'] as const;
  */
 export function navigateToDetail(view: DetailViewKey, tab: string, q?: string): void {
   const params: Record<string, string | null> = {};
+  // Live is a special drill: the `?live=` value carries an optional focus
+  // agent_id, not the active tab. The tab lives in the `?live-tab=` aux
+  // param. Other detail views encode the tab as the param value directly.
+  // Keep the helper signature uniform — `tab` always means "the tab to
+  // open" — and translate to the right param shape here.
   for (const key of DETAIL_DRILL_KEYS) {
-    params[key] = key === view ? tab : null;
+    if (key === view) {
+      params[key] = view === 'live' ? '' : tab;
+    } else {
+      params[key] = null;
+    }
   }
   for (const aux of DETAIL_AUX_KEYS) {
-    if (aux === 'q') params[aux] = q ?? null;
-    else params[aux] = null;
+    if (aux === 'q') {
+      params[aux] = q ?? null;
+    } else if (aux === 'live-tab') {
+      params[aux] = view === 'live' ? tab : null;
+    } else {
+      params[aux] = null;
+    }
   }
   setQueryParams(params);
 }
