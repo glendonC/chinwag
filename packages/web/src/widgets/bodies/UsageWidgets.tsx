@@ -1,7 +1,7 @@
 import { setQueryParam, useRoute } from '../../lib/router.js';
 import type { UserAnalytics } from '../../lib/apiSchemas.js';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
-import { StatWidget, hasCostData } from './shared.js';
+import { CoverageNote, StatWidget, costEmptyReason, hasCostData } from './shared.js';
 import { formatCost } from '../utils.js';
 
 function openUsage(tab: string) {
@@ -184,28 +184,46 @@ function CostWidget({ analytics }: WidgetBodyProps) {
   // pricing-enrich zeros the total. Rendering $0.00 in those states would
   // lie. hasCostData folds all three degraded paths into one predicate.
   const reliable = hasCostData(t);
-  const value = reliable ? formatCost(t.total_estimated_cost_usd, 2) : '--';
-  const canDrill = reliable && drillable;
+  const tools = analytics.data_coverage?.tools_reporting ?? [];
+  // Em-dash needs a reason: stale pricing, all-models-unpriced, or capability
+  // gap. costEmptyReason picks the most specific. Catalog has
+  // `ownsCoverageNote: true` so WidgetRenderer skips the auto-footer that
+  // would otherwise stack on top of this one.
+  if (!reliable) {
+    return (
+      <>
+        <StatWidget value="--" />
+        <CoverageNote text={costEmptyReason(t, tools)} />
+      </>
+    );
+  }
+  const value = formatCost(t.total_estimated_cost_usd, 2);
   // daily_trends[].cost is populated by enrichDailyTrendsWithPricing and
   // null on days where cost is structurally unshowable (stale pricing, no
   // priced sessions that day). Treating null as 0 for the split matches the
   // total's own summation semantic — both halves get the same treatment so
-  // the direction reflects behavior change, not null handling. `reliable`
-  // above gates the whole thing: if the period-level cost isn't showable,
-  // the delta isn't either.
+  // the direction reflects behavior change, not null handling.
   // `deltaInvert` — less total spend reads as the improvement direction,
   // matching CostPerEditWidget so the color semantic stays consistent.
-  const delta = reliable ? splitPeriodDelta(analytics.daily_trends, (d) => d.cost ?? 0) : null;
+  const delta = splitPeriodDelta(analytics.daily_trends, (d) => d.cost ?? 0);
   const ariaDelta = deltaAriaSuffix(delta);
+  // Partial-capture disclosure: when token data is reliable but only some
+  // tools cover it, surface the attribution. capabilityCoverageNote returns
+  // null on full coverage so the populated path stays clean for users with
+  // universal capture.
+  const partialNote = costEmptyReason(t, tools);
   return (
-    <StatWidget
-      value={value}
-      delta={delta}
-      deltaInvert
-      deltaFormat="usd"
-      onOpenDetail={canDrill ? openUsage('cost') : undefined}
-      detailAriaLabel={canDrill ? `Open usage detail · ${value} cost${ariaDelta}` : undefined}
-    />
+    <>
+      <StatWidget
+        value={value}
+        delta={delta}
+        deltaInvert
+        deltaFormat="usd"
+        onOpenDetail={drillable ? openUsage('cost') : undefined}
+        detailAriaLabel={drillable ? `Open usage detail · ${value} cost${ariaDelta}` : undefined}
+      />
+      <CoverageNote text={partialNote} />
+    </>
   );
 }
 
@@ -216,8 +234,16 @@ function CostPerEditWidget({ analytics }: WidgetBodyProps) {
   // whenever cost itself isn't showable, the ratio isn't either. Prevents
   // the "total says -- but the ratio shows a number" divergence.
   const reliable = hasCostData(t) && t.cost_per_edit != null;
-  const value = reliable ? formatCost(t.cost_per_edit, 3) : '--';
-  const canDrill = reliable && drillable;
+  const tools = analytics.data_coverage?.tools_reporting ?? [];
+  if (!reliable) {
+    return (
+      <>
+        <StatWidget value="--" />
+        <CoverageNote text={costEmptyReason(t, tools)} />
+      </>
+    );
+  }
+  const value = formatCost(t.cost_per_edit, 3);
   // Period-over-period delta. Both windows are priced against the current
   // snapshot (via enrichPeriodComparisonCost) so the arrow reflects
   // behavior change, not price drift. `deltaInvert` renders a downward
@@ -226,22 +252,25 @@ function CostPerEditWidget({ analytics }: WidgetBodyProps) {
   // window where either side has no priced token data; StatWidget's delta
   // gate then suppresses the pill without the widget needing to know why.
   const pc = analytics.period_comparison;
-  const delta =
-    reliable && pc
-      ? {
-          current: pc.current.cost_per_edit,
-          previous: pc.previous?.cost_per_edit ?? null,
-        }
-      : null;
+  const delta = pc
+    ? {
+        current: pc.current.cost_per_edit,
+        previous: pc.previous?.cost_per_edit ?? null,
+      }
+    : null;
+  const partialNote = costEmptyReason(t, tools);
   return (
-    <StatWidget
-      value={value}
-      delta={delta}
-      deltaInvert
-      deltaFormat="usd-fine"
-      onOpenDetail={canDrill ? openUsage('cost-per-edit') : undefined}
-      detailAriaLabel={canDrill ? `Open usage detail · ${value} per edit` : undefined}
-    />
+    <>
+      <StatWidget
+        value={value}
+        delta={delta}
+        deltaInvert
+        deltaFormat="usd-fine"
+        onOpenDetail={drillable ? openUsage('cost-per-edit') : undefined}
+        detailAriaLabel={drillable ? `Open usage detail · ${value} per edit` : undefined}
+      />
+      <CoverageNote text={partialNote} />
+    </>
   );
 }
 

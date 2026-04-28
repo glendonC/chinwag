@@ -1,3 +1,4 @@
+import type { DataCapabilities } from '@chinmeister/shared/tool-registry.js';
 import type { DetailViewKey } from '../lib/router.js';
 
 /**
@@ -74,15 +75,14 @@ export type WidgetCategory =
 
 /**
  * Time-semantics bucket. Drives whether a widget responds to the global date
- * picker and what label (if any) appears in its header.
+ * picker and what label, if any, appears in its header.
  *
- *   'period'   — every number responds to the picker (default, most widgets)
- *   'live'     — real-time snapshot, picker does not apply
- *   'all-time' — lifetime values, picker does not apply
+ *   'period'   = every number responds to the picker (default, most widgets)
+ *   'live'     = real-time snapshot, picker does not apply
+ *   'all-time' = lifetime values, picker does not apply
  *
- * Rule: a widget is exactly one scope. If a design needs mixed scopes, split
+ * A widget is exactly one scope. If a design needs mixed scopes, split it
  * into two widgets so users can tell which numbers the picker controls.
- * See .internal/OVERVIEW_ARCH.md item #1.
  */
 export type WidgetTimeScope = 'period' | 'live' | 'all-time';
 
@@ -151,6 +151,26 @@ export interface WidgetDef {
    * their own obvious click target and don't need it.
    */
   ownsClick?: boolean;
+  /**
+   * Capability gate that must be reported by at least one active tool for
+   * this widget to populate fully. When the user's reporting tools don't
+   * cover this capability, `WidgetRenderer` paints a CoverageNote footer
+   * naming the capable tools so the em-dash (or partial number) is
+   * explained instead of silently mysterious. The A3 honesty fix from the
+   * 2026-04-28 audit: gating must be visible whenever the widget renders,
+   * not only when it has data. Widgets that paint their own coverage note
+   * inline (cost, one-shot-rate, the tool-call widgets, the team widgets)
+   * opt out via `ownsCoverageNote: true` so two notes don't stack.
+   */
+  requiredCapability?: keyof DataCapabilities;
+  /**
+   * The widget body wires its own CoverageNote (with widget-specific copy
+   * or multi-reason logic like `costEmptyReason`). When true, the
+   * `WidgetRenderer` skips the auto-footer so two notes don't stack on
+   * top of each other. Pair with `requiredCapability` for documentation;
+   * the body is still responsible for actually painting a note.
+   */
+  ownsCoverageNote?: boolean;
 }
 
 // ── The catalog ──────────────────────────────────
@@ -317,6 +337,8 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     dataKeys: ['token_usage'],
     drillTarget: { view: 'usage', tab: 'cost' },
     ownsClick: true,
+    requiredCapability: 'tokenUsage',
+    ownsCoverageNote: true,
   },
   {
     id: 'cost-per-edit',
@@ -333,6 +355,8 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     dataKeys: ['token_usage'],
     drillTarget: { view: 'usage', tab: 'cost-per-edit' },
     ownsClick: true,
+    requiredCapability: 'tokenUsage',
+    ownsCoverageNote: true,
   },
   // ── Trends (sparklines) ───────────────
   // `session-trend` and `edit-velocity` were both cut 2026-04-25 after
@@ -404,6 +428,8 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     dataKeys: ['tool_call_stats'],
     drillTarget: { view: 'outcomes', tab: 'retries' },
     ownsClick: true,
+    requiredCapability: 'toolCallLogs',
+    ownsCoverageNote: true,
   },
   {
     id: 'stuckness',
@@ -475,6 +501,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['commit_stats'],
     drillTarget: { view: 'codebase', tab: 'commits', q: 'commits-headline' },
+    requiredCapability: 'commitTracking',
   },
   {
     id: 'directories',
@@ -491,6 +518,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     dataKeys: ['directory_heatmap'],
     drillTarget: { view: 'codebase', tab: 'directories', q: 'top-dirs' },
     ownsClick: true,
+    requiredCapability: 'hooks',
   },
   {
     id: 'files',
@@ -507,6 +535,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     dataKeys: ['file_heatmap'],
     drillTarget: { view: 'codebase', tab: 'landscape', q: 'landscape' },
     ownsClick: true,
+    requiredCapability: 'hooks',
   },
 
   // ── Tools & Models ────────────────────
@@ -556,6 +585,8 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     dataKeys: ['tool_call_stats'],
     drillTarget: { view: 'tools', tab: 'tools', q: 'one-shot' },
     ownsClick: true,
+    requiredCapability: 'toolCallLogs',
+    ownsCoverageNote: true,
   },
   {
     id: 'model-mix',
@@ -572,6 +603,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     maxH: 2,
     dataKeys: ['model_outcomes', 'token_usage'],
     drillTarget: { view: 'tools', tab: 'tools', q: 'models' },
+    requiredCapability: 'tokenUsage',
   },
 
   // ── Projects ──────────────────────────
@@ -623,6 +655,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minH: 2,
     dataKeys: ['scope_complexity'],
     drillTarget: { view: 'outcomes', tab: 'retries', q: 'scope' },
+    ownsCoverageNote: true,
   },
 
   // ── Codebase (extended) ─────────────
@@ -711,6 +744,8 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     dataKeys: ['tool_call_stats'],
     drillTarget: { view: 'tools', tab: 'errors', q: 'top' },
     ownsClick: true,
+    requiredCapability: 'toolCallLogs',
+    ownsCoverageNote: true,
   },
   // ── Conversations (revived 2026-04-25) ──
   // Two file-axis widgets that use sentiment/topic as INPUTS to coordination
@@ -732,6 +767,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 2,
     dataKeys: ['confused_files'],
+    requiredCapability: 'conversationLogs',
   },
   {
     id: 'unanswered-questions',
@@ -749,6 +785,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 3,
     minH: 2,
     dataKeys: ['unanswered_questions'],
+    requiredCapability: 'conversationLogs',
   },
   // cross-tool-handoff-questions (added 2026-04-26): substrate-unique, the
   // category's strongest D1 entry. Surfaces handoff EVENTS (file × tool-from
@@ -773,6 +810,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 4,
     minH: 2,
     dataKeys: ['cross_tool_handoff_questions'],
+    requiredCapability: 'conversationLogs',
   },
 
   // ── Memory (extended) ───────────────
@@ -922,6 +960,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 3,
     minH: 2,
     dataKeys: ['file_overlap'],
+    ownsCoverageNote: true,
   },
 
   {
@@ -953,6 +992,8 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     minW: 3,
     minH: 2,
     dataKeys: ['conflict_stats'],
+    requiredCapability: 'hooks',
+    ownsCoverageNote: true,
   },
 ];
 
