@@ -857,7 +857,11 @@ export const WIDGET_CATALOG: WidgetDef[] = [
       'Freeform categories your agents tag memories with. Stays empty until agents start tagging.',
     category: 'memory',
     scope: 'both',
-    viz: 'bar-chart',
+    // The body renders a chromeless type-ladder (rank by font weight + size,
+    // not bars). data-list is the catalog viz that matches the rendered
+    // primitive — the prior 'bar-chart' tag was a stale leftover from a
+    // pre-ladder iteration and confused the picker filter.
+    viz: 'data-list',
     w: 6,
     h: 4,
     minW: 4,
