@@ -477,7 +477,13 @@ const STALE_MASS_MAX = 18;
 function AuditStalenessWidget({ analytics }: WidgetBodyProps) {
   const data = analytics.audit_staleness;
   const drillable = useIsDrillable();
-  if (data.length === 0) return <SectionEmpty>No stale directories</SectionEmpty>;
+  if (data.length === 0) {
+    return (
+      <SectionEmpty>
+        Cold directories appear after 14 days of activity history without a touch.
+      </SectionEmpty>
+    );
+  }
 
   const sorted = [...data].sort((a, b) => b.days_since - a.days_since);
   const maxDays = Math.max(...sorted.map((d) => d.days_since), 14);
@@ -572,10 +578,12 @@ function ConcurrentEditsWidget({ analytics }: WidgetBodyProps) {
   if (ce.length === 0) {
     if (isSoloTeam(analytics)) {
       return (
-        <SectionEmpty>No multi-agent edits. The team is touching disjoint files.</SectionEmpty>
+        <SectionEmpty>
+          Needs 2+ agents — collisions only form between parallel sessions.
+        </SectionEmpty>
       );
     }
-    return <SectionEmpty>No concurrent edits detected</SectionEmpty>;
+    return <SectionEmpty>No concurrent edits this period</SectionEmpty>;
   }
   const visible = ce.slice(0, CONCURRENT_EDITS_VISIBLE);
   const hidden = ce.length - visible.length;
