@@ -305,6 +305,25 @@ export function CoverageNote({ text }: { text: string | null }) {
 }
 
 /**
+ * Auto-painted coverage footer for catalog-gated widgets. WidgetRenderer
+ * mounts this when a widget declares `requiredCapability` without setting
+ * `ownsCoverageNote`. Centralizes the partial-capture / gating disclosure
+ * so silent widgets (commit-stats, top-files, model-mix, the conversation
+ * widgets) can't ship without one. Returns nothing when coverage is full
+ * or the user has no active tools — `capabilityCoverageNote` does that
+ * decision; this is just the rendering shell.
+ */
+export function CapabilityFooter({
+  capability,
+  toolsReporting,
+}: {
+  capability: keyof DataCapabilities;
+  toolsReporting: string[];
+}) {
+  return <CoverageNote text={capabilityCoverageNote(toolsReporting, capability)} />;
+}
+
+/**
  * True when the user is effectively solo for coordination purposes — zero or
  * one active member in the window. Consolidates the three inline
  * `analytics.member_analytics.length <= 1` checks that team-latent widgets
