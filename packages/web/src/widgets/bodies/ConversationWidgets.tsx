@@ -2,7 +2,6 @@ import { type CSSProperties } from 'react';
 import clsx from 'clsx';
 import SectionEmpty from '../../components/SectionEmpty/SectionEmpty.js';
 import ToolIcon from '../../components/ToolIcon/ToolIcon.js';
-import { setQueryParams } from '../../lib/router.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
 import styles from './ConversationWidgets.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
@@ -12,10 +11,15 @@ import { FilePath, MoreHidden, StatWidget } from './shared.js';
 // INPUTS to coordination questions (never headline) per ANALYTICS_SPEC §10.
 //
 // Visual vocabulary matches the live category: subgrid table + named
-// header + body rows with negative-margin hover compensation. Substrate-
-// unique viz lives inside cells (per-session outcome stripe for files;
-// tool-icon route for handoffs) so the widgets earn distinct identity
-// without forking the table primitive.
+// header + body rows. Substrate-unique viz lives inside cells (per-session
+// outcome stripe for files; tool-icon route for handoffs) so the widgets
+// earn distinct identity without forking the table primitive.
+//
+// No drill affordances. The conversations category has no detail view yet,
+// and the session-list filter route these widgets would need does not
+// exist. Until either ships, the widgets render as read-only summaries —
+// no buttons, no onClick, no false promises. The signals will fold into
+// the existing detail views (Codebase/Tools/Outcomes) as a follow-up.
 
 const CONFUSED_FILES_VISIBLE = 8;
 const CROSS_TOOL_HANDOFFS_VISIBLE = 8;
@@ -54,13 +58,11 @@ function ConfusedFilesWidget({ analytics }: WidgetBodyProps) {
           {visible.map((f, i) => {
             const baseName = f.file.split('/').filter(Boolean).pop() ?? f.file;
             return (
-              <button
+              <div
                 key={f.file}
-                type="button"
                 className={styles.convoRow}
                 style={{ '--row-index': i } as CSSProperties}
                 aria-label={`${baseName}: ${f.confused_sessions} confused sessions, ${f.retried_sessions} abandoned`}
-                onClick={() => setQueryParams({ file: f.file, sentiment: 'confused' })}
               >
                 <FilePath path={f.file} order="name-first" />
                 <ConfusedSessionsStripe
@@ -68,7 +70,7 @@ function ConfusedFilesWidget({ analytics }: WidgetBodyProps) {
                   abandoned={f.retried_sessions}
                 />
                 <span className={styles.confusedTotal}>{f.confused_sessions}</span>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -133,19 +135,11 @@ function CrossToolHandoffsWidget({ analytics }: WidgetBodyProps) {
             const fromLabel = getToolMeta(e.tool_from).label;
             const toLabel = getToolMeta(e.tool_to).label;
             return (
-              <button
+              <div
                 key={`${e.handoff_at}-${e.file}-${e.tool_from}-${e.tool_to}`}
-                type="button"
                 className={styles.convoRow}
                 style={{ '--row-index': i } as CSSProperties}
                 aria-label={`${fromLabel} to ${toLabel} on ${baseName}, ${formatGap(e.gap_minutes)} gap`}
-                onClick={() =>
-                  setQueryParams({
-                    tool: e.tool_to,
-                    file: e.file,
-                    since: e.handoff_at,
-                  })
-                }
               >
                 <span className={styles.routeCell}>
                   <span className={styles.routeTool}>
@@ -162,7 +156,7 @@ function CrossToolHandoffsWidget({ analytics }: WidgetBodyProps) {
                 </span>
                 <span className={styles.gapCell}>{formatGap(e.gap_minutes)}</span>
                 <FilePath path={e.file} order="name-first" />
-              </button>
+              </div>
             );
           })}
         </div>
@@ -175,22 +169,11 @@ function CrossToolHandoffsWidget({ analytics }: WidgetBodyProps) {
 // ── unanswered-questions (4×2) ──────────────────────
 //
 // Bare hero stat. The widget title carries the metric name; the body
-// is just the number + drill arrow when there's something to read.
-// Same primitive as Stuckness, OneShotRate, Sessions.
+// is just the number. Same primitive as Stuckness, OneShotRate, Sessions.
+// No drill: the conversations category has no detail view yet.
 function UnansweredQuestionsWidget({ analytics }: WidgetBodyProps) {
   const uq = analytics.unanswered_questions;
-  const drillable = uq.count > 0;
-  return (
-    <StatWidget
-      value={uq.count.toLocaleString()}
-      onOpenDetail={
-        drillable
-          ? () => setQueryParams({ outcome: 'abandoned', has_user_question: 'true' })
-          : undefined
-      }
-      detailAriaLabel={drillable ? 'Open questions left open' : undefined}
-    />
-  );
+  return <StatWidget value={uq.count.toLocaleString()} />;
 }
 
 // ── helpers ─────────────────────────────────────────
