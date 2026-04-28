@@ -13,7 +13,7 @@
 Monorepo with five packages:
 
 - **`packages/mcp/`:** MCP server (the core product). Runs locally alongside each AI agent. Reports activity, checks conflicts, reads/writes shared memory. Stdio transport. Never `console.log`.
-- **`packages/worker/`:** Cloudflare Workers backend. Durable Objects for team coordination (TeamDO), data (DatabaseDO), chat rooms (RoomDO), presence (LobbyDO). KV for auth token lookups only.
+- **`packages/worker/`:** Cloudflare Workers backend. Durable Objects for team coordination (TeamDO), data (DatabaseDO), and global presence (LobbyDO). KV for auth token lookups only.
 - **`packages/cli/`:** TUI dashboard and setup. Handles `chinmeister init`, `chinmeister add`, agent dashboard, tool discovery. Node.js CLI built with Ink (React for terminals). Entry: `cli.jsx`, screens in `lib/`. Built with esbuild to `dist/cli.js`. Requires Node 22+ (native WebSocket).
 - **`packages/shared/`:** Shared primitives reused across packages. Tool registry, agent identity, API client factory, session registry. Dependency-light, no grab bags.
 - **`packages/web/`:** Web presence at chinmeister.com. React 19 + Vite SPA on Cloudflare Pages. Landing page (`index.html`) plus authenticated dashboard (`dashboard.html`) with Zustand state management and CSS Modules. Cross-project workflow visibility, tool discovery, and team management.
@@ -31,7 +31,7 @@ Do not solve problems with static lists, hardcoded values, or patterns that requ
 - **Layer 1 (blocklist):** Static regex patterns for obvious slurs. Instant, zero-latency. This is the fallback, not the strategy. Do not grow this list; improve the AI layer instead.
 - **Layer 2 (AI):** Llama Guard 3 (`@cf/meta/llama-guard-3-8b`) on Cloudflare Workers AI. Outperforms OpenAI Moderation API on real-world benchmarks. No external API key, runs on CF edge, customizable taxonomy. Bound as `env.AI` in wrangler.toml.
 - **Why not OpenAI Moderation?** Fixed categories, can't customize, external dependency, over-moderates counter-speech, under-moderates implicit hate. Llama Guard is strictly better for our use case.
-- **Architecture:** Blocklist runs first (sync, <1ms). AI runs second (async). For status, both layers run before persisting. For chat, blocklist runs inline; AI moderation for chat can be added async (broadcast, then retract if flagged) when needed.
+- **Architecture:** Blocklist runs first (sync, <1ms). AI runs second (async). For status text and team names, both layers run before persisting.
 
 This same principle applies everywhere: prefer intelligent systems over growing config files.
 
@@ -99,7 +99,6 @@ Every change must pass these checks. These are not aspirational; they are blocke
 
 See [`docs/VISION.md`](docs/VISION.md) for the full list. Key ones for development: chinmeister is not an agent orchestrator, not a standalone APM, and not an MCP server registry.
 
-### Chat (secondary)
+### Status line
 
-- No "room" jargon exposed to users; chat just says "N devs here"
-- Status line: use a simple separator, not a "Working on:" prefix
+- Use a simple separator, not a "Working on:" prefix

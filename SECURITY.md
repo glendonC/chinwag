@@ -30,22 +30,22 @@ chinmeister takes security seriously. This document describes how to report vuln
 
 ### What chinmeister does NOT trust
 
-| Boundary                 | Implication                                                                                                            |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| All network input        | Every HTTP request and WebSocket message is treated as untrusted and validated server-side                             |
-| User-generated content   | All text (memories, chat messages, status updates) passes through two-layer moderation before persistence or broadcast |
-| Authentication tokens    | Bearer tokens are validated on every request via KV lookup; no session cookies, no client-side trust                   |
-| WebSocket messages       | Validated for type, length (280 char max), and rate (10/min) on every frame                                            |
-| Client-supplied identity | Handle and color are resolved server-side from the authenticated token, never accepted from the client payload         |
+| Boundary                 | Implication                                                                                                               |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| All network input        | Every HTTP request and WebSocket message is treated as untrusted and validated server-side                                |
+| User-generated content   | Text persisted from clients (memories, status updates, team names) passes through two-layer moderation before persistence |
+| Authentication tokens    | Bearer tokens are validated on every request via KV lookup; no session cookies, no client-side trust                      |
+| WebSocket messages       | Validated for type and shape on every frame; team WebSockets are role-gated and tied to authenticated team membership     |
+| Client-supplied identity | Handle and color are resolved server-side from the authenticated token, never accepted from the client payload            |
 
 ### In Scope
 
 - Authentication bypass or token leakage
-- Cross-Site WebSocket Hijacking (CSWSH) against the chat endpoint
-- Injection attacks through memory content, chat messages, status text, or handle names
+- Cross-Site WebSocket Hijacking (CSWSH) against the team WebSocket endpoint
+- Injection attacks through memory content, status text, team name, or handle
 - Moderation bypass (both blocklist and AI layer)
-- Rate limit bypass (account creation, chat messages)
-- Data leakage between Durable Object instances (cross-room, cross-user)
+- Rate limit bypass (account creation, memory writes, team creation)
+- Data leakage between Durable Object instances (cross-team, cross-user)
 - Unauthorized access to another user's team messages, memories, or profile
 - Denial of service achievable by a single authenticated user (resource exhaustion within the Worker)
 - Vulnerabilities in the WebSocket upgrade or connection lifecycle
@@ -123,9 +123,9 @@ For context on how chinmeister's security works under the hood:
 
 - **Transport:** All connections use TLS. The CLI connects via `wss://` (WebSocket Secure) and `https://`. Cloudflare terminates TLS at the edge.
 - **Authentication:** UUID bearer tokens, generated at account creation, stored in Cloudflare KV for fast lookup. One token per user, with optional refresh rotation. WebSocket connections use short-lived single-use tickets (30s TTL) issued via `POST /auth/ws-ticket` to keep bearer tokens out of URLs, which may be logged by proxies or intermediaries.
-- **Isolation:** Each Durable Object (DatabaseDO, TeamDO, RoomDO, LobbyDO) runs in its own single-threaded isolate. Cross-DO access is only possible through explicit stub calls, never shared memory.
-- **Content moderation:** Two-layer system: synchronous blocklist (regex, under 1 ms) followed by async AI moderation (Llama Guard 3 on Cloudflare Workers AI). Both layers run before content is persisted for chat and status.
-- **Rate limiting:** Account creation (3/IP/day), chat messages (10/min/user), new account chat cooldown (5 minutes).
+- **Isolation:** Each Durable Object (DatabaseDO, TeamDO, LobbyDO) runs in its own single-threaded isolate. Cross-DO access is only possible through explicit stub calls, never shared memory.
+- **Content moderation:** Two-layer system: synchronous blocklist (regex, under 1 ms) followed by async AI moderation (Llama Guard 3 on Cloudflare Workers AI). Both layers run before status text and team names are persisted.
+- **Rate limiting:** Per-user-per-day budgets across creation endpoints (accounts, teams, memories, sessions, locks, messages, etc.) plus per-IP budgets for unauthenticated reads.
 
 ## Acknowledgments
 

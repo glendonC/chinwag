@@ -34,7 +34,7 @@ flowchart TB
     W[Workers API]
     TE[TeamDO]
     DB[DatabaseDO]
-    LO[LobbyDO / RoomDO]
+    LO[LobbyDO]
     KV[(KV: token lookups)]
     MCP -->|HTTPS| W
     W --> TE
@@ -199,7 +199,7 @@ The monorepo has five packages:
 
 - **Technology:** Node.js 22+, Ink (React for terminals), node-pty, esbuild, TypeScript
 - **Entry point:** `cli.tsx` (screen router)
-- **Responsibility:** Primary human control surface. Handles `chinmeister init`, `chinmeister add`, and `chinmeister run`. Agent operations dashboard (active agents, conflicts, shared memory, session history). Process management for managed CLI agents (spawn, track, stop, restart). Tool discovery screen. Chat is available but secondary.
+- **Responsibility:** Primary human control surface. Handles `chinmeister init`, `chinmeister add`, and `chinmeister run`. Agent operations dashboard (active agents, conflicts, shared memory, session history). Process management for managed CLI agents (spawn, track, stop, restart). Tool discovery screen.
 - **Key constraint:** The CLI has no knowledge of Durable Objects, room IDs, or server internals. It speaks only the public HTTP/WebSocket API.
 
 ### `packages/shared/`: Shared Primitives
@@ -227,7 +227,7 @@ The monorepo has five packages:
 | `lib/validation.ts`           | Input validation helpers (`requireString`, `validateTagsArray`, `withRateLimit`, `withTeamRateLimit`). Rate-limited paths go through atomic `checkAndConsume`.                                                    |
 | `lib/http.ts`                 | JSON response helper + status mapping.                                                                                                                                                                            |
 | `catalog.ts`                  | Discovery catalog served by `GET /tools/catalog`. Tool metadata for the Web/CLI tool browser.                                                                                                                     |
-| `moderation.ts`               | Two-layer content filter. Layer 1: synchronous regex blocklist (under 1 ms). Layer 2: async AI moderation via Llama Guard 3. Used for chat and status text.                                                       |
+| `moderation.ts`               | Two-layer content filter. Layer 1: synchronous regex blocklist (under 1 ms). Layer 2: async AI moderation via Llama Guard 3. Used for status text and team names.                                                 |
 | `dos/database/index.ts`       | `DatabaseDO`: single instance holding users, sessions, rate limits, and developer metrics. SQLite storage.                                                                                                        |
 | `dos/database/pricing.ts`     | LiteLLM pricing snapshot, periodic refresh, and structural validation.                                                                                                                                            |
 | `dos/database/evaluations.ts` | Stored evaluation records used by analytics.                                                                                                                                                                      |
@@ -253,8 +253,7 @@ The monorepo has five packages:
 | `dos/team/broadcast.ts`       | Delta broadcast helpers used by the WS pipeline.                                                                                                                                                                  |
 | `dos/team/telemetry.ts`       | Metric helpers (per-team counters, cleanup stats).                                                                                                                                                                |
 | `dos/team/analytics/`         | 14 domain modules (`core`, `tokens`, `commits`, `conversations`, `outcomes`, `tool-calls`, `codebase`, `sessions`, `activity`, `memory`, `team`, `comparison`, `extended`, `index`) composing per-team analytics. |
-| `lobby.ts`                    | `LobbyDO`: single instance managing chat room assignment and global presence. Tracks active rooms and their sizes. Heartbeat-based presence with 60s TTL.                                                         |
-| `room.ts`                     | `RoomDO`: one instance per chat room. Holds WebSocket connections, broadcasts messages, maintains last 50 messages as history.                                                                                    |
+| `lobby.ts`                    | `LobbyDO`: single instance tracking global presence (handle + country) and surfacing aggregate counts for the public `/stats` endpoint. Heartbeat-based presence with 60s TTL.                                    |
 
 ### MCP Server (`packages/mcp/`)
 
@@ -299,7 +298,7 @@ Three bin entries remain JS (`index.js`, `hook.js`, `channel.js`) because they'r
 
 | File                                    | Responsibility                                                                                                                                                                                                                                                      |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cli.tsx`                               | App shell with error boundary. Screen state machine: loading → welcome → {dashboard, chat, customize, discover}. Loads/validates config on startup. Also handles pre-TUI commands (`init`, `add`, `run`, `doctor`, `token`).                                        |
+| `cli.tsx`                               | App shell with error boundary. Screen state machine: loading → welcome → {dashboard, customize, discover}. Loads/validates config on startup. Also handles pre-TUI commands (`init`, `add`, `run`, `doctor`, `token`).                                              |
 | `lib/dashboard/index.tsx`               | Agent activity dashboard. Shows configured tools, active/offline agents (managed + connected), file conflicts, recent sessions, and team knowledge. Real-time updates via WebSocket with adaptive polling fallback (5s→60s). Managed agent controls (stop/restart). |
 | `lib/dashboard/`                        | Supporting modules for the dashboard: context providers, reducer, input handling, sections, hooks, connection layer, and sub-views (sessions, memory, agent-focus).                                                                                                 |
 | `lib/process-manager.ts`                | Spawns CLI agents via node-pty, tracks PIDs, handles kill/restart. Provides lifecycle events for dashboard integration.                                                                                                                                             |
@@ -312,7 +311,6 @@ Three bin entries remain JS (`index.js`, `hook.js`, `channel.js`) because they'r
 | `lib/commands/token.ts`                 | Account token utilities.                                                                                                                                                                                                                                            |
 | `lib/tools.ts`                          | CLI re-export of the shared MCP tool registry. Discovery catalog lives in the worker API (`GET /tools/catalog`).                                                                                                                                                    |
 | `lib/mcp-config.ts`                     | Writes MCP config files for detected tools.                                                                                                                                                                                                                         |
-| `lib/chat.tsx`                          | Live chat. WebSocket connection with exponential backoff reconnect (1s→15s cap).                                                                                                                                                                                    |
 | `lib/customize.tsx`                     | Profile editor. Change handle, cycle through 12-color palette, set status.                                                                                                                                                                                          |
 | `lib/api.ts`                            | HTTP client. Wraps fetch with Bearer token auth, 10s timeout, retry with exponential backoff on 5xx/network errors.                                                                                                                                                 |
 | `lib/colors.ts`                         | Maps chinmeister's 12 colors to ANSI terminal colors for Ink rendering.                                                                                                                                                                                             |
@@ -385,18 +383,6 @@ chinmeister captures session-level data that powers workflow analytics and long-
 5. **Conversation intelligence (managed agents).** After a managed session ends, chinmeister parses the agent's conversation logs and uploads normalized events — user and assistant messages with sequence, timestamps, and character counts. The backend stores these in `conversation_events` and runs analytics: sentiment distribution, topic classification, message length trends, and crucially, correlation between conversation patterns and session outcomes. Tool-specific parsers (isolated behind a generic `ConversationEvent[]` interface) handle each tool's log format; the analytics layer is tool-agnostic.
 6. **Integration depth determines data richness.** Hook-enabled tools provide granular, automatic data on every edit. MCP-only tools provide coordination data and voluntary reporting. Managed tools get the deepest tier: conversation-level analytics. The intelligence layer works with all, surfacing richer insights where richer data is available.
 
-### Chat (Secondary)
-
-Chat is available but secondary to the agent coordination focus. It exists because the infrastructure supports it, not because it's core to the product.
-
-#### Chat (WebSocket)
-
-1. CLI calls `GET /ws/chat` with Bearer token
-2. Worker authenticates, asks LobbyDO for room assignment
-3. LobbyDO picks room closest to 20 users (or creates new room if all ≥30)
-4. Worker forwards WebSocket upgrade to the assigned RoomDO
-5. RoomDO accepts connection, sends message history + room count
-
 ## Key Design Decisions
 
 **MCP server is the product, not the CLI.** The primary value is delivered invisibly through agent MCP connections. This is like git: you run `git init` once, then git works in the background. chinmeister works the same way: init once, then your agents are smarter.
@@ -450,9 +436,9 @@ No middleware framework: it's a simple `if/else` chain with early returns.
 
 ### Content Moderation
 
-Applies to chat messages and status text. Two layers:
+Applies to status text and team names. Two layers:
 
-1. **Blocklist** (`moderation.ts:isBlocked`): synchronous regex scan. Returns immediately. Used inline for chat where latency matters.
+1. **Blocklist** (`moderation.ts:isBlocked`): synchronous regex scan. Returns immediately.
 2. **AI** (`moderation.ts:moderateWithAI`): async call to Llama Guard 3 via `env.AI`. Returns category codes (S1-S14). Used before persisting status.
 
 `checkContent()` runs both layers sequentially and returns `{blocked, reason, categories}`.

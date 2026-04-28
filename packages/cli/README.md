@@ -42,7 +42,6 @@ npm run test --workspace=packages/cli
 
 - `CHINMEISTER_PROFILE`: runtime profile (`prod` or `local`)
 - `CHINMEISTER_API_URL`: override the default API base URL
-- `CHINMEISTER_WS_URL`: override the chat WebSocket URL
 - `CHINMEISTER_DASHBOARD_URL`: override the browser dashboard URL opened by the CLI
 
 When `CHINMEISTER_PROFILE=local`, the CLI uses isolated auth at `~/.chinmeister/local/config.json` instead of the production config path.

@@ -16,7 +16,6 @@ import { runRefreshModelPrices } from './lib/refresh-model-prices.js';
 
 export { DatabaseDO } from './dos/database/index.js';
 export { LobbyDO } from './lobby.js';
-export { RoomDO } from './room.js';
 export { TeamDO } from './dos/team/index.js';
 export {
   parseTeamPath,
@@ -95,11 +94,10 @@ const routes = buildRoutes(routeDefinitions);
 
 // WebSocket upgrade paths skip CORS header injection (the Response is a
 // WebSocket handshake, not a regular HTTP response).
-const WS_PATHS = new Set(['/ws/chat']);
 const WS_PATTERN = /^\/teams\/[^/]+\/ws$/;
 
 function isWebSocketRoute(path: string): boolean {
-  return WS_PATHS.has(path) || WS_PATTERN.test(path);
+  return WS_PATTERN.test(path);
 }
 
 export default {

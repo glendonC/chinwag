@@ -23,10 +23,6 @@ What is built and what comes next. For product vision, positioning, and differen
 - **`chinmeister add <tool>`:** One-command MCP config from the CLI
 - **TUI discover screen:** Configured tools, recommendations, category browsing
 
-### Chat (secondary)
-
-Global chat rooms, presence, handle and color customization, content moderation
-
 ### Security
 
 Membership checks on all team endpoints, team ID entropy, rate limits, input validation, fetch timeouts, retry with backoff

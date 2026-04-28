@@ -3,7 +3,7 @@
 // Split into focused modules:
 //   auth.ts      -- authenticate(), token refresh, WS ticket creation
 //   profile.ts   -- handle, color, status, agent profile, presence heartbeat
-//   teams.ts     -- team CRUD, chat upgrade
+//   teams.ts     -- team CRUD
 //   analytics.ts -- cross-team analytics aggregation
 //   sessions.ts  -- cross-team session listing for the timeline
 //   dashboard.ts -- multi-team dashboard summary orchestration
@@ -26,7 +26,7 @@ import {
   handleUpdateBudgets,
   handleRevokeTokens,
 } from './profile.js';
-import { handleGetUserTeams, handleChatUpgrade, handleCreateTeam } from './teams.js';
+import { handleGetUserTeams, handleCreateTeam } from './teams.js';
 import { handleUserAnalytics } from './analytics.js';
 import { handleUserSessions } from './sessions.js';
 import { handleDashboardSummary } from './dashboard.js';
@@ -37,9 +37,9 @@ import { handleExportUserData, handleDeleteUserData } from './data.js';
 export { authenticate };
 
 /**
- * All authenticated non-team routes. Includes the WebSocket upgrade for
- * peer-to-peer chat, but team-scoped WS upgrades live in registerTeamRoutes.
- * Registration order is preserved to keep parametric matching deterministic.
+ * All authenticated non-team routes. Team-scoped WS upgrades live in
+ * registerTeamRoutes. Registration order is preserved to keep parametric
+ * matching deterministic.
  */
 export function registerUserRoutes(): RouteDefinition[] {
   return [
@@ -64,8 +64,5 @@ export function registerUserRoutes(): RouteDefinition[] {
     { method: 'POST', path: '/auth/github/link', handler: handleGithubLink },
     { method: 'POST', path: '/teams', handler: handleCreateTeam },
     { method: 'POST', path: '/tools/suggest', handler: handleSuggestTool },
-
-    // Authenticated WebSocket upgrade (return directly, skip CORS headers)
-    { method: 'GET', path: '/ws/chat', handler: handleChatUpgrade },
   ];
 }

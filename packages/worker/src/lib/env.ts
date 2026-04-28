@@ -35,7 +35,7 @@ export function getDB(env: Env): DurableObjectStub<DatabaseDO> {
   return env.DATABASE.get(env.DATABASE.idFromName('main'));
 }
 
-/** Get the singleton LobbyDO stub. */
+/** Get the singleton LobbyDO stub (presence + global stats). */
 export function getLobby(env: Env): DurableObjectStub<LobbyDO> {
   return env.LOBBY.get(env.LOBBY.idFromName('main'));
 }

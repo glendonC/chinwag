@@ -243,8 +243,7 @@ Global platform statistics.
   "ok": true,
   "totalUsers": 142,
   "online": 8,
-  "chatUsers": 3,
-  "activeRooms": 1
+  "countries": { "US": 5, "DE": 2, "JP": 1 }
 }
 ```
 
@@ -1419,98 +1418,6 @@ Get session history for the team.
 ---
 
 ## WebSocket Endpoints
-
-### GET /ws/chat
-
-Global chat room WebSocket. Requires authentication via Bearer token or ticket query parameter.
-
-**Connection:** `wss://api.chinmeister.com/ws/chat?ticket=<ticket>`
-
-**Query parameters:**
-
-| Param     | Type   | Description                                               |
-| --------- | ------ | --------------------------------------------------------- |
-| `ticket`  | string | Single-use WebSocket ticket (from `POST /auth/ws-ticket`) |
-| `shuffle` | `1`    | Request assignment to a different room                    |
-
-**Restrictions:** New accounts must wait 5 minutes before joining chat.
-
-**Room sizing:** 5-30 users per room, targeting 20. Users are auto-assigned to rooms by the lobby.
-
-#### Client-to-Server Messages
-
-```json
-{
-  "type": "message",
-  "content": "hello everyone"
-}
-```
-
-`content` max 280 characters, content-moderated. Rate limited to 10 messages per minute.
-
-#### Server-to-Client Messages
-
-**On connect — chat history:**
-
-```json
-{
-  "type": "history",
-  "messages": [
-    {
-      "type": "message",
-      "handle": "swiftfox",
-      "color": "cyan",
-      "content": "hello",
-      "timestamp": "2026-04-03T14:15:00.000Z"
-    }
-  ],
-  "roomCount": 8
-}
-```
-
-**Chat message:**
-
-```json
-{
-  "type": "message",
-  "handle": "swiftfox",
-  "color": "cyan",
-  "content": "hello everyone",
-  "timestamp": "2026-04-03T14:16:00.000Z"
-}
-```
-
-**User joined:**
-
-```json
-{
-  "type": "join",
-  "handle": "rapidotter",
-  "color": "orange",
-  "roomCount": 9
-}
-```
-
-**User left:**
-
-```json
-{
-  "type": "leave",
-  "handle": "rapidotter",
-  "roomCount": 8
-}
-```
-
-**System message (rate limit, moderation):**
-
-```json
-{
-  "type": "system",
-  "content": "Slow down — max 10 messages per minute."
-}
-```
-
----
 
 ### GET /teams/{id}/ws
 

@@ -96,7 +96,7 @@ packages/
       mcp-config.js     Tool detection and config file writing
       dashboard.jsx     Agent activity dashboard
       discover.jsx      Tool discovery screen (fetches catalog from API)
-      chat.jsx, customize.jsx             Other screens
+      customize.jsx     Profile editor (handle, color, status)
       api.js            HTTP client with timeout + retry
     dist/         Build output (gitignored)
 
@@ -115,8 +115,7 @@ packages/
       index.js      HTTP router, auth middleware, rate limiting
       db.js         DatabaseDO: users, agent profiles, rate limits
       team.js       TeamDO: coordination, activity, conflicts, memory, sessions
-      lobby.js      LobbyDO: room assignment and presence
-      room.js       RoomDO: WebSocket chat rooms
+      lobby.js      LobbyDO: global presence + /stats aggregates
       moderation.js Content moderation (blocklist + Llama Guard 3)
 
   web/          Landing page + React dashboard (Cloudflare Pages)
@@ -225,10 +224,9 @@ These versions must not be unified. They target different runtimes, and Ink does
 
 **Worker (`packages/worker/`)**
 
-- Four Durable Object classes: `DatabaseDO`, `TeamDO`, `LobbyDO`, `RoomDO`
-- Single `DatabaseDO` instance holds all persistent data (SQLite)
-- `LobbyDO` manages room assignment; rooms auto-size to ~20 users
-- `RoomDO` handles one chat room each with WebSocket connections
+- Three Durable Object classes: `DatabaseDO`, `TeamDO`, `LobbyDO`
+- Single `DatabaseDO` instance holds users, agent profiles, and rate limit ledgers (SQLite)
+- `LobbyDO` tracks global presence (handle + country) and serves the public `/stats` aggregates
 - Moderation is two-layer: fast blocklist plus Llama Guard 3 AI. See `CLAUDE.md` for the design rationale. Do not grow the blocklist as a strategy.
 - KV is for auth token lookups only. Do not add new KV use cases without discussion.
 

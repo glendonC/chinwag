@@ -68,7 +68,6 @@ function resolveConfigPathOptions(options: ConfigPathOptions = {}): RuntimeProfi
     profile: options.profile ?? process.env.CHINMEISTER_PROFILE,
     apiUrl: options.apiUrl ?? process.env.CHINMEISTER_API_URL,
     dashboardUrl: options.dashboardUrl ?? process.env.CHINMEISTER_DASHBOARD_URL,
-    chatWsUrl: options.chatWsUrl ?? process.env.CHINMEISTER_WS_URL,
   };
 }
 

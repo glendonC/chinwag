@@ -1438,21 +1438,6 @@ describe('Token lifecycle', () => {
 // --- WebSocket Origin Validation ---
 
 describe('WebSocket origin validation', () => {
-  it('rejects chat WS upgrade from unknown origin', async () => {
-    const { token } = await createAuthUser();
-    const res = await SELF.fetch('http://localhost/ws/chat?ticket=fake', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Origin: 'https://evil.com',
-        Upgrade: 'websocket',
-        Connection: 'Upgrade',
-      },
-    });
-    expect(res.status).toBe(403);
-    const body = (await res.json()) as any;
-    expect(body.error).toBe('Origin not allowed');
-  });
-
   it('rejects team WS upgrade from unknown origin', async () => {
     const { headers: authHeaders } = await createAuthUser();
 

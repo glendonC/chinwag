@@ -116,16 +116,6 @@ export const RATE_LIMIT_STATS_PER_IP = 2000;
 export const RATE_LIMIT_CATALOG_PER_IP = 200;
 export const RATE_LIMIT_ADMIN_BATCH_PER_IP = 20;
 
-// --- Chat room tuning ---
-export const CHAT_MIN_ROOM_SIZE = 5;
-export const CHAT_MAX_ROOM_SIZE = 30;
-export const CHAT_TARGET_ROOM_SIZE = 20;
-export const CHAT_MAX_HISTORY = 50;
-export const CHAT_MAX_MESSAGE_LENGTH = 280;
-export const CHAT_MAX_PER_MINUTE = 10;
-export const CHAT_RATE_LIMIT_WINDOW_MS = 60_000;
-export const CHAT_RATE_LIMIT_PRUNE_AFTER_MS = 120_000;
-
 // --- Presence ---
 export const PRESENCE_TTL_MS = 60_000;
 
@@ -197,7 +187,6 @@ export const METRIC_KEYS = {
 } as const;
 
 // --- Misc ---
-export const CHAT_COOLDOWN_MS = 5 * 60 * 1000;
 export const MAX_BODY_SIZE = 50_000;
 export const MAX_WS_MESSAGE_SIZE = 50_000;
 export const CLEANUP_INTERVAL_MS = 60_000;

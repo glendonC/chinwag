@@ -4,7 +4,6 @@ export interface RuntimeProfileOptions {
   profile?: string | null | undefined;
   apiUrl?: string | null | undefined;
   dashboardUrl?: string | null | undefined;
-  chatWsUrl?: string | null | undefined;
 }
 
 export interface RuntimeTargets {
@@ -13,7 +12,6 @@ export interface RuntimeTargets {
   dashboardUrl: string;
   dashboardOrigin: string;
   dashboardPath: string;
-  chatWsUrl: string;
   teamWsOrigin: string;
 }
 
@@ -84,11 +82,7 @@ export function resolveRuntimeProfile(
   const explicit = normalizeRuntimeProfile(options.profile);
   if (explicit) return explicit;
 
-  if (
-    isLoopbackUrl(options.apiUrl) ||
-    isLoopbackUrl(options.dashboardUrl) ||
-    isLoopbackUrl(options.chatWsUrl)
-  ) {
+  if (isLoopbackUrl(options.apiUrl) || isLoopbackUrl(options.dashboardUrl)) {
     return LOCAL_RUNTIME_PROFILE;
   }
 
@@ -114,7 +108,6 @@ export function resolveRuntimeTargets(options: RuntimeProfileOptions = {}): Runt
   const apiUrl = options.apiUrl || defaultApiUrl;
   const dashboardUrl = coerceDashboardUrl(options.dashboardUrl || defaultDashboardUrl, profile);
   const teamWsOrigin = toWebSocketOrigin(apiUrl);
-  const chatWsUrl = options.chatWsUrl || `${teamWsOrigin}/ws/chat`;
   const dashboard = new URL(dashboardUrl);
 
   return {
@@ -123,7 +116,6 @@ export function resolveRuntimeTargets(options: RuntimeProfileOptions = {}): Runt
     dashboardUrl,
     dashboardOrigin: dashboard.origin,
     dashboardPath: dashboard.pathname,
-    chatWsUrl,
     teamWsOrigin,
   };
 }

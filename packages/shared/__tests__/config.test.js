@@ -184,11 +184,6 @@ describe('config', () => {
       expect(getConfigPaths().profile).toBe('local');
     });
 
-    it('infers local from CHINMEISTER_WS_URL pointing to loopback', () => {
-      vi.stubEnv('CHINMEISTER_WS_URL', 'ws://localhost:8787/ws/chat');
-      expect(getConfigPaths().profile).toBe('local');
-    });
-
     it('allows callers to override the profile explicitly', () => {
       expect(getConfigPaths({ profile: 'local' }).configFile).toBe(LOCAL_CONFIG_FILE);
       expect(getConfigPaths({ profile: 'prod' }).configFile).toBe(CONFIG_FILE);

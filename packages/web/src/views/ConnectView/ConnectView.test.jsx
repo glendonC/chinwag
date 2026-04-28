@@ -45,7 +45,6 @@ async function loadConnectView({
     dashboardUrl: 'https://chinmeister.com/dashboard',
     dashboardOrigin: 'https://chinmeister.com',
     dashboardPath: '/dashboard',
-    chatWsUrl: 'wss://test.chinmeister.com/ws/chat',
     teamWsOrigin: 'wss://test.chinmeister.com',
   },
 } = {}) {
@@ -208,7 +207,6 @@ describe('ConnectView', () => {
         dashboardUrl: 'http://localhost:56790/dashboard.html',
         dashboardOrigin: 'http://localhost:56790',
         dashboardPath: '/dashboard.html',
-        chatWsUrl: 'ws://localhost:8787/ws/chat',
         teamWsOrigin: 'ws://localhost:8787',
       },
     });

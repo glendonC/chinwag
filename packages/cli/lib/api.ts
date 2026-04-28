@@ -9,7 +9,6 @@ export function getRuntimeTargets(): RuntimeTargets {
     profile: process.env.CHINMEISTER_PROFILE,
     apiUrl: process.env.CHINMEISTER_API_URL,
     dashboardUrl: process.env.CHINMEISTER_DASHBOARD_URL,
-    chatWsUrl: process.env.CHINMEISTER_WS_URL,
   });
 }
 

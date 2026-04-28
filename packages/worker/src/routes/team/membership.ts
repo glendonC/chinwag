@@ -156,8 +156,8 @@ export const handleTeamWebSocket = teamRoute(async ({ request, user, agentId, te
 
 /**
  * Membership-related team routes plus the team WebSocket upgrade.
- * The WS upgrade is registered first so that it stays adjacent to /ws/chat
- * in the matcher's parametric scan order, matching the legacy table.
+ * The WS upgrade is registered first so it precedes other parametric routes
+ * in the matcher's scan order.
  */
 export function registerMembershipRoutes(TID: string): RouteDefinition[] {
   return [

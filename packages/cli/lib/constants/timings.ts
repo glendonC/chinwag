@@ -34,9 +34,7 @@ export const DURATION_TICK_MS = 10_000;
 export const EXTERNAL_AGENT_POLL_MS = 3_000;
 export const EARLY_EXIT_THRESHOLD_MS = 15_000;
 
-// ── WebSocket (chat) ─────────────────────────────────
-export const RECONNECT_BASE_MS = 1_000;
-export const MAX_RECONNECT_DELAY_MS = 15_000;
+// ── UI display ───────────────────────────────────────
 export const ERROR_DISPLAY_MS = 3_000;
 
 // ── Process management ───────────────────────────────

@@ -62,7 +62,7 @@ Four levels of visibility into how you develop with AI — from individual agent
 
 - **Not an agent orchestrator.** chinmeister does not spawn, assign, or manage agent reasoning. It coordinates agents already running in their native tools.
 - **Not a monitoring dashboard.** Workflow intelligence drives action — every insight connects to something you can do about it. chinmeister is a cockpit, not a display.
-- **Not a community platform.** Chat exists but is secondary.
+- **Not a community platform.** No global chat surface; inter-agent messaging exists for coordination only.
 - **Not a replacement for CLAUDE.md or AGENTS.md.** Those are static per-tool instructions. chinmeister is dynamic shared memory and real-time coordination.
 
 ---

@@ -57,10 +57,6 @@ name = "LOBBY"
 class_name = "LobbyDO"
 
 [[env.local.durable_objects.bindings]]
-name = "ROOM"
-class_name = "RoomDO"
-
-[[env.local.durable_objects.bindings]]
 name = "TEAM"
 class_name = "TeamDO"
 
@@ -86,10 +82,6 @@ name = "LOBBY"
 class_name = "LobbyDO"
 
 [[durable_objects.bindings]]
-name = "ROOM"
-class_name = "RoomDO"
-
-[[durable_objects.bindings]]
 name = "TEAM"
 class_name = "TeamDO"
 
@@ -101,4 +93,8 @@ new_sqlite_classes = ["DatabaseDO", "LobbyDO", "RoomDO"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["TeamDO"]
+
+[[migrations]]
+tag = "v3"
+deleted_classes = ["RoomDO"]
 

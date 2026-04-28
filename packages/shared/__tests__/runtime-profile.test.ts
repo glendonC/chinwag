@@ -296,10 +296,6 @@ describe('resolveRuntimeProfile', () => {
       expect(resolveRuntimeProfile({ dashboardUrl: 'http://127.0.0.1:56790' })).toBe('local');
     });
 
-    it('detects local from loopback chatWsUrl', () => {
-      expect(resolveRuntimeProfile({ chatWsUrl: 'ws://localhost:8787/ws/chat' })).toBe('local');
-    });
-
     it('returns prod for remote URLs with no explicit profile', () => {
       expect(resolveRuntimeProfile({ apiUrl: 'https://api.chinmeister.com' })).toBe('prod');
     });
@@ -309,7 +305,6 @@ describe('resolveRuntimeProfile', () => {
         resolveRuntimeProfile({
           apiUrl: 'https://api.example.com',
           dashboardUrl: 'https://dashboard.example.com',
-          chatWsUrl: 'wss://ws.example.com',
         }),
       ).toBe('prod');
     });
@@ -370,7 +365,6 @@ describe('resolveRuntimeTargets', () => {
       apiUrl: DEFAULT_API_URL,
       dashboardUrl: DEFAULT_DASHBOARD_URL,
       teamWsOrigin: 'wss://api.chinmeister.com',
-      chatWsUrl: 'wss://api.chinmeister.com/ws/chat',
     });
   });
 
@@ -383,7 +377,6 @@ describe('resolveRuntimeTargets', () => {
       dashboardOrigin: 'http://localhost:56790',
       dashboardPath: '/dashboard.html',
       teamWsOrigin: 'ws://localhost:8787',
-      chatWsUrl: 'ws://localhost:8787/ws/chat',
     });
   });
 
@@ -394,7 +387,6 @@ describe('resolveRuntimeTargets', () => {
     });
     expect(targets.apiUrl).toBe('https://custom-api.example.com');
     expect(targets.teamWsOrigin).toBe('wss://custom-api.example.com');
-    expect(targets.chatWsUrl).toBe('wss://custom-api.example.com/ws/chat');
   });
 
   it('uses custom dashboardUrl override', () => {
@@ -407,23 +399,10 @@ describe('resolveRuntimeTargets', () => {
     expect(targets.dashboardPath).toBe('/my-dash');
   });
 
-  it('uses custom chatWsUrl override', () => {
-    const targets = resolveRuntimeTargets({
-      profile: 'prod',
-      chatWsUrl: 'wss://custom-ws.example.com/ws/chat',
-    });
-    expect(targets.chatWsUrl).toBe('wss://custom-ws.example.com/ws/chat');
-  });
-
   it('derives dashboardOrigin and dashboardPath from default prod', () => {
     const targets = resolveRuntimeTargets();
     expect(targets.dashboardOrigin).toBe('https://chinmeister.com');
     expect(targets.dashboardPath).toBe('/dashboard');
-  });
-
-  it('derives chatWsUrl from apiUrl when not explicitly provided', () => {
-    const targets = resolveRuntimeTargets({ profile: 'local' });
-    expect(targets.chatWsUrl).toBe('ws://localhost:8787/ws/chat');
   });
 
   it('returns all required fields', () => {
@@ -433,7 +412,6 @@ describe('resolveRuntimeTargets', () => {
     expect(targets).toHaveProperty('dashboardUrl');
     expect(targets).toHaveProperty('dashboardOrigin');
     expect(targets).toHaveProperty('dashboardPath');
-    expect(targets).toHaveProperty('chatWsUrl');
     expect(targets).toHaveProperty('teamWsOrigin');
   });
 
