@@ -747,6 +747,65 @@ function FlowPanel({ analytics }: { analytics: UserAnalytics }) {
     });
   }
 
+  // ── Q3 timing-distribution ──
+  // The Q2 RateStrip surfaces per-pair gap times but doesn't answer the
+  // shape question: do most handoffs flow inside the same session, or
+  // across hour-scale gaps. Bucket every handoff by its avg_gap_minutes
+  // and weight each bucket by file_count so the distribution reflects
+  // work volume, not the number of distinct pairs. Buckets pick the
+  // natural session-shape boundaries: in-session (<5m), short break
+  // (5-30m), context-shift (30m-2h), next-cycle (2h+).
+  const gapBuckets = (() => {
+    const buckets = [
+      { key: 'in-session', label: 'in session', min: 0, max: 5 },
+      { key: 'short-break', label: '5 to 30 min', min: 5, max: 30 },
+      { key: 'context-shift', label: '30 min to 2 hr', min: 30, max: 120 },
+      { key: 'next-cycle', label: '2 hr or more', min: 120, max: Infinity },
+    ];
+    const totals = buckets.map((b) => ({
+      ...b,
+      file_count: handoffs
+        .filter((h) => h.avg_gap_minutes >= b.min && h.avg_gap_minutes < b.max)
+        .reduce((s, h) => s + h.file_count, 0),
+    }));
+    return totals;
+  })();
+  const gapTotal = gapBuckets.reduce((s, b) => s + b.file_count, 0);
+  if (gapTotal > 0 && handoffs.length >= 2) {
+    const dominant = [...gapBuckets].sort((a, b) => b.file_count - a.file_count)[0];
+    const dominantShare = Math.round((dominant.file_count / gapTotal) * 100);
+    const distributionAnswer = (
+      <>
+        <Metric>{dominantShare}%</Metric> of cross-tool files moved{' '}
+        <Metric>{dominant.label}</Metric> across <Metric>{fmtCount(gapTotal)}</Metric> handoff files
+        in total.
+      </>
+    );
+    questions.push({
+      id: 'timing-distribution',
+      question: 'Are handoffs in-session or across breaks?',
+      answer: distributionAnswer,
+      children: (
+        <BreakdownList
+          items={gapBuckets.map((b) => ({
+            key: b.key,
+            label: <span className={styles.pairText}>{b.label}</span>,
+            fillPct: gapTotal > 0 ? (b.file_count / gapTotal) * 100 : 0,
+            value: (
+              <>
+                {fmtCount(b.file_count)} files
+                <BreakdownMeta>
+                  {' · '}
+                  {gapTotal > 0 ? Math.round((b.file_count / gapTotal) * 100) : 0}%
+                </BreakdownMeta>
+              </>
+            ),
+          }))}
+        />
+      ),
+    });
+  }
+
   return (
     <div className={styles.panel}>
       <FocusedDetailView
