@@ -17,6 +17,11 @@ function useIsDrillable(): boolean {
 function OutcomeTrendWidget({ analytics }: WidgetBodyProps) {
   // Hero-first rate signal. The overview should answer the trend in one
   // glance; the daily bars provide texture after the large number lands.
+  //
+  // No composite labels. ANALYTICS_SPEC §10 #2 forbids "AI development score"
+  // composites that conflate unrelated metrics into a meaningless word. We
+  // render the trending facts (period rate, end-to-end delta, daily tape)
+  // and let the reader compose the read.
   const drillable = useIsDrillable();
   const days = analytics.daily_trends;
   const observed = days.filter((d) => (d.sessions ?? 0) > 0);
@@ -31,15 +36,10 @@ function OutcomeTrendWidget({ analytics }: WidgetBodyProps) {
   const completed = observed.reduce((sum, d) => sum + (d.completed ?? 0), 0);
   const sessions = observed.reduce((sum, d) => sum + (d.sessions ?? 0), 0);
   const periodRate = sessions > 0 ? Math.round((completed / sessions) * 100) : 0;
-  const observedRates = observed.map((d) =>
-    Math.round(((d.completed ?? 0) / (d.sessions ?? 1)) * 100),
-  );
-  const firstRate = observedRates[0] ?? periodRate;
-  const lastRate = observedRates[observedRates.length - 1] ?? periodRate;
+  const firstRate = Math.round(((observed[0].completed ?? 0) / (observed[0].sessions ?? 1)) * 100);
+  const lastObserved = observed[observed.length - 1];
+  const lastRate = Math.round(((lastObserved.completed ?? 0) / (lastObserved.sessions ?? 1)) * 100);
   const delta = lastRate - firstRate;
-  const minRate = Math.min(...observedRates);
-  const maxRate = Math.max(...observedRates);
-  const signal = trendSignal(periodRate, delta, maxRate - minRate);
   const deltaTone = delta === 0 ? 'var(--muted)' : delta > 0 ? 'var(--success)' : 'var(--danger)';
   const detailLabel = `Open outcomes detail · ${periodRate}% completion rate trend`;
 
@@ -48,11 +48,11 @@ function OutcomeTrendWidget({ analytics }: WidgetBodyProps) {
       <div className={trend.rateHeader}>
         <div className={trend.rateHeroBlock}>
           <span className={trend.rateHero}>{periodRate}%</span>
-          <span className={trend.rateSignal} style={{ color: signal.color }}>
+          <span className={trend.rateSignal}>
             <span className={trend.rateDelta} style={{ color: deltaTone }}>
               {formatDelta(delta)}
             </span>{' '}
-            {signal.label}
+            vs start
             {drillable && (
               <span className={trend.rateDetailArrow} aria-hidden="true">
                 ↗
@@ -64,7 +64,7 @@ function OutcomeTrendWidget({ analytics }: WidgetBodyProps) {
       <div
         className={trend.rateTape}
         role="img"
-        aria-label={`Daily completion rate · ${periodRate}% overall, ${signal.label}`}
+        aria-label={`Daily completion rate, ${periodRate}% over ${observed.length} active days, ${formatDelta(delta)} vs start`}
       >
         {days.map((d) => {
           const daySessions = d.sessions ?? 0;
@@ -112,22 +112,6 @@ function OutcomeTrendWidget({ analytics }: WidgetBodyProps) {
       {content}
     </button>
   );
-}
-
-function trendSignal(
-  periodRate: number,
-  endDelta: number,
-  spread: number,
-): { label: string; color: string } {
-  if (Math.abs(endDelta) >= 12) {
-    return endDelta > 0
-      ? { label: 'improving', color: 'var(--success)' }
-      : { label: 'slipping', color: 'var(--danger)' };
-  }
-  if (spread >= 35) return { label: 'volatile', color: 'var(--warn)' };
-  if (periodRate >= 70) return { label: 'healthy', color: 'var(--success)' };
-  if (periodRate >= 50) return { label: 'watch', color: 'var(--warn)' };
-  return { label: 'at risk', color: 'var(--danger)' };
 }
 
 function formatDelta(delta: number): string {

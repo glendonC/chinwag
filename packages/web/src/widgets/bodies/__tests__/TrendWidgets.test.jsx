@@ -79,9 +79,9 @@ describe('OutcomeTrendWidget resilience', () => {
   });
 
   it('renders per-day completion-rate cells when outcomes are recorded', async () => {
-    // Sessions are heavily-completed on both active days so the widget's
-    // verdict reaches "healthy" (a 56% mixed sample, the prior fixture,
-    // would now read as "slipping" once thresholds tightened).
+    // Both active days are fully completed; the widget renders the period
+    // rate, a delta token (↑/↓/→<n>pt), the per-day tape, and the active-
+    // day footer. No composite labels per ANALYTICS_SPEC §10 #2.
     const { OutcomeTrendWidget, createEmptyUserAnalytics } = await loadModule();
     const analytics = createEmptyUserAnalytics();
     analytics.daily_trends = [
@@ -94,7 +94,8 @@ describe('OutcomeTrendWidget resilience', () => {
     const cells = r.container.querySelectorAll('[title]');
     expect(cells.length).toBe(analytics.daily_trends.length);
     expect(r.container.textContent).toMatch(/active days/);
-    expect(r.container.textContent).toMatch(/healthy/);
+    expect(r.container.textContent).toMatch(/[↑↓→]\d+pt/);
+    expect(r.container.textContent).toMatch(/vs start/);
     r.unmount();
   });
 });
