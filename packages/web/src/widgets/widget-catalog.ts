@@ -826,7 +826,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
     id: 'memory-cross-tool-flow',
     name: 'cross-tool memory',
     description:
-      "Memories one tool wrote that another tool's sessions could read. Proof that knowledge is moving between your tools. Note: this counts what's available to read, not what's actually been read; exact attribution is still being worked on.",
+      "Memories one tool wrote that another tool's sessions actually retrieved this period. Tool axis only; the number is reads, not the available pool.",
     category: 'memory',
     scope: 'both',
     viz: 'data-list',

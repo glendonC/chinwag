@@ -377,13 +377,24 @@ export function queryTopMemories(
 }
 
 // Cross-tool memory flow: pairs of (author_tool, consumer_tool) where the
-// consumer_tool ran sessions in the period that COULD have read memories
-// authored by author_tool. Honest framing: this measures co-presence
-// (consumer_tool had sessions while author_tool's memories existed) and
-// the AVAILABLE memory pool - not exact read attribution. The per-memory
-// `memory_search_results` join table is unbuilt (ANALYTICS_SPEC §10), so
-// we cannot say which sessions read which memories. The renderer labels
-// each row "available to" not "read by" to keep the framing honest.
+// consumer_tool's sessions actually retrieved memories the author_tool wrote
+// in the window. Built on the memory_search_results join (migration 028)
+// so the count is reads, not the available pool. The PK on
+// (session_id, memory_id) means a session that re-fetches the same memory
+// twice still only counts once toward `reading_sessions`, and the
+// COUNT(DISTINCT memory_id) keeps `memories_read` honest under repeated
+// search rounds.
+//
+// Tool axis only. The query intentionally drops the handle dimension so the
+// detail view cannot pivot to per-developer flow; that pivot is the
+// surveillance shape ANALYTICS_SPEC §10 #4 forbids. Scope filtering still
+// applies to consumer sessions so /me/-scope answers "what other tools'
+// memories did MY sessions read."
+//
+// Tolerance. Returns `[]` when memory_search_results is missing (older
+// TeamDOs that have not yet run migration 028) so the analytics endpoint
+// stays alive during a staggered upgrade. Same try/catch pattern the M.2
+// per-memory query uses.
 //
 // Detail-view English questions this anchors:
 //   1. Which tools share memory most? (this widget)
@@ -399,38 +410,30 @@ export function queryCrossToolMemoryFlow(
   days: number,
 ): CrossToolMemoryFlowEntry[] {
   try {
-    const { sql: head, params } = withScope(
-      `WITH active_authors AS (
-           SELECT host_tool, COUNT(*) AS memory_count
-           FROM memories
-           WHERE merged_into IS NULL AND invalid_at IS NULL
-             AND host_tool IS NOT NULL AND host_tool != 'unknown'
-           GROUP BY host_tool
-           HAVING memory_count > 0
-         ),
-         active_consumers AS (
-           SELECT host_tool, COUNT(*) AS session_count
-           FROM sessions
-           WHERE started_at > datetime('now', '-' || ? || ' days')
-             AND host_tool IS NOT NULL AND host_tool != 'unknown'`,
+    const { sql: q, params } = withScope(
+      `SELECT
+           m.host_tool AS author_tool,
+           s.host_tool AS consumer_tool,
+           COUNT(DISTINCT msr.memory_id) AS memories_read,
+           COUNT(DISTINCT msr.session_id) AS reading_sessions
+         FROM memory_search_results msr
+         JOIN sessions s ON s.id = msr.session_id
+         JOIN memories m ON m.id = msr.memory_id
+         WHERE msr.searched_at > datetime('now', '-' || ? || ' days')
+           AND m.merged_into IS NULL
+           AND m.invalid_at IS NULL
+           AND m.host_tool IS NOT NULL AND m.host_tool != 'unknown'
+           AND s.host_tool IS NOT NULL AND s.host_tool != 'unknown'
+           AND m.host_tool != s.host_tool`,
       [days],
       scope,
+      { handleColumn: 's.handle' },
     );
     const resultRows = sql
       .exec(
-        `${head}
-           GROUP BY host_tool
-           HAVING session_count > 0
-         )
-         SELECT
-           a.host_tool AS author_tool,
-           c.host_tool AS consumer_tool,
-           a.memory_count AS memories,
-           c.session_count AS consumer_sessions
-         FROM active_authors a
-         CROSS JOIN active_consumers c
-         WHERE a.host_tool != c.host_tool
-         ORDER BY (a.memory_count * c.session_count) DESC
+        `${q}
+         GROUP BY author_tool, consumer_tool
+         ORDER BY memories_read DESC, reading_sessions DESC
          LIMIT ?`,
         ...params,
         CROSS_TOOL_FLOW_LIMIT,
@@ -439,8 +442,8 @@ export function queryCrossToolMemoryFlow(
     return rows(resultRows, (r) => ({
       author_tool: r.string('author_tool'),
       consumer_tool: r.string('consumer_tool'),
-      memories: r.number('memories'),
-      consumer_sessions: r.number('consumer_sessions'),
+      memories_read: r.number('memories_read'),
+      reading_sessions: r.number('reading_sessions'),
     }));
   } catch (err) {
     log.warn(`crossToolMemoryFlow query failed: ${err}`);

@@ -152,19 +152,21 @@ function MemoryAgingCurveWidget({ analytics }: WidgetBodyProps) {
 
 // ── memory across tools (subgrid table) ─────────────
 //
-// FROM | TO | MEMORIES | SESSIONS — same shape as live-agents. Tool-color
+// FROM | TO | READS | SESSIONS — same shape as live-agents. Tool-color
 // dot beside each tool label. No bars; ranking is implicit in row order.
+// Counts are actual reads off the memory_search_results join, not the
+// available-to-read pool.
 
 function MemoryCrossToolFlowWidget({ analytics }: WidgetBodyProps) {
   const flow = analytics.cross_tool_memory_flow;
   if (flow.length === 0) {
     return (
       <SectionEmpty>
-        Cross-tool flow appears once two tools have memories and active sessions.
+        Cross-tool flow appears once one tool&apos;s sessions read another tool&apos;s memories.
       </SectionEmpty>
     );
   }
-  const sorted = [...flow].sort((a, b) => b.memories - a.memories);
+  const sorted = [...flow].sort((a, b) => b.memories_read - a.memories_read);
   const visible = sorted.slice(0, FLOW_PAIRS_VISIBLE);
   const hidden = sorted.length - visible.length;
   return (
@@ -172,7 +174,7 @@ function MemoryCrossToolFlowWidget({ analytics }: WidgetBodyProps) {
       <div className={s.tableHeader}>
         <span>From</span>
         <span>To</span>
-        <span className={s.tableHeaderNum}>Memories</span>
+        <span className={s.tableHeaderNum}>Reads</span>
         <span className={s.tableHeaderNum}>Sessions</span>
       </div>
       <div className={s.tableBody}>
@@ -193,8 +195,8 @@ function MemoryCrossToolFlowWidget({ analytics }: WidgetBodyProps) {
                 <span className={s.tableToolDot} style={{ background: to.color }} />
                 <span className={s.tableToolName}>{to.label}</span>
               </span>
-              <span className={s.tableNum}>{fmt(f.memories)}</span>
-              <span className={s.tableNumSecondary}>{fmt(f.consumer_sessions)}</span>
+              <span className={s.tableNum}>{fmt(f.memories_read)}</span>
+              <span className={s.tableNumSecondary}>{fmt(f.reading_sessions)}</span>
             </div>
           );
         })}

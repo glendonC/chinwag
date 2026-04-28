@@ -452,18 +452,19 @@ export type CrossToolHandoffEntry = z.infer<typeof crossToolHandoffEntrySchema>;
 
 // Cross-tool memory flow. For each (author_tool, consumer_tool) pair, count
 // memories authored by author_tool that were available to consumer_tool's
-// sessions in the window. Honest framing: this measures availability +
-// co-presence, not exact read attribution (the per-memory join table
-// `memory_search_results` is unbuilt - see ANALYTICS_SPEC §10). Renderers
-// label rows accordingly. Detail-view English questions: which tools share
+// sessions in the window. Built on the memory_search_results join
+// (migration 028 / ANALYTICS_SPEC §11) so the read is what was actually
+// retrieved, not the available pool. Tool-axis only - per-handle flow
+// would step into ANALYTICS_SPEC §10 #4 (surveillance) and is not
+// emitted by this query. Detail-view English questions: which tools share
 // memory most? · which categories cross tools? · does cross-tool memory
 // help completion? · how fresh is shared knowledge? · which sessions
 // benefited from another tool's memory?
 export const crossToolMemoryFlowEntrySchema = z.object({
   author_tool: z.string(),
   consumer_tool: z.string(),
-  memories: z.number(),
-  consumer_sessions: z.number(),
+  memories_read: z.number(),
+  reading_sessions: z.number(),
 });
 export type CrossToolMemoryFlowEntry = z.infer<typeof crossToolMemoryFlowEntrySchema>;
 

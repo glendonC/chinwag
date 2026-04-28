@@ -88,7 +88,7 @@ export default function MemoryDetailView({
   const distinctPairs = useMemo(() => {
     const set = new Set<string>();
     for (const f of flow) {
-      if (f.memories > 0) set.add(`${f.author_tool}|${f.consumer_tool}`);
+      if (f.memories_read > 0) set.add(`${f.author_tool}|${f.consumer_tool}`);
     }
     return set.size;
   }, [flow]);
@@ -607,10 +607,10 @@ function FreshnessPanel({ analytics }: { analytics: UserAnalytics }) {
 
 // ── Cross-tool panel ────────────────────────────────
 //
-// Author→consumer flow with twin micro-bars (memories written, sessions
-// reachable). Bar 1 max is the max memories across pairs; bar 2 max is
-// the max consumer_sessions, heterogeneous scales let the eye compare
-// strengths within each axis without one number dwarfing the other.
+// Author→consumer flow with twin micro-bars (memories actually read,
+// reading sessions). Bar 1 max is the max memories_read across pairs; bar
+// 2 max is the max reading_sessions, heterogeneous scales let the eye
+// compare strengths within each axis without one number dwarfing the other.
 
 function CrossToolPanel({ analytics }: { analytics: UserAnalytics }) {
   const activeId = useQueryParam('q');
@@ -620,24 +620,25 @@ function CrossToolPanel({ analytics }: { analytics: UserAnalytics }) {
     return (
       <div className={styles.panel}>
         <span className={styles.empty}>
-          Cross-tool flow appears once two tools have memories AND active sessions in this window.
+          Cross-tool flow appears once one tool&apos;s sessions read another tool&apos;s memories in
+          this window.
         </span>
       </div>
     );
   }
 
-  const sortedFlow = [...flow].sort((a, b) => b.memories - a.memories);
+  const sortedFlow = [...flow].sort((a, b) => b.memories_read - a.memories_read);
   const visible = sortedFlow.slice(0, 8);
-  const maxMemories = Math.max(...visible.map((f) => f.memories), 1);
-  const maxSessions = Math.max(...visible.map((f) => f.consumer_sessions), 1);
+  const maxReads = Math.max(...visible.map((f) => f.memories_read), 1);
+  const maxSessions = Math.max(...visible.map((f) => f.reading_sessions), 1);
 
   const top = visible[0];
   const flowAnswer = top ? (
     <>
-      <Metric>{getToolMeta(top.author_tool).label}</Metric> writes the most memories that{' '}
-      <Metric>{getToolMeta(top.consumer_tool).label}</Metric> sessions can read,{' '}
-      <Metric>{fmtCount(top.memories)}</Metric> available across{' '}
-      <Metric>{fmtCount(top.consumer_sessions)}</Metric> sessions.
+      <Metric>{getToolMeta(top.consumer_tool).label}</Metric> sessions read the most memories
+      written by <Metric>{getToolMeta(top.author_tool).label}</Metric>,{' '}
+      <Metric>{fmtCount(top.memories_read)}</Metric> distinct memories across{' '}
+      <Metric>{fmtCount(top.reading_sessions)}</Metric> sessions.
     </>
   ) : null;
 
@@ -659,17 +660,17 @@ function CrossToolPanel({ analytics }: { analytics: UserAnalytics }) {
                 to={{ id: f.consumer_tool, label: toMeta.label, color: toMeta.color }}
                 bars={[
                   {
-                    label: 'memories',
-                    value: f.memories,
-                    max: maxMemories,
+                    label: 'memories read',
+                    value: f.memories_read,
+                    max: maxReads,
                     color: fromMeta.color,
-                    display: fmtCount(f.memories),
+                    display: fmtCount(f.memories_read),
                   },
                   {
-                    label: 'reachable sessions',
-                    value: f.consumer_sessions,
+                    label: 'reading sessions',
+                    value: f.reading_sessions,
                     max: maxSessions,
-                    display: fmtCount(f.consumer_sessions),
+                    display: fmtCount(f.reading_sessions),
                   },
                 ]}
               />
