@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from 'react';
 import SectionEmpty from '../../components/SectionEmpty/SectionEmpty.js';
 import { getToolMeta } from '../../lib/toolMeta.js';
+import { MoreHidden } from './shared.js';
 import s from './MemoryWidgets.module.css';
 import type { WidgetBodyProps, WidgetRegistry } from './types.js';
 
@@ -164,6 +165,7 @@ function MemoryCrossToolFlowWidget({ analytics }: WidgetBodyProps) {
   }
   const sorted = [...flow].sort((a, b) => b.memories - a.memories);
   const visible = sorted.slice(0, FLOW_PAIRS_VISIBLE);
+  const hidden = sorted.length - visible.length;
   return (
     <div className={s.flowTable}>
       <div className={s.tableHeader}>
@@ -196,6 +198,7 @@ function MemoryCrossToolFlowWidget({ analytics }: WidgetBodyProps) {
           );
         })}
       </div>
+      <MoreHidden count={hidden} />
     </div>
   );
 }
@@ -221,6 +224,7 @@ function MemoryBusFactorWidget({ analytics }: WidgetBodyProps) {
     return sb - sa;
   });
   const visible = sorted.slice(0, SINGLE_AUTHOR_VISIBLE);
+  const hidden = sorted.length - visible.length;
   return (
     <div className={s.concTable}>
       <div className={s.tableHeader}>
@@ -251,6 +255,7 @@ function MemoryBusFactorWidget({ analytics }: WidgetBodyProps) {
           );
         })}
       </div>
+      <MoreHidden count={hidden} />
     </div>
   );
 }
