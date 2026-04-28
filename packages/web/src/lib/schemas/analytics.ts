@@ -309,8 +309,8 @@ const crossToolHandoffEntrySchema = baseCrossToolHandoffEntrySchema.extend({
 });
 
 const crossToolMemoryFlowEntrySchema = baseCrossToolMemoryFlowEntrySchema.extend({
-  memories: z.number().default(0),
-  consumer_sessions: z.number().default(0),
+  memories_read: z.number().default(0),
+  reading_sessions: z.number().default(0),
 });
 
 const memoryAgingCompositionSchema = baseMemoryAgingCompositionSchema.extend({

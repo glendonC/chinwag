@@ -418,3 +418,133 @@ describe('queryMemoryPerEntryOutcomes', () => {
     expect(entry.completion_rate).toBe(100);
   });
 });
+
+// queryCrossToolMemoryFlow ────────────────────────────────────────────
+//
+// The cross-tool flow is rebuilt on the memory_search_results join so the
+// numbers reflect actual reads, not co-presence. These tests lock in:
+// empty on a fresh team, same-tool reads do not appear, distinct
+// (author_tool, consumer_tool) pairs surface with the right counts, and
+// within-session dedupe is enforced by the join PK.
+
+describe('queryCrossToolMemoryFlow', () => {
+  it('returns empty array on a fresh team', async () => {
+    const team = getTeam('mq-xtf-empty');
+    const agentId = 'claude-code:mq-xtf-empty';
+    const ownerId = 'user-mq-xtf-empty';
+
+    await team.join(agentId, ownerId, 'nick', 'claude-code');
+    const a = await team.getAnalytics(agentId, 7, ownerId, true);
+    expect(a.ok).toBe(true);
+    expect(a.cross_tool_memory_flow).toEqual([]);
+  });
+
+  it('excludes same-tool reads', async () => {
+    // A claude-code session reading a memory written by another claude-code
+    // session is in-tool reuse, not cross-tool flow. The query filters on
+    // m.host_tool != s.host_tool, so the row should not appear.
+    const team = getTeam('mq-xtf-same-tool');
+    const claudeAgent = 'claude-code:mq-xtf-same-tool';
+    const ownerId = 'user-mq-xtf-same-tool';
+
+    await team.join(claudeAgent, ownerId, 'olive', 'claude-code');
+    await team.saveMemory(
+      claudeAgent,
+      'Same-tool-token only claude-code touches this',
+      ['ops'],
+      null,
+      'olive',
+      null,
+      ownerId,
+    );
+
+    const sess = await team.startSession(claudeAgent, 'olive', 'react', null, ownerId);
+    expect(sess.ok).toBe(true);
+    await team.searchMemories(claudeAgent, 'Same-tool-token', null, null, 10, ownerId);
+    await team.endSession(claudeAgent, sess.session_id, ownerId);
+
+    const a = await team.getAnalytics(claudeAgent, 7, ownerId, true);
+    expect(a.ok).toBe(true);
+    expect(a.cross_tool_memory_flow).toEqual([]);
+  });
+
+  it('attributes reads from a different tool to the right author/consumer pair', async () => {
+    // claude-code writes a memory, cursor's session searches and finds it.
+    // The join writes one row keyed on (cursor_session_id, memory_id), and
+    // the cross-tool query groups it as (claude-code → cursor).
+    const team = getTeam('mq-xtf-cross-tool');
+    const claudeAgent = 'claude-code:mq-xtf-cross-tool';
+    const cursorAgent = 'cursor:mq-xtf-cross-tool';
+    const ownerId = 'user-mq-xtf-cross-tool';
+
+    await team.join(claudeAgent, ownerId, 'paul', 'claude-code');
+    await team.join(cursorAgent, ownerId, 'paul', 'cursor');
+    await team.saveMemory(
+      claudeAgent,
+      'Plasma-unique-token shared across tools',
+      ['ops'],
+      null,
+      'paul',
+      null,
+      ownerId,
+    );
+
+    const cursorSess = await team.startSession(cursorAgent, 'paul', 'react', null, ownerId);
+    expect(cursorSess.ok).toBe(true);
+    await team.searchMemories(cursorAgent, 'Plasma-unique-token', null, null, 10, ownerId);
+    await team.endSession(cursorAgent, cursorSess.session_id, ownerId);
+
+    const a = await team.getAnalytics(claudeAgent, 7, ownerId, true);
+    expect(a.ok).toBe(true);
+    const pair = a.cross_tool_memory_flow.find(
+      (r) => r.author_tool === 'claude-code' && r.consumer_tool === 'cursor',
+    );
+    expect(pair).toBeDefined();
+    expect(pair.memories_read).toBe(1);
+    expect(pair.reading_sessions).toBe(1);
+    // Reverse pair must not exist - cursor wrote nothing for claude-code to read.
+    const reverse = a.cross_tool_memory_flow.find(
+      (r) => r.author_tool === 'cursor' && r.consumer_tool === 'claude-code',
+    );
+    expect(reverse).toBeUndefined();
+  });
+
+  it('counts a session once even when it re-searches the same memory', async () => {
+    // PRIMARY KEY (session_id, memory_id) on memory_search_results means a
+    // session that re-fetches the same cross-tool memory only contributes
+    // one row. memories_read uses COUNT(DISTINCT memory_id) and
+    // reading_sessions uses COUNT(DISTINCT session_id), so the pair
+    // remains 1×1 even after multiple searches.
+    const team = getTeam('mq-xtf-dedupe');
+    const claudeAgent = 'claude-code:mq-xtf-dedupe';
+    const cursorAgent = 'cursor:mq-xtf-dedupe';
+    const ownerId = 'user-mq-xtf-dedupe';
+
+    await team.join(claudeAgent, ownerId, 'quinn', 'claude-code');
+    await team.join(cursorAgent, ownerId, 'quinn', 'cursor');
+    await team.saveMemory(
+      claudeAgent,
+      'Quasar-unique-token re-read across calls',
+      ['ops'],
+      null,
+      'quinn',
+      null,
+      ownerId,
+    );
+
+    const cursorSess = await team.startSession(cursorAgent, 'quinn', 'react', null, ownerId);
+    for (let k = 0; k < 4; k++) {
+      await team.searchMemories(cursorAgent, 'Quasar-unique-token', null, null, 10, ownerId);
+    }
+    await team.endSession(cursorAgent, cursorSess.session_id, ownerId);
+
+    const a = await team.getAnalytics(claudeAgent, 7, ownerId, true);
+    expect(a.ok).toBe(true);
+    const pair = a.cross_tool_memory_flow.find(
+      (r) => r.author_tool === 'claude-code' && r.consumer_tool === 'cursor',
+    );
+    expect(pair).toBeDefined();
+    expect(pair.memories_read).toBe(1);
+    expect(pair.reading_sessions).toBe(1);
+  });
+});

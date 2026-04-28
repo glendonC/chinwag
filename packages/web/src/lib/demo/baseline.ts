@@ -1650,15 +1650,38 @@ export function createBaselineAnalytics(): UserAnalytics {
     cross_tool_handoff_questions,
     // Memory category fixtures sized off memory_usage above (total=28,
     // stale=3, pending_consolidation_proposals=1). Aging buckets sum to
-    // total; supersession.pending mirrors memory_usage; cross-tool flow
-    // expresses author→consumer pairs across the active tool set.
+    // total; supersession.pending mirrors memory_usage. Cross-tool flow
+    // counts actual reads off memory_search_results: memories_read is the
+    // distinct memories the consumer pulled in, reading_sessions is the
+    // distinct consumer sessions that pulled at least one. Both numbers
+    // are smaller than the available pool.
     cross_tool_memory_flow: [
-      { author_tool: 'claude-code', consumer_tool: 'cursor', memories: 9, consumer_sessions: 14 },
-      { author_tool: 'claude-code', consumer_tool: 'aider', memories: 6, consumer_sessions: 5 },
-      { author_tool: 'cursor', consumer_tool: 'claude-code', memories: 5, consumer_sessions: 11 },
-      { author_tool: 'cursor', consumer_tool: 'aider', memories: 3, consumer_sessions: 4 },
-      { author_tool: 'aider', consumer_tool: 'claude-code', memories: 2, consumer_sessions: 8 },
-      { author_tool: 'aider', consumer_tool: 'cursor', memories: 1, consumer_sessions: 6 },
+      {
+        author_tool: 'claude-code',
+        consumer_tool: 'cursor',
+        memories_read: 5,
+        reading_sessions: 8,
+      },
+      {
+        author_tool: 'claude-code',
+        consumer_tool: 'aider',
+        memories_read: 3,
+        reading_sessions: 3,
+      },
+      {
+        author_tool: 'cursor',
+        consumer_tool: 'claude-code',
+        memories_read: 3,
+        reading_sessions: 6,
+      },
+      { author_tool: 'cursor', consumer_tool: 'aider', memories_read: 2, reading_sessions: 2 },
+      {
+        author_tool: 'aider',
+        consumer_tool: 'claude-code',
+        memories_read: 1,
+        reading_sessions: 4,
+      },
+      { author_tool: 'aider', consumer_tool: 'cursor', memories_read: 1, reading_sessions: 3 },
     ],
     memory_aging: { recent_7d: 7, recent_30d: 11, recent_90d: 7, older: 3 },
     memory_categories: [
