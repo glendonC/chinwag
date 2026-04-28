@@ -179,7 +179,7 @@ export function queryToolCallStats(
     try {
       const { sql: oneShotQ, params: oneShotP } = withScope(
         `SELECT session_id, tool, host_tool FROM tool_calls
-           WHERE created_at > datetime('now', '-' || ? || ' days')`,
+           WHERE called_at > datetime('now', '-' || ? || ' days')`,
         [days],
         scope,
       );
